@@ -101,7 +101,7 @@ def test_launcher_colored_filters():
 def test_history_and_recent_files_browse_in_the_field():
     # the field shows recent searches and the recently-used files
     assert "readonly property var historyItems: LauncherEntries.searchHistory" in SEARCH
-    assert "win.recent = out.slice(0, 10)" in SEARCH
+    assert "readonly property var recent: RecentFiles.files.slice(0, 10)" in SEARCH
     # a click fills the field; the field has no caret, so it appends
     assert "win.typed = modelData.title" in SEARCH
 

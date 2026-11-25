@@ -91,10 +91,14 @@ Singleton {
     })
     readonly property color chosen: mix((accents[Settings.data.accentName] || accents.orange)[0], (accents[Settings.data.accentName] || accents.orange)[1])
     readonly property color accent: Settings.data.accentFromWallpaper ? picked : chosen
+    // the ink (near-black or white) that reads on any fill, by WCAG contrast:
+    // text on a computed colour (treemap tiles, chips, swatches) asks here
+    // instead of guessing from the dark/light style
+    function inkOn(fill) { return Contrast.readableOn(Qt.color(fill), [Qt.color("#08110f"), Qt.color("#ffffff")], 4.5) }
     // the ink on the accent: measured, not guessed. A pale accent takes dark
     // text, a deep one takes white - and the switch happens where the
     // contrast says it does, not where the eye expects it.
-    readonly property color accentInk: Contrast.readableOn(root.accent, [Qt.color("#08110f"), Qt.color("#ffffff")], 4.5)
+    readonly property color accentInk: inkOn(root.accent)
     // The check above is ink ON the accent; this is the accent ON the page.
     // WCAG 2.1 wants 3:1 for non-text UI (accentLine, borders, icons). Exposed
     // as properties so Settings can show a warning later — we do not silently

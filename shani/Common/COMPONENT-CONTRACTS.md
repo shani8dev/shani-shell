@@ -76,12 +76,26 @@ scaffolding; one spacing/typography change reaches every adopting page.
 ### `Fade.qml` — one accent pulse: `active` (loop while true), `flash()` (one
 shot), `duration`, `pulseFrom`/`pulseTo`. Honours `Settings.data.reduceMotion`
 in one place; use instead of hand-rolled `SequentialAnimation on opacity`.
+### `DayCell.qml` — one day in a calendar grid: `label`, `date` (spoken name),
+`isToday`, `isSelected`, `isWeek` (faint week number, not a button),
+`interactive` (default: not a week and not blank), `fontSize`, `activated()`;
+children (event dots) sit over the label. One look everywhere: selected =
+accent fill + accent ink, today = soft accent + accent text. Blank cells are
+hidden from screen readers. Consumers: DatePicker, sidebar Calendar,
+CalendarPanel (month grid, week strip).
 
 ## Catalogs (pure JS, `pragma library`)
 
 - `Tools.js` — the nine shell tools: `label`, `icon`, `flag`, `op`, `words`.
   LauncherActions, WindowMenu, Dock, SidebarTiles, SettingsIndex and QuickPanel
-  all derive from this list. Add a tool here only.
+  all derive from this list. Add a tool here only. Open one with
+  `Ui.openTool(flag)` — never a local table of `Ui.<flag> = true` closures.
+- `Month.js` — a month as a grid: `lead(month, sundayFirst)`, `daysIn(month)`,
+  `cells(month, sundayFirst, weekNumbers)` (`{week}` / `{day}`, day ≤ 0 is a
+  blank), `weekNames(sundayFirst, Tr.dayNamesShort)` (localized header).
+- `Markup.js` — `draw(ctx, w, h, kind, color, size, pts, words)`: one mark
+  (pen, highlight, line, arrow, box, blur, text) on a Canvas, shaped by the
+  mark's own kind. Viewer and PdfReader draw through it.
 - `Format.js` — `humanSize(bytes, style)` with `style`: `binary` (default),
   `si`, `tb`, `whole`. Each surface passes its style to preserve displayed
   values; changing a style here changes that surface everywhere.
@@ -105,6 +119,11 @@ in one place; use instead of hand-rolled `SequentialAnimation on opacity`.
   separate concern from app routing.
 - `Services/Files.qml` GTK bookmarks are the flat bookmark store; `SpeedDial`
   is the sectioned store. They are intentionally separate.
+- `Services/RecentFiles.qml`: `files` — recently-used.xbel, newest first (max
+  40). The launcher and the overview search bind to it; never parse the xbel
+  in a surface.
+- `Theme.inkOn(fill)`: the readable ink (near-black or white, WCAG 4.5:1) on
+  any computed fill. Never pick text colour by `Theme.dark ? "#…" : "#…"`.
 - `Settings.data` in `Common/Settings.qml` is the one persisted settings store;
   surfaces may have local JsonAdapter siblings only for data that is not a
   user setting (e.g. `osk.json`, `processes-sort.json`).
@@ -117,3 +136,6 @@ in one place; use instead of hand-rolled `SequentialAnimation on opacity`.
 3. Adding a catalog entry: update the JS list, not each surface.
 4. Never copy a Common widget body into a Module. If a surface needs a variant,
    add a property to the shared widget.
+5. `tests/test_design_drift.py` bans the copies that already drifted once and
+   ratchets literal colours, radii and font sizes: lower its ceilings when you
+   remove literals, never raise them.

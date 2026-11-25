@@ -93,33 +93,7 @@ PanelWindow {
         { title: Tr.t("Network Tools"), query: "tool:network" },
         { title: Tr.t("Gateway"), query: "tool:gateway" }
     ]
-    property var recent: []        // the shared recently-used list: [{ path, name, when, app }]
-    // recently used files, read like the launcher reads the same list
-    FileView {
-        path: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/recently-used.xbel"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            const raw = text();
-            const out = [];
-            const tagRe = /<bookmark[\s][^>]*>/g;
-            let m;
-            while ((m = tagRe.exec(raw)) !== null) {
-                const tag = m[0];
-                const href = tag.match(/href="file:\/\/([^"]+)"/);
-                if (!href) continue;
-                const when = (tag.match(/\bmodified="([^"]+)"/) || tag.match(/\badded="([^"]+)"/)
-                              || tag.match(/\bvisited="([^"]+)"/) || [])[1] || "";
-                const next = /<bookmark[\s]/.exec(raw.slice(tagRe.lastIndex));
-                const stop = next ? tagRe.lastIndex + next.index : raw.length;
-                const app = (/<bookmark:application\b[^>]*\bname="([^"]+)"/.exec(raw.slice(tagRe.lastIndex, stop)) || [])[1] || "";
-                const path = decodeURIComponent(href[1]);
-                out.push({ path: path, name: path.split("/").pop(), when: when, app: app });
-            }
-            win.recent = out.slice(0, 10);
-        }
-    }
+    readonly property var recent: RecentFiles.files.slice(0, 10)   // newest first (Services/RecentFiles)
 
     // ---- the live switcher: more spaces groups --------------------------------
     // every workspace on the focused output, the live switcher between them

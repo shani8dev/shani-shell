@@ -213,35 +213,21 @@ AppWindow {
             anchors.margins: Theme.px(16)
             spacing: Theme.px(8)
 
-            RowLayout {
+            InfoBanner {
                 Layout.fillWidth: true
                 visible: win.error !== ""
-                spacing: Theme.px(8)
-                Text {
-                    Layout.fillWidth: true
-                    text: win.error
-                    color: Theme.danger
-                    wrapMode: Text.Wrap
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                    Accessible.role: Accessible.StaticText
-                    Accessible.name: text
-                }
-                Button { text: "Dismiss"; flat: true; onClicked: win.error = "" }
+                tone: "error"
+                text: win.error
+                accessibleRole: Accessible.AlertMessage
+                Button { text: Tr.t("Dismiss"); flat: true; onClicked: win.error = "" }
             }
-            RowLayout {
+            InfoBanner {
                 Layout.fillWidth: true
                 visible: win.note !== ""
-                spacing: Theme.px(8)
-                Text {
-                    Layout.fillWidth: true
-                    text: win.note
-                    color: Theme.amber
-                    wrapMode: Text.Wrap
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                }
-                Button { text: "Dismiss"; flat: true; onClicked: win.note = "" }
+                tone: "warn"
+                text: win.note
+                accessibleRole: Accessible.AlertMessage
+                Button { text: Tr.t("Dismiss"); flat: true; onClicked: win.note = "" }
             }
             BusyNote {
                 Layout.fillWidth: true
@@ -400,8 +386,8 @@ AppWindow {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Button { text: "Copy this result"; flat: true; onClicked: win.copyOne(win.selected) }
-                        Button { text: "Close details"; flat: true; onClicked: win.selected = null }
+                        Button { text: Tr.t("Copy this result"); flat: true; onClicked: win.copyOne(win.selected) }
+                        Button { text: Tr.t("Close details"); flat: true; onClicked: win.selected = null }
                     }
                 }
             }

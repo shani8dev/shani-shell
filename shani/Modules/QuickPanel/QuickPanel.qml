@@ -15,13 +15,7 @@ import "../../Common/Tools.js" as Tools
 PanelWindow {
     NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
     id: win
-    // Tools.list owns the first four labels, icons and order.
-    readonly property var toolRuns: ({
-        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
-        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
-        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
-        netTools: () => { Ui.closeAll(); Ui.netTools = true; }
-    })
+    // Tools.list owns the first four labels, icons and order; Ui.openTool opens them.
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     visible: Ui.quickPanel && !Lock.locked
     anchors { top: true; bottom: true; right: true }
@@ -240,7 +234,7 @@ PanelWindow {
                     }
                     Repeater {
                         model: Tools.list.slice(0, 4).map(t => ({
-                                label: Tr.t(t.label), icon: t.icon, run: toolRuns[t.flag]
+                                label: Tr.t(t.label), icon: t.icon, run: () => Ui.openTool(t.flag)
                             }))
                         delegate: Rectangle {
                             required property var modelData

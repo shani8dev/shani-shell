@@ -2,7 +2,7 @@
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
-import "../../Common/Format.js" as Format
+import "../../Common/Month.js" as Month
 
 ColumnLayout {
     id: root
@@ -10,32 +10,10 @@ ColumnLayout {
     property int offset: 0
     readonly property date month: new Date(today.getFullYear(), today.getMonth() + offset, 1)
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
-    // blanks before the 1st, then the days; Monday-first or Sunday-first
-    readonly property int lead: sundayFirst ? month.getDay() : (month.getDay() + 6) % 7
-    readonly property int days: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
     readonly property bool weekNumbers: Settings.data.weekNumbers
-    // ISO 8601: the week holding the year's first Thursday is week 1
-    function isoWeek(d) { return Format.isoWeek(d); }
-    // the grid, cell by cell: an optional week number, then seven days, per row
-    readonly property var cells: {
-        const out = [];
-        const rows = Math.ceil((lead + days) / 7);
-        for (let r = 0; r < rows; r++) {
-            if (weekNumbers) {
-                // the row's Thursday-anchored week: any day of the row inside the month will do
-                const first = Math.max(1, r * 7 - lead + 1);
-                out.push({ week: isoWeek(new Date(month.getFullYear(), month.getMonth(), first)) });
-            }
-            for (let c = 0; c < 7; c++) {
-                const day = r * 7 + c - lead + 1;
-                if (day > days)
-                    break;
-                out.push({ day: day });
-            }
-        }
-        return out;
-    }
-    readonly property var weekNames: sundayFirst ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    // blanks, days and ISO week numbers: Common/Month.js, shared with every calendar
+    readonly property var cells: Month.cells(month, sundayFirst, weekNumbers)
+    readonly property var weekNames: Month.weekNames(sundayFirst, Tr.dayNamesShort)
     spacing: Theme.px(6)
 
     RowLayout {
@@ -81,24 +59,16 @@ ColumnLayout {
         }
         Repeater {
             model: root.cells
-            Rectangle {
+            DayCell {
                 required property var modelData
-                readonly property bool isWeek: modelData.week !== undefined
                 readonly property int day: isWeek ? 0 : modelData.day
-                readonly property bool isToday: day === root.today.getDate() && root.offset === 0
                 Layout.fillWidth: true
                 implicitHeight: Theme.px(28)
-                radius: Theme.px(8)
-                color: isToday ? Theme.accent : "transparent"
-                Text {
-                    anchors.centerIn: parent
-                    visible: parent.day > 0 || parent.isWeek
-                    text: parent.isWeek ? parent.modelData.week : parent.day
-                    color: parent.isToday ? Theme.accentInk : parent.isWeek ? Theme.faint : Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                    font.weight: parent.isToday ? Font.DemiBold : Font.Normal
-                }
+                isWeek: modelData.week !== undefined
+                label: isWeek ? String(modelData.week) : (day > 0 ? String(day) : "")
+                date: day > 0 ? new Date(root.month.getFullYear(), root.month.getMonth(), day) : null
+                isToday: day === root.today.getDate() && root.offset === 0
+                interactive: false               // a glance: the Calendar app is where days are picked
             }
         }
     }

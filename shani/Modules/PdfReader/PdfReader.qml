@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/Markup.js" as Markup
 
 AppWindow {
     id: win
@@ -715,44 +716,11 @@ AppWindow {
                             z: 5
                             visible: win.pdfAnnoMode && !PdfViewer.textMode
                             property var live: []
-                            function mark(ctx, kind, color, size, pts, words) {
-                                if (!pts.length) return;
-                                const m = Math.min(width, height), w = Math.max(1, size * m);
-                                const P = pts.map(p => [p[0] * width, p[1] * height]);
-                                const a = P[0], b = P[P.length - 1];
-                                ctx.save();
-                                ctx.strokeStyle = color; ctx.fillStyle = color;
-                                ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round";
-                                if (kind === "blur") {
-                                    ctx.fillStyle = Qt.rgba(0.5, 0.5, 0.5, 0.75);
-                                    ctx.fillRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
-                                } else if (kind === "box") {
-                                    ctx.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
-                                } else if (kind === "text") {
-                                    ctx.font = Math.max(12, w * 5) + "px sans-serif";
-                                    ctx.fillText(words || "", a[0], a[1]);
-                                } else {
-                                    if (kind === "highlight") { ctx.globalAlpha = 0.4; ctx.lineWidth = w * 4; }
-                                    ctx.beginPath(); ctx.moveTo(a[0], a[1]);
-                                    const rest = win.twoPoint && live.length > 1 ? [b] : P.slice(1);
-                                    for (const p of rest) ctx.lineTo(p[0], p[1]);
-                                    if (P.length === 1) ctx.lineTo(a[0] + 0.1, a[1]);
-                                    ctx.stroke();
-                                    if (kind === "arrow") {
-                                        const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), L = Math.max(10, w * 5);
-                                        ctx.beginPath(); ctx.moveTo(b[0], b[1]);
-                                        ctx.lineTo(b[0] - L * Math.cos(ang - 0.45), b[1] - L * Math.sin(ang - 0.45));
-                                        ctx.lineTo(b[0] - L * Math.cos(ang + 0.45), b[1] - L * Math.sin(ang + 0.45));
-                                        ctx.closePath(); ctx.fill();
-                                    }
-                                }
-                                ctx.restore();
-                            }
                             onPaint: {
                                 const ctx = getContext("2d");
                                 ctx.clearRect(0, 0, width, height);
-                                for (const st of win.strokes) mark(ctx, st.kind, st.color, st.size, st.points, st.text);
-                                mark(ctx, win.tool, win.penColor, win.penSize, live, win.textInput);
+                                for (const st of win.strokes) Markup.draw(ctx, width, height, st.kind, st.color, st.size, st.points, st.text);
+                                Markup.draw(ctx, width, height, win.tool, win.penColor, win.penSize, live, win.textInput);
                             }
                             Connections {
                                 target: win

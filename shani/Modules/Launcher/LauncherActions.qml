@@ -12,19 +12,7 @@ import "../../Common/Tools.js" as Tools
 
 QtObject {
     required property var launcher
-    // QML closures cannot live in the JS catalog: Tools.list owns the label,
-    // icon, words and order; these local runs own the opens.
-    readonly property var toolRuns: ({
-        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
-        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
-        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
-        netTools: () => { Ui.closeAll(); Ui.netTools = true; },
-        databaseBrowser: () => { Ui.closeAll(); Ui.databaseBrowser = true; },
-        startupManager: () => { Ui.closeAll(); Ui.startupManager = true; },
-        gateway: () => { Ui.closeAll(); Ui.gateway = true; },
-        pasteHistory: () => { Ui.closeAll(); Ui.pasteHistory = true; },
-        scheduled: () => { Ui.closeAll(); Ui.scheduled = true; }
-    })
+    // Tools.list owns the tools' label, icon, words and order; Ui.openTool opens them.
     readonly property var list: [
         { title: Tr.t("Lock screen"), words: "lock away", icon: "system-lock-screen", run: () => Lock.lock() },
         { title: Tr.t("Do Not Disturb"), words: "dnd quiet notifications silence", icon: "notifications-disabled", run: () => Notifs.setDnd(!Notifs.dnd), state: () => Notifs.dnd },
@@ -130,9 +118,9 @@ QtObject {
         { title: Tr.t("Studio"), words: "studio build create app developer generate ai chronoa qml", icon: "applications-development", run: () => { Ui.closeAll(); Ui.studio = true; Studio.refresh(); } },
         // ---- new app tools: the nine surfaces behind Ui flags. Tools.list owns
         // their order, spelling, icon and words (each word list starts "tool"
-        // so the bar's Tools chip finds them); only the opens stay local.
+        // so the bar's Tools chip finds them); Ui.openTool opens each.
         ...Tools.list.map(t => ({ title: Tr.t(t.label), words: t.words, icon: t.icon,
-                                  run: toolRuns[t.flag] })),
+                                  run: () => Ui.openTool(t.flag) })),
         { title: Tr.t("Suspend"), words: "suspend sleep", icon: "weather-clear-night", run: () => Power.suspend() },
         { title: Tr.t("Log out"), words: "logout log out sign out", icon: "system-log-out", run: () => Power.logout() },
         // irreversible: these open the sidebar's confirm row instead of acting

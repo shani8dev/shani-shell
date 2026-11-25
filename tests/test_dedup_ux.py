@@ -39,8 +39,7 @@ DELEGATES = {
     "Services/Automations.qml": ("msToNextMinute", "msToNextMinute", None),
     "Services/Focus.qml": ("msToNextMinute", "msToNextMinute", None),
     "Services/WorldClock.qml": ("msToNextMinute", "msToNextMinute", None),
-    "Modules/Calendar/CalendarPanel.qml": ("isoWeek", "isoWeek", None),
-    "Modules/ControlCenter/Calendar.qml": ("isoWeek", "isoWeek", None),
+    # isoWeek: the calendars reach it through Common/Month.js (tests/test_month.py)
     "Services/Appearance.qml": ("minutes", "minutes", None),
     "Services/Notifs.qml": ("minutes", "minutes", None),
 }

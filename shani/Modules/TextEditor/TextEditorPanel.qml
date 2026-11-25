@@ -879,24 +879,18 @@ AppWindow {
                         onClicked: { win.activeGroup = modelData; TextDocs.showGroup(modelData); }
                     }
                 }
-                Button { text: "All tabs"; flat: true; checked: win.activeGroup === ""; onClicked: win.activeGroup = "" }
+                Button { text: Tr.t("All tabs"); flat: true; checked: win.activeGroup === ""; onClicked: win.activeGroup = "" }
             }
 
             // ---- a failed open is a state with its own way out ------------------
-            RowLayout {
+            InfoBanner {
                 Layout.fillWidth: true
                 visible: TextDocs.error !== ""
-                spacing: Theme.px(8)
-                Text {
-                    Layout.fillWidth: true
-                    text: TextDocs.error
-                    color: Theme.danger
-                    wrapMode: Text.Wrap
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                }
-                Button { text: "Retry"; onClicked: win.retryOpen() }
-                Button { text: "Dismiss"; flat: true; onClicked: win.dismissError() }
+                tone: "error"
+                text: TextDocs.error
+                accessibleRole: Accessible.AlertMessage
+                Button { text: Tr.t("Retry"); onClicked: win.retryOpen() }
+                Button { text: Tr.t("Dismiss"); flat: true; onClicked: win.dismissError() }
             }
 
             EmptyState {
@@ -969,7 +963,7 @@ AppWindow {
                     onAccepted: win.submitGoto()
                     input.Keys.onEscapePressed: { win.gotoOpen = false; edit.forceActiveFocus(); }
                 }
-                Button { text: "Go"; onClicked: win.submitGoto() }
+                Button { text: Tr.t("Go"); onClicked: win.submitGoto() }
                 Button { text: Tr.t("Cancel"); flat: true; onClicked: { win.gotoOpen = false; edit.forceActiveFocus(); } }
             }
 
@@ -1092,7 +1086,7 @@ AppWindow {
                         Text {
                             Layout.fillWidth: true
                             visible: TextDocs.folder !== "" && dirModel.entries.count === 0 && !dirModel.loading && dirModel.error === ""
-                            text: "No files here"
+                            text: Tr.t("No files here")
                             color: Theme.dim
                             font.family: Theme.font
                             font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -1551,7 +1545,7 @@ AppWindow {
                     label: "Find in files"
                     onAccepted: win.findInFiles(text)
                 }
-                Button { text: "Search"; onClicked: win.findInFiles(findFilesField.text) }
+                Button { text: Tr.t("Search"); onClicked: win.findInFiles(findFilesField.text) }
             }
             Text {
                 Layout.fillWidth: true
@@ -1627,7 +1621,7 @@ AppWindow {
             spacing: Theme.px(10)
             Text {
                 Layout.fillWidth: true
-                text: "Highlight as"
+                text: Tr.t("Highlight as")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale

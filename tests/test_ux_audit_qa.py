@@ -391,7 +391,8 @@ def test_no_raw_user_strings_added_in_translated_files():
 def test_no_accessible_names_were_dropped():
     bad = []
     diff = subprocess.run(
-        ["git", "diff", "--", *AUDIT_FILES],
+        # -w: a re-indent (a wrapper removed around a block) drops no name
+        ["git", "diff", "-w", "--", *AUDIT_FILES],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -663,7 +664,7 @@ def test_teleprompter_translate_action_only_copies():
     body = source_of(t, "copyFirstLineForTranslation")
     assert "Quickshell.clipboardText = first;" in body
     assert "Ui.translate" not in body and "Ui.translate = true" not in t
-    assert 'text: "Copy first line for translation"' in t
+    assert 'text: Tr.t("Copy first line for translation")' in t
 
 
 # ===========================================================================

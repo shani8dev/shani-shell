@@ -87,7 +87,7 @@ def test_sidebar_has_accessible_rows_and_empty_error_states():
     assert "Accessible.role: Accessible.ListItem" in PANEL
     assert 'visible: dirModel.error !== ""' in PANEL
     assert 'title: "No folder open"' in PANEL
-    assert 'text: "No files here"' in PANEL
+    assert 'text: Tr.t("No files here")' in PANEL
 
 
 # ---- 3. tab groups -----------------------------------------------------------
@@ -109,7 +109,7 @@ def test_group_chips_filter_the_tab_strip():
     )
     assert "model: TextDocs.groups()" in PANEL
     assert "TextDocs.showGroup(modelData)" in PANEL
-    assert 'text: "All tabs"' in PANEL
+    assert 'text: Tr.t("All tabs")' in PANEL
 
 
 # ---- 4. line overview / minimap-lite -----------------------------------------
@@ -241,8 +241,9 @@ def test_a_failed_open_has_retry_and_dismiss_actions():
     banner = PANEL[
         PANEL.index('visible: TextDocs.error !== ""') : PANEL.index("EmptyState {")
     ]
-    assert 'text: "Retry"' in banner
-    assert 'text: "Dismiss"' in banner
+    assert 'text: Tr.t("Retry")' in banner
+    assert 'text: Tr.t("Dismiss")' in banner
+    assert "InfoBanner {" in PANEL and 'tone: "error"' in banner
     assert "win.retryOpen()" in banner and "win.dismissError()" in banner
     assert "root.lastPath = path;" in DOCS
 

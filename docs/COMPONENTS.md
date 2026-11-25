@@ -88,6 +88,10 @@ and a `Theme.touchTarget` hit area (pinned by
   `showClear` (default true); `cleared()`. Do not hand-roll a magnifier + clear.
 ### DatePicker / TimePicker  ·  calendar and clock pickers.
 - `DatePicker.qml`, `TimePicker.qml`; modal popovers returning a date / `hhmm`.
+### DayCell.qml  ·  one day in any calendar grid  ·  3 surfaces.
+- `label`, `date`, `isToday`, `isSelected`, `isWeek`, `interactive`,
+  `activated()`; children (event dots) sit over the label. Selected = accent
+  fill, today = soft accent. DatePicker, the sidebar calendar and CalendarPanel.
 ### FolderPicker / FileDirectory / DropZone
 - `FolderPicker.qml` (choose a directory), `FileDirectory.qml` (list a dir),
   `DropZone.qml` (drag-and-drop target). Shared path rules in `FilePaths.js`.
@@ -122,6 +126,10 @@ and a `Theme.touchTarget` hit area (pinned by
 - **Format.js** — `humanSize(bytes, style)` with `style`: `binary` (default),
   `si`, `tb`, `whole`; plus `msToNextMinute`, `isoWeek`, `minutes`. Each surface
   passes its style to preserve displayed values.
+- **Month.js** — `lead`, `daysIn`, `cells` (week numbers optional) and
+  `weekNames(sundayFirst, Tr.dayNamesShort)` for every month grid.
+- **Markup.js** — `draw(ctx, w, h, kind, …)`: one markup mark (pen, line,
+  arrow, box, blur, text), shaped by the mark's kind. Viewer and PdfReader.
 - **FilePaths.js / FileFilter.js / FileIcons.js** — path, extension and icon
   rules shared by Files, QuickLook and the pickers.
 - **Accents.js / Contrast.js / Hct.js / Tonal.js / Shape.js** — colour:

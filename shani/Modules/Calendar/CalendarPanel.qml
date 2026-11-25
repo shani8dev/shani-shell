@@ -12,8 +12,8 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
-import "../../Common/Format.js" as Format
 import "../../Common/Time.js" as Time
+import "../../Common/Month.js" as Month
 
 AppWindow {
     id: win
@@ -103,39 +103,22 @@ AppWindow {
     readonly property date weekAnchor: new Date(today.getFullYear(), today.getMonth(), today.getDate() + (offset * 7))
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
     // blanks before the 1st, then the days; Monday-first or Sunday-first
-    readonly property int lead: sundayFirst ? month.getDay() : (month.getDay() + 6) % 7
-    readonly property int days: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+    readonly property int lead: Month.lead(month, sundayFirst)
+    readonly property int days: Month.daysIn(month)
     readonly property bool weekNumbers: Settings.data.weekNumbers
-    // ISO 8601: the week holding the year's first Thursday is week 1
-    function isoWeek(d) { return Format.isoWeek(d); }
     // day numbers for one month of the year view: leading blanks, then 1..N
     function yearMonthDays(y, m) {
         const out = [];
-        const lead = (new Date(y, m, 1).getDay() + (sundayFirst ? 0 : 6)) % 7;
+        const lead = Month.lead(new Date(y, m, 1), sundayFirst);
         for (let i = 0; i < lead; i++) out.push(0);
         const count = new Date(y, m + 1, 0).getDate();
         for (let d = 1; d <= count; d++) out.push(d);
         return out;
     }
     // the grid, cell by cell: an optional week number, then seven days, per row
-    readonly property var cells: {
-        const out = [];
-        const rows = Math.ceil((lead + days) / 7);
-        for (let r = 0; r < rows; r++) {
-            if (weekNumbers) {
-                const first = Math.max(1, r * 7 - lead + 1);
-                out.push({ week: isoWeek(new Date(month.getFullYear(), month.getMonth(), first)) });
-            }
-            for (let c = 0; c < 7; c++) {
-                const day = r * 7 + c - lead + 1;
-                if (day > days)
-                    break;
-                out.push({ day: day });
-            }
-        }
-        return out;
-    }
-    readonly property var weekNames: sundayFirst ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    // (Common/Month.js, shared with the date picker and the sidebar calendar)
+    readonly property var cells: Month.cells(month, sundayFirst, weekNumbers)
+    readonly property var weekNames: Month.weekNames(sundayFirst, Tr.dayNamesShort)
 
     function isSameDay(a, b) {
         return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -901,74 +884,54 @@ AppWindow {
                 }
                 Repeater {
                     model: win.cells
-                    Rectangle {
+                    DayCell {
+                        id: monthCell
                         required property var modelData
-                        readonly property bool isWeek: modelData.week !== undefined
                         readonly property int day: isWeek ? 0 : modelData.day
-                        readonly property bool isToday: day === win.today.getDate() && win.offset === 0 && win.month.getMonth() === win.today.getMonth() && win.month.getFullYear() === win.today.getFullYear()
-                        readonly property bool isSelected: !isWeek && day === win.selectedDate.getDate() && win.selectedDate.getMonth() === win.month.getMonth() && win.selectedDate.getFullYear() === win.month.getFullYear()
                         Layout.fillWidth: true
-                        implicitHeight: Theme.px(30)
-                        radius: Theme.px(8)
-                        color: isSelected ? Theme.accent : isToday ? Theme.accentSoft : "transparent"
-                        Accessible.role: isWeek ? Accessible.StaticText : Accessible.Button
+                        isWeek: modelData.week !== undefined
+                        label: isWeek ? String(modelData.week) : (day > 0 ? String(day) : "")
+                        isToday: day === win.today.getDate() && win.offset === 0 && win.month.getMonth() === win.today.getMonth() && win.month.getFullYear() === win.today.getFullYear()
+                        isSelected: !isWeek && day === win.selectedDate.getDate() && win.selectedDate.getMonth() === win.month.getMonth() && win.selectedDate.getFullYear() === win.month.getFullYear()
+                        // the spoken name carries the day's reminders and holidays
                         Accessible.name: isWeek ? Tr.t("Week %1").arg(modelData.week) : win.cellA11yName(day)
-                        Text {
-                            anchors.centerIn: parent
-                            visible: parent.day > 0 || parent.isWeek
-                            text: parent.isWeek ? parent.modelData.week : parent.day
-                            color: parent.isSelected ? Theme.accentInk : parent.isWeek ? Theme.faint : parent.isToday ? Theme.accent : Theme.text
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
-                            font.weight: parent.isSelected || parent.isToday ? Font.DemiBold : Font.Normal
-                        }
+                        onActivated: win.selectDay(day)
                         Row {
                             // compact markers painted into the day cell itself;
                             // decorative — the cell's Accessible.name carries it
                             id: cellMarkers
-                            visible: !parent.isWeek && (win.cellReminders(parent.day).length > 0 || win.cellHolidays(parent.day).length > 0)
+                            visible: !monthCell.isWeek && (win.cellReminders(monthCell.day).length > 0 || win.cellHolidays(monthCell.day).length > 0)
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.bottom: parent.bottom
                             anchors.bottomMargin: Theme.px(2)
                             spacing: Theme.px(2)
                             Accessible.ignored: true
                             Repeater {
-                                model: win.cellDotCount(cellMarkers.parent.day)
+                                model: win.cellDotCount(monthCell.day)
                                 Rectangle {
                                     width: Theme.px(5); height: Theme.px(5)
                                     anchors.verticalCenter: parent.verticalCenter
                                     radius: width / 2
-                                    color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.accent
+                                    color: monthCell.isSelected ? Theme.accentInk : Theme.accent
                                     Accessible.ignored: true
                                 }
                             }
                             Text {
-                                visible: win.cellOverflow(cellMarkers.parent.day) > 0
-                                text: "+" + win.cellOverflow(cellMarkers.parent.day)
-                                color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.accent
+                                visible: win.cellOverflow(monthCell.day) > 0
+                                text: "+" + win.cellOverflow(monthCell.day)
+                                color: monthCell.isSelected ? Theme.accentInk : Theme.accent
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(8) * Theme.fontScale
                                 Accessible.ignored: true
                             }
                             Rectangle {
-                                visible: win.cellHolidays(cellMarkers.parent.day).length > 0
+                                visible: win.cellHolidays(monthCell.day).length > 0
                                 width: Theme.px(5); height: Theme.px(5)
                                 anchors.verticalCenter: parent.verticalCenter
                                 rotation: 45
-                                color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.amber
+                                color: monthCell.isSelected ? Theme.accentInk : Theme.amber
                                 Accessible.ignored: true
                             }
-                        }
-                        MouseArea {
-                            visible: !parent.isWeek
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: win.selectDay(parent.day)
-                        }
-                        KeyFocus {
-                            visible: !parent.isWeek
-                            onActivated: win.selectDay(parent.day)
                         }
                     }
                 }
@@ -1004,33 +967,17 @@ AppWindow {
                     }
                     Repeater {
                         model: win.weekDays
-                        Rectangle {
+                        DayCell {
                             required property var modelData
                             required property int index
                             readonly property date dayDate: win.weekDays[index]
-                            readonly property bool isToday: win.isSameDay(dayDate, win.today)
-                            readonly property bool isSelected: win.isSameDay(dayDate, win.selectedDate)
                             Layout.fillWidth: true
                             implicitHeight: Theme.px(34)
-                            radius: Theme.px(8)
-                            color: isSelected ? Theme.accent : isToday ? Theme.accentSoft : "transparent"
-                            Accessible.role: Accessible.Button
-                            Accessible.name: Qt.formatDate(dayDate, "dddd d MMMM yyyy") + (isToday ? " (" + Tr.t("today") + ")" : "")
-                            Text {
-                                anchors.centerIn: parent
-                                text: Qt.formatDate(dayDate, "ddd d")
-                                color: isSelected ? Theme.accentInk : isToday ? Theme.accent : Theme.text
-                                font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
-                                font.weight: isSelected || isToday ? Font.DemiBold : Font.Normal
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: win.selectWeekDay(parent.index)
-                            }
-                            KeyFocus { onActivated: win.selectWeekDay(parent.index) }
+                            label: Qt.formatDate(dayDate, "ddd d")
+                            date: dayDate
+                            isToday: win.isSameDay(dayDate, win.today)
+                            isSelected: win.isSameDay(dayDate, win.selectedDate)
+                            onActivated: win.selectWeekDay(index)
                         }
                     }
                 }
@@ -1743,7 +1690,7 @@ AppWindow {
                     font.pixelSize: Theme.px(10) * Theme.fontScale
                     wrapMode: Text.Wrap
                 }
-                Text { text: "Repeat"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Repeat"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
@@ -1822,7 +1769,7 @@ AppWindow {
                         onTextChanged: { const n = parseInt(text, 10); win.fAlarm = isNaN(n) ? 0 : n; }
                     }
                 }
-                Text { text: "Time zone"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Time zone"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)

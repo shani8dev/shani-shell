@@ -81,22 +81,9 @@ PanelWindow {
     property real menuHeight: 0         // the open menu's, which grows with an app's windows and actions
     property bool speedDialOpen: false  // the Speed Dial rows in the open app menu
     property bool toolsOpen: false      // the "Open tools" rows in the open app menu
-    // Tools.list owns label and order; QML opens stay local. Menu-only: the
-    // same Ui flags the shell's *Open() IPC functions set; no new dock tiles.
-    readonly property var toolRuns: ({
-        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
-        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
-        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
-        netTools: () => { Ui.closeAll(); Ui.netTools = true; },
-        databaseBrowser: () => { Ui.closeAll(); Ui.databaseBrowser = true; },
-        startupManager: () => { Ui.closeAll(); Ui.startupManager = true; },
-        gateway: () => { Ui.closeAll(); Ui.gateway = true; },
-        pasteHistory: () => { Ui.closeAll(); Ui.pasteHistory = true; },
-        scheduled: () => { Ui.closeAll(); Ui.scheduled = true; }
-    })
-
-    // Tools.list owns label and order; QML opens stay local. Menu-only.
-    readonly property var tools: Tools.list.map(t => ({ label: t.label, run: toolRuns[t.flag] }))
+    // Tools.list owns label and order; Ui.openTool sets the same Ui flags the
+    // shell's *Open() IPC functions set. Menu-only: no new dock tiles.
+    readonly property var tools: Tools.list.map(t => ({ label: t.label, run: () => Ui.openTool(t.flag) }))
     function setMenu(index, anchor) {
         win.speedDialOpen = false;
         win.toolsOpen = false;

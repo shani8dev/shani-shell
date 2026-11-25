@@ -279,7 +279,7 @@ def test_the_shell_uses_the_shared_helpers():
     theme = read(COMMON / "Theme.qml")
     assert 'import "Contrast.js" as Contrast' in theme
     assert 'import "Shape.js" as Shape' in theme
-    assert "Contrast.readableOn(root.accent" in theme       # the accent's ink is measured
+    assert "accentInk: inkOn(root.accent)" in theme and "Contrast.readableOn(Qt.color(fill)" in theme   # the accent's ink is measured
     assert "Shape.radius(" in theme                         # the corners come from the scale
 
     color = read(ROOT / "shani" / "Services" / "Color.qml")

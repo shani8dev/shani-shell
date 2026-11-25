@@ -79,10 +79,10 @@ def bracket_from(text, i):
 
 
 def tool_runs(text):
-    """The local QML opens a surface uses; the JS catalog carries no closures."""
-    m = re.search(r"readonly property var toolRuns: \(\{.*?\n    \}\)", text, re.S)
-    assert m, "no toolRuns block"
-    return m.group(0)
+    """A surface opens every catalog tool through the one opener, Ui.openTool."""
+    assert "toolRuns" not in text, "a local copy of the tool opens is back"
+    assert "Ui.openTool(t.flag)" in text, "no Ui.openTool"
+    return text
 
 
 def label_icon_pairs(block, label_key="label"):
@@ -162,7 +162,7 @@ def test_2_quick_panel_first_four_match_the_canonical_order():
 def test_3_dock_tool_menu_order_matches_the_shared_order():
     d = src(DOCK)
     tools = d
-    assert "Tools.list.map(t => ({ label: t.label, run: toolRuns[t.flag] }))" in tools
+    assert "Tools.list.map(t => ({ label: t.label, run: () => Ui.openTool(t.flag) }))" in tools
 
 
 # ---- fix 4: launcher actions are the single reference list ------------------
@@ -200,9 +200,13 @@ def test_6_every_full_surface_reaches_all_nine_tools():
         DOCK: tool_runs(src(DOCK)),
         ACTIONS: tool_runs(src(ACTIONS)),
     }
+    ui = src("shani/Common/Ui.qml")
+    assert "function openTool(flag)" in ui and "root[flag] = true" in ui
     for rel, region in regions.items():
-        for _, _, flag in CANONICAL:
-            assert "Ui.%s = true" % flag in region, (rel, flag)
+        assert "Tools.list" in region, rel
+    for _, _, flag in CANONICAL:
+        # openTool sets the flag by name: it must be a real Ui property
+        assert re.search(r"property bool %s\b" % flag, ui), flag
 
 
 # ---- fix 7: no mouse-only tool entry ---------------------------------------

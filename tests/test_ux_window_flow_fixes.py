@@ -86,7 +86,7 @@ def test_fix4_teleprompter_translate_action_only_copies():
     assert "Quickshell.clipboardText = first;" in body
     assert "Ui.translate" not in body
     assert "Ui.translate = true" not in t
-    assert 'text: "Copy first line for translation"' in t
+    assert 'text: Tr.t("Copy first line for translation")' in t
     assert "onClicked: win.copyFirstLineForTranslation()" in t
     # documented limit: TranslateWindow does not read a clipboard handoff
     assert "shortcut:" in t and "TranslateWindow does not read a clipboard handoff" in t

@@ -19,8 +19,10 @@ Item {
 
     function on(key) { return !!pad.held[key] }
     function axis(name) { return Math.min(1, Math.max(0, pad.axes[name] || 0)) }
-    readonly property color body: Theme.dark ? "#232833" : "#E7EAF0"
-    readonly property color part: Theme.dark ? "#303745" : "#FFFFFF"
+    // illustration colours: they cross-fade with the style (Theme.mix) and give
+    // way to the plain surface in high contrast
+    readonly property color body: Theme.contrast ? Theme.bg : Theme.mix("#E7EAF0", "#232833")
+    readonly property color part: Theme.contrast ? Theme.bg : Theme.mix("#FFFFFF", "#303745")
     readonly property color partLine: Theme.stroke
     readonly property var faceLabels: kind === "playstation" ? { a: "✕", b: "○", x: "□", y: "△" }
                                     : kind === "nintendo" ? { a: "B", b: "A", x: "Y", y: "X" }

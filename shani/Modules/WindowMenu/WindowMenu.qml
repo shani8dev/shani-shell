@@ -30,22 +30,10 @@ PanelWindow {
     // the Tools submenu: the shell's newer apps, reached from any window with the
     // same Ui flags shell.qml's *Open() IPC functions set
     property bool toolsOpen: false
-    // Tools.list owns the tools submenu label, icon and order; QML
-    // closures cannot live in the JS catalog, so opens stay local.
-    readonly property var toolRuns: ({
-        dictionary: () => { Ui.closeAll(); Ui.dictionary = true; },
-        podcasts: () => { Ui.closeAll(); Ui.podcasts = true; },
-        teleprompter: () => { Ui.closeAll(); Ui.teleprompter = true; },
-        netTools: () => { Ui.closeAll(); Ui.netTools = true; },
-        databaseBrowser: () => { Ui.closeAll(); Ui.databaseBrowser = true; },
-        startupManager: () => { Ui.closeAll(); Ui.startupManager = true; },
-        gateway: () => { Ui.closeAll(); Ui.gateway = true; },
-        pasteHistory: () => { Ui.closeAll(); Ui.pasteHistory = true; },
-        scheduled: () => { Ui.closeAll(); Ui.scheduled = true; }
-    })
+    // Tools.list owns the tools submenu label, icon and order; Ui.openTool opens them.
     readonly property var tools: Tools.list.map(t => ({
         id: "tool" + t.flag.charAt(0).toUpperCase() + t.flag.slice(1),
-        tool: true, label: Tr.t(t.label), icon: t.icon, run: toolRuns[t.flag]
+        tool: true, label: Tr.t(t.label), icon: t.icon, run: () => Ui.openTool(t.flag)
     }))
     onToolsOpenChanged: if (toolsOpen) { win.openMenu = -1; win.expanded = ({}); Ui.focusFirst(menuCard); }
     readonly property bool targetAlive: target !== null && Niri.windows[target.id] !== undefined

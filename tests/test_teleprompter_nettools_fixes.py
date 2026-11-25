@@ -57,7 +57,7 @@ def test_tp_speed_font_and_direction_controls_are_clamped():
     )
     assert "property bool reverse: false" in TP
     assert (
-        'Button { text: "Reverse"; flat: true; checked: win.reverse; onClicked: win.reverse = !win.reverse }'
+        'Button { text: Tr.t("Reverse"); flat: true; checked: win.reverse; onClicked: win.reverse = !win.reverse }'
         in TP
     )
     assert 'tip: "Slower (-)"' in TP and 'tip: "Faster (+)"' in TP

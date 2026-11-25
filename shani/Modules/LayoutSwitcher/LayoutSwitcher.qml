@@ -167,7 +167,7 @@ PanelWindow {
                     width: mini.s.winDefaultWidth >= 1 ? parent.w : (parent.w - parent.spacing) / 2 * (index ? 0.75 : 1)
                     height: parent.h
                     radius: 3 * mini.u
-                    color: Theme.alpha(Theme.dark ? "#2a2a2e" : "#fafafa", 0.92)
+                    color: Theme.alpha(Theme.bg, 0.92)
                     border.width: index === 0 && mini.s.winFocusRing ? Math.max(1, mini.s.winFocusRing / 2 * mini.u) : 0
                     border.color: Theme.accent
                     Rectangle { x: 4 * mini.u; y: 4 * mini.u; width: parent.width * 0.4; height: 2 * mini.u; color: Theme.alpha(Theme.text, 0.25) }

@@ -109,10 +109,10 @@ AppWindow {
         },
         IconButton { icon: "go-first"; tip: "Jump to start (Home)"; accessibleName: "Jump to start"; size: Theme.px(30); onClicked: win.jumpStart() },
         IconButton { icon: "go-last"; tip: "Jump to end (End)"; accessibleName: "Jump to end"; size: Theme.px(30); onClicked: win.jumpEnd() },
-        Button { text: "Reverse"; flat: true; checked: win.reverse; onClicked: win.reverse = !win.reverse },
-        Button { text: "Paste"; flat: true; onClicked: win.paste() },
+        Button { text: Tr.t("Reverse"); flat: true; checked: win.reverse; onClicked: win.reverse = !win.reverse },
+        Button { text: Tr.t("Paste"); flat: true; onClicked: win.paste() },
         Button {
-            text: "Copy first line for translation"
+            text: Tr.t("Copy first line for translation")
             Accessible.description: "Copies the first line to the clipboard for translation"
             flat: true
             enabled: win.text.trim() !== ""
@@ -142,19 +142,13 @@ AppWindow {
             spacing: Theme.px(8)
 
             // a failed paste is a state with its own way out
-            RowLayout {
+            InfoBanner {
                 Layout.fillWidth: true
                 visible: win.error !== ""
-                spacing: Theme.px(8)
-                Text {
-                    Layout.fillWidth: true
-                    text: win.error
-                    color: Theme.danger
-                    wrapMode: Text.Wrap
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                }
-                Button { text: "Dismiss"; flat: true; onClicked: win.dismissError() }
+                tone: "error"
+                text: win.error
+                accessibleRole: Accessible.AlertMessage
+                Button { text: Tr.t("Dismiss"); flat: true; onClicked: win.dismissError() }
             }
 
             EmptyState {

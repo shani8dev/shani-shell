@@ -116,14 +116,14 @@ def test_helpers_are_defined_once_and_share_the_date_filter():
 
 
 def test_day_cell_paints_both_marker_types_and_no_new_store():
-    assert "model: win.cellDotCount(cellMarkers.parent.day)" in PANEL
-    assert 'text: "+" + win.cellOverflow(cellMarkers.parent.day)' in PANEL
-    assert "win.cellHolidays(cellMarkers.parent.day).length > 0" in PANEL
+    assert "model: win.cellDotCount(monthCell.day)" in PANEL
+    assert 'text: "+" + win.cellOverflow(monthCell.day)' in PANEL
+    assert "win.cellHolidays(monthCell.day).length > 0" in PANEL
     assert (
-        "color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.accent" in PANEL
+        "color: monthCell.isSelected ? Theme.accentInk : Theme.accent" in PANEL
     )
     assert (
-        "color: cellMarkers.parent.isSelected ? Theme.accentInk : Theme.amber" in PANEL
+        "color: monthCell.isSelected ? Theme.accentInk : Theme.amber" in PANEL
     )
     assert "rotation: 45" in PANEL  # holiday diamond
     # no opaque card was introduced for the markers
@@ -142,8 +142,8 @@ def test_markers_are_decorative_and_the_cell_carries_the_name():
 
 
 def test_clicking_a_marked_day_reuses_the_existing_selection():
-    assert "onClicked: win.selectDay(parent.day)" in PANEL
-    assert "onActivated: win.selectDay(parent.day)" in PANEL
+    assert "onActivated: win.selectDay(day)" in PANEL  # Common/DayCell
+    assert "onActivated: win.selectDay(day)" in PANEL
     assert "function selectDay(day) {" in PANEL
 
 

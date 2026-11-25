@@ -42,14 +42,23 @@ def read(rel):
 
 
 def test_launcher_still_reads_the_shared_xbel_store():
-    q = read("shani/Modules/Launcher/Launcher.qml")
+    # one reader for the shell (Services/RecentFiles); the launcher and the
+    # overview search bind to it instead of parsing the file themselves
+    q = read("shani/Services/RecentFiles.qml")
     assert '"/recently-used.xbel"' in q
     assert "watchChanges: true" in q
     assert "onFileChanged: reload()" in q
+    # GTK appends: file order is oldest first, so the reader must sort (the
+    # overview's own copy did not and listed the ten oldest files)
+    assert "out.sort((a, b) => a.when < b.when" in q
+    for surface in ("shani/Modules/Launcher/Launcher.qml", "shani/Modules/Overview/OverviewSearch.qml"):
+        src = read(surface)
+        assert "RecentFiles.files" in src, surface
+        assert "recently-used.xbel" not in src, surface
 
 
 def test_xbel_parse_keeps_when_and_the_recorded_app():
-    q = read("shani/Modules/Launcher/Launcher.qml")
+    q = read("shani/Services/RecentFiles.qml")
     # self-closing and paired bookmarks both parse; dates fall back in order
     assert r"/<bookmark[\s][^>]*>/g" in q
     assert r'href="file:\/\/([^"]+)"' in q
@@ -82,9 +91,9 @@ def test_the_view_groups_by_day_without_inventing_attribution():
 def test_app_only_shows_when_metadata_gave_one():
     q = read("shani/Modules/Launcher/Launcher.qml")
     assert '(app ? app + " · " : "") + p.replace' in q
-    # no second store: the launcher never writes a recent list of its own
-    recent_view = q.split("// recently used files:")[1].split("// files by name")[0]
-    assert "setText" not in recent_view and "execDetached" not in recent_view
+    # no second store: the shared reader never writes a recent list of its own
+    reader = read("shani/Services/RecentFiles.qml")
+    assert "setText" not in reader and "execDetached" not in reader
 
 
 def test_erase_and_control_stay_single_owners():

@@ -43,6 +43,12 @@ Singleton {
         }
         return "en";
     }
+    // short weekday names in the shell's language, Sunday first (Qt's
+    // Locale.dayName order); calendars rotate them with Month.weekNames
+    readonly property var dayNamesShort: {
+        const l = Qt.locale(root.lang);
+        return [0, 1, 2, 3, 4, 5, 6].map(d => l.dayName(d, Locale.ShortFormat));
+    }
     property var reviewed: ({})         // shani/i18n/<lang>.json, checked by a person
     property var machine: ({})          // ~/.cache/shani-shell/i18n/<lang>.json, Chronoa's local model
     readonly property var table: Object.assign({}, machine, reviewed)

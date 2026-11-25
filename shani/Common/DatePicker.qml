@@ -3,6 +3,7 @@
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
+import "Month.js" as Month
 
 ColumnLayout {
     id: root
@@ -16,9 +17,9 @@ ColumnLayout {
     property date current: new Date()
     readonly property date month: new Date(current.getFullYear(), current.getMonth(), 1)
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
-    readonly property int lead: sundayFirst ? month.getDay() : (month.getDay() + 6) % 7
-    readonly property int days: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
-    readonly property var weekNames: sundayFirst ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    readonly property int lead: Month.lead(month, sundayFirst)
+    readonly property int days: Month.daysIn(month)
+    readonly property var weekNames: Month.weekNames(sundayFirst, Tr.dayNamesShort)
 
     Text {
         visible: label !== ""
@@ -89,37 +90,16 @@ ColumnLayout {
 
         Repeater {
             model: root.lead + root.days
-            Rectangle {
+            DayCell {
                 required property int index
                 readonly property int day: index - root.lead + 1
-                readonly property bool isSelected: day > 0 && root.format(day) === root.value
-                readonly property bool isToday: day === new Date().getDate() && current.getMonth() === new Date().getMonth() && current.getFullYear() === new Date().getFullYear()
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.px(30)
-                radius: Theme.radiusToken("xs")
-                color: isSelected ? Theme.accent : (isToday ? Theme.hover : "transparent")
-                border.width: isToday && !isSelected ? 1 : 0
-                border.color: Theme.accent
-                Text {
-                    anchors.centerIn: parent
-                    visible: parent.day > 0
-                    text: parent.day
-                    color: parent.isSelected ? Theme.accentInk : Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                    font.weight: parent.isSelected || parent.isToday ? Font.DemiBold : Font.Normal
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: parent.day > 0
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        const d = root.format(parent.day);
-                        root.value = d;
-                        root.picked(d);
-                    }
-                }
-                KeyFocus { enabled: parent.day > 0; onActivated: { const d = root.format(parent.day); root.value = d; root.picked(d); } }
+                label: day > 0 ? String(day) : ""
+                date: day > 0 ? new Date(root.month.getFullYear(), root.month.getMonth(), day) : null
+                isSelected: day > 0 && root.format(day) === root.value
+                isToday: day === new Date().getDate() && root.current.getMonth() === new Date().getMonth() && root.current.getFullYear() === new Date().getFullYear()
+                onActivated: { const d = root.format(day); root.value = d; root.picked(d); }
             }
         }
     }

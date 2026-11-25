@@ -596,7 +596,7 @@ ColumnLayout {
                 icon: modelData.icon
                 title: Tr.t(modelData.label)
                 subtitle: tileGrid.toolSubtitles[modelData.flag] || ""
-                onToggled: { Ui.closeAll(); Ui[modelData.flag] = true; }
+                onToggled: Ui.openTool(modelData.flag)
             }
         }
     }

@@ -271,7 +271,7 @@ AppWindow {
                     Flow {
                         Layout.fillWidth: true
                         spacing: Theme.px(4)
-                        Choice { text: "All tags"; selected: win.tagFilter === ""; onClicked: win.tagFilter = "" }
+                        Choice { text: Tr.t("All tags"); selected: win.tagFilter === ""; onClicked: win.tagFilter = "" }
                         Repeater {
                             model: Services.QuickNotes.tags()
                             Choice {
@@ -370,10 +370,10 @@ AppWindow {
                     Button { text: "B"; enabled: editor.enabled; onClicked: win.wrapSelection("**", "**") }
                     Button { text: "I"; enabled: editor.enabled; onClicked: win.wrapSelection("*", "*") }
                     Button { text: "H"; enabled: editor.enabled; onClicked: win.prefixLine("# ") }
-                    Button { text: "Link"; enabled: editor.enabled; onClicked: win.wrapSelection("[", "](https://)") }
-                    Button { text: "Code"; enabled: editor.enabled; onClicked: win.wrapSelection("`", "`") }
+                    Button { text: Tr.t("Link"); enabled: editor.enabled; onClicked: win.wrapSelection("[", "](https://)") }
+                    Button { text: Tr.t("Code"); enabled: editor.enabled; onClicked: win.wrapSelection("`", "`") }
                     Button { text: Tr.t("Checklist"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: win.insertChecklist() }
-                    Button { text: "Earlier versions"; enabled: Services.QuickNotes.current !== ""; onClicked: win.openHistory() }
+                    Button { text: Tr.t("Earlier versions"); enabled: Services.QuickNotes.current !== ""; onClicked: win.openHistory() }
                     Button { text: Tr.t("Trash…"); enabled: true; onClicked: { win.showTrash = !win.showTrash; Services.QuickNotes.trashList.running = true; } }
                     Button { text: Tr.t("Attach…"); enabled: Services.QuickNotes.current !== "" && editor.enabled; onClicked: Services.QuickNotes.attachFile() }
                     Button {
@@ -636,7 +636,7 @@ AppWindow {
                         placeholder: "Due date YYYY-MM-DD on this task"
                         onAccepted: win.addDue(text)
                     }
-                    Button { text: "Set due"; enabled: dueField.text !== ""; onClicked: win.addDue(dueField.text) }
+                    Button { text: Tr.t("Set due"); enabled: dueField.text !== ""; onClicked: win.addDue(dueField.text) }
                 }
 
                 // version history and trash are small collapsible drawers

@@ -56,7 +56,7 @@ def test_new_app_tiles_are_wired():
         assert '"%s"' % flag in tools, "%s missing from Tools catalog" % flag
     assert "Repeater {" in tiles_src and "model: Tools.list" in tiles_src
     assert "...Tools.list.map(t => t.flag)" in known_block
-    assert "Ui.closeAll();" in tiles_src and "Ui[modelData.flag] = true" in tiles_src
+    assert "Ui.openTool(modelData.flag)" in tiles_src
 
     # full parity for the literal (non-generated) tiles
     known = set(re.findall(r'"([A-Za-z]+)"', known_block))

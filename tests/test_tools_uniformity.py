@@ -119,7 +119,7 @@ def test_surfaces_derive_rows_instead_of_hand_copying():
         "title: Tr.t(t.label)",
         "words: t.words",
         "icon: t.icon",
-        "run: toolRuns[t.flag]",
+        "run: () => Ui.openTool(t.flag)",
     ):
         assert needle in launcher, needle
 
@@ -129,13 +129,13 @@ def test_surfaces_derive_rows_instead_of_hand_copying():
         "tool: true",
         "label: Tr.t(t.label)",
         "icon: t.icon",
-        "run: toolRuns[t.flag]",
+        "run: () => Ui.openTool(t.flag)",
     ):
         assert needle in menu, needle
 
     dock = src(DOCK)
     assert (
-        "readonly property var tools: Tools.list.map(t => ({ label: t.label, run: toolRuns[t.flag] }))"
+        "readonly property var tools: Tools.list.map(t => ({ label: t.label, run: () => Ui.openTool(t.flag) }))"
         in dock
     )
 
@@ -146,13 +146,13 @@ def test_surfaces_derive_rows_instead_of_hand_copying():
         "tid: modelData.flag",
         "icon: modelData.icon",
         "title: Tr.t(modelData.label)",
-        "Ui[modelData.flag] = true;",
+        "Ui.openTool(modelData.flag)",
     ):
         assert needle in sidebar, needle
 
     quick = src(QUICK)
     assert "Tools.list.slice(0, 4)" in quick
-    for needle in ("label: Tr.t(t.label)", "icon: t.icon", "run: toolRuns[t.flag]"):
+    for needle in ("label: Tr.t(t.label)", "icon: t.icon", "run: () => Ui.openTool(t.flag)"):
         assert needle in quick, needle
 
     settings = src(SETTINGS)

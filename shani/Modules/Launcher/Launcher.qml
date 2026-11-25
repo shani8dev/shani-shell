@@ -67,7 +67,7 @@ PanelWindow {
     property var usage: ({})              // desktop id -> launches
     property var emoji: []                // [{ e, name }], loaded on first ":"
     property string emojiPath: ""
-    property var recent: []               // [{ path, name, when }]
+    readonly property var recent: RecentFiles.files   // [{ path, name, when, app }], newest first
     property var found: []                // file search hits for the current query
     property var inside: []               // files whose contents match
     property var provided: []             // apps' own search results (GNOME SearchProvider2)
@@ -152,35 +152,6 @@ PanelWindow {
                     out.push({ e: m[1], name: m[2] });
             }
             win.emoji = out;
-        }
-    }
-    // recently used files: the desktop's shared list (GTK and most apps write it)
-    FileView {
-        path: (Quickshell.env("XDG_DATA_HOME") || Quickshell.env("HOME") + "/.local/share") + "/recently-used.xbel"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            const raw = text();
-            const out = [];
-            // one bookmark at a time: dates are on the element, the app that
-            // opened it (when the writer recorded one) is in its metadata child
-            const tagRe = /<bookmark[\s][^>]*>/g;
-            let m;
-            while ((m = tagRe.exec(raw)) !== null) {
-                const tag = m[0];
-                const href = tag.match(/href="file:\/\/([^"]+)"/);
-                if (!href) continue;
-                const when = (tag.match(/\bmodified="([^"]+)"/) || tag.match(/\badded="([^"]+)"/)
-                              || tag.match(/\bvisited="([^"]+)"/) || [])[1] || "";
-                // the block between this tag and the next bookmark holds its metadata
-                const next = /<bookmark[\s]/.exec(raw.slice(tagRe.lastIndex));
-                const stop = next ? tagRe.lastIndex + next.index : raw.length;
-                const app = (/<bookmark:application\b[^>]*\bname="([^"]+)"/.exec(raw.slice(tagRe.lastIndex, stop)) || [])[1] || "";
-                const path = decodeURIComponent(href[1]);
-                out.push({ path: path, name: path.split("/").pop(), when: when, app: app });
-            }
-            win.recent = out.sort((a, b) => a.when < b.when ? 1 : -1).slice(0, 40);
         }
     }
     // files by name in the home folder: fd when installed, find otherwise

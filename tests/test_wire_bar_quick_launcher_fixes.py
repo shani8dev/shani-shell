@@ -3,6 +3,7 @@ quick panel and bar. These are QML panels that need a running shell, so each
 test asserts the exact source wiring rather than driving a QML runtime.
 """
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -13,6 +14,7 @@ QUICK_PANEL = (ROOT / "shani/Modules/QuickPanel/QuickPanel.qml").read_text(
     encoding="utf-8"
 )
 BAR = (ROOT / "shani/Modules/Bar/Bar.qml").read_text(encoding="utf-8")
+UI_SRC = (ROOT / "shani/Common/Ui.qml").read_text(encoding="utf-8")
 
 # nine new surfaces behind Ui flags, by the title an action must carry and the flag it opens
 NEW_APPS = {
@@ -41,7 +43,8 @@ def test_launcher_actions_cover_all_nine_new_apps():
     for flag in ("dictionary", "podcasts", "teleprompter", "netTools",
                  "databaseBrowser", "startupManager", "gateway", "pasteHistory", "scheduled"):
         assert f'flag: "{flag}"' in catalog
-        assert f'Ui.{flag} = true' in LAUNCHER_ACTIONS
+        assert re.search(r"property bool %s\b" % flag, UI_SRC), flag
+    assert "run: () => Ui.openTool(t.flag)" in LAUNCHER_ACTIONS
 
 
 def test_quickpanel_has_more_apps_row_for_four_tools():

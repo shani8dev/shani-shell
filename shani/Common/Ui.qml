@@ -4,6 +4,7 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import qs.Services
+import "Tools.js" as Tools
 
 Singleton {
     id: root
@@ -303,6 +304,14 @@ Singleton {
     // closeApps() closes them too - the "back to an empty desktop" a script asks for.
     // the apps the sidebar, the desktop widgets, the bar and the Island hand over to:
     // one place for each thing (a timer is Clocks', the weather is Weather's)
+    // the tools (Common/Tools.js): each opens the Ui flag of the same name. One
+    // opener for the dock, window menu, launcher, quick panel and sidebar tiles,
+    // which each used to carry their own copy of the same nine closures.
+    function openTool(flag) {
+        if (!Tools.list.some(t => t.flag === flag)) return;
+        closeAll();
+        root[flag] = true;
+    }
     function openClocks(tab) { closeAll(); if (tab) clocksTab = tab; clocks = true; }
     function openWeather() { closeAll(); weather = true; }
     function openScreenTime() { openSettings("screentime"); }

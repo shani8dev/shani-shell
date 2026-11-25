@@ -179,7 +179,7 @@ AppWindow {
                                 Text {
                                     width: parent.width - (tile.big ? 22 : 0)
                                     text: (tile.marked ? "✓ " : "") + modelData.name
-                                    color: Theme.dark ? "#ffffff" : "#1a1a1a"
+                                    color: Theme.inkOn(tile.color)
                                     elide: Text.ElideRight
                                     font.family: Theme.font
                                     font.weight: Font.DemiBold

@@ -81,7 +81,7 @@ def test_sidebar_generates_tool_tiles_from_catalog():
     assert "tid: modelData.flag" in delegate
     assert "icon: modelData.icon" in delegate
     assert "title: Tr.t(modelData.label)" in delegate
-    assert "Ui[modelData.flag] = true" in delegate
+    assert "Ui.openTool(modelData.flag)" in delegate
     # no hand-written copy of a catalog tile left behind
     for flag in tool_rows():
         assert f'tid: "{flag}"' not in tiles, f"{flag}: duplicate literal tile"
