@@ -114,13 +114,13 @@ ColumnLayout {
         return c ? c.name : id;
     }
 
-    // Recently changed settings: last 5 modified scalar settings, tracked live
+    // Recently changed settings: last 8 modified scalar settings, tracked live
     property var recentChanged: []
-    // while the Settings window is open only (it compares every key)
+    // while the Settings page is showing (the window or the sidebar copy)
     Timer {
         id: trackChanged
         interval: 500
-        running: Ui.settingsOpen
+        running: page.visible || Ui.settingsOpen
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -135,7 +135,7 @@ ColumnLayout {
                     if (!existing) newRecent.push({ key: k, label: entryInfo.label, cat: entryInfo.cat });
                 }
             }
-            recentChanged = newRecent.slice(0, 5);
+            recentChanged = newRecent.slice(0, 8);
         }
     }
 
@@ -146,6 +146,13 @@ ColumnLayout {
             out[c.id] = SettingsIndex.modifiedCount(d, Settings.defaults, c.id);
         modified = out;
     }
+    // app deep-links: link → the Ui flag the shell's matching IPC sets
+    readonly property var linkFlags: ({
+        dictionaryOpen: "dictionary", podcastsOpen: "podcasts", scheduledOpen: "scheduled",
+        teleprompterOpen: "teleprompter", netToolsOpen: "netTools", startupManagerOpen: "startupManager",
+        gatewayOpen: "gateway", databaseBrowserOpen: "databaseBrowser", pasteHistoryOpen: "pasteHistory",
+        cloudSyncOpen: "cloudSync", ircOpen: "irc", healthOpen: "health"
+    })
     // jump to a setting found by search: open the category, flash the control
     function openSetting(entry) {
         // a string key (from the recently-changed rail) looks up its category
@@ -153,6 +160,16 @@ ColumnLayout {
             const found = SettingsIndex.entries.find(e => e.key === entry);
             if (found) entry = found;
             else return;   // unknown key: nowhere to open
+        }
+        // app deep-links open their window instead of a Settings category;
+        // an unknown link is not a dead end: it falls through to entry.cat
+        if (entry.link && page.linkFlags[entry.link] in Ui) {
+            Ui.closeAll();
+            Ui[page.linkFlags[entry.link]] = true;
+            settingsSearch.text = "";
+            query = "";
+            settingsMatches = [];
+            return;
         }
         Ui.settingsCat = entry.cat;
         // Ananta's DPage.startAt: a found setting is brought into view, not just
@@ -213,7 +230,7 @@ ColumnLayout {
     // Deepin's control centre in a sidebar: a grid of categories, then one at a time
     readonly property string cat: Ui.settingsCat
     property bool inWindow: false        // in the Settings window: its own list replaces the grid
-    readonly property var cats: [{ id: "personal", words: "wallpaper style colours from a picture matugen palette saved themes accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look click through glyph volume brightness layout preset slideshow desktop widgets scrollbars corner radius calendar events celsius fahrenheit temperature degrees", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps plugged devices greetings do not disturb focus modes schedule quiet lock privacy hide content locked", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet bluetooth", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr auto rotate brightness", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling layout preset effects glide pop dissolve shadow corners rounded blur frosted glass speed", label: Tr.t("Windows"), icon: "focus-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds volume balance", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions magnifier smart touch transparency opaque battery", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk numlock tablet touchscreen drawing middle paste gaming mouse dpi polling rate buttons game controllers gamepad joystick", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats calendar events week start monday sunday first day", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings webapp web apps pwa screenshot format region sound fps recording framerate", label: Tr.t("Default apps"), icon: "view-app-grid" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator pointer nav hints ignore mouse", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows remote nearby localsend airdrop send to phone visible", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "firewall", words: "firewall ports services zones open block allow deny security firewalld incoming connections", label: Tr.t("Firewall"), icon: "security-high" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "boot", words: "boot recovery slot blue green rollback update version candidate boot failure rollback A B", label: Tr.t("Boot & Recovery"), icon: "system-reboot" }, { id: "updates", words: "updates update upgrade channel stable latest rollback firmware fwupd restart reboot version", label: Tr.t("Updates"), icon: "software-update-available" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard pin", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "security", words: "security lsm apparmor audit password policy pwquality secure boot encryption kernel lockdown", label: Tr.t("Security"), icon: "security-high" }, { id: "journal", words: "journal logs journald vacuum storage systemd log rotate retention", label: Tr.t("Journal"), icon: "document-open-recent" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar fingerprint security key yubikey fido u2f", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power ups power cut uninterruptible battery health wear cycles capacity charge history drain saver idle lock suspend lid power button charge limit dim screen off wellbeing break percentage", label: Tr.t("Power"), icon: "system-run" }, { id: "storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", label: Tr.t("Storage"), icon: "drive-harddisk" }, { id: "screentime", words: "screen time wellbeing digital break reminder limit usage apps today week focus", label: Tr.t("Screen time"), icon: "preferences-desktop-screensaver" }, { id: "modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", label: Tr.t("Kernel modules"), icon: "application-x-addon" }, { id: "about", words: "about computer name hostname system version hardware reset defaults", label: Tr.t("About"), icon: "help-about" }]
+    readonly property var cats: [{ id: "personal", words: "wallpaper style colours from a picture matugen palette saved themes accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look click through glyph volume brightness layout preset slideshow desktop widgets scrollbars corner radius calendar events celsius fahrenheit temperature degrees", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps plugged devices greetings do not disturb focus modes schedule quiet lock privacy hide content locked", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet bluetooth", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr auto rotate", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling layout preset effects glide pop dissolve shadow corners rounded blur frosted glass speed", label: Tr.t("Windows"), icon: "focus-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds volume balance", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions motion animation speed smart touch transparency opaque battery", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk numlock tablet touchscreen drawing middle paste gaming mouse dpi polling rate buttons game controllers gamepad joystick", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats calendar events week start monday sunday first day", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings webapp web apps pwa screenshot format region sound fps recording framerate", label: Tr.t("Default apps"), icon: "view-app-grid" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator pointer nav hints ignore mouse", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows remote nearby localsend airdrop send to phone visible", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "firewall", words: "firewall ports services zones open block allow deny security firewalld incoming connections", label: Tr.t("Firewall"), icon: "security-high" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "boot", words: "boot recovery slot blue green rollback update version candidate boot failure rollback A B", label: Tr.t("Boot & Recovery"), icon: "system-reboot" }, { id: "updates", words: "updates update upgrade channel stable latest rollback firmware fwupd restart reboot version", label: Tr.t("Updates"), icon: "software-update-available" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard pin", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "security", words: "security lsm apparmor audit password policy pwquality secure boot encryption kernel lockdown", label: Tr.t("Security"), icon: "security-high" }, { id: "journal", words: "journal logs journald vacuum storage systemd log rotate retention", label: Tr.t("Journal"), icon: "document-open-recent" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar fingerprint security key yubikey fido u2f", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power ups power cut uninterruptible battery health wear cycles capacity charge history drain saver idle lock suspend lid power button charge limit dim screen off percentage", label: Tr.t("Power"), icon: "system-run" }, { id: "storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", label: Tr.t("Storage"), icon: "drive-harddisk" }, { id: "screentime", words: "screen time wellbeing digital break reminder limit usage apps today week focus", label: Tr.t("Screen time"), icon: "preferences-desktop-screensaver" }, { id: "modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", label: Tr.t("Kernel modules"), icon: "application-x-addon" }, { id: "about", words: "about computer name hostname system version hardware reset defaults", label: Tr.t("About"), icon: "help-about" }]
     readonly property var catIcons: { const o = {}; for (const c of cats) o[c.id] = c.icon; return o; }
     readonly property string catTitle: (cats.find(c => c.id === cat) || { label: Tr.t("Settings") }).label
     // find a setting by what is in it: "proxy" → Network, "lid" → Power
@@ -1791,6 +1808,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(12)
                 SettingsNetwork { Layout.fillWidth: true; active: page.cat === "network" }
+                Loader { Layout.fillWidth: true; active: page.cat === "network"; source: "../../Modules/Vpn/VpnPanel.qml" }
             }
         }
     }
@@ -1930,6 +1948,7 @@ ColumnLayout {
                 SettingsBackup { Layout.fillWidth: true; active: page.cat === "backup" }
                 SettingsBoot { Layout.fillWidth: true; active: page.cat === "boot" }
                 SettingsUpdates { Layout.fillWidth: true; active: page.cat === "updates" }
+                SettingsSystemRestore { Layout.fillWidth: true; active: page.cat === "updates" }
             }
         }
     }

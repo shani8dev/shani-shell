@@ -28,7 +28,7 @@ var entries = [
     { key: "cornerRadiusSmall", label: "Small corners", cat: "personal", hint: "radius for small controls", words: "corner radius small buttons" },
     { key: "showScrollbars", label: "Always show scrollbars", cat: "personal", hint: "on: scrollbars always visible", words: "scrollbar scroll visible hide overlay" },
     { key: "reduceMotion", label: "Reduce motion", cat: "personal", hint: "no sliding or zooming animations", words: "motion animation reduce accessibility" },
-    { key: "animationSpeed", label: "Animation speed", cat: "personal", hint: "0.5 slower, 2 fastest", words: "animation speed motion faster slower" },
+    { key: "animationSpeed", label: "Interface animation speed", cat: "access", hint: "0.5 slower, 2 fastest", words: "animation speed motion interface faster slower" },
     { key: "dock", label: "Show the dock", cat: "personal", hint: "the icons along the bottom", words: "dock icons bottom bar" },
     { key: "dockVisibility", label: "When the dock shows", cat: "personal", hint: "always, out of a window's way, or only at the edge", words: "dock hide auto hidden reveal intelligent intellihide smart dodge windows" },
     { key: "barVisibility", label: "When the bar shows", cat: "personal", hint: "always, out of a window's way, or only at the edge", words: "bar panel top hide auto hidden reveal intelligent smart" },
@@ -93,12 +93,14 @@ var entries = [
 
     // ---- Displays
     { key: "autoRotate", label: "Auto-rotate the screen", cat: "displays", hint: "following the accelerometer", words: "rotate rotation auto orient tablet convertible" },
-    { key: "adaptiveBrightness", label: "Adaptive brightness", cat: "displays", hint: "the ambient sensor drives the backlight", words: "brightness adaptive ambient sensor auto" },
-    { key: "nightLight", label: "Night light", cat: "displays", hint: "warm colour after dusk", words: "night light warm filter blue eye strain" },
-    { key: "nightLightTemp", label: "Night light temperature", cat: "displays", hint: "how warm, in kelvin", words: "night light temperature kelvin warmth" },
-    { key: "nightLightSchedule", label: "Night light schedule", cat: "displays", hint: "by sunset, or by the clock", words: "night light schedule sunset hours custom" },
-    { key: "nightLightFrom", label: "Night light from", cat: "displays", hint: "start of the warm period", words: "night light from schedule start" },
-    { key: "nightLightTo", label: "Night light until", cat: "displays", hint: "end of the warm period", words: "night light until schedule end" },
+    // These six live in Personalisation's own page (SettingsPage), not in
+    // SettingsDisplays: search must land where the control actually is.
+    { key: "adaptiveBrightness", label: "Adaptive brightness", cat: "personal", hint: "the ambient sensor drives the backlight", words: "brightness adaptive ambient sensor auto" },
+    { key: "nightLight", label: "Night light", cat: "personal", hint: "warm colour after dusk", words: "night light warm filter blue eye strain" },
+    { key: "nightLightTemp", label: "Night light temperature", cat: "personal", hint: "how warm, in kelvin", words: "night light temperature kelvin warmth" },
+    { key: "nightLightFrom", label: "Night light from", cat: "personal", hint: "start of the warm period", words: "night light from schedule start" },
+    { key: "nightLightTo", label: "Night light until", cat: "personal", hint: "end of the warm period", words: "night light until schedule end" },
+    { key: "nightLightSchedule", label: "Night light schedule", cat: "personal", hint: "by sunset, or by the clock", words: "night light schedule sunset hours custom" },
 
     // ---- Windows
     { key: "winGaps", label: "Window gaps", cat: "windows", hint: "the space between tiles", words: "gap gaps windows tiling layout" },
@@ -190,7 +192,7 @@ var entries = [
 
     // ---- Date & language
     { key: "use24h", label: "24-hour clock", cat: "time", hint: "13:00, not 1 PM", words: "24 hour clock 12 am pm time format" },
-    { key: "showSeconds", label: "Seconds in the bar", cat: "time", hint: "a ticking clock", words: "seconds clock bar time" },
+    { key: "showSeconds", label: "Seconds in the bar", cat: "personal", hint: "a ticking clock in the bar", words: "seconds clock bar time" },
     { key: "worldClocks", label: "World clocks", cat: "time", hint: "other cities under the calendar", words: "world clock time zone city" },
     { key: "showCalendarEvents", label: "Calendar events", cat: "time", hint: "what is coming, under the clock", words: "calendar events appointments agenda" },
     { key: "machineTranslate", label: "Translate missing strings", cat: "time", hint: "the local model fills in untranslated labels", words: "translate machine language missing strings" },
@@ -257,22 +259,44 @@ var entries = [
     // ---- Automations
     { key: "automations", label: "Automations", cat: "automations", hint: "when this happens, do that", words: "automation rule when then routine trigger wifi plugged headphones" },
 
+    // ---- Apps reachable as deep links (entry.link is the shell's IPC function;
+    // consumers open the app instead of jumping to entry.cat — the words carry the
+    // desktop categories so a search by "Office", "AudioVideo", "Network" finds them)
+    { key: "appDictionary", label: "Dictionary", cat: "apps", hint: "look a word up offline; dictionary and thesaurus", words: "dictionary thesaurus define word office utility lookup", link: "dictionaryOpen" },
+    { key: "appPodcasts", label: "Podcasts", cat: "sound", hint: "subscribe to podcasts and listen", words: "podcasts podcast audio video audiobook subscribe audiovideo", link: "podcastsOpen" },
+    { key: "appScheduled", label: "Scheduled tasks", cat: "automations", hint: "your automations, hooks and timed jobs", words: "scheduled tasks schedule automation cron timer utility", link: "scheduledOpen" },
+    { key: "appTeleprompter", label: "Teleprompter", cat: "apps", hint: "scroll a script while you speak", words: "teleprompter script prompt office presentation scroll", link: "teleprompterOpen" },
+    { key: "appNetTools", label: "Network Tools", cat: "network", hint: "ping, DNS, whois and a LAN scan", words: "network tools ping dns whois scan system", link: "netToolsOpen" },
+    { key: "appStartupManager", label: "Startup manager", cat: "apps", hint: "which apps start at login", words: "startup manager autostart login system utility", link: "startupManagerOpen" },
+    { key: "appGateway", label: "Gateway", cat: "network", hint: "peers, QR codes and VPN connections", words: "gateway peers qr vpn network utility share", link: "gatewayOpen" },
+    { key: "appDatabaseBrowser", label: "Database browser", cat: "apps", hint: "browse and query SQLite files", words: "database browser sqlite query office development", link: "databaseBrowserOpen" },
+    { key: "appPasteHistory", label: "Paste history", cat: "apps", hint: "clipboard slots, favourites and search", words: "paste history clipboard slots favourite utility", link: "pasteHistoryOpen" },
+
     // ---- About (read-only machine info)
+    // "Updates" is the one label for this destination (SettingsAbout, SidebarHeader);
+    // "System restore" is the specific rollback panel inside it.
+    { key: "updates", label: "Updates", cat: "updates", hint: "the system update, its channel and firmware", words: "updates update upgrade channel stable latest rollback firmware restart reboot" },
+    { key: "systemRestore", label: "System restore", cat: "updates", hint: "blue-green slot rollback with shani-deploy", words: "system restore rollback slot blue green deploy update recovery" },
+    // VPN has no app flag/IPC: no link, so a search lands on the Network category
+    { key: "vpn", label: "VPN", cat: "network", hint: "wireguard and openvpn connections, import and status", words: "vpn wireguard openvpn tunnel connections network" },
+    { key: "cloudSync", label: "Cloud sync", cat: "network", hint: "background rclone sync with progress", words: "cloud sync rclone remote backup upload download", link: "cloudSyncOpen" },
+    { key: "irc", label: "IRC", cat: "network", hint: "chat on IRC networks", words: "irc chat server channel nick message", link: "ircOpen" },
+    { key: "health", label: "Health", cat: "personal", hint: "steps, sleep and workouts stored locally", words: "health fitness steps sleep workouts heart rate", link: "healthOpen" },
     { key: "about", label: "About", cat: "about", hint: "this machine — model, CPU, GPU, memory, kernel, compositor", words: "about machine info system kernel cpu memory gpu" },
 ];
 
 // every key, grouped by category: for “N customised” and “Reset this section”
 // (scalars only — arrays and objects in a section survive a reset)
 var groups = {
-    personal: ["blur", "darkMode", "darkSchedule", "darkFrom", "darkTo", "wallpaper", "wallpaperLight", "wallpaperDark", "accentFromWallpaper", "accentName", "iconTheme", "cursorTheme", "cursorSize", "uiFont", "uiFontSize", "monoFont", "monoFontSize", "cornerRadius", "cornerRadiusSmall", "showScrollbars", "reduceMotion", "animationSpeed", "dock", "dockVisibility", "barVisibility", "dockIconSize", "layoutPreset", "tileOrder", "hiddenTiles", "desktopWidgets", "slideshowDir", "slideshowMinutes", "showSysStats", "showNetSpeed", "barBatteryPercent", "barDate", "hideVolumeGlyph", "hideBrightnessGlyph", "barClickThrough", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight", "hotCornersInFullscreen", "weatherCity", "weatherLat", "weatherLon", "useLocation", "weatherUnits", ],
+    personal: ["blur", "darkMode", "darkSchedule", "darkFrom", "darkTo", "wallpaper", "wallpaperLight", "wallpaperDark", "accentFromWallpaper", "accentName", "iconTheme", "cursorTheme", "cursorSize", "uiFont", "uiFontSize", "monoFont", "monoFontSize", "cornerRadius", "cornerRadiusSmall", "showScrollbars", "reduceMotion", "dock", "dockVisibility", "barVisibility", "dockIconSize", "layoutPreset", "tileOrder", "hiddenTiles", "desktopWidgets", "slideshowDir", "slideshowMinutes", "showSysStats", "showNetSpeed", "barBatteryPercent", "barDate", "hideVolumeGlyph", "hideBrightnessGlyph", "barClickThrough", "hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight", "hotCornersInFullscreen", "weatherCity", "weatherLat", "weatherLon", "useLocation", "weatherUnits", "adaptiveBrightness", "nightLight", "nightLightTemp", "nightLightSchedule", "nightLightFrom", "nightLightTo", "showSeconds", ],
     notifications: ["smartReplies", "doNotDisturb", "plugGreetings", "dndSchedule", "dndFrom", "dndTo", "dndWhileLocked", "notifHideContent", "notifSound", "popupSeconds", "popupPosition", "silentApps", "dndAllowedApps", "notifApps", "quietWhileSharing", "quietWhileFullscreen", "focusModes", "focusMode"],
     network: ["proxyMode", "proxyHttp", "proxyHttps", "proxySocks", "proxyPac", "bluetoothAutoConnect", "bluetoothOnBoot", "hotspotName", "hotspotBand", "wifiMacRandom", "wakeOnLan", "obexDir"],
-    displays: ["displays", "autoRotate", "adaptiveBrightness", "nightLight", "nightLightTemp", "nightLightSchedule", "nightLightFrom", "nightLightTo"],
+    displays: ["displays", "autoRotate"],
     windows: ["winGaps", "winFocusRing", "winDefaultWidth", "winFocusFollowsMouse", "winAnimations", "winMotion", "winSpeed", "winShadow", "winCorners", "blurStrength", "windowRules"],
     sound: ["fxEnabled", "fxSpatial", "fxEq", "fxPreset", "fxBass", "fxAutoEq", "fxIr", "fxWidth", "fxCrossfeed", "fxLoudness", "micNoise", "fxCompress", "overAmplify", "audioBalance", "systemSounds", "soundVolumeChange", "soundScreenshot", "soundNotification", "volumeStep"],
-    access: ["screenReader", "largeText", "highContrast", "monoAudio", "flashAlerts", "speakNotifications", "speechRate", "captionLanguage", "sttBackend", "whisperModel", "compassEnabled", "tourEnabled", "assistiveTouch", "touchX", "touchY", "reduceTransparency", "reduceTransparencyOnBattery"],
+    access: ["screenReader", "largeText", "highContrast", "monoAudio", "flashAlerts", "speakNotifications", "speechRate", "captionLanguage", "sttBackend", "whisperModel", "compassEnabled", "tourEnabled", "assistiveTouch", "touchX", "touchY", "reduceTransparency", "reduceTransparencyOnBattery", "animationSpeed"],
     input: ["tapToClick", "typingGuard", "naturalScroll", "touchpadSpeed", "mouseNaturalScroll", "mouseSpeed", "leftHanded", "tpAccel", "tpScroll", "tpClick", "tpScrollMethod", "tpOffWithMouse", "mouseAccel", "mouseScroll", "numlock", "middlePaste", "doubleClickSpeed", "keyRepeatDelay", "keyRepeatRate", "kbCompose", "kbCaps", "kbLayouts", "kbSwitch", "oskLanguages", "tabletOutput", "tabletLeftHanded", "touchOutput", "customBinds", "kbdBacklight", "kbdBacklightLevel", "tpMiddleEmulation", "tpDragLock", "tpTapButtonMap", "dndEdgeViewScroll", "dndEdgeWorkspaceSwitch", "gamepadNav", "oskButton", "oskWithTabletMode"],
-    time: ["use24h", "showSeconds", "worldClocks", "showCalendarEvents", "machineTranslate", "weekStartsOn"],
+    time: ["use24h", "worldClocks", "showCalendarEvents", "machineTranslate", "weekStartsOn"],
     apps: ["terminal", "terminalThemed", "reopenApps", "recordingsDir", "screenshotDir", "screenshotFormat", "screenshotQuality", "clipboardOutputFormat", "screenshotAnnotationTool", "recordArea", "recordSound", "recordFps", "screenSaverMinutes", "screenSaverEnabled", "webApps"],
     search: ["searchFiles", "searchInside", "searchProviders", "searchCalc", "searchFolders", "webSearch", "launcherIgnoreMouse", "launcherHideNavLabels"],
     backup: [],
