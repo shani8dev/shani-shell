@@ -64,14 +64,8 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Text {
-                    Layout.fillWidth: true
-                    text: Tr.t("Health")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(18) * Theme.fontScale
-                    font.weight: Font.DemiBold
-                }
+                // the title is the window's own (AppWindow's header), not repeated here
+                Item { Layout.fillWidth: true }
                 Button {
                     text: Tr.t("Import…")
                     flat: true
@@ -277,7 +271,9 @@ AppWindow {
                 Layout.fillWidth: true
                 implicitHeight: Theme.px(120)
                 clip: true
-                model: Health.history.slice().reverse()
+                // rows only when there is something logged: all-zero days drew
+                // "0 steps 0 min" lines underneath the empty state
+                model: win.hasJournal ? Health.history.slice().reverse() : []
                 Accessible.role: Accessible.List
                 Accessible.name: Tr.t("Daily steps and sleep")
                 delegate: RowLayout {
@@ -285,22 +281,24 @@ AppWindow {
                     width: trend.width
                     spacing: Theme.px(6)
                     Text {
-                        Layout.preferredWidth: Theme.px(58)
+                        Layout.preferredWidth: Theme.px(72)
+                        elide: Text.ElideRight
                         text: Health.dayLabel(modelData.day)
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                     Text {
-                        Layout.preferredWidth: Theme.px(72)
-                        text: Tr.t("%1 steps", modelData.steps)
+                        Layout.preferredWidth: Theme.px(96)
+                        elide: Text.ElideRight
+                        text: Tr.t("%1 steps", modelData.steps || 0)
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: Health.duration(modelData.deep_min + modelData.light_min)
+                        text: Health.duration((modelData.deep_min || 0) + (modelData.light_min || 0))
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -337,7 +335,8 @@ AppWindow {
                     width: workouts.width
                     spacing: Theme.px(6)
                     Text {
-                        Layout.preferredWidth: Theme.px(58)
+                        Layout.preferredWidth: Theme.px(72)
+                        elide: Text.ElideRight
                         text: Health.dayLabel(modelData.day)
                         color: Theme.dim
                         font.family: Theme.font

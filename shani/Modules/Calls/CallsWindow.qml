@@ -132,14 +132,11 @@ AppWindow {
             }
         }
 
+        // the title is the window's own (AppWindow's header), not repeated here
         Text {
-            text: Tr.t("Calls")
-            color: Theme.text
-            font.family: Theme.font
-            font.pixelSize: Theme.px(16) * Theme.fontScale
-            font.weight: Font.DemiBold
-        }
-        Text {
+            // a wrapping Text in a layout needs the layout's width, or it is
+            // laid out at its full one-line length and runs under the history
+            Layout.fillWidth: true
             text: Tr.t("The landline, the modem and the phone — one history, whichever line it went out on.")
             color: Theme.dim
             wrapMode: Text.Wrap
@@ -181,6 +178,8 @@ AppWindow {
                     required property string modelData
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.px(44)
+                    // keys look like keys: an outline at rest, not bare digits
+                    kind: "outline"
                     text: modelData
                     onClicked: number.insert(number.cursorPosition, modelData)
                 }
@@ -206,6 +205,7 @@ AppWindow {
         }
 
         Text {
+            Layout.fillWidth: true
             visible: Link.note !== ""
             text: Link.note
             color: Theme.danger

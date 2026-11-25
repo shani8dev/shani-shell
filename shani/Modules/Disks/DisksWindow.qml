@@ -208,13 +208,7 @@ AppWindow {
         // ---- header: title, search + by-fs filter, unit scale, loop devices, actions ----
         RowLayout {
             Layout.fillWidth: true
-            Text {
-                text: Tr.t("Disks")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(16) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
+            // the title is the window's own (AppWindow's header), not repeated here
             Item { Layout.fillWidth: true }
             TextField {
                 Layout.preferredWidth: Theme.px(180)

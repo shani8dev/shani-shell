@@ -272,7 +272,8 @@ AppWindow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
                     Text {
-                        text: Camera.last ? Camera.last : Camera.available ? "Last capture appears here" : "Connect a camera, or check the camera switch."
+                        Layout.fillWidth: true
+                        text: Camera.last ? Camera.last : Camera.available ? Tr.t("Last capture appears here") : Tr.t("Connect a camera, or check the camera switch.")
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: Theme.px(12) * Theme.fontScale

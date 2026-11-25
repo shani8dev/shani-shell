@@ -35,7 +35,7 @@ def test_header_does_not_keep_a_closed_conversations_name():
     """openDevice() leaves threadName set; the header must key off openThread."""
     msg = source("shani/Modules/Messages/MessagesWindow.qml")
     assert (
-        'text: Link.openThread !== "" && Link.threadName !== "" ? Link.threadName : Tr.t("Messages")'
+        'text: Link.openThread !== "" && Link.threadName !== "" ? Link.threadName : ""'
         in msg
     )
 

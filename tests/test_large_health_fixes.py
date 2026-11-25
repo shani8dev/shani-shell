@@ -319,7 +319,7 @@ def test_window_shows_steps_sleep_workouts_trends_and_spot_checks():
         'Tr.t("Workouts")',
     ):
         assert label in w
-    assert "model: Health.history.slice().reverse()" in w
+    assert "model: win.hasJournal ? Health.history.slice().reverse() : []" in w
     assert "model: Health.workouts" in w
     assert 'Health.spot("hr")' in w and 'Health.spot("spo2")' in w
     assert "Health.reading(Health.measures[0])" in w

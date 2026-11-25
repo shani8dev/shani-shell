@@ -42,13 +42,7 @@ AppWindow {
         // ---- header ----
         RowLayout {
             Layout.fillWidth: true
-            Text {
-                text: Tr.t("Models")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(16) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
+            // the title is the window's own (AppWindow's header), not repeated here
             Item { Layout.fillWidth: true }
             Button { text: Tr.t("Local models"); checked: win.tab === "local"; onClicked: win.tab = "local" }
             Button { text: Tr.t("AI providers"); checked: win.tab === "providers"; onClicked: win.tab = "providers" }

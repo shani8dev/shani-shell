@@ -79,14 +79,8 @@ AppWindow {
             // ---- header -----------------------------------------------------------
             RowLayout {
                 Layout.fillWidth: true
-                Text {
-                    Layout.fillWidth: true
-                    text: Tr.t("Cloud sync")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(17) * Theme.fontScale
-                    font.weight: Font.DemiBold
-                }
+                // the title is the window's own (AppWindow's header), not repeated here
+                Item { Layout.fillWidth: true }
                 IconButton {
                     icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(22)
                     onClicked: CloudSync.refresh()

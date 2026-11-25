@@ -1248,6 +1248,7 @@ ShellRoot {
                                     color: Theme.text
                                 }
                                 Text {
+                                    Layout.fillWidth: true
                                     text: root.t("chronoaBody")
                                     font.family: Theme.font
                                     font.pixelSize: 13 * Theme.fontScale
@@ -1255,6 +1256,7 @@ ShellRoot {
                                     wrapMode: Text.Wrap
                                 }
                                 Text {
+                                    Layout.fillWidth: true
                                     text: root.t("chronoaCost")
                                     font.family: Theme.font
                                     font.pixelSize: 11 * Theme.fontScale
@@ -1277,7 +1279,7 @@ ShellRoot {
                                             anchors { fill: parent; margins: 12 }
                                             spacing: 4
                                             Text { text: root.t("chronoaOn"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
-                                            Text { text: root.t("chronoaOnDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
+                                            Text { Layout.fillWidth: true; text: root.t("chronoaOnDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
                                         }
                                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = true }
                                         KeyFocus { onActivated: root.chronoaOn = true }
@@ -1294,7 +1296,7 @@ ShellRoot {
                                             anchors { fill: parent; margins: 12 }
                                             spacing: 4
                                             Text { text: root.t("chronoaOff"); font.weight: Font.DemiBold; font.family: Theme.font; font.pixelSize: 14 * Theme.fontScale; color: Theme.text }
-                                            Text { text: root.t("chronoaOffDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
+                                            Text { Layout.fillWidth: true; text: root.t("chronoaOffDesc"); color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 * Theme.fontScale; wrapMode: Text.Wrap }
                                         }
                                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chronoaOn = false }
                                         KeyFocus { onActivated: root.chronoaOn = false }

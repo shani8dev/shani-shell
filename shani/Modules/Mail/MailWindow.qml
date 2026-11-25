@@ -321,42 +321,24 @@ AppWindow {
         font.pixelSize: Theme.px(11) * Theme.fontScale
         Timer { interval: 5000; onTriggered: Mail.note = ""; running: parent.visible }
     }
-    Rectangle {
+    // the shared banner: it has a height of its own (the hand-made Rectangle
+    // here had none, so its text was painted over the folder list and INBOX)
+    InfoBanner {
+        id: errorBanner
         anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.px(10) }
-        z: 25
         visible: Mail.error
-        radius: Theme.radiusSmall
-        color: Theme.alpha(Theme.danger, 0.16)
-        border.width: 1
-        border.color: Theme.alpha(Theme.danger, 0.5)
-        RowLayout {
-            anchors { fill: parent; margins: Theme.px(8) }
-            spacing: Theme.px(8)
-            Text {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: Tr.t("Offline or mail server unavailable — check your connection")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
-                Accessible.role: Accessible.StaticText
-                Accessible.name: text
-            }
-            Button {
-                text: Tr.t("Retry")
-                flat: true
-                onClicked: { Mail.error = false; Mail.refresh(); }
-            }
-            IconButton {
-                icon: "window-close"; tip: Tr.t("Dismiss"); size: Theme.px(22)
-                onClicked: Mail.error = false
-            }
-        }
+        tone: "error"
+        text: Tr.t("Offline or mail server unavailable — check your connection")
+        accessibleRole: Accessible.AlertMessage
+        Button { text: Tr.t("Retry"); onClicked: { Mail.error = false; Mail.refresh(); } }
+        Button { text: Tr.t("Dismiss"); flat: true; onClicked: Mail.error = false }
     }
 
     RowLayout {
         anchors.fill: parent
         anchors.margins: Theme.px(10)
+        // below the banner while it shows, never under it
+        anchors.topMargin: errorBanner.visible ? errorBanner.height + Theme.px(20) : Theme.px(10)
         spacing: Theme.px(10)
 
         // ---- folders --------------------------------------------------------

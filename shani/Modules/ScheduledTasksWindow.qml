@@ -212,7 +212,7 @@ AppWindow {
                 }
                 TextField {
                     id: typedIs
-                    visible: win.w && win.w.ask
+                    visible: !!(win.w && win.w.ask)
                     Layout.fillWidth: true
                     placeholder: Tr.t("Type the value, e.g. my Wi-Fi name")
                     text: win.is
@@ -236,7 +236,7 @@ AppWindow {
                 Layout.fillWidth: true; spacing: Theme.px(6)
                 visible: !!win.t && !!win.t.choices
                 Repeater {
-                    model: win.t.choices
+                    model: win.t ? win.t.choices : []
                     Choice {
                         required property string modelData
                         text: modelData

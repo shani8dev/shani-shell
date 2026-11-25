@@ -205,7 +205,7 @@ AppWindow {
                 text: win.mode === "add" ? Tr.t("New contact")
                     : win.mode === "edit" ? Tr.t("Edit contact")
                     : win.showDuplicates ? Tr.t("Merge duplicates")
-                    : Tr.t("Contacts")
+                    : ""   // the list: its title is the window's own, not repeated
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: Theme.px(16) * Theme.fontScale
@@ -727,7 +727,7 @@ AppWindow {
                             tip: Tr.t("Copy number")
                             onClicked: win.copyText(modelData.number)
                         }
-                        Button { text: "Call"; flat: true; onClicked: win.openExternal("tel:" + (modelData.number || "")) }
+                        Button { text: Tr.t("Call"); flat: true; onClicked: win.openExternal("tel:" + (modelData.number || "")) }
                     }
                 }
                 Repeater {
@@ -748,7 +748,7 @@ AppWindow {
                             tip: Tr.t("Copy address")
                             onClicked: win.copyText(modelData.address)
                         }
-                        Button { text: "Mail"; flat: true; onClicked: win.openExternal("mailto:" + (modelData.address || "")) }
+                        Button { text: Tr.t("Mail"); flat: true; onClicked: win.openExternal("mailto:" + (modelData.address || "")) }
                     }
                 }
                 Button {
@@ -773,7 +773,7 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
-                    Button { text: "QR code"; flat: true; onClicked: Contacts.vcard(win.detailUid, detailCol.c.name || "Contact") }
+                    Button { text: Tr.t("QR code"); flat: true; onClicked: Contacts.vcard(win.detailUid, detailCol.c.name || "Contact") }
                     Button {
                         text: Tr.t("Message…")
                         flat: true

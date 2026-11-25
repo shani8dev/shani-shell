@@ -42,13 +42,7 @@ AppWindow {
         // ---- header ----
         RowLayout {
             Layout.fillWidth: true
-            Text {
-                text: Tr.t("Studio")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(16) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
+            // the title is the window's own (AppWindow's header), not repeated here
             Item { Layout.fillWidth: true }
             IconButton {
                 size: Theme.px(26)

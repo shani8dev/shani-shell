@@ -150,7 +150,7 @@ AppWindow {
             Text {
                 // openDevice() clears the thread but not its name: do not keep a
                 // closed conversation's title above an empty composer
-                text: Link.openThread !== "" && Link.threadName !== "" ? Link.threadName : Tr.t("Messages")
+                text: Link.openThread !== "" && Link.threadName !== "" ? Link.threadName : ""   // the window says "Messages"
                 color: Theme.text
                 font.family: Theme.font
                 font.pixelSize: Theme.px(15) * Theme.fontScale
