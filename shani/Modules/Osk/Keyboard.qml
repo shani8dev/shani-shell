@@ -98,11 +98,78 @@ PanelWindow {
     function tap(k) {
         if (k === "⌫")
             Osk.press("BackSpace");
-        else if (k === "⇧")
-            Osk.shift = !Osk.shift;
+        else if (k === "⇧" || k === "⇪")
+            Osk.tapShift();          // two quick taps: caps lock
         else
             Osk.press(k);
     }
+
+    // ---- swipe, space-bar slide and long-press alternates (SwiftKey's) ------
+    // A key's own touch area keeps the finger after it leaves the key, so the
+    // path is read there: over the letters it is a swipe (the word engine
+    // decodes it on release), along the space bar it moves the cursor.
+    property bool swiping: false
+    property string swipePath: ""
+    property bool sliding: false
+    property real slideX: 0
+    function keyAt(x, y) {                 // the key under a point of the board
+        let it = board, px = x, py = y;
+        while (it) {
+            const c = it.childAt(px, py);
+            if (!c) return null;
+            const q = it.mapToItem(c, px, py);
+            px = q.x; py = q.y; it = c;
+            if (it.isOskKey) return it;
+        }
+        return null;
+    }
+    function trackSwipe(fromKey, area, mx, my) {
+        const p = area.mapToItem(board, mx, my);
+        if (fromKey.isSpace) {
+            const step = Theme.px(22);
+            if (!win.sliding) {
+                if (Math.abs(mx - fromKey.pressX) < Theme.px(16)) return;
+                win.sliding = true;
+                win.slideX = p.x;
+                Osk.press("BackSpace");              // the space the press typed
+            }
+            while (p.x - win.slideX > step) { Osk.press("Right"); win.slideX += step; }
+            while (win.slideX - p.x > step) { Osk.press("Left"); win.slideX -= step; }
+            return;
+        }
+        if (Osk.secret || Osk.page !== "letters" || !Osk.suggestions) return;
+        const k = win.keyAt(p.x, p.y);
+        if (!k || !/^[A-Za-z]$/.test(k.label)) return;
+        const ch = k.label.toLowerCase();
+        if (!win.swiping) {
+            if (k === fromKey || !/^[A-Za-z]$/.test(fromKey.label)) return;
+            win.swiping = true;
+            Osk.stopRepeat();
+            win.swipePath = fromKey.label.toLowerCase();
+        }
+        if (win.swipePath.slice(-1) !== ch) win.swipePath += ch;
+    }
+    function endSwipe() {
+        if (win.swiping) Osk.swipe(win.swipePath);
+        win.swiping = false;
+        win.swipePath = "";
+        win.sliding = false;
+    }
+    // held: the letter's accents (and the digit on the top row), as phones have them
+    readonly property var alternatesOf: ({
+        q: "1", w: "2", e: "3èéêëēėę", r: "4ř", t: "5ţť", y: "6ÿý", u: "7ûüùúū", i: "8îïíīįì", o: "9ôöòóœøōõ", p: "0",
+        a: "àáâäæãåā", s: "ßśšş", d: "ďð", g: "ğ", l: "łľ", z: "žźż", c: "çćč", n: "ñńň",
+        ".": ",?!'\"-:;@#"
+    })
+    function alternatesFor(ch) {
+        if (Osk.lang !== "en" || Osk.page !== "letters") return [];
+        const a = win.alternatesOf[String(ch).toLowerCase()] || "";
+        return Array.from(a).map(x => ch !== ch.toLowerCase() ? x.toUpperCase() : x);
+    }
+    property var altKey: null
+    property var altList: []
+    function showAlternates(key) { win.altKey = key; win.altList = key.alternates; }
+    function pickAlternate(ch) { Osk.replaceLast(ch); win.altKey = null; win.altList = []; }
 
     // the clipboard is the word channel to the Dictionary, which seeds its
     // search box from it on open; Ui.dictionary is the flag the shell's
@@ -237,6 +304,36 @@ PanelWindow {
     Glass {
         id: board
         transform: Translate { id: boardRise }
+        // a held letter's alternates, over the key (a tap picks one)
+        Rectangle {
+            id: altPopup
+            visible: win.altKey !== null && win.altList.length > 0
+            z: 20
+            radius: Theme.px(10)
+            color: Theme.bg
+            border.color: Theme.accent
+            readonly property point at: win.altKey ? win.altKey.mapToItem(board, 0, 0) : Qt.point(0, 0)
+            width: altRow.implicitWidth + Theme.px(8)
+            height: Theme.px(50)
+            x: Math.max(0, Math.min(board.width - width, at.x - Theme.px(4)))
+            y: Math.max(0, at.y - height - Theme.px(4))
+            Row {
+                id: altRow
+                anchors.centerIn: parent
+                spacing: Theme.px(4)
+                Repeater {
+                    model: win.altList
+                    Key {
+                        required property string modelData
+                        width: Theme.px(42)
+                        height: Theme.px(42)
+                        label: modelData
+                        accessibleName: Tr.t("Type %1", modelData)
+                        onTapped: win.pickAlternate(modelData)
+                    }
+                }
+            }
+        }
         strong: true
         // one-handed mode narrows the board to 82% and pins it to one side;
         // center keeps the full 8 px-inset width. Both are reached by a thumb.
@@ -288,6 +385,27 @@ PanelWindow {
                     icon: "edit-find"
                     title: Osk.suggestions ? Tr.t("Word suggestions: on") : Tr.t("Word suggestions: off")
                     onClicked: Osk.toggleSuggestions()
+                }
+                ListRow {
+                    width: menuCol.width
+                    icon: "tools-check-spelling"
+                    title: Osk.autocorrect ? Tr.t("Autocorrect: on") : Tr.t("Autocorrect: off")
+                    subtitle: Tr.t("Backspace right after a correction undoes it")
+                    onClicked: Osk.toggleAutocorrect()
+                }
+                ListRow {
+                    width: menuCol.width
+                    icon: "format-text-uppercase"
+                    title: Osk.autoCaps ? Tr.t("Capitals and full stops: on") : Tr.t("Capitals and full stops: off")
+                    subtitle: Tr.t("A capital to start a sentence; two spaces type \". \"")
+                    onClicked: Osk.toggleAutoCaps()
+                }
+                ListRow {
+                    width: menuCol.width
+                    icon: "edit-clear-history"
+                    title: Tr.t("Forget learned words")
+                    subtitle: Tr.t("What the keyboard learned from your typing, on this computer")
+                    onClicked: { Osk.forgetLearned(); win.oskMenu = false; }
                 }
                 ListRow {
                     width: menuCol.width
@@ -357,20 +475,31 @@ PanelWindow {
                 }
             }
 
-            // inline word suggestions, above the keys: a small bounded English
-            // list in Osk, not a dictionary service. The × hides this word only.
+            // the top bar, SwiftKey's way: three predictions while a word is typed
+            // (the middle one is what a space would make it - the correction or
+            // the best guess), the next word after a space, a swipe's other
+            // words; the keyboard's tools when there is nothing to predict
             Rectangle {
                 id: suggestionBar
                 readonly property string word: Osk.currentWord()
-                readonly property var picks: Osk.suggestionsFor(word)
-                visible: Osk.suggestions && Osk.lang === "en" && Osk.page === "letters" &&
-                         Osk.dismissedWord !== word && picks.length > 0
+                readonly property var picks: {
+                    if (Osk.swiped.length) return Osk.swiped.slice(0, 3);
+                    const p = Osk.suggestionsFor(word).filter(x => x !== word.toLowerCase() && x !== Osk.correction);
+                    if (Osk.correction !== "" && word !== "")
+                        return [word, Osk.correction].concat(p).slice(0, 3);   // keep what was typed, the fix in the middle
+                    return p.slice(0, 3);
+                }
+                // a dismissed word stays dismissed; between words (word "") the next-word
+                // guesses show, and × clears them
+                readonly property bool predicting: Osk.suggestions && Osk.page === "letters" && !Osk.secret
+                    && !(word !== "" && Osk.dismissedWord === word) && picks.length > 0
                 Layout.fillWidth: true
-                Layout.preferredHeight: visible ? Theme.px(34) : 0
+                Layout.preferredHeight: Theme.px(Osk.compact ? 34 : 40)
                 radius: Theme.px(10)
                 color: Theme.alpha(Theme.text, 0.04)
                 border.color: Theme.stroke
                 RowLayout {
+                    visible: suggestionBar.predicting
                     anchors.fill: parent
                     anchors.margins: Theme.px(3)
                     spacing: Theme.px(4)
@@ -378,21 +507,154 @@ PanelWindow {
                         model: suggestionBar.picks
                         Key {
                             required property string modelData
-                            Layout.preferredWidth: Theme.px(130)
+                            required property int index
+                            Layout.fillWidth: true
                             Layout.fillHeight: true
                             label: modelData
+                            // the one a space would type stands out
+                            accent: (Osk.correction !== "" && modelData === Osk.correction) || (Osk.correction === "" && index === 0 && suggestionBar.word !== "")
                             accessibleName: Tr.t("Use %1", modelData)
-                            onTapped: Osk.applySuggestion(modelData)
+                            onTapped: Osk.swiped.length ? Osk.replaceSwiped(modelData)
+                                : (modelData === suggestionBar.word ? Osk.keepTyped() : Osk.applySuggestion(modelData))
                         }
                     }
-                    Item { Layout.fillWidth: true }
                     Key {
                         Layout.preferredWidth: Theme.px(34)
                         Layout.fillHeight: true
                         label: "×"
                         accessibleName: Tr.t("Dismiss suggestions")
-                        onTapped: Osk.dismissSuggestions()
+                        onTapped: { Osk.swiped = []; Osk.predicted = []; Osk.dismissSuggestions(); }
                     }
+                }
+                // the tools, when there is nothing to predict
+                RowLayout {
+                    visible: !suggestionBar.predicting
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(3)
+                    spacing: Theme.px(4)
+                    Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "☺"; accent: Osk.page === "emoji"; accessibleName: Tr.t("Emoji")
+                          onTapped: { Characters.loadEmoji(); Osk.page = Osk.page === "emoji" ? "letters" : "emoji"; } }
+                    Key { Layout.fillWidth: true; Layout.fillHeight: true; icon: "edit-paste"; accent: Osk.page === "clip"; accessibleName: Tr.t("Clipboard")
+                          onTapped: Osk.page = Osk.page === "clip" ? "letters" : "clip" }
+                    // voice typing: tap, speak, tap again — the words land where the keys would
+                    Key {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        label: Dictation.phase === "transcribing" ? "…" : ""
+                        icon: Dictation.phase === "transcribing" ? "" : "audio-input-microphone"
+                        accent: Dictation.phase === "recording"
+                        danger: Dictation.phase === "recording"
+                        onTapped: Dictation.toggle()
+                    }
+                    Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "✎"; accent: Osk.page === "write"; accessibleName: Tr.t("Write by hand")
+                          onTapped: Osk.page = Osk.page === "write" ? "letters" : "write" }
+                    // look the word being typed up in the offline Dictionary
+                    Key { Layout.fillWidth: true; Layout.fillHeight: true; icon: "accessories-dictionary"; accessibleName: Tr.t("Define"); onTapped: win.defineWord() }
+                    // one-handed: shift the board left or right, tap again for center
+                    Key {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        label: Osk.hand === "left" ? "◧" : (Osk.hand === "right" ? "◨" : "↔")
+                        accessibleName: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
+                        accent: Osk.hand !== "center"
+                        onTapped: Osk.cycleHand()
+                    }
+                    // size, opacity, suggestions, autocorrect, capitals, without leaving the keyboard
+                    Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "⚙"; accessibleName: Tr.t("Keyboard options"); accent: win.oskMenu
+                          onTapped: { win.langMenu = false; win.oskMenu = !win.oskMenu; } }
+                }
+            }
+
+            // ---- emoji: a page per group (Unicode's order), recents first -------
+            ColumnLayout {
+                visible: Osk.page === "emoji"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredHeight: Theme.px(3)
+                spacing: Theme.px(4)
+                property int group: Characters.recents.length ? -1 : 0
+                id: emojiPage
+                readonly property var shown: group < 0 ? Characters.recents : ((Characters.emojiGroups[group] || {}).items || [])
+                GridView {
+                    id: emojiGrid
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: Theme.px(100)
+                    clip: true
+                    cellWidth: Theme.px(Osk.compact ? 46 : 54)
+                    cellHeight: Theme.px(Osk.compact ? 42 : 50)
+                    model: emojiPage.shown
+                    boundsBehavior: Flickable.StopAtBounds
+                    delegate: Key {
+                        required property var modelData
+                        width: emojiGrid.cellWidth - Theme.px(4)
+                        height: emojiGrid.cellHeight - Theme.px(4)
+                        label: modelData.ch
+                        bigLabel: true
+                        accessibleName: modelData.name || modelData.ch
+                        onTapped: { Osk.press(modelData.ch); Characters.used(modelData); }
+                    }
+                }
+                // the groups, a slim row under the grid (it must not grow into it)
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Theme.px(36)
+                    Layout.maximumHeight: Theme.px(36)
+                    spacing: Theme.px(4)
+                    Key { Layout.preferredWidth: Theme.px(44); Layout.fillHeight: true; label: "🕘"; accent: emojiPage.group < 0; visible: Characters.recents.length > 0
+                          accessibleName: Tr.t("Recently used"); onTapped: emojiPage.group = -1 }
+                    Repeater {
+                        model: Characters.emojiGroups
+                        Key {
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            label: modelData.items[0].ch
+                            accent: emojiPage.group === index
+                            accessibleName: modelData.group
+                            onTapped: { emojiPage.group = index; emojiGrid.positionViewAtBeginning(); }
+                        }
+                    }
+                    Key { Layout.preferredWidth: Theme.px(56); Layout.fillHeight: true; label: "⌫"; repeatKey: "BackSpace"; onTapped: Osk.press("BackSpace") }
+                }
+            }
+
+            // ---- the clipboard: recent copies and the pinned ones, a tap pastes --
+            // (Paste first: what is on the clipboard now, in one tap, as before)
+            Key {
+                visible: Osk.page === "clip"
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.px(40)
+                icon: "edit-paste"
+                accent: true
+                accessibleName: Tr.t("Paste")
+                onTapped: Osk.paste()
+            }
+            ListView {
+                id: clipList
+                visible: Osk.page === "clip"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredHeight: Theme.px(3)
+                clip: true
+                spacing: Theme.px(4)
+                boundsBehavior: Flickable.StopAtBounds
+                model: Osk.page === "clip" ? Array.from(Settings.data.clipPins).map(t => ({ pinned: true, text: t }))
+                                               .concat(Clipboard.entries.filter(e => !e.image).slice(0, 30)) : []
+                delegate: Key {
+                    required property var modelData
+                    width: clipList.width
+                    height: Theme.px(44)
+                    label: (modelData.pinned ? "📌 " : "") + String(modelData.text || modelData.preview || "").replace(/\s+/g, " ").slice(0, 80)
+                    accessibleName: Tr.t("Paste %1", String(modelData.text || modelData.preview || "").slice(0, 40))
+                    onTapped: modelData.pinned ? Osk.typeText(modelData.text) : Clipboard.copyAndPaste(modelData)
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: clipList.count === 0
+                    text: Tr.t("Nothing copied yet")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
                 }
             }
 
@@ -425,7 +687,7 @@ PanelWindow {
                 }
             }
             Repeater {
-                model: Osk.page === "write" ? [] : win.rows
+                model: Osk.page === "write" || Osk.page === "emoji" || Osk.page === "clip" ? [] : win.rows
                 RowLayout {
                     id: keyRow
                     required property var modelData
@@ -439,13 +701,14 @@ PanelWindow {
                             readonly property string ch: Osk.shift ? modelData.s : modelData.n
                             // held single characters repeat; ⌫ repeats as a named
                             // key, while the shift key and multi-codepoint keys do not
+                            alternates: win.alternatesFor(ch)
                             repeatKey: modelData.n === "⌫" ? "BackSpace"
-                                : (modelData.n !== "⇧" && modelData.n.length === 1 ? ch : "")
+                                : (modelData.n !== "⇧" && modelData.n.length === 1 && alternates.length === 0 ? ch : "")
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             Layout.preferredWidth: ch === "⇧" || ch === "⌫" ? 150 : 100
-                            label: ch
                             accent: (ch === "⇧" && Osk.shift) || ch === "्"
+                            label: ch === "⇧" && Osk.capsLock ? "⇪" : ch
                             onTapped: win.tap(ch)
                         }
                     }
@@ -458,13 +721,10 @@ PanelWindow {
                 Layout.fillHeight: true
                 spacing: Theme.px(6)
                 Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.page !== "letters" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page !== "letters" ? "letters" : "symbols" }
-                // write by hand; Ctrl and Alt, sticky (one tap: the next key; two: held)
-                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: "WRITE"; accent: Osk.page === "write"; onTapped: Osk.page = Osk.page === "write" ? "letters" : "write"; accessibleName: Tr.t("Write by hand") }
+                // Ctrl and Alt, sticky (one tap: the next key; two: held); the tools are in the top bar
                 Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
                 Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
-                // size, opacity and suggestions, without leaving the keyboard
-                Key { Layout.preferredWidth: Theme.px(70); Layout.fillHeight: true; label: "⚙"; accessibleName: Tr.t("Keyboard options"); accent: win.oskMenu; onTapped: { win.langMenu = false; win.oskMenu = !win.oskMenu; } }
-                Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.shift = !Osk.shift }
+                Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: Osk.capsLock ? "⇪" : "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.tapShift() }
                 // the globe (Gboard's): a tap - the next language, or the list when there is
                 // only one (so adding one is never hidden); held - the list
                 Key {
@@ -477,42 +737,8 @@ PanelWindow {
                     onTapped: { win.oskMenu = false; Osk.languages.length > 1 ? Osk.nextLanguage() : (win.langMenu = !win.langMenu); }
                     onHeld: { win.oskMenu = false; win.langMenu = true; }
                 }
-                // voice typing: tap, speak, tap again — the words land where the keys would
-                Key {
-                    Layout.preferredWidth: Theme.px(90)
-                    Layout.fillHeight: true
-                    label: Dictation.phase === "transcribing" ? "…" : ""
-                    icon: Dictation.phase === "transcribing" ? "" : "audio-input-microphone"
-                    accent: Dictation.phase === "recording"
-                    danger: Dictation.phase === "recording"
-                    onTapped: Dictation.toggle()
-                }
-                // paste types the clipboard through the same wtype path as any key
-                Key {
-                    Layout.preferredWidth: Theme.px(64)
-                    Layout.fillHeight: true
-                    icon: "edit-paste"
-                    accessibleName: Tr.t("Paste")
-                    onTapped: Osk.paste()
-                }
-                // look the word being typed up in the offline Dictionary
-                Key {
-                    Layout.preferredWidth: Theme.px(64)
-                    Layout.fillHeight: true
-                    icon: "accessories-dictionary"
-                    accessibleName: Tr.t("Define")
-                    onTapped: win.defineWord()
-                }
-                // one-handed: shift the board left or right, tap again for center
-                Key {
-                    Layout.preferredWidth: Theme.px(64)
-                    Layout.fillHeight: true
-                    label: Osk.hand === "left" ? "◧" : (Osk.hand === "right" ? "◨" : "↔")
-                    accessibleName: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
-                    accent: Osk.hand !== "center"
-                    onTapped: Osk.cycleHand()
-                }
-                Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.layoutName; dim: true; onTapped: Osk.press("space") }
+                // the space bar: the language in use; slide along it to move the cursor
+                Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.sliding ? "◀ ▶" : win.layoutName; dim: true; isSpace: true; onTapped: Osk.press("space") }
                 Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.remote ? Tr.t("Done") : "⏎"; accent: true; onTapped: Osk.remote ? Osk.commit() : Osk.press("Return") }
                 // hide it to see the whole screen; the floating button (OskButton) or the bar brings it back
                 Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.remote ? Osk.cancelRemote() : Osk.toggle() }
@@ -528,6 +754,10 @@ PanelWindow {
         property bool danger: false
         property string icon: ""
         property bool dim: false
+        property bool bigLabel: false          // an emoji: drawn larger than a letter
+        property bool isSpace: false           // the space bar: a slide moves the cursor
+        property var alternates: []            // held: these to pick from (accents, a digit)
+        property real pressX: 0
         signal tapped()
         signal held()
         property bool holdable: false      // has something to show when held: waits for the release
@@ -558,24 +788,30 @@ PanelWindow {
             text: key.label
             color: key.accent ? Theme.accentInk : (key.dim ? Theme.dim : Theme.text)
             font.family: Theme.font
-            font.pixelSize: (key.label.length > 3 ? 13 : 20) * Theme.fontScale
+            font.pixelSize: (key.bigLabel ? 26 : key.label.length > 3 ? 13 : 20) * Theme.fontScale
         }
         MouseArea {
             id: area
             anchors.fill: parent
             // a key types on press (fast typing); one that can be held waits for the release
-            onPressed: {
+            onPressed: mouse => {
+                key.pressX = mouse.x;
+                win.altKey = null;
                 if (!key.holdable) {
                     key.tapped();
                     if (key.repeatKey !== "")
                         Osk.startRepeat(key.repeatKey);
                 }
             }
-            onReleased: Osk.stopRepeat()
-            onCanceled: Osk.stopRepeat()
+            onPositionChanged: mouse => { if (pressed) win.trackSwipe(key, area, mouse.x, mouse.y); }
+            onReleased: { Osk.stopRepeat(); win.endSwipe(); }
+            onCanceled: { Osk.stopRepeat(); win.endSwipe(); }
             onClicked: if (key.holdable) key.tapped()
             pressAndHoldInterval: 450
-            onPressAndHold: if (key.holdable) key.held()
+            onPressAndHold: {
+                if (key.holdable) key.held();
+                else if (key.alternates.length && !win.swiping) { Osk.stopRepeat(); win.showAlternates(key); }
+            }
         }
     }
 }

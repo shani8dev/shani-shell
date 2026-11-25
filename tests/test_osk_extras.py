@@ -99,8 +99,8 @@ def test_repeat_stops_on_release_hide_and_remote():
     stop = block(REPEAT, "function stopRepeat()", "Timer {")
     assert "repeatDelayTimer.stop()" in stop and "repeatTick.stop()" in stop
     area = block(KEYBOARD, "MouseArea {", "pressAndHoldInterval")
-    assert "onReleased: Osk.stopRepeat()" in area
-    assert "onCanceled: Osk.stopRepeat()" in area
+    assert "onReleased: { Osk.stopRepeat(); win.endSwipe(); }" in area
+    assert "onCanceled: { Osk.stopRepeat(); win.endSwipe(); }" in area
     assert "Osk.startRepeat(key.repeatKey)" in area
     assert "root.stopRepeat()" in OSK[OSK.index("onShownChanged:") :]
 
@@ -134,8 +134,9 @@ def test_paste_uses_the_existing_wtype_path_and_guards():
 
 
 def test_paste_key_is_wired_and_named():
-    row = block(KEYBOARD, "// paste types the clipboard", "// one-handed:")
-    assert "icon: 'edit-paste'" in row.replace('"', "'")  # icon name, any quoting
+    # one tap at the top of the clipboard panel (☺ / clipboard / … in the top bar)
+    row = block(KEYBOARD, "// (Paste first:", "ListView {")
+    assert "icon: 'edit-paste'" in row.replace('"', "'")
     assert 'accessibleName: Tr.t("Paste")' in row
     assert "onTapped: Osk.paste()" in row
 

@@ -497,7 +497,7 @@ def test_no_deferrals_round5_are_wired():
         ],
         "shani/Modules/Settings/SettingsPrinters.qml": ['kind: "danger"'],
         "shani/Modules/Osk/Keyboard.qml": [
-            'label: "WRITE"',
+            'accessibleName: Tr.t("Write by hand")',   # the ✎ in the top bar
             'label: Osk.languages.length > 1 ? "LANG "',
             "property string accessibleName",
         ],

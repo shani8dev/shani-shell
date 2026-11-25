@@ -127,6 +127,32 @@ def _emoji_entries():
     return entries
 
 
+def emoji_groups():
+    """The emoji keyboard's pages: [{group, items: [{ch, name}]}] in Unicode's
+    own order (emoji-test.txt's groups), one of each - the skin-tone and
+    hair variants are left out, as a keyboard's grid shows only the base."""
+    groups = []
+    try:
+        with open(EMOJI_TEST, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("# group:"):
+                    groups.append({"group": line.split(":", 1)[1].strip(), "items": []})
+                    continue
+                if "; fully-qualified" not in line or not groups:
+                    continue
+                tail = line.split("#", 1)[-1].strip()
+                parts = tail.split(" ", 2)              # glyph, E<version>, name
+                if len(parts) < 3:
+                    continue
+                glyph, name = parts[0], parts[2]
+                if "skin tone" in name or ": " in name and "hair" in name:
+                    continue
+                groups[-1]["items"].append({"ch": glyph, "name": name})
+    except OSError:
+        return []
+    return [g for g in groups if g["items"] and g["group"] != "Component"]
+
+
 def iter_entries():
     """every character in the curated table, in code-point order."""
     global _cache
@@ -215,6 +241,9 @@ def main(argv):
     cmd = argv[1]
     if cmd == "get":
         print(json.dumps(iter_entries(), ensure_ascii=False))
+        return 0
+    if cmd == "emoji":
+        print(json.dumps(emoji_groups(), ensure_ascii=False))
         return 0
     if cmd == "search":
         query = argv[2] if len(argv) > 2 and not argv[2].startswith("--") else ""

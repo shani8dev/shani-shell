@@ -59,6 +59,8 @@ Singleton {
             property real panelOpacity: 1
             property bool suggestions: true
             property string hand: "center"       // center | left | right
+            property bool autocorrect: true
+            property bool autoCaps: true         // a capital to start a sentence; ". " on two spaces
         }
     }
     property string size: prefs.size === "compact" ? "compact" : "fixed"
@@ -69,12 +71,16 @@ Singleton {
         return v >= 0.55 && v <= 1 ? v : 1;
     }
     property bool suggestions: prefs.suggestions !== false
+    property bool autocorrect: prefs.autocorrect !== false
+    property bool autoCaps: prefs.autoCaps !== false
     readonly property bool compact: size === "compact"
     function savePrefs() {
         prefs.size = root.size;
         prefs.panelOpacity = root.panelOpacity;
         prefs.suggestions = root.suggestions;
         prefs.hand = root.hand;
+        prefs.autocorrect = root.autocorrect;
+        prefs.autoCaps = root.autoCaps;
         Quickshell.execDetached(["mkdir", "-p", root.prefsDir]);
         prefsFile.writeAdapter();
     }
@@ -86,6 +92,8 @@ Singleton {
         savePrefs();
     }
     function toggleSuggestions() { root.suggestions = !root.suggestions; savePrefs(); }
+    function toggleAutocorrect() { root.autocorrect = !root.autocorrect; savePrefs(); }
+    function toggleAutoCaps() { root.autoCaps = !root.autoCaps; savePrefs(); }
     function cycleHand() {
         const sides = ["center", "left", "right"];
         root.hand = sides[(sides.indexOf(root.hand) + 1) % sides.length];
@@ -180,9 +188,143 @@ Singleton {
     }
     property string typed: ""               // the last few characters sent (for tests and smart matras)
 
+    // ---- the word engine (SwiftKey's prediction bar, on this machine) --------
+    // bridge/osk-predict.py: completion, the next word, autocorrect, swipe and
+    // learning from what is typed - one process while the keyboard is up and
+    // suggestions are on, nothing while it is hidden. Nothing typed into a
+    // password field is sent to it, so it never learns a secret.
+    readonly property string predictTool: ToolPath.of(Quickshell.env("SHANI_OSK_PREDICT_TOOL"), "osk-predict.py")
+    property string context: ""             // the last words typed, for the next-word guess
+    property var predicted: []              // the engine's words for `predictedFor`
+    property string predictedFor: "\u0000"
+    property string correction: ""          // what a space would turn the word into
+    property var swiped: []                 // the other words a swipe could have been
+    property var undoable: null             // { from, to }: Backspace right after an autocorrect undoes it
+    readonly property bool secret: Ui.promptKeyboard || (Ui.textInput !== null && Ui.textInput.echoMode !== TextInput.Normal)
+    // the engine works for any language with a system dictionary (hunspell);
+    // capitals and ". " only where the script has them
+    readonly property bool latin: lang === "en" || (isXkb && /^(us|gb|fr|de|es|it|pt|nl|se|no|dk|fi|pl|cz|tr|in\+eng)/.test(lang))
+    readonly property bool engineUp: engine.running
+    Process {
+        id: engine
+        command: ["python3", root.predictTool]
+        running: root.shown && root.suggestions
+        stdinEnabled: true
+        stdout: SplitParser {
+            onRead: line => {
+                let r;
+                try { r = JSON.parse(line); } catch (e) { return; }
+                if (r.op === "suggest") {
+                    root.predicted = r.words || [];
+                    root.predictedFor = r.word || "";
+                    root.correction = root.autocorrect && r.correction ? r.correction : "";
+                } else if (r.op === "swipe") {
+                    root.typeSwiped(r.words || []);
+                }
+            }
+        }
+    }
+    function ask(req) {
+        if (!engine.running || root.secret) return;
+        req.lang = root.lang;
+        engine.write(JSON.stringify(req) + "\n");
+    }
+    Timer { id: askSoon; interval: 40; onTriggered: root.ask({ op: "suggest", prev: root.context.replace(/[A-Za-z']*$/, ""), word: root.currentWord() }) }
+    function learnWord() {
+        // the last two words, so the engine learns the pair as well as the word
+        const words = root.context.trim().split(/\s+/).slice(-2).join(" ");
+        if (words !== "") root.ask({ op: "learn", text: words });
+    }
+    function forgetLearned() { if (engine.running) engine.write(JSON.stringify({ op: "forget" }) + "\n"); }
+    function noteTyped(out) {
+        root.context = (root.context + out).slice(-80);
+        askSoon.restart();
+    }
+    // ---- swipe: the keys a finger passed over, decoded into a word ---------
+    property string swipeFirst: ""          // the letter the press already typed
+    function swipe(keys) {
+        if (!engine.running || root.secret || keys.length < 2) return false;
+        root.swipeFirst = keys.charAt(0);
+        root.ask({ op: "swipe", prev: root.context, keys: keys });
+        return true;
+    }
+    function typeSwiped(words) {
+        if (!words.length) { root.swipeFirst = ""; return; }
+        // the press typed the first letter; the word replaces it, then a space
+        const args = ["wtype"];
+        if (root.swipeFirst !== "") args.push("-k", "BackSpace");
+        const word = root.shift ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : words[0];
+        args.push("--", word + " ");
+        Quickshell.execDetached(args);
+        root.typed = (root.typed.slice(0, root.typed.length - (root.swipeFirst ? 1 : 0)) + word + " ").slice(-16);
+        root.context = (root.context.slice(0, root.context.length - (root.swipeFirst ? 1 : 0)) + word + " ").slice(-80);
+        root.swiped = words.slice(1);
+        root.lastSwiped = word;
+        root.swipeFirst = "";
+        if (!root.capsLock) root.shift = false;
+        root.learnWord();
+        root.capitalise();
+        askSoon.restart();
+    }
+
+    property string lastSwiped: ""
+    // a different word from the swipe's list, in place of the one it typed
+    function replaceSwiped(word) {
+        if (root.lastSwiped === "") return;
+        const args = ["wtype"];
+        for (let i = 0; i < root.lastSwiped.length + 1; i++) args.push("-k", "BackSpace");
+        args.push("--", word + " ");
+        Quickshell.execDetached(args);
+        root.context = (root.context.slice(0, root.context.length - root.lastSwiped.length - 1) + word + " ").slice(-80);
+        root.typed = root.context.slice(-16);
+        root.lastSwiped = "";
+        root.swiped = [];
+        root.learnWord();
+    }
+    // the word as typed, not its correction: a space, and the word is learned
+    // (a name, a new word) so it is not corrected again
+    function keepTyped() {
+        root.dismissedWord = root.currentWord();
+        root.correction = "";
+        Quickshell.execDetached(["wtype", "--", " "]);
+        root.typed = (root.typed + " ").slice(-16);
+        root.noteTyped(" ");
+        root.learnWord();
+    }
+    // a held key's alternate in place of the letter the press typed
+    function replaceLast(ch) {
+        Quickshell.execDetached(["wtype", "-k", "BackSpace", "--", ch]);
+        root.typed = (root.typed.slice(0, -1) + ch).slice(-16);
+        if (!root.secret) { root.context = (root.context.slice(0, -1) + ch).slice(-80); askSoon.restart(); }
+    }
+    // text from the clipboard panel's pins (or anything whole), typed as it is
+    function typeText(t) {
+        if (!t) return;
+        Quickshell.execDetached(["wtype", "--", t]);
+        root.typed = (root.typed + t).slice(-16);
+        if (!root.secret) root.context = (root.context + t).slice(-80);
+    }
+
+    // ---- capitals, as a phone keyboard does them ---------------------------
+    property bool capsLock: false
+    property double lastShiftTap: 0
+    function tapShift() {
+        const now = Date.now();
+        if (root.capsLock) { root.capsLock = false; root.shift = false; }
+        else if (root.shift && now - root.lastShiftTap < 400) root.capsLock = true;   // two quick taps: caps lock
+        else root.shift = !root.shift;
+        root.lastShiftTap = now;
+    }
+    // the start of a field or a sentence takes a capital
+    function capitalise() {
+        if (root.autoCaps && root.latin && !root.secret && root.page === "letters"
+                && (root.context === "" || /[.!?]\s+$/.test(root.context)))
+            root.shift = true;
+    }
+
     // ---- word suggestions --------------------------------------------------
-    // A bounded, built-in list: no download, no dictionary service, no learning.
-    // It only knows these common English words, and only the English layout.
+    // The fallback when the engine is not running: a bounded, built-in list of
+    // common English words, for the English layout only.
     readonly property var suggestionWords: (
         "about above after again against all almost along already also always among another any are around "
         + "ask back be because been before being below best between both but by call can come could day "
@@ -200,11 +342,14 @@ Singleton {
     property string dismissedWord: ""       // the × hides this word, not every word
 
     function currentWord() {
-        const m = String(typed).match(/[A-Za-z]+$/);
+        // a word in any script: what follows the last space or punctuation
+        const m = String(typed).match(/[^\s.,!?;:"()\[\]{}<>\/\\0-9]+$/);
         return m ? m[0].toLowerCase() : "";
     }
     function suggestionsFor(word) {
         const w = String(word || "").toLowerCase();
+        if (root.engineUp && root.predictedFor === w)
+            return root.predicted.slice(0, 3);
         if (w.length < 2)
             return [];
         const out = root.suggestionWords.filter(x => x.length > w.length && x.startsWith(w));
@@ -230,7 +375,11 @@ Singleton {
             typed = (typed.slice(0, typed.length - w.length) + word + " ").slice(-16);
         }
         root.dismissedWord = "";
-        shift = false;
+        root.context = (root.context.slice(0, root.context.length - w.length) + word + " ").slice(-80);
+        root.correction = "";
+        if (!root.capsLock) shift = false;
+        root.learnWord();
+        askSoon.restart();
     }
 
     // Layouts: "en" and "mr" are drawn by hand (mr with smart matras); any
@@ -313,7 +462,13 @@ Singleton {
             }
         }
     }
-    onShownChanged: if (!shown) { autoShown = false; root.stopRepeat(); }
+    // up: a fresh sentence (a capital first); down: nothing runs
+    onShownChanged: {
+        if (!shown) { autoShown = false; root.stopRepeat(); return; }
+        root.context = "";
+        root.swiped = [];
+        root.capitalise();
+    }
     onRemoteChanged: if (remote) root.stopRepeat()
 
     function toggle() {
@@ -430,18 +585,72 @@ Singleton {
             typed = draft.slice(-16);
             return;
         }
+        // Backspace right after an autocorrect puts back what was typed
+        if (key === "BackSpace" && root.undoable) {
+            const u = root.undoable;
+            root.undoable = null;
+            const args = ["wtype"];
+            for (let i = 0; i < u.to.length + 1; i++) args.push("-k", "BackSpace");
+            args.push("--", u.from);
+            Quickshell.execDetached(args);
+            root.context = (root.context.slice(0, root.context.length - u.to.length - 1) + u.from).slice(-80);
+            root.typed = root.context.slice(-16);
+            root.correction = "";
+            root.dismissedWord = u.from;          // kept as typed: the next space leaves it alone
+            return;
+        }
+        root.undoable = null;
+        root.swiped = [];
         if (named.indexOf(key) >= 0) {
             Quickshell.execDetached(["wtype", "-k", key]);
             typed = key === "BackSpace" ? typed.slice(0, -1) : "";
+            if (key === "BackSpace") root.context = root.context.slice(0, -1);
+            else if (key === "Return") { root.learnWord(); root.context = ""; }
+            else root.context = "";
+            askSoon.restart();
+            if (key === "Return") root.capitalise();
             return;
+        }
+        if (key === "space" && root.latin && !root.secret) {
+            const w = root.currentWord();
+            // the word becomes its correction, as the space is typed (undone by Backspace)
+            if (root.autocorrect && w !== "" && root.correction !== "" && root.correction !== w.toLowerCase()
+                    && root.predictedFor === w.toLowerCase() && root.dismissedWord !== w) {
+                let fix = root.correction;
+                if (/^[A-Z]/.test(w)) fix = fix.charAt(0).toUpperCase() + fix.slice(1);
+                const args = ["wtype"];
+                for (let i = 0; i < w.length; i++) args.push("-k", "BackSpace");
+                args.push("--", fix + " ");
+                Quickshell.execDetached(args);
+                root.context = (root.context.slice(0, root.context.length - w.length) + fix + " ").slice(-80);
+                root.typed = root.context.slice(-16);
+                root.undoable = { from: w, to: fix };
+                root.correction = "";
+                root.learnWord();
+                root.capitalise();
+                askSoon.restart();
+                return;
+            }
+            // two spaces after a word: a full stop, as phones do
+            if (root.autoCaps && /[A-Za-z0-9]\s$/.test(root.context) && !/[.!?]\s$/.test(root.context)) {
+                Quickshell.execDetached(["wtype", "-k", "BackSpace", "--", ". "]);
+                root.context = (root.context.slice(0, -1) + ". ").slice(-80);
+                root.typed = root.context.slice(-16);
+                root.capitalise();
+                askSoon.restart();
+                return;
+            }
         }
         let out = key === "space" ? " " : key;
         // smart matras on the hand-made Devanagari layout only: xkb's Indic
         // layouts (InScript …) have matra keys of their own
         if (lang === "mr" && matraOf[out] !== undefined && typed.length > 0 && isConsonant(typed.slice(-1)))
             out = matraOf[out];
-        shift = false;
+        if (!root.capsLock) shift = false;
         Quickshell.execDetached(["wtype", "--", out]);
         typed = (typed + out).slice(-16);
+        if (root.secret) return;                 // nothing from a password field is kept or sent
+        root.noteTyped(out);
+        if (out === " ") { root.learnWord(); root.capitalise(); }
     }
 }

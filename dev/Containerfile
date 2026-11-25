@@ -24,7 +24,7 @@ RUN n=0; until pacman -Syu --noconfirm --needed --disable-download-timeout \
 RUN pacman -Sy --noconfirm --needed tesseract tesseract-data-eng slurp zbar wl-clip-persist \
     && pacman -Scc --noconfirm
 # the launcher's emoji mode and removable drives
-RUN pacman -Sy --noconfirm --needed unicode-emoji udisks2 && pacman -Scc --noconfirm
+RUN pacman -Sy --noconfirm --needed unicode-emoji noto-fonts-emoji hunspell-en_us udisks2 && pacman -Scc --noconfirm
 # input methods: fcitx5 + m17n (Devanagari phonetic/inscript and other Indic tables)
 RUN pacman -Sy --noconfirm --needed fcitx5 fcitx5-m17n fcitx5-gtk fcitx5-qt && pacman -Scc --noconfirm
 # voice typing, end to end: espeak-ng speaks, whisper.cpp (tiny model) hears

@@ -127,15 +127,15 @@ def test_size_and_opacity_change_the_keyboard_itself():
 def test_the_suggestion_strip_sits_above_the_keys_and_is_dismissible():
     assert "id: suggestionBar" in KEYBOARD
     assert "Osk.currentWord()" in KEYBOARD
-    assert "Osk.dismissedWord !== word" in KEYBOARD
-    assert 'Osk.suggestions && Osk.lang === "en"' in KEYBOARD
+    assert "!(word !== \"\" && Osk.dismissedWord === word)" in KEYBOARD
+    # any language now (the engine reads each one's dictionary); never in a password field
+    assert "Osk.suggestions && Osk.page === \"letters\" && !Osk.secret" in KEYBOARD
     assert "Osk.applySuggestion(modelData)" in KEYBOARD
     assert "Osk.dismissSuggestions()" in KEYBOARD
-    strip = KEYBOARD[
-        KEYBOARD.index("id: suggestionBar") : KEYBOARD.index("// the handwriting pad")
-    ]
+    strip = KEYBOARD[KEYBOARD.index("id: suggestionBar") : KEYBOARD.index("// ---- emoji:")]
     assert "Repeater" in strip and "Key {" in strip
-    assert "Layout.preferredHeight: visible ? Theme.px(34) : 0" in strip
+    # the same bar holds the tools when there is nothing to predict
+    assert "visible: !suggestionBar.predicting" in strip
 
 
 def test_replacing_a_word_deletes_it_in_both_modes():

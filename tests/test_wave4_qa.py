@@ -485,10 +485,10 @@ def test_osk_repeat_timers_stop_when_no_key_is_held():
     assert not re.search(r"Timer\s*\{[^}]*running:\s*true", s, flags=re.S), (
         "an OSK timer runs unconditionally"
     )
-    assert "onShownChanged: if (!shown) { autoShown = false; root.stopRepeat(); }" in s
+    assert "if (!shown) { autoShown = false; root.stopRepeat(); return; }" in s   # nothing runs while hidden
     keyboard = src(OSK_KEYBOARD)
-    assert "onReleased: Osk.stopRepeat()" in keyboard
-    assert "onCanceled: Osk.stopRepeat()" in keyboard
+    assert "onReleased: { Osk.stopRepeat(); win.endSwipe(); }" in keyboard
+    assert "onCanceled: { Osk.stopRepeat(); win.endSwipe(); }" in keyboard
 
 
 def test_osk_paste_and_suggestions_never_use_a_shell():

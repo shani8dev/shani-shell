@@ -29,7 +29,7 @@ Singleton {
     // service keeps it in memory so recents survive browsing but reset on
     // shell restart, like `last` already does.
     property var recents: []
-    readonly property int recentLimit: 12
+    readonly property int recentLimit: 24
 
     function search(q) {
         query = String(q || "").trim();
@@ -65,6 +65,23 @@ Singleton {
                 }
                 root.loaded = true;
             }
+        }
+    }
+    // ---- the emoji keyboard's pages (the screen keyboard's emoji panel) ------
+    // [{ group, items: [{ch, name}] }], read once on first use
+    property var emojiGroups: []
+    function loadEmoji() { if (root.emojiGroups.length === 0 && !emojiProc.running) emojiProc.running = true; }
+    // a character used from anywhere (the keyboard types it, the panel copies
+    // it): first in the recents both share
+    function used(entry) {
+        if (!entry || !entry.ch) return;
+        recents = [entry].concat(recents.filter(e => e.ch !== entry.ch)).slice(0, root.recentLimit);
+    }
+    Process {
+        id: emojiProc
+        command: ["python3", root.tool, "emoji"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { root.emojiGroups = JSON.parse(text || "[]"); } catch (e) { root.emojiGroups = []; } }
         }
     }
     Component.onCompleted: browse()
