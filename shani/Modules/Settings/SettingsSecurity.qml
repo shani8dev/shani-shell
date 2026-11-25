@@ -12,12 +12,15 @@ ColumnLayout {
     property bool active: false
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property string pwNote: ""
+    property bool pwNoteOk: false
     property bool pwBusy: false
     property string hostsText: ""
     property string hostsNote: ""
+    property bool hostsNoteOk: false
     property bool hostsBusy: false
     property string sudoersText: ""
     property string sudoersNote: ""
+    property bool sudoersNoteOk: false
     property bool sudoersBusy: false
     property string aaNote: ""
     property bool aaBusy: false
@@ -26,11 +29,13 @@ ColumnLayout {
     property string auditProfile: "unknown"
     property bool auditProfileBusy: false
     property string auditProfileNote: ""
+    property bool auditProfileNoteOk: false
     // "off" removes the shell-managed rules file: ask for a second click
     property string confirmingAudit: ""
     Timer { id: auditConfirmTimer; interval: 4000; onTriggered: page.confirmingAudit = "" }
     property var coredump: ({})
     property string faillockNote: ""
+    property bool faillockNoteOk: false
     property bool faillockBusy: false
     onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); }
     Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); }
@@ -64,7 +69,7 @@ ColumnLayout {
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
         onExited: code => {
             stdinEnabled = true; page.pwBusy = false;
-            page.pwNote = code === 0 ? Tr.t("Password policy saved") : (pwErr.text.trim().split("\n").pop() || Tr.t("Could not save"));
+            page.pwNoteOk = code === 0; page.pwNote = code === 0 ? Tr.t("Password policy saved") : (pwErr.text.trim().split("\n").pop() || Tr.t("Could not save"));
             SecurityInfo.refresh();
         }
     }
@@ -88,7 +93,7 @@ ColumnLayout {
         stdout: StdioCollector { id: hostsOut }
         stderr: StdioCollector { id: hostsErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.hostsBusy = false; page.hostsNote = code === 0 ? Tr.t("Hosts saved") : (hostsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadHosts(); }
+        onExited: code => { stdinEnabled = true; page.hostsBusy = false; page.hostsNoteOk = code === 0; page.hostsNote = code === 0 ? Tr.t("Hosts saved") : (hostsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadHosts(); }
     }
     function saveHosts() { page.hostsBusy = true; page.hostsNote = ""; hostsSaveProc.payload = JSON.stringify({ text: page.hostsText }); hostsSaveProc.command = page.adminCmd.concat(["hosts-set"]); hostsSaveProc.running = true; }
 
@@ -132,7 +137,7 @@ ColumnLayout {
         id: sudoersSaveProc; stdinEnabled: true; property string payload: ""
         stdout: StdioCollector { } stderr: StdioCollector { id: sudoersErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.sudoersBusy = false; page.sudoersNote = code === 0 ? Tr.t("Sudo rules saved") : (sudoersErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadSudoers(); }
+        onExited: code => { stdinEnabled = true; page.sudoersBusy = false; page.sudoersNoteOk = code === 0; page.sudoersNote = code === 0 ? Tr.t("Sudo rules saved") : (sudoersErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadSudoers(); }
     }
     function saveSudoers() { page.sudoersBusy = true; page.sudoersNote = ""; sudoersSaveProc.payload = JSON.stringify({ text: page.sudoersText }); sudoersSaveProc.command = page.adminCmd.concat(["sudoers-set"]); sudoersSaveProc.running = true; }
 
@@ -155,7 +160,7 @@ ColumnLayout {
         id: faillockSaveProc; stdinEnabled: true; property string payload: ""
         stderr: StdioCollector { id: faillockErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.faillockBusy = false; page.faillockNote = code === 0 ? Tr.t("Faillock policy saved") : (faillockErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadFaillock(); }
+        onExited: code => { stdinEnabled = true; page.faillockBusy = false; page.faillockNoteOk = code === 0; page.faillockNote = code === 0 ? Tr.t("Faillock policy saved") : (faillockErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadFaillock(); }
     }
     function saveFaillock() {
         const s = {};
@@ -169,6 +174,7 @@ ColumnLayout {
     }
 
     property string loginDefsNote: ""
+    property bool loginDefsNoteOk: false
     property bool loginDefsBusy: false
     function _ld(text, key) {
         const m = String(text || "").match(new RegExp("^\\s*" + key + "\\s+(\\S+)", "m"));
@@ -180,7 +186,7 @@ ColumnLayout {
         id: loginDefsSaveProc; stdinEnabled: true; property string payload: ""
         stderr: StdioCollector { id: loginDefsErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.loginDefsBusy = false; page.loginDefsNote = code === 0 ? Tr.t("Login defaults saved") : (loginDefsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadLoginDefs(); }
+        onExited: code => { stdinEnabled = true; page.loginDefsBusy = false; page.loginDefsNoteOk = code === 0; page.loginDefsNote = code === 0 ? Tr.t("Login defaults saved") : (loginDefsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadLoginDefs(); }
     }
     function saveLoginDefs() {
         const s = {};
@@ -250,7 +256,7 @@ ColumnLayout {
         InfoBanner {
             Layout.fillWidth: true
             visible: page.pwNote !== ""
-            tone: page.pwNote.indexOf("saved") >= 0 ? "ok" : "error"
+            tone: page.pwNoteOk ? "ok" : "error"
             text: page.pwNote
         }
         Item { Layout.fillWidth: true; visible: page.pwNote === "" }
@@ -291,7 +297,7 @@ ColumnLayout {
     InfoBanner {
         Layout.fillWidth: true
         visible: page.auditProfileNote !== ""
-        tone: page.auditProfileNote.indexOf("saved") >= 0 ? "ok" : "error"
+        tone: page.auditProfileNoteOk ? "ok" : "error"
         text: page.auditProfileNote
     }
 
@@ -325,7 +331,7 @@ ColumnLayout {
         InfoBanner {
             Layout.fillWidth: true
             visible: page.hostsNote !== ""
-            tone: page.hostsNote.indexOf("saved") >= 0 ? "ok" : "error"
+            tone: page.hostsNoteOk ? "ok" : "error"
             text: page.hostsNote
         }
         Item { Layout.fillWidth: true; visible: page.hostsNote === "" }
@@ -345,7 +351,7 @@ ColumnLayout {
         InfoBanner {
             Layout.fillWidth: true
             visible: page.sudoersNote !== ""
-            tone: page.sudoersNote.indexOf("saved") >= 0 ? "ok" : "error"
+            tone: page.sudoersNoteOk ? "ok" : "error"
             text: page.sudoersNote
         }
         Item { Layout.fillWidth: true; visible: page.sudoersNote === "" }
@@ -371,7 +377,7 @@ ColumnLayout {
         InfoBanner {
             Layout.fillWidth: true
             visible: page.faillockNote !== ""
-            tone: page.faillockNote.indexOf("saved") >= 0 ? "ok" : "error"
+            tone: page.faillockNoteOk ? "ok" : "error"
             text: page.faillockNote
         }
         Item { Layout.fillWidth: true; visible: page.faillockNote === "" }
@@ -399,7 +405,7 @@ ColumnLayout {
         InfoBanner {
             Layout.fillWidth: true
             visible: page.loginDefsNote !== ""
-            tone: page.loginDefsNote.indexOf("saved") >= 0 ? "ok" : "error"
+            tone: page.loginDefsNoteOk ? "ok" : "error"
             text: page.loginDefsNote
         }
         Item { Layout.fillWidth: true; visible: page.loginDefsNote === "" }

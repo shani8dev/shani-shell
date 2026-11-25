@@ -25,3 +25,49 @@ function duration(seconds) {
     return Math.floor(s / 3600) + "-" + String(Math.floor(s % 3600 / 60)).padStart(2, "0")
         + "-" + String(Math.floor(s % 60)).padStart(2, "0");
 }
+
+// ---- calendar-day labels -------------------------------------------------
+// One place decides "Today" / "Yesterday" / "d MMM", so the launcher's
+// recent-files groups, the calendar and any dated list cannot disagree.
+
+// Local calendar-day key (YYYY-MM-DD) for a Date, ms timestamp or ISO string.
+function dayKey(when) {
+    const d = when instanceof Date ? when
+            : typeof when === "string" ? new Date(when)
+            : new Date(Number(when) || Date.now());
+    if (!d || isNaN(d.getTime())) return "";
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+        + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// "Today" / "Yesterday" / "21 Nov" — local time, newest-first callers sort by
+// dayKey separately. `now` is injectable for tests.
+function dayLabel(when, now) {
+    const d = when instanceof Date ? when : new Date(Number(when) || Date.now());
+    const n = now instanceof Date ? now : new Date();
+    const key = dayKey(d), nkey = dayKey(n);
+    if (key === nkey) return "Today";
+    const y = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1);
+    if (key === dayKey(y)) return "Yesterday";
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return d.getDate() + " " + months[d.getMonth()];
+}
+
+// Full date for detail views: "Tue 25 Nov 2026" (locale-independent, matches
+// the shell's English-first UI; Tr.t wraps the surrounding sentence).
+function fullDate(when) {
+    const d = when instanceof Date ? when : new Date(Number(when) || Date.now());
+    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return days[d.getDay()] + " " + d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+}
+
+// "HH:MM" minutes-of-day → minutes since midnight, or -1 when unparseable.
+// Used by DND schedules and dark-mode windows so both agree.
+function minutes(hhmm) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || "").trim());
+    if (!m) return -1;
+    const h = Number(m[1]), mi = Number(m[2]);
+    if (h > 23 || mi > 59) return -1;
+    return h * 60 + mi;
+}

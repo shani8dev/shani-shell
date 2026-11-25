@@ -25,6 +25,7 @@ ColumnLayout {
     property string note: ""
     property bool noteOk: false           // success notes are informational, not an error
     property string resolvedNote: ""
+    property bool resolvedNoteOk: false
     property bool resolvedBusy: false
     property bool btServiceEnabled: false
     property bool btServiceLoaded: false
@@ -67,7 +68,7 @@ ColumnLayout {
         id: resolvedSaveProc; stdinEnabled: true; property string payload: ""
         stderr: StdioCollector { id: resolvedErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.resolvedBusy = false; page.resolvedNote = code === 0 ? Tr.t("Resolved settings saved") : (resolvedErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadResolved(); }
+        onExited: code => { stdinEnabled = true; page.resolvedBusy = false; page.resolvedNoteOk = code === 0; page.resolvedNote = code === 0 ? Tr.t("Resolved settings saved") : (resolvedErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadResolved(); }
     }
     function saveResolved() {
         const s = {};
@@ -675,7 +676,7 @@ ColumnLayout {
             InfoBanner {
                 Layout.fillWidth: true
                 visible: page.resolvedNote !== ""
-                tone: page.resolvedNote.indexOf("saved") >= 0 ? "ok" : "error"
+                tone: page.resolvedNoteOk ? "ok" : "error"
                 text: page.resolvedNote
             }
             Item { Layout.fillWidth: true; visible: page.resolvedNote === "" }

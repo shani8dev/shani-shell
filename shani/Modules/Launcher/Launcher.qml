@@ -26,6 +26,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import "../../Common/Gestures.js" as G
+import "../../Common/Time.js" as Time
 
 PanelWindow {
     id: win
@@ -305,11 +306,10 @@ PanelWindow {
     }
 
     // Recent files read like CuboCore's activities view: one group per day,
-    // newest first. xbel times are ISO, so a day is the local calendar day.
+    // newest first. xbel times are ISO, so a day is the local calendar day;
+    // the key comes from the shared Time.js so a fix reaches every dated view.
     function recentDayKey(v) {
-        const d = typeof v === "string" ? new Date(v) : v;
-        if (!d || isNaN(d.getTime())) return "";
-        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        return Time.dayKey(v);
     }
     function recentDayLabel(key, todayKey, yesterdayKey) {
         if (key === todayKey) return Tr.t("Today");
