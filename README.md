@@ -304,6 +304,10 @@ greeter/            greetd greeter (`qs -c shani-greeter`); Common -> ../shani/C
 setup/              first-boot wizard (`qs -c shani-setup`); Common -> ../shani/Common
 bridge/             helpers the shell runs: shani-chronoa-bridge (D-Bus <-> the
                     shell's socket), launch-app, appfilter, agenda, location, …
+                    kundali_engine.py and astronomy.py are the Kundali/Panchang
+                    engine and its pure-Python calculations, moved here from
+                    shani-chronoa; bridge/kundali.py uses both with no Chronoa
+                    path shim and keeps their JSON stdout.
 bin/                shani-doctor.py (installed as /usr/bin/shani-doctor)
 data/               systemd user units, pam.d/shani-lock
 assets/             wallpapers and their masters (assets/make-wallpapers.py)
