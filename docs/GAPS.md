@@ -413,7 +413,7 @@ our code and the upstream source/docs.
 ### Calendar → GNOME Calendar
 
 - **[fixed]** Editing keeps RRULE, DESCRIPTION, attendees and alarms (the editor previously re-composed the whole VEVENT).
-- **[built — mass pass]** Event description / notes field in the editor and popover; the bridge never reads `DESCRIPTION`.
+- **[built — mass pass]** Event description / notes field in the editor and popover; the bridge now reads `DESCRIPTION` back (wave 6: `a1c78da`, `test_contacts_calendar_wave6.py`).
 - **[built — mass pass]** Click-to-view detail popover before editing (currently opens the edit form directly).
 - **[open]** Quick-add natural-language field (`_parseNaturalDateTime()` exists but is only in the full form).
 - **[open]** Import `.ics` button (`agenda.py import` and `Agenda.importFile()` exist with no QML caller).
@@ -425,7 +425,7 @@ our code and the upstream source/docs.
 ### Contacts → GNOME Contacts
 
 - **[fixed]** Editing keeps unknown vCard fields — BDAY, ADR, ORG, NOTE, URL were silently destroyed.
-- **[built — mass pass]** Multiple phone numbers and emails with type labels (mobile / home / work); backend handles arrays, UI edits one of each.
+- **[built — mass pass]** Multiple phone numbers and emails with type labels (mobile / home / work); backend handles arrays, and the form now edits typed arrays (wave 6: `a1c78da`, `test_contacts_calendar_wave6.py`).
 - **[built — mass pass]** Read-only detail sheet with click-to-call, mailto and map rows.
 - **[built — mass pass]** Export / Share as QR (`Qr.show()` already takes arbitrary text).
 - **[built — mass pass]** Editable avatars / photos with crop.
@@ -444,7 +444,7 @@ our code and the upstream source/docs.
   an active-count badge, a Clear action, a keyboard route and accessible names;
   content reuses `files.py`'s bounded ripgrep deep search, so no `--after=` /
   `--min-size=` bridge flags were needed (`test_files_filter_popover.py`).
-- **[built — mass pass]** Breadcrumb dropdowns listing sibling folders (crumbs are click-only).
+- **[built — mass pass]** Breadcrumb dropdowns listing sibling folders, now in both the main and split panes with a right-click menu (wave 6: `95d2fa2`, `test_photos_files_wave6.py`).
 - **[built — mass pass]** Visible-columns chooser and clickable list headers (fixed Name / Size / Date).
 - **[built — mass pass]** "Select Items Matching…" wildcard select.
 - **[built — mass pass]** Create Link / symlink (Ctrl+M).
@@ -457,7 +457,7 @@ our code and the upstream source/docs.
 - **[fixed]** Camera / Screenshots filter chips were inert — they now filter by path.
 - **[open]** Delete / move to trash from a tile.
 - **[built — mass pass]** Multi-select with batch delete, album add, move / copy.
-- **[built — mass pass]** Sort order control (newest / oldest / name); grid is hardwired `sort -rn`.
+- **[built — mass pass]** Sort order control (newest / oldest / name); wave 6 added size over the one existing scan (`95d2fa2`, `test_photos_files_wave6.py`).
 - **[open]** Slideshow from the grid (Viewer has one).
 - **[built — mass pass]** EXIF details panel (our `PhotoMeta` reads only Make / Model / Date and is bound to Files' selection).
 - **[built — mass pass]** Ratings and tags persisted per photo.
@@ -571,9 +571,14 @@ our code and the upstream source/docs.
 - **[built — mass pass]** Go-to-time dialog and chapter list.
 - **[built — mass pass]** A→B loop.
 - **[open]** Video effects — crop, rotate, deinterlace, filters.
-- **[open]** Recent media list.
-- **[open]** Open a network stream from the UI (`isStream` plays URLs; no field to enter one).
-- **[open]** Save / load a playlist (.m3u); the queue is session-only.
+- **[built — wave 6]** Recent media list — a capped, deduped, persisted list on
+  the Library/Playing tabs with a clear action (`e83fcc6`, `test_media_wave6.py`).
+- **[built — wave 6]** Open a network stream from the UI — one allowlist in
+  `PlayQueue` (http/https/rtsp/rtmp/srt/mms), shared by the window and the
+  media-info probe (`e83fcc6`, `test_media_wave6.py`).
+- **[built — wave 6]** Save / load a playlist (.m3u) through a stdlib bridge:
+  standard `#EXTM3U`, relative entries resolved beside the playlist, unsafe
+  write targets refused (`e83fcc6`, `test_media_wave6.py`).
 - **[open]** Record / stream output.
 - Subtitle timing shifts, chapters and go-to-time are all built now.
 
@@ -597,7 +602,10 @@ our code and the upstream source/docs.
 - **[built — mass pass]** Friendly sequential names and per-row duration.
 - **[built — mass pass]** Cancel / discard a take.
 - **[built — mass pass]** In-app playback bar (playback is handed to another app today).
-- **[open]** Persistent peaks per recording.
+- **[built — wave 6]** Persistent peaks per recording — a bounded (≤256), cached
+  peak array keyed by path/size/mtime, WAV via the standard library and other
+  formats via ffmpeg, with a seekable named slider (`2ad21b7`,
+  `test_recorder_wave6.py`).
 
 ### Video Trimmer → LosslessCut
 
@@ -735,16 +743,21 @@ still missing; **[bug]** a real defect found while verifying.
   subtitle in the NotesPanel list; body-search results in NotesPanel; import
   of Markdown / Obsidian vaults; backlinks graph, writing stats, spellcheck;
   a "Go To Anything" quick switcher.
-- **[open]** Calendar: description field and readback in `agenda.py`; a
+- **[built — wave 6]** Calendar: description field and readback in `agenda.py`
+  (an unrelated edit keeps DESCRIPTION; a VALARM's own description is ignored)
+  (`a1c78da`, `test_contacts_calendar_wave6.py`). **[open]** Still: a
   click-to-view detail popover before editing; per-event timezone (zone chips
   are display-only); repeat / end-repeat UI; per-event VALARMs (one hard-coded
   10-minute notice today); drag to create / move events; current-time line;
   local-calendar create / rename / colour (bridge only reads EDS calendars);
   drag-and-drop `.ics` import with a preview; read-only-calendar banner in the
   editor (`readOnly` is exposed by `agenda.py:122`).
-- **[open]** Contacts: multiple typed phones/emails in the form (backend and
-  arrays exist); read-only detail sheet with `tel:` / `mailto:` / map rows;
-  QR export (`Qr.show()` is ready, needs a `vcard` bridge command); avatars;
+- **[built — wave 6]** Contacts: multiple typed phones/emails in the form —
+  home/work/mobile/other choices, named rows, `cell`→mobile normalisation and
+  typed arrays forwarded by the service (`a1c78da`,
+  `test_contacts_calendar_wave6.py`). **[open]** Still: read-only detail sheet
+  with `tel:` / `mailto:` / map rows; QR export (`Qr.show()` is ready, needs a
+  `vcard` bridge command); avatars;
   favorites (the star means "This is me"); given/family sort chooser;
   unlink for auto-merged duplicates; export all / export selected; multi-select
   for batch link/delete.
@@ -753,13 +766,17 @@ still missing; **[bug]** a real defect found while verifying.
 
 - **[built — wave 4]** Files: finer search-filter popover (type/date/size and
   content), test-covered (`test_files_filter_popover.py`).
-  **[open]** Files: breadcrumb dropdowns; visible-column chooser and clickable
-  headers; "Select Items Matching…" (the matcher in `Common/FileFilter.js`
-  exists, just no action); symlink creation; grid caption settings; sort by
-  Type / Date Created.
-- **[open]** Photos: multi-select batch ops; sort order (`scan()` is `sort -rn`);
-  EXIF panel (bound to Files' selection today); ratings and tags; date-subfolder
-  import with delete-from-source.
+  **[built — wave 6]** Files: breadcrumb dropdowns form a prefix chain from
+  Home, cap long paths to the first and last three, and work in the split pane
+  with a right-click sibling menu (`95d2fa2`, `test_photos_files_wave6.py`).
+  **[open]** Still: visible-column chooser and clickable headers; "Select Items
+  Matching…" (the matcher in `Common/FileFilter.js` exists, just no action);
+  symlink creation; grid caption settings; sort by Type / Date Created.
+- **[built — wave 6]** Photos: multi-select batch ops and sort order, now also
+  by size through the one existing scan (`95d2fa2`,
+  `test_photos_files_wave6.py`). **[open]** Still: EXIF panel (bound to Files'
+  selection today); ratings and tags; date-subfolder import with
+  delete-from-source.
 - **[built — mass pass]** Viewer/PDF: user bookmarks; clickable PDF links (`get_links()`);
   embedded attachments; history and First/Last page; two-page layout;
   annotations *list* (we create flattened annotations but never read them);
@@ -795,19 +812,19 @@ still missing; **[bug]** a real defect found while verifying.
 
 ### Media / Camera / Voice / Trimmer / Translate / Weather — still open
 
-- **[open]** Media Player: 10-band EQ and effects; playlist import/export;
-  A→B loop; video effects (crop/rotate/deinterlace); recent-media UI (resume
-  points are persisted, just not listed); generic "open network stream" field
-  (`PlayQueue.playStream()` exists); save `.m3u`; Stop control (MPRIS stop maps
-  to pause+seek(0)); MPRIS `HasTrackList` is `False`.
+- **[built — wave 6]** Media Player: playlist import/export, recent-media UI,
+  an open-network-stream field and save `.m3u` (`e83fcc6`,
+  `test_media_wave6.py`). **[open]** Still: 10-band EQ and effects; A→B loop;
+  video effects (crop/rotate/deinterlace); Stop control (MPRIS stop maps to
+  pause+seek(0)); MPRIS `HasTrackList` is `False`.
 - **[open]** Camera: live QR/barcode scan mode (post-capture Lens path exists);
   self-timer choice (`countdown` is fixed); composition grid; shutter sound;
   H.264/MP4 and hardware encoding; picture format choice; in-window gallery;
   delete from gallery.
-- **[open]** Voice Recorder: seekable waveform (live level bar exists, peaks
-  are discarded); format / mono-stereo choice; export; skip back/forward;
-  sequential names and per-row duration; cancel/discard; in-app playback;
-  persistent peaks; name-on-save.
+- **[built — wave 6]** Voice Recorder: seekable waveform and persistent peaks
+  (`2ad21b7`, `test_recorder_wave6.py`). **[open]** Still: format / mono-stereo
+  choice; export; skip back/forward; sequential names and per-row duration;
+  cancel/discard; in-app playback; name-on-save.
 - **[built — mass pass]** Video Trimmer: thumbnail timeline; multi-segment merge; I/O/S
   shortcuts; scene/black/silence detection; keyframe snapping; capture frame;
   speed/mute/volume; remux and track selection; cancel/progress on a cut.
@@ -2064,3 +2081,54 @@ HEAD reports only unrelated Camera.qml false positives (`ch`, `crop`, `cw`,
 regenerated here: `tests/test_i18n.py` reports 19 wave-4 Files-filter keys
 missing from `template.json` (18 in `FilesPanel.qml`, plus the shared
 `Filters` key), which belong to the agent that owns those strings.
+
+## Wave 6 (Nov 2026) — built, with tests
+
+The earlier passes are recorded above; wave 6 closed the six named surfaces
+below with assert-based tests. The five test files were run together on 2026-11-25 (133
+passed, 2 skipped). They check the shipped QML as source, run the small
+predicates in node, exercise the stdlib bridges against real temporary files,
+and read the persisted caches — not a QML runtime, hardware or installed-image
+run. An item being built here is not a claim that its whole upstream equivalent
+is covered; every other **[open]** item above stays open.
+
+- **Media Player** (`e83fcc6`, `tests/test_media_wave6.py`): one stream allowlist
+  in `PlayQueue` (http/https/rtsp/rtmp/srt/mms, case-insensitive; local paths
+  and `javascript:`/`ssh:` refused) shared by the window and the media-info
+  probe, an explicit stream-address field, `.m3u` save/load through a stdlib
+  bridge that writes standard `#EXTM3U`, resolves relative entries beside the
+  playlist and refuses relative/control-character write targets, and a
+  persisted, capped (20), deduped recent-media list with a clear action.
+  Record/stream output, the 10-band EQ and video effects stay open.
+- **Voice Recorder** (`2ad21b7`, `tests/test_recorder_wave6.py`): persistent
+  peaks decoded by `bridge/waveform.py` (WAV via the `wave` module, other
+  formats via ffmpeg), capped at 256 and cached in a sibling `.peaks.json`
+  keyed by path/size/mtime so a changed take cannot borrow a stale waveform;
+  the panel draws them as a seekable, named slider with ±5 s keyboard steps.
+  Stereo/24-bit downmix and a missing take are exercised. Format choice, skip
+  back/forward, name-on-save and ungraceful-exit finalisation stay open.
+- **Contacts and Calendar** (`a1c78da`,
+  `tests/test_contacts_calendar_wave6.py`): typed phone/email rows in the form
+  (home/work/mobile/other), accessible row names, `cell`→mobile normalisation
+  and typed arrays forwarded by the service; and a Calendar description field
+  with readback that keeps DESCRIPTION on an unrelated edit and ignores a
+  VALARM's own description. Manual unlink, avatars/QR export and the
+  Calendar's other listed items stay open. Two QA checks in
+  `tests/test_wave6_qa.py` skip because the Calendar's
+  `Accessible.name: "Event description"` marker has not landed.
+- **Photos and Files** (`95d2fa2`, `tests/test_photos_files_wave6.py`): Photos
+  multi-select batch ops and sort order now include size, reusing the one
+  existing scan; Files breadcrumbs form a prefix chain from Home, cap long
+  paths to the first and last three, and reach the split pane with a
+  right-click sibling menu. Photos' EXIF panel, ratings/tags, date-subfolder
+  import and Files' column chooser stay open.
+
+Two QA commits are part of this pass: `f0c610b` added `tests/test_wave6_qa.py`
+regression coverage (67 passed, 2 skipped) pinning two bugs found by the sweep;
+`a887879` fixed an album directory, translated new contact/calendar labels and
+registered their i18n keys (`d49e2cd` updated one stale test pin). No new
+packaging dependency: the new bridges use only the standard library plus
+ffmpeg, already in `tools/program-packages.tsv`. At this HEAD
+`tests/test_i18n.py` passes 3296 tests (the wave agents regenerated the
+catalogs), `tests/test_declared_deps.py` passes 1 and `tests/test_qml_static.py`
+passes 2245; no catalog or package file was changed by the docs pass.
