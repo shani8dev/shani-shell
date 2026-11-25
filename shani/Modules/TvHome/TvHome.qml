@@ -55,7 +55,7 @@ PanelWindow {
             .filter(a => { const k = (a.name || a.id).toLowerCase(); if (seen[k]) return false; seen[k] = true; return true; });
     }
     function appItem(a) {
-        return { key: "app:" + a.id, label: a.name || a.id, icon: AppIcon.nameFor(a, "application-x-executable"),
+        return { key: "app:" + a.id, label: a.name || a.id, icon: AppIconPath.nameFor(a, "application-x-executable"),
                  run: () => win.openApp(a) };
     }
     function settingsItem(label, icon, cat) {

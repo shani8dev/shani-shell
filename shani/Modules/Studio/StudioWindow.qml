@@ -178,7 +178,7 @@ AppWindow {
                 RowLayout {
                     anchors { fill: parent; margins: Theme.px(10) }
                     spacing: Theme.px(10)
-                    Icon { name: AppIcon.nameFor(modelData, "application-x-executable"); size: Theme.px(22); color: Theme.dim }
+                    Icon { name: AppIconPath.nameFor(modelData, "application-x-executable"); size: Theme.px(22); color: Theme.dim }
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0

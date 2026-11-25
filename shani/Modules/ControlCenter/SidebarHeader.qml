@@ -250,7 +250,7 @@ ColumnLayout {
                 required property var modelData
                 readonly property var app: DesktopEntries.heuristicLookup(modelData.name)
                 Layout.fillWidth: true
-                icon: AppIcon.nameFor(app, "application-x-executable")
+                icon: AppIconPath.nameFor(app, "application-x-executable")
                 title: app ? app.name : modelData.name
                 subtitle: Tr.t("%1% of the processor", Math.round(modelData.cpu))
                 onClicked: { Ui.closeAll(); Ui.processes = true; }

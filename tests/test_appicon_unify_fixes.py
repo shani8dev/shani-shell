@@ -21,37 +21,33 @@ def _read(rel):
 
 
 def test_appicon_defines_both_helpers():
-    """AppIcon keeps its visual component and gains nameFor/pathFor statics."""
+    """AppIcon keeps its visual component; resolution lives in AppIconPath."""
     text = _read("shani/Common/AppIcon.qml")
-    assert "static function nameFor(" in text
-    assert "static function pathFor(" in text
-    # the visual component still works: path now routes through pathFor
-    assert "readonly property string path: AppIcon.pathFor(icon, false)" in text
+    helper = _read("shani/Common/AppIconPath.qml")
+    assert "function nameFor(" in helper
+    assert "function pathFor(" in helper
+    # the visual component still works: path now routes through AppIconPath
+    assert "readonly property string path: AppIconPath.pathFor(icon, false)" in text
     assert "IconImage {" in text
 
 
 def test_pathfor_behaviour():
     """pathFor: empty -> "", absolute path -> file:// URL, else iconPath(name, fallback)."""
-    text = _read("shani/Common/AppIcon.qml")
-    body = text[text.index("static function pathFor(") :]
-    body = body[: body.index("\n    }")]
-    # empty entry short-circuits to ""
-    assert "if (!entry)" in body and 'return "";' in body
-    # absolute path becomes a file:// URL
-    assert 'name.startsWith("/")' in body
-    assert 'return "file://" + name;' in body
-    # otherwise the theme answers with the caller's fallback
-    assert "Quickshell.iconPath(name, fallback)" in body
+    text = _read("shani/Common/AppIconPath.qml")
+    assert "function pathFor(" in text
+    assert "if (!entry)" in text and 'return "";' in text
+    assert 'name.startsWith("/")' in text
+    assert 'return "file://" + name;' in text
+    assert "Quickshell.iconPath(name, fallback)" in text
 
 
 def test_namefor_behaviour():
     """nameFor: empty -> fallback, string/object -> its icon, else fallback."""
-    text = _read("shani/Common/AppIcon.qml")
-    body = text[text.index("static function nameFor(") :]
-    body = body[: body.index("\n    }")]
-    assert "if (!entry)" in body
-    assert 'typeof entry === "string" ? entry : entry.icon' in body
-    assert 'return name ? name : (fallback || "");' in body
+    text = _read("shani/Common/AppIconPath.qml")
+    assert "function nameFor(" in text
+    assert "if (!entry)" in text
+    assert 'typeof entry === "string" ? entry : entry.icon' in text
+    assert 'return name ? name : (fallback || "");' in text
 
 
 # ---- one static test per adopted site ---------------------------------------
@@ -59,36 +55,36 @@ def test_namefor_behaviour():
 
 def test_dock_uses_pathfor():
     text = _read("shani/Modules/Dock/Dock.qml")
-    assert "AppIcon.pathFor(icon, true)" in text
+    assert "AppIconPath.pathFor(icon, true)" in text
     assert "Quickshell.iconPath(" not in text
 
 
 def test_ring_uses_pathfor():
     text = _read("shani/Modules/Ring/Ring.qml")
-    assert 'AppIcon.pathFor(slice.modelData.app, "application-x-executable")' in text
+    assert 'AppIconPath.pathFor(slice.modelData.app, "application-x-executable")' in text
     assert "Quickshell.iconPath(" not in text
 
 
 def test_tvhome_uses_namefor():
     text = _read("shani/Modules/TvHome/TvHome.qml")
-    assert 'AppIcon.nameFor(a, "application-x-executable")' in text
+    assert 'AppIconPath.nameFor(a, "application-x-executable")' in text
 
 
 def test_sidebarheader_uses_namefor():
     text = _read("shani/Modules/ControlCenter/SidebarHeader.qml")
-    assert 'AppIcon.nameFor(app, "application-x-executable")' in text
+    assert 'AppIconPath.nameFor(app, "application-x-executable")' in text
 
 
 def test_privacy_uses_namefor():
     text = _read("shani/Modules/Settings/SettingsPrivacy.qml")
-    assert 'AppIcon.nameFor(entry, "application-x-executable")' in text
+    assert 'AppIconPath.nameFor(entry, "application-x-executable")' in text
 
 
 def test_defaultapps_uses_namefor():
     text = _read("shani/Modules/Settings/SettingsDefaultApps.qml")
     # both candidate lists (open apps + removable media) route through nameFor
     assert (
-        text.count('AppIcon.nameFor(page.entry(modelData), "application-x-executable")')
+        text.count('AppIconPath.nameFor(page.entry(modelData), "application-x-executable")')
         == 2
     )
     assert 'application-x-executable"; }' not in text
@@ -96,7 +92,7 @@ def test_defaultapps_uses_namefor():
 
 def test_studiowindow_uses_namefor():
     text = _read("shani/Modules/Studio/StudioWindow.qml")
-    assert 'AppIcon.nameFor(modelData, "application-x-executable")' in text
+    assert 'AppIconPath.nameFor(modelData, "application-x-executable")' in text
     assert 'Icon { name: "application-x-executable"' not in text
 
 

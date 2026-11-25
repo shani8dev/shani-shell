@@ -6,6 +6,7 @@
 import qs.Common
 
 ListRow {
+    id: root
     // the trailing control slot (ListRow's default); named for the call site
-    property alias control: extra
+    property alias control: root.extra
 }

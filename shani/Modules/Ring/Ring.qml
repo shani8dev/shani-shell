@@ -305,7 +305,7 @@ PanelWindow {
                 visible: !!slice.modelData.app
                 anchors.centerIn: parent
                 implicitSize: 30
-                source: AppIcon.pathFor(slice.modelData.app, "application-x-executable")
+                source: AppIconPath.pathFor(slice.modelData.app, "application-x-executable")
             }
             // a dot on slices that open a ring of their own
             Rectangle {

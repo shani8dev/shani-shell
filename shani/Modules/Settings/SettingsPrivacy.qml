@@ -255,7 +255,7 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             readonly property var entry: DesktopEntries.byId(modelData.app)
-            icon: AppIcon.nameFor(entry, "application-x-executable")
+            icon: AppIconPath.nameFor(entry, "application-x-executable")
             title: entry ? entry.name : modelData.app
             subtitle: (page.names[modelData.table + "/" + modelData.id] || modelData.table + " " + modelData.id) + ": " + (modelData.perms.indexOf("yes") >= 0 ? "allowed" : "denied")
             IconButton {

@@ -107,7 +107,7 @@ ColumnLayout {
                         required property string modelData
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.px(28)
-                        icon: AppIcon.nameFor(page.entry(modelData), "application-x-executable")
+                        icon: AppIconPath.nameFor(page.entry(modelData), "application-x-executable")
                         title: page.nameOf(modelData)
                         selected: modelData === kindRow.info.current
                         onClicked: page.choose(kindRow.modelData, modelData)
@@ -145,7 +145,7 @@ ColumnLayout {
                         required property string modelData
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.px(28)
-                        icon: AppIcon.nameFor(page.entry(modelData), "application-x-executable")
+                        icon: AppIconPath.nameFor(page.entry(modelData), "application-x-executable")
                         title: page.nameOf(modelData)
                         selected: modelData === mediaRow.info.current
                         onClicked: page.choose(mediaRow.modelData, modelData)

@@ -894,7 +894,7 @@ PanelWindow {
         // the icon theme's own icon (Papirus has multitasking-view, show-desktop):
         // drawn like an app; the tile and its drawn glyph only where a theme has none
         property string icon: ""
-        readonly property string themed: AppIcon.pathFor(icon, true)
+        readonly property string themed: AppIconPath.pathFor(icon, true)
         signal activated()
         signal menuRequested()
         default property alias content: face.data

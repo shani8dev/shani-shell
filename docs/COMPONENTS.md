@@ -68,7 +68,9 @@ Theme.touchTarget)`.
 (0..1 live level, -1 none), `label`; `moved(real)`, `iconClicked()`, `detail()`.
 ### AppIcon.qml  ·  canonical app/entry icon  ·  used where an app id is shown.
 - `icon` (name or path), `name` (initial fallback), `implicitSize` (32),
-  `path` (readonly). Falls back to an initial when the icon is missing.
+  `path` (readonly, via `AppIconPath.pathFor`). Falls back to an initial when missing.
+### AppIconPath.qml  ·  singleton icon resolution  ·  used by AppIcon and modules.
+- `nameFor(entry, fallback)` → icon name string. `pathFor(entry, fallback)` → `""` / `file://...` / theme icon path. One place for fallback logic.
 ### Icon.qml  ·  canonical glyph  ·  63 surfaces.
 - `name`, `color` (`Theme.text`), `size` (`Theme.px(18)`).
 `SegmentedTabs`, `Choice` and `ListRow` all carry `Accessible.role` + `name`
