@@ -23,8 +23,9 @@ Item {
     Accessible.description: root.hint
     Accessible.checkable: true
     Accessible.checked: root.checked
-    Accessible.onToggleAction: root.toggled(!root.checked)
-    Accessible.onPressAction: root.toggled(!root.checked)
+    Accessible.onToggleAction: if (root.enabled) root.toggled(!root.checked)
+    Accessible.onPressAction: if (root.enabled) root.toggled(!root.checked)
+    opacity: root.enabled ? 1 : 0.45    // a disabled switch must not look enabled
     implicitWidth: row.implicitWidth
     implicitHeight: row.implicitHeight
     RowLayout {
@@ -69,14 +70,16 @@ Item {
             }
             MouseArea {
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
+                enabled: root.enabled
+                cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: root.toggled(!root.checked)
             }
-            KeyFocus { name: root.text; onActivated: root.toggled(!root.checked) }
+            KeyFocus { enabled: root.enabled && root.visible; name: root.text; onActivated: root.toggled(!root.checked) }
         }
 
         IconButton {
             visible: root.defaultValue !== undefined && root.checked !== root.defaultValue
+            enabled: root.enabled
             icon: "view-refresh"
             size: Theme.px(18)
             Accessible.name: Tr.t("Reset this setting")

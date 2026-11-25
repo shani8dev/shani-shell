@@ -20,6 +20,5 @@ RowLayout {
         font.family: Theme.font
         font.pixelSize: Theme.px(11) * Theme.fontScale
         wrapMode: Text.Wrap
-        elide: Text.ElideRight
     }
 }

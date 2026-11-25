@@ -12,7 +12,7 @@ Rectangle {
     signal activated(int index)
 
     implicitWidth: options.length * segmentWidth + Theme.px(8)
-    implicitHeight: Theme.px(40)
+    implicitHeight: Math.max(Theme.px(40), Theme.touchTarget)
     radius: Theme.radius
     color: Theme.surface2
     border.width: 1
@@ -71,7 +71,7 @@ Rectangle {
                 Accessible.role: Accessible.PageTab
                 Accessible.name: segment.modelData
                 Accessible.selected: segment.index === tabs.currentIndex
-                Accessible.onPressAction: tabs.activated(segment.index)
+                Accessible.onPressAction: { tabs.currentIndex = segment.index; tabs.activated(segment.index) }
             }
         }
     }

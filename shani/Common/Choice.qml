@@ -6,6 +6,7 @@ Rectangle {
     id: root
     property string text
     property bool selected: false
+    property alias checked: root.selected   // the toggle name Button, IconButton and SwitchRow use
     property bool danger: false      // destructive one-shot action, not a choice
     property string accessibleName: ""   // overrides text as the AT name when text is only a hint
     property int columns: 0              // grid width: Up/Down jump a row in the KeyFocus chain

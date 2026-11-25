@@ -3,6 +3,7 @@ pragma Singleton
 // opening one closes the others, so Escape and click-outside have one meaning.
 import Quickshell
 import QtQuick
+import qs.Services
 
 Singleton {
     id: root
@@ -365,6 +366,9 @@ Singleton {
         settingsOpen = false;
         closedApps();
     }
+    // the whiteboard holds unsaved strokes in memory: shell.qml asks its own
+    // LazyLoader to run Whiteboard.requestClose(), which saves before closing
+    signal closeWhiteboardRequested()
     function closeAll() {
         quickPanel = false;
         dockMenu = "";
@@ -378,9 +382,31 @@ Singleton {
         controlCenter = false;
         layoutSwitcher = false;
         windowLayouts = false;
+        desktopMenu = false;
+        tour = false;
+        if (whiteboard) closeWhiteboardRequested();
         expanded = "";
         dockFocus = false;
         barFocus = false;
+    }
+    // the one Back: the TV remote's Back key, the left edge swipe and the IPC
+    // all come here. Only shell surfaces close - app windows are left alone,
+    // they can hold unsaved work.
+    function back() {
+        if (Lock.locked) return;
+        if (Osk.remote) Osk.cancelRemote();
+        else if (Osk.shown) Osk.toggle();
+        else if (quickPanel || dockMenu !== "" || windowMenu || ring || switcher || layoutSwitcher
+                 || windowLayouts || launcher || controlCenter || player || magnifier || annotate
+                 || settingsOpen || desktopMenu || tour) {
+            closeAll();
+            settingsOpen = false;
+        }
+        // the TV home sits over the last app: Back reveals it
+        else if (tvHome && FormFactor.tenFoot && Niri.mru().some(w => w.app_id && w.app_id !== "org.quickshell"))
+            tvHome = false;
+        else if (Niri.overviewOpen) Niri.action("close-overview");
+        else Quickshell.execDetached(["wtype", "-M", "alt", "-k", "Left", "-m", "alt"]);
     }
     function toggleLauncher(query) {
         const was = launcher;

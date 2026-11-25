@@ -6,6 +6,7 @@ Rectangle {
     id: root
     property string icon
     property bool on: false
+    property alias checked: root.on        // the toggle name Button and SwitchRow use
     property real size: Theme.px(32)
     property color iconColor: on ? Theme.accentInk : Theme.text
     property string tip: ""
@@ -28,8 +29,9 @@ Rectangle {
     Accessible.name: root.accessibleName !== "" ? root.accessibleName : root.tip !== "" ? root.tip : (plainNames[root.icon.replace(/-symbolic$/, "")] || root.icon.replace(/-symbolic$/, "").replace(/-/g, " "))
     Accessible.checkable: true
     Accessible.checked: root.on
-    Accessible.onPressAction: root.clicked()
+    Accessible.onPressAction: if (root.enabled) root.clicked()
 
+    opacity: root.enabled ? 1 : 0.45     // a disabled button must not look enabled
     implicitWidth: Math.max(size, Theme.touchTarget)
     implicitHeight: Math.max(size, Theme.touchTarget)
     radius: Math.min(width, height) / 2
