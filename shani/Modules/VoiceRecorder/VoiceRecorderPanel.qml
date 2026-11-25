@@ -29,6 +29,46 @@ AppWindow {
     property string search: ""          // recordings list filter
     property int sortMode: 0            // 0 newest, 1 oldest, 2 name
 
+    // ---- persistent waveform peaks ----------------------------------------
+    // The bridge decodes a take once and caches a bounded peak array in a
+    // sibling .peaks.json; the panel asks only when a take is played here, so
+    // an unused recording never costs a decode. Peaks are the real audio's,
+    // not the live level meter's - that one is only a 100 ms snapshot.
+    readonly property string waveformTool: Quickshell.env("SHANI_WAVEFORM_TOOL") || "/usr/lib/shani-shell/waveform.py"
+    property var peaks: []              // <= 256 amplitudes in 0..1
+    property string peaksFor: ""        // the path `peaks` belongs to
+    property bool peaksLoading: false
+    function loadPeaks(path) {
+        if (!path || !waveformTool || win.peaksFor === path)
+            return;
+        win.peaks = [];
+        win.peaksFor = path;
+        win.peaksLoading = true;
+        peakProc.running = false;
+        peakProc.command = ["python3", waveformTool, path];
+        peakProc.running = true;
+    }
+    Process {
+        id: peakProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d;
+                try { d = JSON.parse(text); } catch (e) { return; }
+                if (d && Array.isArray(d.peaks) && d.peaks.length)
+                    win.peaks = d.peaks.slice(0, 256).map(v => Math.max(0, Math.min(1, parseFloat(v) || 0)));
+            }
+        }
+        onExited: win.peaksLoading = false
+    }
+    // a trashed take leaves no cached peaks behind
+    Process { id: dropPeaks }
+    function dropCachedPeaks(path) {
+        if (!path) return;
+        if (win.peaksFor === path) { peakProc.running = false; win.peaks = []; win.peaksFor = ""; }
+        dropPeaks.command = ["rm", "-f", "--", path + ".peaks.json"];
+        dropPeaks.running = true;
+    }
+
     // Voice Memos and Sound Recorder never trash a take on one accidental
     // click, and both let a long list be searched and re-sorted. The service
     // keeps the raw newest-first list; the filter/sort is view-only.
@@ -37,6 +77,7 @@ AppWindow {
         if (win.inlinePlay === path) { playback.stop(); win.inlinePlay = ""; }
         if (win.renaming === path) win.renaming = "";
         if (win.confirmingDelete === path) win.confirmingDelete = "";
+        win.dropCachedPeaks(path);
         VoiceRecorder.trash(path);
     }
     function visibleRows() {
@@ -66,7 +107,11 @@ AppWindow {
         playback.stop();
         playback.source = "file://" + encodeURI(path);
         win.inlinePlay = path;
+        win.loadPeaks(path);
         playback.play();
+        // the panel is smaller than its content once the bar appears: scroll
+        // down so the waveform and controls are visible without a manual flick
+        Qt.callLater(() => contentScroll.contentY = Math.max(0, contentScroll.contentHeight - contentScroll.height));
     }
     function exportDialog(path) {
         FilePicker.open({
@@ -86,12 +131,19 @@ AppWindow {
         id: blurCard
         anchors.fill: parent
 
-        ColumnLayout {
-            id: col
-            x: 20
-            y: 20
-            width: parent.width - 40
-            spacing: Theme.px(12)
+        Flickable {
+            id: contentScroll
+            anchors.fill: parent
+            anchors.margins: Theme.px(20)
+            clip: true
+            flickableDirection: Flickable.VerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            contentWidth: width
+            contentHeight: col.implicitHeight
+            ColumnLayout {
+                id: col
+                width: parent.width
+                spacing: Theme.px(12)
 
 
             Text {
@@ -476,6 +528,87 @@ AppWindow {
                 }
             }
 
+            // The recorded waveform: cached peaks for this take, with a
+            // playhead. Click anywhere to seek; Left / Right step five seconds.
+            // No card behind it - these are just bars over the panel's surface.
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: win.inlinePlay !== "" && win.peaks.length > 0
+                spacing: Theme.px(2)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    IconButton {
+                        icon: playback.playbackState === MediaPlayer.PlayingState ? "media-playback-pause" : "media-playback-start"
+                        tip: playback.playbackState === MediaPlayer.PlayingState ? Tr.t("Pause") : Tr.t("Play")
+                        size: Theme.px(26)
+                        onClicked: win.playInline(win.inlinePlay)
+                    }
+                    Item {
+                        id: wave
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(40)
+                        readonly property real progress: playback.duration > 0 ? Math.max(0, Math.min(1, playback.position / playback.duration)) : 0
+                        property real value: progress
+                        Accessible.role: Accessible.Slider
+                        Accessible.name: Tr.t("Waveform — seek in recording")
+                        Row {
+                            anchors.fill: parent
+                            spacing: 1
+                            Repeater {
+                                model: win.peaks
+                                Rectangle {
+                                    width: Math.max(1, wave.width / Math.max(1, win.peaks.length) - 1)
+                                    height: Math.max(2, (wave.height - 4) * Math.max(0, Math.min(1, modelData || 0)))
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: 1
+                                    color: index / Math.max(1, win.peaks.length) <= wave.progress
+                                        ? Theme.accent : Theme.alpha(Theme.accent, 0.35)
+                                }
+                            }
+                        }
+                        Rectangle {
+                            x: wave.progress * Math.max(0, parent.width - 2)
+                            width: 2
+                            height: parent.height
+                            color: Theme.text
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            function seekAt(x) {
+                                if (playback.duration > 0)
+                                    playback.setPosition(Math.max(0, Math.min(1, x / width)) * playback.duration);
+                            }
+                            onPressed: m => seekAt(m.x)
+                            onPositionChanged: m => { if (pressed) seekAt(m.x); }
+                        }
+                        KeyFocus {
+                            name: Tr.t("Waveform — seek in recording")
+                            slider: true
+                            onStep: dir => {
+                                if (playback.duration > 0)
+                                    playback.setPosition(Math.max(0, Math.min(playback.duration, playback.position + dir * 5000)));
+                            }
+                        }
+                    } // wave Item
+                    IconButton {
+                        icon: "media-playback-stop"
+                        tip: Tr.t("Stop")
+                        size: Theme.px(26)
+                        onClicked: { playback.stop(); win.inlinePlay = ""; }
+                    }
+                } // waveform controls row
+                Text {
+                    Layout.fillWidth: true
+                    visible: win.peaksLoading
+                    text: Tr.t("Reading waveform…")
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+            }
+
             // in-app playback bar and export feedback
             RowLayout {
                 Layout.fillWidth: true
@@ -514,6 +647,7 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(10) * Theme.fontScale
             }
-        }
+            } // ColumnLayout
+        } // Flickable
     }
 }
