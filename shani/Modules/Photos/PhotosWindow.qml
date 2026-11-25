@@ -26,7 +26,7 @@ AppWindow {
     // runtime and can take the shell down, so they reset each time Photos opens.
     property string filter: "all"     // all | camera | screenshots
     property string groupBy: "month"  // day | month | year
-    property string sortOrder: "newest"  // newest | oldest | name
+    property string sortOrder: "newest"  // newest | oldest | name | size
     property string searchText: ""    // filename / path / tag substring
     property bool importBusy: false
     property string importNote: ""
@@ -62,15 +62,15 @@ AppWindow {
     property string renamePattern: ""
     property string smartName: ""
     property string activeSmart: ""
+    property var smartAlbums: []      // saved search rules, in smart-albums.json
     property var placeData: ({})      // path -> [lat, lon]
     property var places: []           // [{ key, label, items }]
     property bool placesReady: false
     property bool placesTool: true    // false: neither exiv2 nor exiftool installed
 
-    // `Photos.createAlbum` is used by the album controls, but there is no Photos
-    // service singleton — route the call to this window's own writer.
+    // The album controls call the local writer; QML ids cannot start uppercase.
     QtObject {
-        id: Photos
+        id: photosApi
         function createAlbum(name, paths) { win.createAlbum(name, paths); }
     }
 
@@ -91,15 +91,19 @@ AppWindow {
         (timelinePeriod === "" || monthKey(p.time) === timelinePeriod) &&
         (placeFilter === "" || (placeData[p.path] && placeLabel(placeData[p.path]) === placeFilter)) &&
         (activeSmart === "" || smartMatches(p, activeSmart)))
+    function comparePhotos(a, b) {
+        if (win.sortOrder === "oldest") return a.time - b.time;
+        if (win.sortOrder === "name") return a.path.split("/").pop().localeCompare(b.path.split("/").pop());
+        // size comes from the same find line as time; missing size sorts last
+        if (win.sortOrder === "size") return (b.size || 0) - (a.size || 0);
+        return b.time - a.time;   // newest, the scan order
+    }
     // [{ key, items: [...] }] — the key is a day, a month or a year. The sort
     // order is applied here (not in scan's `sort -rn`) so it works for every
     // grouping; same-key groups are merged so a name sort cannot split a month.
     readonly property var groups: {
         const fmt = win.groupBy === "day" ? "d MMM yyyy" : win.groupBy === "year" ? "yyyy" : "MMMM yyyy";
-        let list = shown;
-        if (win.sortOrder === "oldest") list = list.slice().sort((a, b) => a.time - b.time);
-        else if (win.sortOrder === "name") list = list.slice().sort((a, b) =>
-            a.path.split("/").pop().localeCompare(b.path.split("/").pop()));
+        let list = win.sortOrder === "newest" ? shown : shown.slice().sort((a, b) => win.comparePhotos(a, b));
         const out = [];
         for (const p of list) {
             // Places overrides the grouping so the grid reads as a map album;
@@ -488,6 +492,7 @@ AppWindow {
     }
     function albumSelected() {
         if (!win.selected.length) return;
+        const Photos = photosApi;   // a JS local: QML ids cannot start uppercase
         const name = (win.newAlbumName || "").trim() || Tr.t("Selection");
         Photos.createAlbum(name, win.selected.slice());
         win.newAlbumName = "";
@@ -501,7 +506,7 @@ AppWindow {
         scanError = "";
         dirCheck.command = ["test", "-d", win.pictures];
         dirCheck.running = true;
-        lister.command = ["sh", "-c", 'find "$1" -maxdepth 4 -type f \\( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" -o -iname "*.gif" -o -iname "*.avif" -o -iname "*.bmp" \\) -not -path "*/.*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -5000', "sh", pictures];
+        lister.command = ["sh", "-c", 'find "$1" -maxdepth 4 -type f \\( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" -o -iname "*.gif" -o -iname "*.avif" -o -iname "*.bmp" \\) -not -path "*/.*" -printf "%T@ %s %p\\n" 2>/dev/null | sort -rn | head -5000', "sh", pictures];
         lister.running = true;
     }
     Process {
@@ -610,7 +615,12 @@ AppWindow {
                     if (at <= 0)
                         continue;
                     const t = parseFloat(line.substring(0, at));
-                    out.push({ path: line.substring(at + 1), time: t, month: Qt.formatDate(new Date(t * 1000), "MMMM yyyy") });
+                    const rest = line.substring(at + 1);
+                    const sp = rest.indexOf(" ");
+                    if (sp < 0)
+                        continue;
+                    const size = parseFloat(rest.substring(0, sp));
+                    out.push({ path: rest.substring(sp + 1), time: t, size: size, month: Qt.formatDate(new Date(t * 1000), "MMMM yyyy") });
                 }
                 win.photos = out;
                 win.scanning = false;
@@ -714,16 +724,6 @@ AppWindow {
                         onClicked: win.groupBy = modelData[0]
                     }
                 }
-                // sort order: newest (the scan default), oldest or by file name
-                Repeater {
-                    model: [["newest", Tr.t("Newest")], ["oldest", Tr.t("Oldest")], ["name", Tr.t("Name")]]
-                    Choice {
-                        required property var modelData
-                        text: modelData[1]
-                        selected: win.sortOrder === modelData[0]
-                        onClicked: win.sortOrder = modelData[0]
-                    }
-                }
                 // rating floor: Digikam's "4 stars and above" view, over the
                 // ratings already stored in meta.json
                 Repeater {
@@ -776,6 +776,7 @@ AppWindow {
                     flat: true
                     onClicked: {
                         // Create an album from current filter
+                        const Photos = photosApi;   // JS local; QML ids cannot start uppercase
                         const selected = win.shown.map(p => p.path);
                         if (selected.length > 0) {
                             const name = selected[0].split("/").slice(-2, -1)[0] + (selected.length > 1 ? " +" + (selected.length - 1) : "");
@@ -814,6 +815,29 @@ AppWindow {
                 IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: win.scan() }
                 IconButton { size: Theme.px(30); icon: "folder-pictures"; tip: Tr.t("Open Pictures in Files"); onClicked: Files.show(win.pictures) }
                 IconButton { size: Theme.px(30); icon: "document-properties"; tip: Tr.t("Details"); on: win.detailsShown; onClicked: win.detailsShown = !win.detailsShown }
+            }
+            // sort order on its own row: the toolbar above is already full at
+            // the default width, which used to push the last sort off-screen.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Text {
+                    text: Tr.t("Sort")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.name: text
+                }
+                Repeater {
+                    model: [["newest", Tr.t("Newest")], ["oldest", Tr.t("Oldest")], ["name", Tr.t("Name")], ["size", Tr.t("Size")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.sortOrder === modelData[0]
+                        onClicked: win.sortOrder = modelData[0]
+                    }
+                }
+                Item { Layout.fillWidth: true }
             }
             // folder navigation (Digikam's folder tree, flattened to chips): a
             // click scopes the view to one folder and all folders below it.

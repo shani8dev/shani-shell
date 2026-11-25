@@ -1083,14 +1083,14 @@ AppWindow {
                                         anchors.verticalCenter: parent.verticalCenter
                                         Accessible.role: Accessible.Button
                                         Accessible.name: Tr.t("Folders next to %1").arg(modelData.name)
-                                        Accessible.onPressAction: win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0))
+                                        Accessible.onPressAction: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0))
+                                            onClicked: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
                                         }
                                         // keys and a controller: Enter / Space lists the siblings, as the click
-                                        KeyFocus { name: Tr.t("Folders next to %1").arg(modelData.name); onActivated: win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
+                                        KeyFocus { name: Tr.t("Folders next to %1").arg(modelData.name); onActivated: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) } }
                                     }
                                     Text {
                                         visible: index < win.crumbsModel.length - 1
@@ -1502,12 +1502,37 @@ AppWindow {
                                         font.weight: index === win.splitCrumbsModel.length - 1 ? Font.DemiBold : Font.Normal
                                         MouseArea {
                                             anchors.fill: parent
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: { Files.splitPath = modelData.path; splitDir.reload(); }
+                                            onClicked: mouse => {
+                                                if (mouse.button === Qt.RightButton)
+                                                    win.openPathMenu(modelData.path, mapToItem(win, mouse.x, mouse.y));
+                                                else { Files.splitPath = modelData.path; splitDir.reload(); }
+                                            }
                                         }
                                         Accessible.role: Accessible.Button
                                         Accessible.name: modelData.name
                                         KeyFocus { onActivated: { Files.splitPath = modelData.path; splitDir.reload(); } }
+                                    }
+                                    // the arrow lists this folder's siblings in the split pane
+                                    Text {
+                                        text: "▾"
+                                        color: Theme.dim
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: Tr.t("Folders next to %1").arg(modelData.name)
+                                        Accessible.onPressAction: { win.crumbMenuSplit = true; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: { win.crumbMenuSplit = true; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
+                                        }
+                                        KeyFocus {
+                                            name: Tr.t("Folders next to %1").arg(modelData.name)
+                                            onActivated: { win.crumbMenuSplit = true; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
+                                        }
                                     }
                                     Text {
                                         visible: index < win.splitCrumbsModel.length - 1
@@ -1844,11 +1869,11 @@ AppWindow {
                             id: crumbArea
                             anchors.fill: parent
                             hoverEnabled: true
-                            onClicked: { Files.open(modelData.path); win.closeCrumbMenu(); }
+                            onClicked: { win.openCrumbPath(modelData.path); }
                         }
                         KeyFocus {
                             name: modelData.name
-                            onActivated: { Files.open(modelData.path); win.closeCrumbMenu(); }
+                            onActivated: { win.openCrumbPath(modelData.path); }
                         }
                     }
                 }
@@ -3629,10 +3654,13 @@ AppWindow {
         const out = [];
         let rest = p;
         let at = "";
-        if (home && p.indexOf(home + "/") === 0) {
+        if (home && (p === home || p.indexOf(home + "/") === 0)) {
             out.push({ name: Tr.t("Home"), path: home });
             rest = p.substring(home.length);
             at = home;
+        } else {
+            // outside Home, the root is the first ancestor you can jump to
+            out.push({ name: "/", path: "/" });
         }
         for (const part of rest.split("/").filter(x => x)) {
             at = at + "/" + part;
@@ -3652,10 +3680,13 @@ AppWindow {
         const out = [];
         let rest = p;
         let at = "";
-        if (home && p.indexOf(home + "/") === 0) {
+        if (home && (p === home || p.indexOf(home + "/") === 0)) {
             out.push({ name: Tr.t("Home"), path: home });
             rest = p.substring(home.length);
             at = home;
+        } else {
+            // outside Home, the root is the first ancestor you can jump to
+            out.push({ name: "/", path: "/" });
         }
         for (const part of rest.split("/").filter(x => x)) {
             at = at + "/" + part;
@@ -3671,6 +3702,7 @@ AppWindow {
     property var crumbMenuItems: []
     property real crumbMenuX: 0
     property real crumbMenuY: 0
+    property bool crumbMenuSplit: false   // a split-pane crumb navigates that pane
     function openCrumbMenu(path, point) {
         crumbMenuFor = path;
         crumbMenuItems = [];
@@ -3683,7 +3715,13 @@ AppWindow {
             crumbMenuItems = (r.entries || []).filter(e => e.isDir).map(e => ({ name: e.name, path: e.path }));
         });
     }
-    function closeCrumbMenu() { crumbMenuFor = ""; crumbMenuItems = []; }
+    function closeCrumbMenu() { crumbMenuFor = ""; crumbMenuItems = []; crumbMenuSplit = false; }
+    function openCrumbPath(path) {
+        const split = win.crumbMenuSplit;
+        closeCrumbMenu();
+        if (split) { Files.splitPath = path; splitDir.reload(); }
+        else Files.open(path);
+    }
 
     // ---- Select Items Matching… and Create Link ----------------------------------
     property string matchPattern: ""
