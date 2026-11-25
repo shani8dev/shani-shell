@@ -50,6 +50,17 @@ AppWindow {
         function onVcardReady(text, name) { Qr.show(name || "Contact", text); }
         function onQueryChanged() { win.currentIndex = -1; }
     }
+    // The form offers four labels; older cards use vCard's "cell" for mobile.
+    // Labels stay literal: the i18n catalog is generated from Tr.t calls.
+    readonly property var phoneTypes: [["home", "Home"], ["work", "Work"], ["mobile", "Mobile"], ["other", "Other"]]
+    function phoneType(t) {
+        const v = String(t || "").toLowerCase();
+        return v === "cell" ? "mobile" : win.phoneTypes.some(x => x[0] === v) ? v : "mobile";
+    }
+    function emailType(t) {
+        const v = String(t || "").toLowerCase();
+        return win.phoneTypes.some(x => x[0] === v) ? v : "home";
+    }
     function setPhone(i, key, value) {
         const rows = win.editPhones.map(x => Object.assign({}, x));
         rows[i][key] = value; win.editPhones = rows;
@@ -227,48 +238,86 @@ AppWindow {
                 RowLayout {
                     required property int index
                     required property var modelData
+                    property int row: index
+                    property var phone: modelData
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
-                    TextField {
-                        Layout.preferredWidth: Theme.px(96)
-                        text: modelData.type || "cell"
-                        placeholder: "cell / home / work"
-                        onTextChanged: win.setPhone(index, "type", text)
+                    Flow {
+                        Layout.preferredWidth: Theme.px(216)
+                        spacing: Theme.px(2)
+                        Repeater {
+                            model: win.phoneTypes
+                            Choice {
+                                required property var modelData
+                                text: modelData[1]
+                                selected: win.phoneType(phone.type) === modelData[0]
+                                Accessible.name: "Phone " + (row + 1) + ", type " + modelData[1]
+                                onClicked: win.setPhone(row, "type", modelData[0])
+                            }
+                        }
                     }
                     TextField {
                         Layout.fillWidth: true
                         text: modelData.number || ""
                         placeholder: Tr.t("Phone number")
+                        label: "Phone number " + (index + 1)
                         onTextChanged: win.setPhone(index, "number", text)
                     }
-                    IconButton { size: Theme.px(24); icon: "list-remove"; tip: "Remove"; onClicked: { const rows = win.editPhones.slice(); rows.splice(index, 1); win.editPhones = rows; } }
+                    IconButton {
+                        size: Theme.px(24); icon: "list-remove"; tip: "Remove phone " + (index + 1)
+                        accessibleName: tip
+                        onClicked: { const rows = win.editPhones.slice(); rows.splice(index, 1); win.editPhones = rows; }
+                    }
                 }
             }
-            Button { text: "Add phone"; flat: true; onClicked: win.editPhones = win.editPhones.concat([{ type: "cell", number: "" }]) }
+            Button {
+                text: "Add phone"; flat: true
+                Accessible.name: "Add another phone number"
+                onClicked: win.editPhones = win.editPhones.concat([{ type: "mobile", number: "" }])
+            }
             Text { text: "Email addresses"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
             Repeater {
                 model: win.editEmails
                 RowLayout {
                     required property int index
                     required property var modelData
+                    property int row: index
+                    property var email: modelData
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
-                    TextField {
-                        Layout.preferredWidth: Theme.px(96)
-                        text: modelData.type || "home"
-                        placeholder: "home / work"
-                        onTextChanged: win.setEmail(index, "type", text)
+                    Flow {
+                        Layout.preferredWidth: Theme.px(216)
+                        spacing: Theme.px(2)
+                        Repeater {
+                            model: win.phoneTypes
+                            Choice {
+                                required property var modelData
+                                text: modelData[1]
+                                selected: win.emailType(email.type) === modelData[0]
+                                Accessible.name: "Email " + (row + 1) + ", type " + modelData[1]
+                                onClicked: win.setEmail(row, "type", modelData[0])
+                            }
+                        }
                     }
                     TextField {
                         Layout.fillWidth: true
                         text: modelData.address || ""
                         placeholder: Tr.t("Email address")
+                        label: "Email address " + (index + 1)
                         onTextChanged: win.setEmail(index, "address", text)
                     }
-                    IconButton { size: Theme.px(24); icon: "list-remove"; tip: "Remove"; onClicked: { const rows = win.editEmails.slice(); rows.splice(index, 1); win.editEmails = rows; } }
+                    IconButton {
+                        size: Theme.px(24); icon: "list-remove"; tip: "Remove email " + (index + 1)
+                        accessibleName: tip
+                        onClicked: { const rows = win.editEmails.slice(); rows.splice(index, 1); win.editEmails = rows; }
+                    }
                 }
             }
-            Button { text: "Add email"; flat: true; onClicked: win.editEmails = win.editEmails.concat([{ type: "home", address: "" }]) }
+            Button {
+                text: "Add email"; flat: true
+                Accessible.name: "Add another email address"
+                onClicked: win.editEmails = win.editEmails.concat([{ type: "home", address: "" }])
+            }
             Button {
                 text: "Set photo…"
                 flat: true
@@ -640,7 +689,12 @@ AppWindow {
                         required property var modelData
                         Layout.fillWidth: true
                         Icon { name: "call-start"; size: Theme.px(18); color: Theme.dim }
-                        Text { Layout.fillWidth: true; text: (modelData.type || "cell") + ": " + (modelData.number || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight }
+                        Text {
+                            Layout.fillWidth: true
+                            text: win.phoneType(modelData.type) + ": " + (modelData.number || "")
+                            Accessible.name: win.phoneType(modelData.type) + " phone: " + (modelData.number || "")
+                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight
+                        }
                         IconButton {
                             size: Theme.px(24)
                             icon: "edit-copy"
@@ -656,7 +710,12 @@ AppWindow {
                         required property var modelData
                         Layout.fillWidth: true
                         Icon { name: "mail-unread"; size: Theme.px(18); color: Theme.dim }
-                        Text { Layout.fillWidth: true; text: (modelData.type || "home") + ": " + (modelData.address || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight }
+                        Text {
+                            Layout.fillWidth: true
+                            text: win.emailType(modelData.type) + ": " + (modelData.address || "")
+                            Accessible.name: win.emailType(modelData.type) + " email: " + (modelData.address || "")
+                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight
+                        }
                         IconButton {
                             size: Theme.px(24)
                             icon: "edit-copy"

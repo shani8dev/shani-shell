@@ -216,8 +216,11 @@ def _event_extras(icomp) -> dict:
         text = ICalGLib.component_as_ical_string(icomp) or ""
     except Exception:  # noqa: BLE001 - extras are best-effort
         return out
-    out["description"] = _prop(text, "DESCRIPTION")
-    out["rrule"] = _prop(text, "RRULE")
+    # A VALARM has its own DESCRIPTION (the reminder text); without stripping
+    # it an event with no notes read back as "Event reminder".
+    event_only = "\r\n".join(_strip_valarms(_unfold_lines(text)))
+    out["description"] = _prop(event_only, "DESCRIPTION")
+    out["rrule"] = _prop(event_only, "RRULE")
     trigger = _prop(text, "TRIGGER").strip()
     m = re.fullmatch(r"-PT(?:(\d+)H)?(?:(\d+)M)?", trigger)
     if m:

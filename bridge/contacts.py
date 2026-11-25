@@ -167,6 +167,24 @@ def _split(value: str, sep: str) -> list[str]:
     return parts
 
 
+def _param(head: str, key: str) -> str:
+    """A vCard parameter (e.g. TYPE=work) from a property's head."""
+    for part in _split(head, ";"):
+        name, sep, value = part.partition("=")
+        if sep and name.strip().upper() == key:
+            return value.strip().strip('"')
+    return ""
+
+
+def _type(value: str, default: str) -> str:
+    """The first TYPE the form understands; 'cell' is vCard's mobile."""
+    for label in _split(value, ","):
+        label = label.strip().strip('"').lower()
+        if label in ("home", "work", "mobile", "cell", "other"):
+            return "mobile" if label == "cell" else label
+    return default
+
+
 def parse(text: str) -> list[dict]:
     """Every contact in `text`, one or many vCards."""
     found: list[dict] = []
@@ -234,11 +252,15 @@ def parse(text: str) -> list[dict]:
         elif name == "TEL":
             number = re.sub(r"^tel:", "", _unescape(value).strip(), flags=re.I)
             if number:
-                current["phones"].append({"type": "cell", "number": number})
+                current["phones"].append(
+                    {"type": _type(_param(head, "TYPE"), "mobile"), "number": number}
+                )
         elif name == "EMAIL":
             address = re.sub(r"^mailto:", "", _unescape(value).strip(), flags=re.I)
             if address:
-                current["emails"].append({"type": "home", "address": address})
+                current["emails"].append(
+                    {"type": _type(_param(head, "TYPE"), "home"), "address": address}
+                )
         elif name == "CATEGORIES":
             for group in _split(value, ","):
                 group = _unescape(group).strip()

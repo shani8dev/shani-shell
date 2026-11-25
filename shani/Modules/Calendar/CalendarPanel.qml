@@ -1690,6 +1690,7 @@ AppWindow {
                     Layout.fillWidth: true
                     placeholder: "Description / notes"
                     label: "Description"
+                    Accessible.name: "Event description"
                 }
                 TextField {
                     id: fAttendees
@@ -1958,6 +1959,7 @@ AppWindow {
                         Layout.fillWidth: true
                         visible: !!((win.viewingEvent || {}).description)
                         text: (win.viewingEvent || {}).description || ""
+                        Accessible.name: "Description: " + text
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: Theme.px(12) * Theme.fontScale
