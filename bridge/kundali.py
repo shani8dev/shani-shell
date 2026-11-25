@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Kundali/Panchang calculator for ShaniOS shell.
 
-Pure Python — no external dependencies (uses shani-chronoa astronomy module).
+Pure Python — no external dependencies (uses the local astronomy module,
+moved here from shani-chronoa along with the Kundali engine).
 
 Usage:
   kundali.py panchang DATE LAT LON
@@ -9,35 +10,17 @@ Usage:
 
 Outputs JSON to stdout.
 """
+
 import json
-import os
 import sys
+
+import astronomy
+import kundali_engine
 
 
 def _astro():
-    """Import the astronomy module from chronoa."""
-    paths = [
-        "/usr/lib/shani-chronoa",
-        os.path.expanduser("~/.local/lib/python3.14/site-packages"),
-        os.path.expanduser("~/Documents/shani/shani-chronoa/usr/lib/shani-chronoa"),
-    ]
-    for p in paths:
-        if p not in sys.path:
-            sys.path.insert(0, p)
-    try:
-        from shani_chronoa import astronomy
-        return astronomy
-    except ImportError:
-        import importlib.util
-        for base in ["/usr/lib/shani-chronoa/shani_chronoa",
-                     os.path.expanduser("~/Documents/shani/shani-chronoa/usr/lib/shani-chronoa/shani_chronoa")]:
-            mod_path = os.path.join(base, "astronomy.py")
-            if os.path.isfile(mod_path):
-                spec = importlib.util.spec_from_file_location("astronomy", mod_path)
-                mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)
-                return mod
-    return None
+    """The local astronomy module (no Chronoa path shim)."""
+    return astronomy
 
 
 def panchang(date_str, lat, lon):
@@ -48,7 +31,12 @@ def panchang(date_str, lat, lon):
         date_str = date_str + "T12:00:00Z"
     elif not date_str.endswith("Z"):
         date_str = date_str + "Z"
-    return astro.compute_panchang(date_str, lat, lon)
+    result = astro.compute_panchang(date_str, lat, lon)
+    result["text"] = kundali_engine.compute(
+        {"action": "panchang", "date": date_str, "latitude": lat, "longitude": lon},
+        astro,
+    )
+    return result
 
 
 def kundali(datetime_str, lat, lon):
@@ -60,6 +48,15 @@ def kundali(datetime_str, lat, lon):
     elif not datetime_str.endswith("Z"):
         datetime_str = datetime_str + "Z"
     chart = astro.compute_full_chart_v2(datetime_str, lat, lon)
+    chart["text"] = kundali_engine.compute(
+        {
+            "action": "kundali",
+            "datetime": datetime_str,
+            "latitude": lat,
+            "longitude": lon,
+        },
+        astro,
+    )
     return chart
 
 
@@ -155,7 +152,9 @@ if __name__ == "__main__":
             asc = chart["ascendant"]
             sun = next((pp for pp in chart["planets"] if pp["name"] == "Sun"), {})
             moon = next((pp for pp in chart["planets"] if pp["name"] == "Moon"), {})
-            parts = astro.arabic_parts(asc, sun.get("sidereal_longitude", 0), moon.get("sidereal_longitude", 0))
+            parts = astro.arabic_parts(
+                asc, sun.get("sidereal_longitude", 0), moon.get("sidereal_longitude", 0)
+            )
             print(json.dumps(parts, ensure_ascii=False))
         else:
             print(json.dumps({"error": "Astronomy module not available"}))
@@ -186,7 +185,11 @@ if __name__ == "__main__":
         hour = int(sys.argv[5]) if len(sys.argv) > 5 else 12
         astro = _astro()
         if astro:
-            print(json.dumps(astro.bazi_pillars(year, month, day, hour), ensure_ascii=False))
+            print(
+                json.dumps(
+                    astro.bazi_pillars(year, month, day, hour), ensure_ascii=False
+                )
+            )
         else:
             print(json.dumps({"error": "Astronomy module not available"}))
     else:
