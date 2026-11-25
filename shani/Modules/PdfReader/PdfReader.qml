@@ -20,6 +20,11 @@ AppWindow {
     property bool mergeSplitShown: false
     property bool printShown: false
     function toggleExtra(name) { extraPanel = extraPanel === name ? "" : name; }
+    // jump from the document to its folder in Files, with the file chosen
+    function reveal(path) {
+        const p = String(path || ""); if (!p.startsWith("/")) return;
+        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
+    }
     function pick() {
         FilePicker.open({ mode: "open", filters: ["pdf"], title: "Open a PDF",
                           onPicked: paths => { if (paths && paths.length) PdfViewer.open(paths[0]); } });
@@ -295,6 +300,7 @@ AppWindow {
         Keys.onLeftPressed: PdfViewer.prevSpread()
         Keys.onPressed: e => {
             if (e.key === Qt.Key_O && (e.modifiers & Qt.ControlModifier)) win.pick();
+            else if (e.key === Qt.Key_L && (e.modifiers & Qt.ControlModifier)) win.reveal(PdfViewer.file);
             else if (e.key === Qt.Key_PageDown) PdfViewer.nextSpread();
             else if (e.key === Qt.Key_PageUp) PdfViewer.prevSpread();
             else if (e.key === Qt.Key_R && (e.modifiers & Qt.ShiftModifier)) PdfViewer.rotateCCW();
@@ -370,6 +376,7 @@ AppWindow {
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy this page's text"); onClicked: win.note = PdfViewer.copyPageText() ? Tr.t("Copied this page's text") : Tr.t("This page has no text to copy") }
                 IconButton { icon: "document-save-as"; size: Theme.px(28); tip: Tr.t("Save this page as image…"); enabled: PdfViewer.current !== ""; onClicked: win.savePageImage() }
                 IconButton { icon: "document-properties"; size: Theme.px(28); tip: Tr.t("Document properties"); onClicked: PdfViewer.showInfo() }
+                IconButton { icon: "folder-open"; size: Theme.px(28); tip: Tr.t("Show in Files"); enabled: PdfViewer.file !== ""; onClicked: win.reveal(PdfViewer.file) }
                 // a form: fill it in, save a filled copy
                 Button {
                     visible: PdfViewer.formFields.length > 0

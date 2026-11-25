@@ -324,6 +324,12 @@ AppWindow {
                           startPath: PlayQueue.current !== "" ? PlayQueue.current.substring(0, PlayQueue.current.lastIndexOf("/")) : (Quickshell.env("HOME") + "/Videos"),
                           onPicked: paths => { if (paths.length) PlayQueue.open(paths[0]); } });
     }
+    // a local file has a folder to jump to; a radio or live-TV stream does not
+    function reveal() {
+        const p = PlayQueue.isStream ? "" : String(PlayQueue.current || "");
+        if (!p.startsWith("/")) return;
+        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
+    }
     function key(e) {
         const big = e.modifiers & Qt.ShiftModifier;
         if (e.key === Qt.Key_Space || e.key === Qt.Key_K) win.toggle();
@@ -338,6 +344,7 @@ AppWindow {
         else if (e.key === Qt.Key_S) PlayQueue.shuffle = !PlayQueue.shuffle;
         else if (e.key === Qt.Key_M) PlayQueue.muted = !PlayQueue.muted;
         else if (e.key === Qt.Key_F) Niri.action("fullscreen-window");
+        else if (e.key === Qt.Key_L && (e.modifiers & Qt.ControlModifier)) win.reveal();
         else if (e.key === Qt.Key_O) win.pick();
         else if (e.key === Qt.Key_L) win.listShown = !win.listShown;
         else if (e.key === Qt.Key_R && big) win.cycleRepeat();
@@ -894,6 +901,7 @@ AppWindow {
                     }
                     IconButton { icon: "media-skip-forward"; tip: Tr.t("Next") + " (N)"; enabled: PlayQueue.queue.length > 1; onClicked: PlayQueue.next() }
                     IconButton { icon: "media-playback-stop"; tip: Tr.t("Stop"); enabled: PlayQueue.current !== ""; onClicked: PlayQueue.stop() }
+                    IconButton { icon: "folder-open"; tip: Tr.t("Show in Files"); enabled: PlayQueue.current !== "" && !PlayQueue.isStream; onClicked: win.reveal() }
                     Text {
                         Layout.leftMargin: Theme.px(8)
                         text: PlayQueue.clock(seekArea.pressed ? seekArea.at / 1000 : PlayQueue.position) + " / " + PlayQueue.clock(PlayQueue.duration)

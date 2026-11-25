@@ -38,6 +38,13 @@ AppWindow {
     }
     Timer { id: trashConfirmTimer; interval: 4000; onTriggered: win.trashConfirm = "" }
 
+    // jump from the picture to its folder in Files, with the picture chosen;
+    // a URL is not a file on disk, so there is nothing to show
+    function reveal(path) {
+        const p = String(path || ""); if (!p.startsWith("/")) return;
+        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
+    }
+
     // ---- Save as: let the person name the copy (CoreImage's Save As). The edit
     // service still writes its "(edited)" file; move that one file to the picked
     // name — no second render and no change to the service's shared API.
@@ -123,6 +130,7 @@ AppWindow {
             else if (e.key === Qt.Key_G) Viewer.toggleGrid();
             else if (e.key === Qt.Key_T) Viewer.toggleThumbs();
             else if (e.key === Qt.Key_C) Viewer.copyPath();
+            else if (e.key === Qt.Key_L && (e.modifiers & Qt.ControlModifier)) win.reveal(Viewer.file);
             else if (e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) win.askTrash();
             else if (e.key === Qt.Key_O) Viewer.openWith();
             else if (e.key === Qt.Key_E) { if (Viewer.editing) Viewer.cancelEdit(); else Viewer.startEdit(); }
@@ -555,6 +563,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy path (C)"); onClicked: Viewer.copyPath() }
+                IconButton { icon: "folder-open"; size: Theme.px(28); tip: Tr.t("Show in Files"); enabled: Viewer.file !== ""; onClicked: win.reveal(Viewer.file) }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Open with… (O)"); onClicked: Viewer.openWith() }
                 IconButton { icon: "edit-delete"; size: Theme.px(28); tip: win.trashConfirm ? Tr.t("Tap again to trash") : Tr.t("Move to trash (Del)"); onClicked: win.askTrash() }
                 Text {

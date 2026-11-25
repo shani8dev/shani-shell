@@ -48,6 +48,11 @@ AppWindow {
 
     function clearPass() { Archive.newPass = ""; archPassConfirm.text = ""; }
     function clearPrompt() { pw.text = ""; }
+    // jump from the archive to its folder in Files, with the file chosen
+    function reveal(path) {
+        const p = String(path || ""); if (!p.startsWith("/")) return;
+        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
+    }
     function openRecent(path) { win.clearPrompt(); Archive.open(path); }
     function runTest() { Archive.testArchive(); }
 
@@ -102,6 +107,7 @@ AppWindow {
         focus: true
         Keys.onPressed: e => {
             if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_O) { win.pick(); e.accepted = true; }
+            else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_L) { win.reveal(Archive.file); e.accepted = true; }
             else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_E) { Archive.extract(""); e.accepted = true; }
             else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_A) { win.selectAllVisible(); e.accepted = true; }
             else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_T) { win.runTest(); e.accepted = true; }
@@ -162,6 +168,7 @@ AppWindow {
                     onClicked: Archive.open(Archive.file)
                 }
                 Button { text: Tr.t("Open…"); flat: true; onClicked: win.pick() }
+                Button { visible: Archive.file !== ""; text: Tr.t("Show in Files"); flat: true; onClicked: win.reveal(Archive.file) }
                 Button {
                     text: Tr.t("Add files…")
                     flat: true
@@ -307,7 +314,7 @@ AppWindow {
                         font.family: Theme.font
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
-                    Button { text: Tr.t("Show in Files"); onClicked: Files.show(Archive.made) }
+                    Button { text: Tr.t("Show in Files"); onClicked: win.reveal(Archive.made) }
                     Button { text: Tr.t("Open it"); flat: true; onClicked: { const m = Archive.made; Archive.toCompress = []; Archive.open(m); } }
                 }
             }

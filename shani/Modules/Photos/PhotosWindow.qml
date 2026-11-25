@@ -526,8 +526,8 @@ AppWindow {
     // ---- metadata actions (Finder / Nautilus / Digikam) --------------------------
     function copyPath(path) { if (path) Files.copyPath(path); }
     function reveal(path) {
-        if (!path) return;
-        Files.show(path.substring(0, path.lastIndexOf("/")) || win.pictures);
+        const p = String(path || ""); if (!p.startsWith("/")) return;
+        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
     }
     function openWith(path) {
         if (path) Quickshell.execDetached(["gio", "open", "--", path]);
