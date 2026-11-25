@@ -25,68 +25,70 @@ ColumnLayout {
         }
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Updates") }
-    Text {
+    SettingsSection {
         Layout.fillWidth: true
-        text: Tr.t("ShaniOS keeps two systems, blue and green. An update writes the other one and the next boot starts from it, so a bad update leaves the one you know.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
+        title: Tr.t("Updates")
+        hint: Tr.t("ShaniOS keeps two systems, blue and green. An update writes the other one and the next boot starts from it, so a bad update leaves the one you know.")
 
-    // ---- what is running, and what is offered -----------------------------
-    ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Theme.px(2)
-        ListRow {
+        // ---- what is running, and what is offered -----------------------------
+        ColumnLayout {
             Layout.fillWidth: true
-            icon: "computer"
-            title: Tr.t("This system")
-            subtitle: [Updates.version, Updates.slot ? Tr.t("slot %1", Updates.slot) : ""].filter(x => x).join("  ·  ")
-        }
-        ListRow {
-            Layout.fillWidth: true
-            icon: "software-update-available"
-            title: Updates.candidate || Tr.t("Unknown")
-            subtitle: Updates.channel === "latest" ? Tr.t("latest channel") : Tr.t("stable channel")
-        }
-        ListRow {
-            Layout.fillWidth: true
-            icon: Updates.rebootNeeded ? "system-reboot" : (Updates.available ? "software-update-available" : "dialog-ok")
-            title: Updates.summary || Tr.t("Checking…")
-            subtitle: Updates.rebootNeeded ? Tr.t("A restart finishes it") : ""
+            spacing: Theme.px(2)
+            ListRow {
+                Layout.fillWidth: true
+                icon: "computer"
+                title: Tr.t("This system")
+                subtitle: [Updates.version, Updates.slot ? Tr.t("slot %1", Updates.slot) : ""].filter(x => x).join("  ·  ")
+            }
+            ListRow {
+                Layout.fillWidth: true
+                icon: "software-update-available"
+                title: Updates.candidate || Tr.t("Unknown")
+                subtitle: Updates.channel === "latest" ? Tr.t("latest channel") : Tr.t("stable channel")
+            }
+            ListRow {
+                Layout.fillWidth: true
+                icon: Updates.rebootNeeded ? "system-reboot" : (Updates.available ? "software-update-available" : "dialog-ok")
+                title: Updates.summary || Tr.t("Checking…")
+                subtitle: Updates.rebootNeeded ? Tr.t("A restart finishes it") : ""
+            }
         }
     }
 
     // ---- the channel -------------------------------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Channel") }
-    Flow {
+    SettingsSection {
         Layout.fillWidth: true
-        spacing: Theme.px(6)
-        Repeater {
-            model: ["stable", "latest"]
-            Choice {
-                required property string modelData
-                text: modelData === "latest" ? Tr.t("Latest") : Tr.t("Stable")
-                selected: Updates.channel === modelData
-                onClicked: Updates.setChannel(modelData)
+        title: Tr.t("Channel")
+
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: ["stable", "latest"]
+                Choice {
+                    required property string modelData
+                    text: modelData === "latest" ? Tr.t("Latest") : Tr.t("Stable")
+                    selected: Updates.channel === modelData
+                    onClicked: Updates.setChannel(modelData)
+                }
             }
         }
-    }
-    Text {
-        Layout.fillWidth: true
-        text: Tr.t("Stable is the tested release; latest follows the newest build. Both keep the other slot untouched.")
-        color: Theme.dim
-        wrapMode: Text.Wrap
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("Stable is the tested release; latest follows the newest build. Both keep the other slot untouched.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
     }
 
     // ---- firmware ----------------------------------------------------------
     property bool confirmFirmware: false
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Firmware") }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Firmware")
     Text {
         Layout.fillWidth: true
         visible: Updates.firmware.length === 0
@@ -144,6 +146,7 @@ ColumnLayout {
             model: Updates.firmwareProgress
             delegate: Text { required property string modelData; width: ListView.view.width; text: modelData; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideLeft }
         }
+    }
     }
 
     RowLayout {

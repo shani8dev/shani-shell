@@ -23,8 +23,10 @@ ColumnLayout {
         update(i, { schedule: sc });
     }
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Focus modes") }
-    Repeater {
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Focus modes")
+        Repeater {
         model: page.d.focusModes
         ColumnLayout {
             id: mode
@@ -103,5 +105,6 @@ ColumnLayout {
             SwitchRow { Layout.fillWidth: true; text: Tr.t("Night light while on"); checked: !!mode.modelData.nightLight; onToggled: on => page.update(mode.index, { nightLight: on }) }
             SwitchRow { Layout.fillWidth: true; text: Tr.t("Keep the screen awake"); checked: !!mode.modelData.caffeine; onToggled: on => page.update(mode.index, { caffeine: on }) }
         }
+    }
     }
 }

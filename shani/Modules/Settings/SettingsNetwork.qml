@@ -357,17 +357,11 @@ ColumnLayout {
     }
 
     // ---- hotspot (toggled in the sidebar / bar; here: how it is called) -------
-    SectionTitle { Layout.fillWidth: true; visible: Net.hasWifi; text: Tr.t("Hotspot") }
-    Text {
-        Layout.fillWidth: true
+    SettingsSection {
         visible: Net.hasWifi
-        text: Tr.t("A Wi-Fi hotspot for other devices. Turn it on from the sidebar or the bar; the name and band are asked when it starts.")
-        wrapMode: Text.Wrap
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
-    }
-    TextField {
+        title: Tr.t("Hotspot")
+        hint: Tr.t("A Wi-Fi hotspot for other devices. Turn it on from the sidebar or the bar; the name and band are asked when it starts.")
+        TextField {
         Layout.fillWidth: true
         visible: Net.hasWifi
         text: page.d.hotspotName
@@ -414,6 +408,7 @@ ColumnLayout {
                 onClicked: page.d.hotspotBand = modelData.id
             }
         }
+    }
     }
 
     // ---- mobile data (a SIM modem, when there is one) -------------------------
@@ -480,24 +475,28 @@ ColumnLayout {
     }
 
     // ---- privacy and power ------------------------------------------------------
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Privacy & power") }
-    SwitchRow {
-        Layout.fillWidth: true
-        text: Tr.t("Random MAC addresses on Wi-Fi")
-        hint: Tr.t("a different address for each saved network — harder to follow you between places")
-        checked: page.d.wifiMacRandom
-        onToggled: on => { page.d.wifiMacRandom = on; Net.setMacRandom(on); }
-    }
-    SwitchRow {
-        Layout.fillWidth: true
-        text: Tr.t("Wake on LAN")
-        hint: Tr.t("a network packet can wake a wired computer from sleep (magic packet)")
-        checked: page.d.wakeOnLan
-        onToggled: on => { page.d.wakeOnLan = on; Net.setWakeOnLan(on); }
+    SettingsSection {
+        title: Tr.t("Privacy & power")
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Random MAC addresses on Wi-Fi")
+            hint: Tr.t("a different address for each saved network — harder to follow you between places")
+            checked: page.d.wifiMacRandom
+            onToggled: on => { page.d.wifiMacRandom = on; Net.setMacRandom(on); }
+        }
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Wake on LAN")
+            hint: Tr.t("a network packet can wake a wired computer from sleep (magic packet)")
+            checked: page.d.wakeOnLan
+            onToggled: on => { page.d.wakeOnLan = on; Net.setWakeOnLan(on); }
+        }
     }
 
     // ---- bluetooth auto-connect -------------------------------------------------
-    SectionTitle { Layout.fillWidth: true; visible: Bluetooth.defaultAdapter !== null; text: Tr.t("Bluetooth") }
+    SettingsSection {
+        visible: Bluetooth.defaultAdapter !== null
+        title: Tr.t("Bluetooth")
     SwitchRow {
         Layout.fillWidth: true
         visible: Bluetooth.defaultAdapter !== null
@@ -532,6 +531,7 @@ ColumnLayout {
             value: page.d.obexDir
             onPicked: p => page.d.obexDir = p
         }
+    }
     }
 
     Advanced {
@@ -615,7 +615,7 @@ ColumnLayout {
                 { label: Tr.t("Blocks ads"), hint: Tr.t("AdGuard - ads and trackers stopped for every app, not only the browser"), value: "94.140.14.14 94.140.15.15 2a10:50c0::ad1:ff 2a10:50c0::ad2:ff" },
                 { label: Tr.t("Safe for family"), hint: Tr.t("Cloudflare for Families - adult sites and malware blocked"), value: "1.1.1.3 1.0.0.3 2606:4700:4700::1113 2606:4700:4700::1003" },
                 { label: Tr.t("Google"), hint: Tr.t("Google Public DNS"), value: "8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844" }]
-            ListRow {
+            SettingRow {
                 required property var modelData
                 Layout.fillWidth: true
                 icon: modelData.value === "" ? "network-workgroup" : "network-server"
@@ -649,14 +649,11 @@ ColumnLayout {
             onTextChanged: if (text !== page.dnsSearch) page.dnsSearch = text
             onAccepted: if (/^[\w.\-\s]+$/.test(text.trim())) { page.useDnsSearch(text.trim()); text = ""; }
         }
-        Text {
+        InfoBanner {
             Layout.fillWidth: true
             visible: page.note !== ""
+            tone: page.noteOk ? "ok" : "error"
             text: page.note
-            color: page.noteOk ? Theme.text : Theme.danger
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
         SectionTitle { Layout.fillWidth: true; text: Tr.t("System DNS resolver (systemd-resolved)") }
         Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/systemd/resolved.conf.d/50-shani-shell.conf. Restarted on save."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }

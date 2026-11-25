@@ -9,7 +9,9 @@ ColumnLayout {
     property bool active: false
     readonly property var d: Settings.data
 
-    SectionTitle { Layout.fillWidth: true; text: Tr.t("Web apps") }
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Web apps")
 
     Repeater {
         model: d.webApps || []
@@ -117,5 +119,6 @@ ColumnLayout {
                 }
             }
         }
+    }
     }
 }
