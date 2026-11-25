@@ -19,7 +19,7 @@ Glass {
     property var notification
     property bool popup: false
     // a finger has no hover: keep the header buttons readable on touch devices
-    readonly property bool touchFirst: ["tablet", "phone"].indexOf(FormFactor.focused.profile) >= 0
+    readonly property bool touchFirst: ["tablet", "phone", "board"].indexOf(FormFactor.focused.profile) >= 0
     // privacy mode (Settings > Notifications): the app is named, the message is not
     readonly property bool hideContent: Settings.data.notifHideContent && !critical
     property bool showApp: true          // false inside a group: the header already names the app

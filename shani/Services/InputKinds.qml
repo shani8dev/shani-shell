@@ -17,6 +17,13 @@ Singleton {
     property bool keyboard: true          // until asked: as before this existed
     property bool touchscreen: false
     property bool tabletSwitch: false
+    // what there is to point with (until asked: all of them, so no setting hides)
+    property bool touchpad: true
+    property bool mouse: true
+    property bool pointingStick: true
+    property bool trackball: true
+    property bool pen: true
+    property bool controller: false
     // the screen keyboard comes by itself (lock, polkit) and keeps its button on the desktop
     readonly property bool typesOnScreen: !keyboard || touchscreen
 
@@ -33,6 +40,12 @@ Singleton {
                     root.keyboard = k.keyboard;
                     root.touchscreen = k.touchscreen;
                     root.tabletSwitch = k.tabletSwitch;
+                    root.touchpad = !!k.touchpad;
+                    root.mouse = !!k.mouse;
+                    root.pointingStick = !!k.pointingStick;
+                    root.trackball = !!k.trackball;
+                    root.pen = !!k.pen;
+                    root.controller = !!k.controller;
                 } catch (e) {}
             }
         }

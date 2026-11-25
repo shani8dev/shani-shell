@@ -100,7 +100,7 @@ def test_the_owners_choice_wins_and_auto_is_no_choice():
 
 
 def test_each_profile_has_a_scale_and_a_name():
-    for p in ["computer", "laptop", "tablet", "handheld", "phone", "tv", "board"]:
+    for p in ["computer", "laptop", "tablet", "handheld", "phone", "tv", "board", "projector"]:
         assert call("scale", p) >= 1.0 and call("label", p) not in ("", "Automatic")
     assert call("scale", "tv") > call("scale", "handheld") > call("scale", "computer")
     assert call("scale", "unknown") == 1.0
@@ -194,3 +194,11 @@ def test_fullscreen_policy_does_not_leak_onto_desktop_monitors():
     assert call("phoneOnly", {"HDMI-A-1": {"profile": "tv"}}) is False
     assert call("phoneOnly", {}) is False
     assert call("phoneOnly", None) is False
+
+
+def test_a_projector_says_so_in_its_name():
+    for label in ("EPSON PJ", "BenQ PJ MW560", "Optoma HD146X", "Generic Projector", "Beamer 3000"):
+        assert call("detect", {"name": "HDMI-A-1", "physical": [0, 0], "label": label}, {}, "") == "projector", label
+    # a monitor whose name only contains the letters is not one
+    assert call("detect", {"name": "DP-1", "physical": [600, 340], "label": "DELL P2723QE"}, {}, "") == "computer"
+    assert call("detect", {"name": "eDP-1", "physical": [300, 190], "label": "PJ panel"}, {"keyboard": True}, "") == "laptop"

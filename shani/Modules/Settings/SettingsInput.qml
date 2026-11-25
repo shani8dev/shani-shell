@@ -137,8 +137,23 @@ ColumnLayout {
     }
 
     }
+    // the settings for what is plugged in; the rest behind "Show all" (for one
+    // that is not here now: a mouse you use at your desk)
+    property bool allDevices: false
+    readonly property var missing: [
+        !InputKinds.touchpad ? Tr.t("touchpad") : "", !InputKinds.mouse ? Tr.t("mouse") : "",
+        !InputKinds.pointingStick && !InputKinds.trackball ? Tr.t("pointing stick or trackball") : "",
+        !InputKinds.pen && !InputKinds.touchscreen ? Tr.t("drawing tablet or touchscreen") : ""].filter(x => x)
+    RowLayout {
+        Layout.fillWidth: true
+        visible: page.missing.length > 0
+        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale
+               text: page.allDevices ? Tr.t("Showing the settings for every kind of device.") : Tr.t("No %1 here now: their settings are hidden.", page.missing.join(", ")) }
+        Choice { text: page.allDevices ? Tr.t("Only what is here") : Tr.t("Show all"); onClicked: page.allDevices = !page.allDevices }
+    }
     SettingsSection {
         Layout.fillWidth: true
+        visible: InputKinds.touchpad || page.allDevices
         title: Tr.t("Touchpad")
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Tap to click"); checked: page.d.tapToClick; onToggled: on => page.d.tapToClick = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Natural scrolling"); hint: Tr.t("content moves with your fingers"); checked: page.d.naturalScroll; onToggled: on => page.d.naturalScroll = on }
@@ -198,6 +213,7 @@ ColumnLayout {
     }
     SettingsSection {
         Layout.fillWidth: true
+        visible: InputKinds.mouse || page.allDevices
         title: Tr.t("Mouse")
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Natural scrolling"); checked: page.d.mouseNaturalScroll; onToggled: on => page.d.mouseNaturalScroll = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Left-handed"); hint: Tr.t("swap the buttons (mouse and touchpad)"); checked: page.d.leftHanded; onToggled: on => page.d.leftHanded = on }
@@ -234,6 +250,7 @@ ColumnLayout {
     }
     SettingsSection {
         Layout.fillWidth: true
+        visible: InputKinds.pointingStick || InputKinds.trackball || page.allDevices
         title: Tr.t("Pointing stick & trackball")
     Picks {
         label: Tr.t("Pointing stick speed")
@@ -291,6 +308,7 @@ ColumnLayout {
     }
     SettingsSection {
         Layout.fillWidth: true
+        visible: InputKinds.pen || InputKinds.touchscreen || page.allDevices
         title: Tr.t("Drawing tablet & touchscreen")
     // which one is plugged in: the settings below apply to the tablet, and with
     // two of them it helps to see which one the system found

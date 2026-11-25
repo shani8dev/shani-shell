@@ -16,15 +16,30 @@ def kinds(db):
     return json.loads(out)
 
 
+NONE = {"touchpad": False, "mouse": False, "pointingStick": False, "trackball": False, "pen": False, "controller": False}
+
+
 def test_a_laptop_has_a_keyboard():
-    assert kinds(ROOT / "dev/udev-db/laptop.txt") == {"keyboard": True, "touchscreen": False, "tabletSwitch": False}
+    assert kinds(ROOT / "dev/udev-db/laptop.txt") == {"keyboard": True, "touchscreen": False, "tabletSwitch": False, **NONE}
 
 
 def test_buttons_and_virtual_keyboards_are_not_a_keyboard():
     k = kinds(ROOT / "dev/udev-db/tablet-no-keyboard.txt")
-    assert k == {"keyboard": False, "touchscreen": True, "tabletSwitch": True}
+    assert k == {"keyboard": False, "touchscreen": True, "tabletSwitch": True, **NONE}
 
 
 def test_nothing_known_is_no_keyboard(tmp_path):
     (tmp_path / "db").write_text("")
     assert kinds(tmp_path / "db")["keyboard"] is False
+
+
+def test_every_kind_of_pointing_device_is_told_apart(tmp_path):
+    # a touchpad and a TrackPoint also say ID_INPUT_MOUSE: neither is "a mouse"
+    k = kinds(ROOT / "dev/udev-db/desk-everything.txt")
+    assert k == {"keyboard": True, "touchscreen": False, "tabletSwitch": False, "touchpad": True, "mouse": True,
+                 "pointingStick": True, "trackball": True, "pen": True, "controller": True}
+    db = (ROOT / "dev/udev-db/desk-everything.txt").read_text()
+    only_pad = "\n\n".join(b for b in db.split("\n\n") if "Touchpad" in b or "TrackPoint" in b)
+    (tmp_path / "pad").write_text(only_pad)
+    assert kinds(tmp_path / "pad")["mouse"] is False
+

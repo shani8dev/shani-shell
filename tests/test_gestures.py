@@ -198,3 +198,12 @@ def test_moving_again_or_retracting_resets_the_hold():
         tracked_swipe([[0, 0, 0], [0, -80, 100], [0, -80, 900]], cancelled=True) == ""
     )
     assert tracked_swipe([[0, 0, 0], [80, 0, 100], [80, 0, 900]], edge="left") == "back"
+
+
+def test_a_board_reaches_its_tools_from_either_side_and_nothing_from_the_top():
+    # as Promethean's Unified Menu, SMART's and ViewSonic's side toolbars, BenQ's sidebar
+    import json as _j
+    js = (Path(__file__).resolve().parent.parent / "shani/Common/Gestures.js").read_text().replace(".pragma library", "")
+    prog = js + "\nprocess.stdout.write(JSON.stringify(['left','right','bottom','top'].map(e => boardAction(e, 'x')).concat([boardAction('left', '')])));"
+    out = _j.loads(subprocess.run([shutil.which("node"), "-e", prog], capture_output=True, text=True, check=True).stdout)
+    assert out == ["ring-left", "ring-right", "launcher", "", ""]

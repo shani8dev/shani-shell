@@ -179,9 +179,13 @@ def test_invalid_logs_are_answered_not_exceptions(tmp_path):
 
 
 def test_import_csv_and_json_into_the_same_journal(tmp_path):
+    # days relative to today: "history 7" is the last week, so fixed dates rot
+    import datetime
+    d1 = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    d2 = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
     csv = tmp_path / "days.csv"
     csv.write_text(
-        "date,steps,deep,light,awake\n2026-11-20,6000,60,200,20\n", encoding="utf-8"
+        "date,steps,deep,light,awake\n%s,6000,60,200,20\n" % d1, encoding="utf-8"
     )
     got = answer(["import", str(csv)], tmp_path)
     assert got["ok"] is True and got["imported"] == 1
@@ -190,8 +194,8 @@ def test_import_csv_and_json_into_the_same_journal(tmp_path):
     js.write_text(
         json.dumps(
             {
-                "days": [{"day": "2026-11-19", "steps": 7000, "rem": 15}],
-                "workouts": [{"day": "2026-11-19", "kind": "Yoga", "minutes": 20}],
+                "days": [{"day": d2, "steps": 7000, "rem": 15}],
+                "workouts": [{"day": d2, "kind": "Yoga", "minutes": 20}],
             }
         ),
         encoding="utf-8",
@@ -200,10 +204,10 @@ def test_import_csv_and_json_into_the_same_journal(tmp_path):
     assert got["ok"] is True and got["imported"] == 2
 
     by_day = {row["day"]: row for row in answer(["history", "7"], tmp_path)}
-    assert by_day["2026-11-20"]["steps"] == 6000
-    assert by_day["2026-11-20"]["deep_min"] == 60
+    assert by_day[d1]["steps"] == 6000
+    assert by_day[d1]["deep_min"] == 60
     assert (
-        by_day["2026-11-19"]["steps"] == 7000 and by_day["2026-11-19"]["rem_min"] == 15
+        by_day[d2]["steps"] == 7000 and by_day[d2]["rem_min"] == 15
     )
     assert any(w["kind"] == "Yoga" for w in answer(["workouts"], tmp_path))
 

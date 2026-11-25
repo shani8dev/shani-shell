@@ -18,9 +18,17 @@ FP
 chmod +x /usr/local/bin/flatpak
 mkdir -p "$HOME/.var/app/org.gone.Old/config"; printf x > "$HOME/.var/app/org.gone.Old/config/x"
 python3 /work/bin/shani app software >/dev/null 2>&1
-waitfor "d['softwareShown'] and d['softwareResults'] == ['org.example.Notes']" 10 && result software-category PASS || result software-category FAIL "$(q "['softwareShown'], d['softwareResults']")"
-shot app-software 0.3
+# it opens on the store's front page (shelves, no grid); a category shows the grid
+waitfor "d['softwareShown'] and d['softwareResults'] == []" 10 && result software-home PASS || result software-home FAIL "$(q "['softwareShown'], d['softwareResults']")"
+shot app-software 1.0
 if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "radio button:^Utilities$" >/dev/null 2>&1
+    waitfor "d['softwareResults'] == ['org.example.Notes']" 6 && result software-category PASS || result software-category FAIL "$(q "['softwareResults']")"
+    # a search finds the Snap Store's apps after Flathub's (the session's stand-in snap)
+    python3 /work/bin/shani call softwareSearch spotify >/dev/null 2>&1
+    sleep 2; shot app-software-search-snap 0.3
+    timeout 20 python3 "$A11Y" press "button:^Install$" >/dev/null 2>&1
+    waitfor "'spotify' in d['softwareSnaps']" 10 && grep -q '^install spotify' /tmp/fake-snap/calls && result software-snap-install PASS || result software-snap-install FAIL "$(q "['softwareSnaps']") $(tail -2 /tmp/fake-snap/calls 2>/dev/null | tr '\n' ';')"
     timeout 20 python3 "$A11Y" press "radio button:^Games$" >/dev/null 2>&1
     waitfor "d['softwareResults'] == ['org.example.Game']" 6 && result software-games PASS || result software-games FAIL "$(q "['softwareResults']")"
     timeout 20 python3 "$A11Y" press "radio button:^Office$" >/dev/null 2>&1; sleep 0.8

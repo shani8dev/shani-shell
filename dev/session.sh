@@ -189,7 +189,13 @@ export FAKE_PODMAN=/tmp/fake-podman SHANI_PODMAN=/tmp/fake-podman/bin/podman SHA
 # stick and the computer's own disk; a write lands in /tmp/fake-udisks/sdb.img
 mkdir -p /tmp/fake-udisks
 FAKE_LUKS=1 FAKE_UDISKS_DIR=/tmp/fake-udisks python3 -W ignore /work/tests/fixtures/fake_udisks.py >$L/fake-udisks.log 2>&1 &
-export SHANI_UDISKS_BUS=session SHANI_DRIVES_TOOL=/work/bridge/drives.py SHANI_LOCK_TOOL=/work/bridge/lock.py SHANI_SERVE_TOOL=/work/bridge/serve.py SHANI_DUPES_TOOL=/work/bridge/dupes.py SHANI_IMGEDIT_TOOL=/work/bridge/imgedit.py SHANI_CLOUD_TOOL=/work/bridge/cloud.py SHANI_FLATPERM_TOOL=/work/bridge/flatperm.py SHANI_PASSWORDS_TOOL=/work/bridge/passwords.py SHANI_APPSTORE_TOOL=/work/bridge/appstore.py SHANI_CONTAINERS_TOOL=/work/bridge/containers.py SHANI_APPSTREAM=/work/tests/fixtures/appstream.xml
+export SHANI_UDISKS_BUS=session SHANI_DRIVES_TOOL=/work/bridge/drives.py SHANI_LOCK_TOOL=/work/bridge/lock.py SHANI_SERVE_TOOL=/work/bridge/serve.py SHANI_DUPES_TOOL=/work/bridge/dupes.py SHANI_IMGEDIT_TOOL=/work/bridge/imgedit.py SHANI_CLOUD_TOOL=/work/bridge/cloud.py SHANI_FLATPERM_TOOL=/work/bridge/flatperm.py SHANI_PASSWORDS_TOOL=/work/bridge/passwords.py SHANI_APPSTORE_TOOL=/work/bridge/appstore.py SHANI_CONTAINERS_TOOL=/work/bridge/containers.py SHANI_APPSTREAM=${SHANI_APPSTREAM:-/work/tests/fixtures/appstream.xml} SHANI_SNAP=/work/dev/fake-snap.sh FAKE_SNAP_DIR=/tmp/fake-snap
+# the renders show Flathub's real catalogue (baked into the image); the suite keeps
+# the two-app fixture its checks count on
+if [ -n "${SHANI_REAL_CATALOGUE:-}" ]; then
+    for f in /var/lib/flatpak/appstream/flathub/*/active/appstream.xml.gz; do [ -f "$f" ] && export SHANI_APPSTREAM="$f"; done
+fi
+rm -rf /tmp/fake-snap
 python3 /work/bridge/chronoa-bridge.py >$L/bridge.log 2>&1 &
 sleep 0.5
 

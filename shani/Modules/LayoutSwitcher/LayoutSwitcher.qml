@@ -28,34 +28,28 @@ PanelWindow {
     BackgroundEffect.blurRegion: Settings.blurWanted && visible ? blurArea : null
     Region { id: blurArea; item: card; radius: card.radius }
 
-    readonly property var corners: ["hotCornerTopLeft", "hotCornerTopRight", "hotCornerBottomLeft", "hotCornerBottomRight"]
-    function cornersAll(tl) { return { hotCornerTopLeft: tl, hotCornerTopRight: "none", hotCornerBottomLeft: "none", hotCornerBottomRight: "none" } }
-    readonly property var presets: [
-        { id: "default", suits: ["computer", "laptop"], name: Tr.t("Shani"), icon: "start-here", desc: Tr.t("The bar, your workspaces down the left, and a dock that steps aside only when a window is moved over it. A clock on a clear desktop; windows open side by side."),
-          set: Object.assign({ dock: true, dockVisibility: "smart", barVisibility: "always", dockIconSize: 48, desktopWidgets: ["clock"], desktopIcons: false, deskStacks: false,
-                 winGaps: 12, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false, leftRail: true }, cornersAll("overview")) },
-        { id: "classic", suits: ["computer"], name: Tr.t("Classic"), icon: "user-desktop", desc: Tr.t("Like most computers: each window opens full width, your files and drives on the desktop, the dock always there."),
-          set: Object.assign({ dock: true, dockVisibility: "always", barVisibility: "always", dockIconSize: 48, desktopWidgets: ["clock", "agenda", "weather"], desktopIcons: true, deskStacks: false,
-                 winGaps: 8, winFocusRing: 2, winDefaultWidth: 1.0, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false, leftRail: false }, cornersAll("none")) },
-        { id: "focus", suits: ["laptop"], name: Tr.t("Focus"), icon: "view-fullscreen", desc: Tr.t("Nothing but your work: the dock waits at the bottom edge, the bar steps aside for a window over it, an empty desktop."),
-          set: Object.assign({ dock: true, dockVisibility: "hide", barVisibility: "smart", dockIconSize: 48, desktopWidgets: [], desktopIcons: false, deskStacks: false,
-                 winGaps: 16, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: false, leftRail: false }, cornersAll("overview")) },
-        { id: "tiling", suits: [], name: Tr.t("Tiling"), icon: "view-grid", desc: Tr.t("For the keyboard: no dock, tight gaps, a strong focus ring, focus follows the pointer."),
-          set: Object.assign({ dock: false, dockVisibility: "hide", barVisibility: "always", dockIconSize: 48, desktopWidgets: [], desktopIcons: false, deskStacks: false,
-                 winGaps: 6, winFocusRing: 3, winDefaultWidth: 0.5, winFocusFollowsMouse: true, assistiveTouch: false, showSysStats: true, leftRail: false }, cornersAll("none")) },
-        { id: "dashboard", suits: ["computer"], name: Tr.t("Dashboard"), icon: "view-list", desc: Tr.t("Everything at a glance: agenda, weather, music, a note, system use; files grouped into stacks."),
-          set: Object.assign({ dock: true, dockVisibility: "always", barVisibility: "always", dockIconSize: 44, desktopWidgets: ["clock", "agenda", "weather", "media", "stats", "note"], desktopIcons: true, deskStacks: true,
-                 winGaps: 12, winFocusRing: 2, winDefaultWidth: 0.5, winFocusFollowsMouse: false, assistiveTouch: false, showSysStats: true, leftRail: true }, cornersAll("overview")) },
-        { id: "touch", suits: ["tablet", "handheld", "phone", "board"], name: Tr.t("Touch"), icon: "input-tablet", desc: Tr.t("For fingers: big dock icons, full-width windows, the Smart Touch button, no hot corners to brush by mistake."),
-          set: Object.assign({ dock: true, dockVisibility: "always", barVisibility: "always", dockIconSize: 64, desktopWidgets: ["clock", "media"], desktopIcons: false, deskStacks: false,
-                 winGaps: 12, winFocusRing: 0, winDefaultWidth: 1.0, winFocusFollowsMouse: false, assistiveTouch: true, showSysStats: false, leftRail: true }, cornersAll("none")) }
-    ]
-    readonly property var keys: Object.keys(presets[0].set)
+    // the layouts and what they own: Services/Layouts (one list for this, the
+    // memory of each situation's layout, and the tests)
+    readonly property var corners: Layouts.corners
+    readonly property var presets: Layouts.presets
+    readonly property var keys: Layouts.keys
 
     property int sel: 0
     // the kind of screen: this output's pick ("auto" when it is told by itself)
     readonly property string output: screen ? screen.name : Niri.focusedOutput
-    readonly property var kinds: ["computer", "laptop", "tablet", "handheld", "phone", "tv", "board"]
+    readonly property var kinds: FF.PROFILES
+    // a TV and a handheld open on the ten-foot home (TvHome): a layout is for
+    // when you go from it to the desktop. What each kind is, in a line.
+    readonly property var kindNotes: ({
+        computer: Tr.t("A desk monitor: mouse and keyboard, windows side by side."),
+        laptop: Tr.t("A laptop: its own screen, often small; Focus keeps it clear."),
+        tablet: Tr.t("Fingers first: bigger targets, edge swipes, the screen keyboard."),
+        handheld: Tr.t("Opens on the arm's-length home, driven by its controller; the layout is for its desktop."),
+        phone: Tr.t("A phone-sized screen: a compact bar, apps full screen, Quick Settings from the top."),
+        tv: Tr.t("Opens on the TV home, driven by a remote or a controller; the layout is for its desktop."),
+        board: Tr.t("A classroom board: the bar at the bottom, within reach; swipe in from the left or right edge for the tools, up from the bottom for the apps."),
+        projector: Tr.t("Shown to a room: bigger, nothing on the edges; Presenting keeps notifications away.")
+    })
     readonly property string kind: (Settings.data.formFactors || {})[output] || "auto"
     readonly property string kindNow: FormFactor.of(output).profile
     property string kindBefore: "auto"
@@ -64,16 +58,39 @@ PanelWindow {
         FormFactor.choose(root.output, k);
         kindTried = k !== kindBefore;
         const now = k === "auto" ? FormFactor.detected(root.output) : k;
-        const i = presets.findIndex(x => x.suits.indexOf(now) >= 0);
+        // the one made for this kind, else the first that suits it
+        let i = presets.findIndex(x => x.made === now);
+        if (i < 0) i = presets.findIndex(x => x.suits.indexOf(now) >= 0);
         if (i >= 0) tryOn(i);
+    }
+    // the layouts shown: the ones for this kind of screen (made for it first),
+    // and whatever is chosen now; "Show all layouts" lists the rest
+    property bool showAll: false
+    property bool showFamiliar: false
+    readonly property var shown: {
+        const all = presets.map((x, i) => i);
+        if (showAll) return all;
+        if (showFamiliar) {
+            const fam = all.filter(i => presets[i].familiar);
+            for (const i of [sel, now]) if (i >= 0 && fam.indexOf(i) < 0) fam.push(i);
+            return fam;
+        }
+        const mine = all.filter(i => presets[i].made === kindNow)
+            .concat(all.filter(i => presets[i].made !== kindNow && presets[i].suits.indexOf(kindNow) >= 0));
+        for (const i of [sel, now]) if (i >= 0 && mine.indexOf(i) < 0) mine.push(i);
+        return mine;
+    }
+    function step(d) {
+        const at = Math.max(0, shown.indexOf(sel));
+        tryOn(shown[(at + d + shown.length * 3) % shown.length]);
     }
     property var before: ({})          // the settings as they were when this opened
     property bool tried: false
     readonly property var p: presets[sel]
 
-    function snapshot() { const o = {}; for (const k of keys) { const v = Settings.data[k]; o[k] = Array.isArray(v) || (v && typeof v === "object" && v.length !== undefined) ? Array.from(v) : v; } return o; }
-    function put(set) { for (const k in set) Settings.data[k] = Array.isArray(set[k]) ? set[k].slice() : set[k]; }
-    function same(set, cur) { for (const k in set) { if (JSON.stringify(set[k]) !== JSON.stringify(cur[k])) return false; } return true; }
+    function snapshot() { return Layouts.snapshot(); }
+    function put(set) { Layouts.put(set); }
+    function same(set, cur) { return Layouts.same(set, cur); }
     // which layout the desktop is in now, or -1 when it has been changed by hand
     function matching() { const cur = snapshot(); return presets.findIndex(x => same(x.set, cur)); }
     function tryOn(i) { sel = i; Ui.layoutTrying = presets[i].id; put(presets[i].set); tried = true; }
@@ -113,8 +130,16 @@ PanelWindow {
         const vis = { always: Tr.t("always there"), smart: Tr.t("there until a window is moved over it"), hide: Tr.t("hidden until the pointer rests on the edge") };
         if (set.dock !== was.dock || set.dockVisibility !== was.dockVisibility)
             out.push(!set.dock ? Tr.t("No dock — open apps with Super+Space") : Tr.t("The dock: ") + vis[set.dockVisibility]);
+        if (set.barEdge !== was.barEdge && set.barEdge !== "auto")
+            out.push(set.barEdge === "bottom" ? Tr.t("The bar along the bottom") : Tr.t("The bar along the top"));
+        if (set.barSearch !== was.barSearch)
+            out.push(set.barSearch ? Tr.t("A box to ask or search in the bar") : Tr.t("No search box in the bar"));
+        if (set.barApps !== was.barApps)
+            out.push(set.barApps === "off" ? Tr.t("No apps in the bar") : set.barApps === "center" ? Tr.t("Your apps in the middle of the bar") : Tr.t("Your apps in the bar, after the apps button"));
+        if (set.railContent !== was.railContent && set.leftRail)
+            out.push(set.railContent === "apps" ? Tr.t("Your apps down the left edge") : Tr.t("Your workspaces down the left edge"));
         if (set.leftRail !== was.leftRail)
-            out.push(set.leftRail ? Tr.t("Your workspaces down the left edge") : set.dock && set.dockVisibility !== "hide" ? Tr.t("Your workspaces in the dock") : Tr.t("Your workspaces in the bar"));
+            out.push(set.leftRail ? (set.railContent === "apps" ? Tr.t("Your apps down the left edge") : Tr.t("Your workspaces down the left edge")) : set.dock && set.dockVisibility !== "hide" ? Tr.t("Your workspaces in the dock") : Tr.t("Your workspaces in the bar"));
         if (set.barVisibility !== was.barVisibility) out.push(Tr.t("The bar: ") + vis[set.barVisibility]);
         if (set.dock && set.dockIconSize !== was.dockIconSize) out.push(set.dockIconSize > was.dockIconSize ? Tr.t("Bigger dock icons") : Tr.t("Smaller dock icons"));
         if (JSON.stringify(set.desktopWidgets) !== JSON.stringify(was.desktopWidgets)) out.push(Tr.t("Desktop widgets: ") + w(set.desktopWidgets));
@@ -132,17 +157,40 @@ PanelWindow {
 
     // made on first use (shell.qml), so already visible when created: open the same way
     Component.onCompleted: if (visible) opened()
-    onVisibleChanged: { if (visible) opened(); else Ui.layoutTrying = ""; }
+    // closed any way but Keep (Esc, a click outside, Back, another panel opening,
+    // the IPC): what was tried on is taken off again - only Keep keeps
+    onVisibleChanged: {
+        if (visible) { opened(); return; }
+        isOpen = false;
+        if (tried) put(before);
+        if (kindTried) FormFactor.choose(root.output, kindBefore);
+        tried = false; kindTried = false;
+        Ui.layoutTrying = "";
+    }
+    // the window's own keys, whichever item has focus after niri reloads its config
+    Shortcut { sequences: ["Escape"]; enabled: root.visible; onActivated: root.cancel() }
+    Shortcut { sequences: ["Return", "Enter"]; enabled: root.visible; onActivated: { if (!root.tried) root.tryOn(root.sel); root.keep(); } }
+    // once per opening: made on first use it is created visible, and then also
+    // told it became visible - a second run would take what was just tried on as
+    // "how it was", and Cancel would put the tried layout back
+    property bool isOpen: false
     function opened() {
-        if (!Settings.loaded)
+        if (!Settings.loaded || isOpen)
             return;
+        isOpen = true;
         before = snapshot();
         tried = false;
         kindBefore = kind;
         kindTried = false;
+        showAll = false;
+        showFamiliar = false;
         const m = matching();
         sel = m >= 0 ? m : Math.max(0, presets.findIndex(x => x.id === Settings.data.layoutPreset));
         Ui.layoutTrying = presets[sel].id;
+        // asked for one by name (`qs ipc call shani layoutUse <id>`): tried on at once
+        const asked = presets.findIndex(x => x.id === Ui.layoutAsked);
+        Ui.layoutAsked = "";
+        if (asked >= 0) { showAll = true; tryOn(asked); }
         keysItem.forceActiveFocus();
     }
     readonly property int now: visible ? matching() : -1
@@ -151,6 +199,10 @@ PanelWindow {
     component Mini: Rectangle {
         id: mini
         property var s: ({})
+        property string kind: "computer"         // drawn as this kind of screen shows it
+        readonly property bool barBottom: kind === "board" || s.barEdge === "bottom"
+        readonly property bool railHere: !!s.leftRail && ["phone", "tv", "handheld", "projector"].indexOf(kind) < 0
+        readonly property real barH: (s.barVisibility === "hide" ? 1.5 : 7) * u
         Accessible.ignored: true
         readonly property real u: width / 160          // drawn on a 160×100 screen
         readonly property var wd: s.desktopWidgets || []
@@ -161,18 +213,24 @@ PanelWindow {
             GradientStop { position: 1; color: Theme.alpha(Theme.accent, 0.15) }
         }
         // the bar, with the Island in the middle
-        Rectangle { width: parent.width; height: (mini.s.barVisibility === "hide" ? 1.5 : 7) * mini.u; color: Theme.alpha("#000000", 0.45); clip: true
-            Rectangle { anchors.centerIn: parent; width: 22 * mini.u; height: 4 * mini.u; radius: height / 2; color: "#000000" }
-            Row { visible: !mini.s.leftRail && (!mini.s.dock || mini.s.dockVisibility === "hide")
+        Rectangle { width: parent.width; height: mini.barH; y: mini.barBottom ? parent.height - height : 0; color: Theme.alpha("#000000", 0.45); clip: true
+            Rectangle { visible: !mini.barBottom; anchors.centerIn: parent; width: 22 * mini.u; height: 4 * mini.u; radius: height / 2; color: "#000000" }
+            Row { visible: !mini.railHere && (!mini.s.dock || mini.s.dockVisibility === "hide")
                 x: 4 * mini.u; anchors.verticalCenter: parent.verticalCenter; spacing: 1.5 * mini.u
                 Repeater { model: 3; Rectangle { width: 2.5 * mini.u; height: width; radius: width / 2; color: Theme.alpha("#ffffff", 0.7) } } }
+            // the bar as a taskbar: app icons after the apps button, or in the middle
+            Row { visible: !!mini.s.barApps && mini.s.barApps !== "off"
+                x: mini.s.barApps === "center" && mini.barBottom ? (parent.width - width) / 2 : 9 * mini.u
+                anchors.verticalCenter: parent.verticalCenter; spacing: 1 * mini.u
+                Rectangle { visible: !!mini.s.barSearch; width: 16 * mini.u; height: 4 * mini.u; radius: height / 2; color: Theme.alpha(Theme.text, 0.35) }
+                Repeater { model: 5; Rectangle { width: 4 * mini.u; height: width; radius: 1 * mini.u; color: Qt.hsla(index / 5, 0.55, 0.62, 1) } } }
             Rectangle { visible: !!mini.s.showSysStats; x: parent.width - 30 * mini.u; anchors.verticalCenter: parent.verticalCenter; width: 10 * mini.u; height: 2 * mini.u; color: Theme.alpha("#ffffff", 0.6) }
             Rectangle { x: parent.width - 16 * mini.u; anchors.verticalCenter: parent.verticalCenter; width: 12 * mini.u; height: 2 * mini.u; color: Theme.alpha("#ffffff", 0.8) }
         }
         // the left rail: the workspaces, a slim pill down the left edge
-        readonly property real railW: s.leftRail ? 7 * u : 0
+        readonly property real railW: railHere ? 7 * u : 0
         Rectangle {
-            visible: !!mini.s.leftRail
+            visible: mini.railHere
             x: 1.5 * mini.u
             anchors.verticalCenter: parent.verticalCenter
             width: 4.5 * mini.u
@@ -180,14 +238,15 @@ PanelWindow {
             radius: 2 * mini.u
             color: Theme.alpha(Theme.bg, 0.7)
             Column { anchors.centerIn: parent; spacing: 1.5 * mini.u
-                Repeater { model: 3; Rectangle { width: 2.5 * mini.u; height: width; radius: width / 2; color: index === 0 ? Theme.accent : Theme.alpha(Theme.text, 0.5) } } }
+                Repeater { model: mini.s.railContent === "apps" ? 0 : 3; Rectangle { width: 2.5 * mini.u; height: width; radius: width / 2; color: index === 0 ? Theme.accent : Theme.alpha(Theme.text, 0.5) } }
+                Repeater { model: mini.s.railContent === "apps" ? 4 : 0; Rectangle { width: 3 * mini.u; height: width; radius: 0.8 * mini.u; color: index === 0 ? Theme.accent : Qt.hsla(index / 4, 0.55, 0.62, 1) } } }
         }
         // the left column, as on the real desktop: widgets from the top, then files
         readonly property int nw: Math.min(3, wd.length)
         readonly property int ni: s.desktopIcons ? (s.deskStacks ? 2 : 3) : 0
         readonly property real colW: nw ? 26 * u : (ni ? 9 * u : 0)
         Column {
-            x: mini.railW + 3 * mini.u; y: 10 * mini.u; spacing: 2 * mini.u
+            x: mini.railW + 3 * mini.u; y: (mini.barBottom ? 3 : 10) * mini.u; spacing: 2 * mini.u
             Repeater { model: mini.nw
                 Rectangle { width: 24 * mini.u; height: 11 * mini.u; radius: 3 * mini.u; color: Theme.alpha("#ffffff", 0.35); border.width: 1; border.color: Theme.alpha("#ffffff", 0.4) } }
             Repeater { model: mini.ni
@@ -196,9 +255,9 @@ PanelWindow {
         // windows: half width side by side, or one full width
         Row {
             x: mini.railW + mini.colW + Math.max(2, (mini.s.winGaps || 0) / 3) * mini.u + (mini.colW ? 3 * mini.u : 0)
-            y: 7 * mini.u + Math.max(1.5, (mini.s.winGaps || 0) / 3) * mini.u
+            y: (mini.barBottom ? 0 : mini.barH) + Math.max(1.5, (mini.s.winGaps || 0) / 3) * mini.u
             spacing: Math.max(1, (mini.s.winGaps || 0) / 3) * mini.u
-            readonly property real h: mini.height - y - (mini.s.dock && mini.s.dockVisibility !== "hide" ? 14 : 4) * mini.u
+            readonly property real h: mini.height - y - (mini.s.dock && mini.s.dockVisibility !== "hide" ? 14 : 4) * mini.u - (mini.barBottom ? mini.barH : 0)
             readonly property real w: mini.width - x - Math.max(2, (mini.s.winGaps || 0) / 3) * mini.u
             Repeater {
                 model: mini.s.winDefaultWidth >= 1 ? 1 : 2
@@ -219,7 +278,7 @@ PanelWindow {
         Rectangle {
             visible: !!mini.s.dock
             anchors.horizontalCenter: parent.horizontalCenter
-            y: parent.height - height - (mini.s.dockVisibility === "hide" ? 1 : 2.5) * mini.u
+            y: parent.height - height - (mini.s.dockVisibility === "hide" ? 1 : 2.5) * mini.u - (mini.barBottom ? mini.barH : 0)
             readonly property real cell: (mini.s.dockIconSize || 48) / 48 * 6 * mini.u
             width: mini.s.dockVisibility === "hide" ? 40 * mini.u : cell * 6 + 8 * mini.u
             height: mini.s.dockVisibility === "hide" ? 1.5 * mini.u : cell + 3 * mini.u
@@ -240,12 +299,10 @@ PanelWindow {
         id: keysItem
         anchors.fill: parent
         focus: root.visible
-        Keys.onEscapePressed: root.cancel()
-        Keys.onReturnPressed: { if (!root.tried) root.tryOn(root.sel); root.keep(); }
-        Keys.onLeftPressed: root.tryOn((root.sel + root.presets.length - 1) % root.presets.length)
-        Keys.onRightPressed: root.tryOn((root.sel + 1) % root.presets.length)
-        Keys.onUpPressed: root.tryOn((root.sel + root.presets.length - 3) % root.presets.length)
-        Keys.onDownPressed: root.tryOn((root.sel + 3) % root.presets.length)
+        Keys.onLeftPressed: root.step(-1)
+        Keys.onRightPressed: root.step(1)
+        Keys.onUpPressed: root.step(-3)
+        Keys.onDownPressed: root.step(3)
         MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: root.cancel() }   // a click outside cancels; Escape does with keys
     }
 
@@ -284,6 +341,7 @@ PanelWindow {
                         }
                     }
                 }
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.kindNotes[root.kindNow] || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Text { text: Tr.t("Layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
                 GridLayout {
                     Layout.fillWidth: true
@@ -291,12 +349,13 @@ PanelWindow {
                     rowSpacing: Theme.px(12)
                     columnSpacing: Theme.px(12)
                     Repeater {
-                        model: root.presets
+                        model: root.shown
                         Rectangle {
                             id: tile
-                            required property var modelData
-                            required property int index
-                            readonly property bool chosen: root.sel === index
+                            required property int modelData        // its place in root.presets
+                            readonly property int pi: modelData
+                            readonly property var preset: root.presets[pi]
+                            readonly property bool chosen: root.sel === pi
                             Layout.fillWidth: true
                             implicitHeight: tcol.implicitHeight + 16
                             radius: Theme.radius
@@ -304,29 +363,38 @@ PanelWindow {
                             border.width: chosen ? 2 : 1
                             border.color: chosen ? Theme.accent : Theme.stroke
                             Accessible.role: Accessible.RadioButton
-                            Accessible.name: modelData.name
+                            Accessible.name: tile.preset.name
                             Accessible.checked: chosen
-                            Accessible.onPressAction: root.tryOn(index)
-                            Accessible.onToggleAction: root.tryOn(index)
+                            Accessible.onPressAction: root.tryOn(tile.pi)
+                            Accessible.onToggleAction: root.tryOn(tile.pi)
                             ColumnLayout {
                                 id: tcol
                                 x: 8; y: 8
                                 width: parent.width - 16
                                 spacing: Theme.px(8)
-                                Mini { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625; s: tile.modelData.set }
+                                Item { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625
+                                    Mini { anchors.centerIn: parent; height: parent.height; width: root.kindNow === "phone" ? height * 0.5 : parent.width; s: tile.preset.set; kind: root.kindNow } }
                                 RowLayout {
                                     spacing: Theme.px(6)
-                                    Icon { name: tile.modelData.icon; size: Theme.px(16); color: tile.chosen ? Theme.accent : Theme.text }
-                                    Text { text: tile.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.Medium }
-                                    Rectangle { visible: tile.modelData.suits.indexOf(root.kindNow) >= 0; radius: Theme.px(8); color: Theme.alpha(Theme.text, 0.1); implicitWidth: suitsL.implicitWidth + 12; implicitHeight: suitsL.implicitHeight + 4
-                                        Text { id: suitsL; anchors.centerIn: parent; text: Tr.t("Suits a %1", Tr.t(FF.label(root.kindNow)).toLowerCase()); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
-                                    Rectangle { visible: root.now === tile.index && !root.tried; radius: Theme.px(8); color: Theme.alpha(Theme.accent, 0.25); implicitWidth: nowL.implicitWidth + 12; implicitHeight: nowL.implicitHeight + 4
+                                    Icon { name: tile.preset.icon; size: Theme.px(16); color: tile.chosen ? Theme.accent : Theme.text }
+                                    Text { text: tile.preset.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.Medium }
+                                    Rectangle { visible: tile.preset.suits.indexOf(root.kindNow) >= 0; radius: Theme.px(8); color: tile.preset.made === root.kindNow ? Theme.alpha(Theme.accent, 0.25) : Theme.alpha(Theme.text, 0.1); implicitWidth: suitsL.implicitWidth + 12; implicitHeight: suitsL.implicitHeight + 4
+                                        Text { id: suitsL; anchors.centerIn: parent; text: tile.preset.made === root.kindNow ? Tr.t("Best for this screen") : Tr.t("Also works here"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
+                                    Rectangle { visible: root.now === tile.pi && !root.tried; radius: Theme.px(8); color: Theme.alpha(Theme.accent, 0.25); implicitWidth: nowL.implicitWidth + 12; implicitHeight: nowL.implicitHeight + 4
                                         Text { id: nowL; anchors.centerIn: parent; text: Tr.t("Now"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
                                 }
                             }
-                            MouseArea { id: ta; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.tryOn(tile.index) }
+                            MouseArea { id: ta; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.tryOn(tile.pi) }
                         }
                     }
+                }
+                // which layouts: the ones for this screen, the familiar ones, or all
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Choice { text: Tr.t("Best for this screen"); selected: !root.showAll && !root.showFamiliar; onClicked: { root.showAll = false; root.showFamiliar = false; } }
+                    Choice { text: Tr.t("Familiar layouts"); selected: root.showFamiliar; onClicked: { root.showAll = false; root.showFamiliar = true; } }
+                    Choice { text: Tr.t("All %1", root.presets.length); selected: root.showAll; onClicked: { root.showFamiliar = false; root.showAll = true; } }
                 }
                 Text { visible: root.now < 0 && !root.tried; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
                     text: Tr.t("Your desktop is set up your own way right now, so none of these is marked. Cancel keeps it exactly as it is.") }
@@ -337,7 +405,8 @@ PanelWindow {
                 Layout.maximumWidth: Theme.px(300)
                 Layout.fillHeight: true
                 spacing: Theme.px(12)
-                Mini { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625; s: root.p.set }
+                Item { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625
+                    Mini { anchors.centerIn: parent; height: parent.height; width: root.kindNow === "phone" ? height * 0.5 : parent.width; s: root.p.set; kind: root.kindNow } }
                 Text { text: root.p.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
                 Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
                 Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
@@ -364,7 +433,7 @@ PanelWindow {
                     Button { text: Tr.t("More settings…"); onClicked: { root.tried || root.kindTried ? root.keep() : root.cancel(); Ui.openSettings("personal"); } }
                     Item { Layout.fillWidth: true }
                     Button { text: Tr.t("Cancel"); kind: "outline"; onClicked: root.cancel() }
-                    Button { text: root.tried || root.kindTried ? Tr.t("Keep") : Tr.t("Use this"); kind: "primary"; onClicked: root.tried ? root.keep() : (root.tryOn(root.sel), root.keep()) }
+                    Button { text: root.tried || root.kindTried ? Tr.t("Keep this layout") : Tr.t("Use this layout"); kind: "primary"; onClicked: root.tried ? root.keep() : (root.tryOn(root.sel), root.keep()) }
                 }
             }
         }

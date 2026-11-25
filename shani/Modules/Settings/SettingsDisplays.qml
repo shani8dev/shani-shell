@@ -176,7 +176,7 @@ ColumnLayout {
         Picks {
             label: Tr.t("Kind of screen")
             options: [{ label: Tr.t("Automatic") + (page.sel ? " (" + Tr.t(FF.label(FormFactor.detected(page.selected))) + ")" : ""), value: "auto" }]
-                .concat(["computer", "laptop", "tablet", "handheld", "phone", "tv", "board"].map(p => ({ label: Tr.t(FF.label(p)), value: p })))
+                .concat(FF.PROFILES.map(p => ({ label: Tr.t(FF.label(p)), value: p })))
             current: (Settings.data.formFactors || {})[page.selected] || "auto"
             onPicked: v => FormFactor.choose(page.selected, v)
         }

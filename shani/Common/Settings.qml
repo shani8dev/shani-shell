@@ -219,6 +219,9 @@ Singleton {
             // which edge the bar is on: "auto" (the screen's kind decides - a
             // classroom board's bar is at the bottom, within reach) | "top" | "bottom"
             property string barEdge: "auto"
+            property string barApps: "off"             // your apps in the bar, as a taskbar: off | start | center (Modules/Bar/BarApps)
+            property bool barSearch: false              // an ask-or-search box before the bar's apps (Windows 10's Cortana box, 11's Search)
+            property string railContent: "workspaces"  // the left rail: workspaces | apps (a launcher, as Unity's)
             property bool dockHintSeen: false            // the one-time note on where a smart dock went
             property string layoutPreset: "default"
             // a laptop's layout follows its desk: docked and on its own each keep
@@ -314,6 +317,7 @@ Singleton {
             property list<string> dndAllowedApps: []
             property bool assistiveTouch: false
             property bool whiteboardDark: false          // the whiteboard as a green chalkboard
+            property bool navButtons: true              // Back and the keyboard in the dock on a touch screen (Modules/Dock)
             property bool edgeSwipes: true              // a tablet's / phone's edge swipes (Modules/EdgeStrips)
             property bool barWorldClock: false          // the first world clock beside the bar's clock
             property var floatingWorkspaces: []         // "output:index" of the workspaces whose windows float

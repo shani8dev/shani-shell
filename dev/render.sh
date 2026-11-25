@@ -326,7 +326,7 @@ KDL
 # one session per kind of screen, SHANI_FORM_FACTOR) and, on a computer, every
 # desktop layout of the Layout switcher. What the full render shows once, at
 # 1920x1080 on a computer, this shows at each size people actually use.
-MATRIX_LAYOUTS="default classic focus tiling dashboard touch"   # LayoutSwitcher.qml presets, in order
+MATRIX_LAYOUTS="default laptop tablet phone handheld tv classroom focus classic minimal dashboard taskbar centred launcher"   # LayoutSwitcher.qml presets, in order
 matrix_scenes() {
     ff="${SHANI_FORM_FACTOR:-computer}"
     capture desktop "" 1.5
@@ -349,14 +349,19 @@ matrix_scenes() {
     capture_current lock 0.5 "d['locked']"
     wtype shani-test; sleep 0.3; wtype -k Return
     waitfor "not d['locked']" 12 || { echo "lock did not unlock"; exit 1; }
-    [ "$ff" = computer ] || return 0
-    # every layout, kept through the switcher the way a person picks one
-    k=0
-    for id in $MATRIX_LAYOUTS; do
-        ipc layoutSwitcher
-        waitfor "d['layoutSwitcher']" 5 || log "warn: layout switcher did not open"
-        sleep 0.5
-        j=0; while [ "$j" -lt "$k" ]; do wtype -k Right; sleep 0.2; j=$((j + 1)); done
+    # this kind's own layout; a computer shows every one. Each is kept through
+    # the switcher (layoutUse tries it on, Return keeps it), the way a person picks one
+    case "$ff" in
+        computer) ids=$MATRIX_LAYOUTS ;;
+        board)    ids=classroom ;;
+        projector) ids=focus ;;
+        *)        ids=$ff ;;
+    esac
+    for id in $ids; do
+        ipc_line "layoutUse $id"
+        waitfor "d['layoutSwitcher'] and d['layoutTrying'] == '$id'" 6 || log "warn: layout $id not tried on"
+        sleep 0.6
+        [ "$id" = "${ids%% *}" ] && capture_current "layout-switcher-$id" 0.5 "d['layoutSwitcher']"
         wtype -k Return
         if waitfor "d['layoutPreset'] == '$id' and not d['layoutSwitcher']" 8; then
             python3 /work/bin/shani app files >/dev/null 2>&1 || true
@@ -366,10 +371,9 @@ matrix_scenes() {
             last_bad="layout-$id"; failed=$((failed+1)); shot_result "layout-$id"
         fi
         ipc closeAll; sleep 0.6
-        k=$((k + 1))
     done
     # back to the default for whatever runs next
-    ipc layoutSwitcher; waitfor "d['layoutSwitcher']" 5; sleep 0.5; wtype -k Return
+    ipc_line "layoutUse default"; waitfor "d['layoutSwitcher']" 5; sleep 0.5; wtype -k Return
     waitfor "d['layoutPreset'] == 'default'" 8 || log "warn: layout not restored"
 }
 
@@ -379,6 +383,8 @@ render_shell() {
     mkdir -p "$_out"
     rm -f "$_out"/*.png
     OUTDIR="$_out"
+    # Software shows Flathub's real catalogue (baked into the image), not the suite's fixture
+    export SHANI_REAL_CATALOGUE=1
     . /work/dev/session.sh
     # `shani app` (below) speaks to the shell through qs: without this it looks
     # for a config named "shani" under ~/.config/quickshell and finds none (the
@@ -904,6 +910,24 @@ PY
     done
     ipc_line closeAll; sleep 0.5
     close_all
+
+    # ---- Software, as a store: the front page (in the apps above), a search with
+    #      the Snap Store's apps after Flathub's, installed, command-line tools ----
+    # the app scenes above leave their own windows (Camera, Health...): clear them first
+    ipc_line dismissAll; close_all
+    niri msg --json windows 2>/dev/null | python3 -c "import json,sys; print(' '.join(str(w['id']) for w in json.load(sys.stdin)))" \
+        | tr ' ' '\n' | while read -r id; do [ -n "$id" ] && niri msg action close-window --id "$id" 2>/dev/null; done
+    sleep 1.5
+    # the store's front page, once the catalogue's index is built (the first ask builds it)
+    ipc_line "softwareTab explore"; sleep 6
+    capture_current software-home 1.5 "d['softwareShown']"
+    ipc_line "softwareSearch music"; sleep 4
+    capture_current software-search 1.5 "d['softwareShown']"
+    ipc_line "softwareTab installed"; sleep 2
+    capture_current software-installed 1.0 "d['softwareShown']"
+    ipc_line "softwareTab tools"; sleep 2
+    capture_current software-tools 1.0 "d['softwareShown']"
+    ipc_line closeAll; sleep 0.5
 
     # ---- the Media Player's pages, each with real content behind it ----
     capture media-radio "radioShow featured" 1.5 "len(d['radioStations']) > 0"

@@ -1,7 +1,7 @@
 # One shell, every form factor
 
-One shell for a computer, laptop, tablet, handheld, phone, TV and classroom
-board. Profiles describe how a screen is used; they are not separate shells.
+One shell for a computer, laptop, tablet, handheld, phone, TV, classroom
+board and projector. Profiles describe how a screen is used; they are not separate shells.
 A laptop panel and a TV on HDMI must retain their own behaviour.
 
 Reviewed against the implementation on 2026-11-17. There are no completion
@@ -20,12 +20,24 @@ between upstream device support, replay tests and Shani hardware verification.
 | Laptop | Battery/lid/power controls; separate remembered layouts when docked and undocked | Actual docks, disabled internal panels, suspend/resume, hotplug during settings changes |
 | Tablet | Profile scaling; edge gestures; shell text-field keyboard; rotation; long-press actions | Keyboard in other apps; touch-only targets and scrolling throughout all apps; pen/rotation testing |
 | Handheld | Arm's-length home; Guide → Start quick-panel fallback; controller typing/pointer; panel orientation rules | Real InputPlumber pass-through, gamescope and portrait-mounted panels; TDP integration |
-| Board | Bottom bar; dock above it; whiteboard pages/PDF; pen pressure/eraser/palm handling; guest account integration | Real pens and simultaneous users; reach of all controls, including the Island; guest isolation checks; cast receiver |
+| Board | Bottom bar; dock above it; the tools (the Ring) by a swipe in from the left or right edge and the apps from the bottom, as Promethean, SMART, ViewSonic and BenQ panels reach theirs from either side; whiteboard pages/PDF; pen pressure/eraser/palm handling; guest account integration | Real pens and simultaneous users; reach of all controls, including the Island; guest isolation checks; cast receiver |
 | TV | Ten-foot home; remote/controller navigation; EDID size/name detection | Real remotes/CEC and TVs; overscan; mixed laptop/TV setup; gamescope desktop integration |
+| Projector | Told by its EDID name (projector, beamer, "PJ", Optoma) or chosen; bigger shell, no rail; Presenting offered as for any new screen; the Focus layout suits it | Real projectors' EDIDs, keystone/overscan, mirrored versus extended presenting |
 | Phone | Compact bar/launcher, bottom Quick Settings shade, bounded notifications/lock cards, compact Settings, dial/messages/contacts via Shani Link | Whole-app portrait layouts, safe areas, landscape/keyboard occlusion, native modem/audio testing, suspend/wake and mixed-output policy |
 
 ## Shared foundation
 
+- Each kind has a desktop layout made for it, offered first in Screen and layout
+  (LayoutSwitcher), with the general ones that suit it after: computer - Shani;
+  laptop - Laptop (slimmer dock, two-thirds windows); tablet - Touch (thumb-reach
+  rail and dock); phone - Phone (full screen, a dock of favourites); handheld -
+  Handheld (a strong focus ring for the pad); TV - TV (huge icons, a thick ring for
+  the remote, a wide margin); board - Classroom (everything within reach at the
+  bottom); projector - Focus (what is on screen fills it). TV and handheld open on
+  the ten-foot home; their layout is for the desktop behind it. For any screen:
+  Classic, Minimal, Dashboard; and familiar arrangements - Taskbar (apps and a
+  search box in a bottom bar), Centred taskbar, Side launcher. No two alike, and
+  none named after another product (tests/test_left_rail_fixes.py).
 - `Common/FormFactor.js` identifies profiles from built-in connectors, physical
   size, EDID names and available input; the owner's choice takes precedence.
   `tests/test_form_factor.py` covers the rules, including absent EDID sizes.
@@ -45,6 +57,27 @@ between upstream device support, replay tests and Shani hardware verification.
   output-local scaling without double-applying compositor DPI.
 
 ## Input and navigation
+
+How it fits together: **inputs → kind of screen → situation → layout.**
+
+| Input | Detected by | Set up in | What follows |
+|---|---|---|---|
+| Keyboard | `input-kinds.py` (udev) | Keyboard & input | none at all: the screen keyboard opens by itself; plugged into a tablet: it is a laptop again |
+| Touchscreen | `input-kinds.py` (machine-wide) | Drawing tablet & touchscreen (which screen) | kind (tablet, board), edge swipes, 44 px targets, Back and the keyboard in the dock |
+| Pen, drawing tablet | `input-kinds.py`, greeted by `plugwatch.py` | same section (screen, left-handed, calibration) | whiteboard pressure, eraser |
+| Touchpad | `input-kinds.py` | Touchpad (shown when there is one) | — |
+| Mouse | `input-kinds.py` | Mouse (shown when there is one) | touchpad off while a mouse is in, if chosen |
+| Pointing stick, trackball | `input-kinds.py` | Pointing stick & trackball (when there is one) | scroll by holding the middle button |
+| Tablet-mode switch | niri's switch events | — | folded: the tablet kind, its layout (Docking), the screen keyboard |
+| Game pad, wheel, flight stick | `input-kinds.py`, greeted by `plugwatch.py` | Game controllers | GamepadNav drives the shell; a built-in pad makes a handheld |
+| Presenter clicker | `plugwatch.py` (its keys) | — | greeted; its keys page the slides |
+| TV remote | its keys (a keyboard to the kernel) | — | the TV home's focus; HDMI-CEC is missing below |
+
+Settings > Keyboard & input shows the sections for the devices that are there,
+the rest behind "Show all" (a mouse used only at a desk). The situation
+(`Services/Docking`: docked, a laptop, folded into a tablet, a phone, a handheld,
+a TV, a board, a desktop's screen) keeps the layout last used in it; the touch
+and ten-foot ones start in the layout made for them, once, with Undo.
 
 `Modules/EdgeStrips`, `Services/EdgeSwipe` and `Common/Gestures.js` implement:
 

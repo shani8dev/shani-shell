@@ -13,6 +13,7 @@ Singleton {
     property bool controlCenter: false
     property bool ring: false
     property bool layoutSwitcher: false
+    property string layoutAsked: ""               // a layout by id for the switcher to try on as it opens (IPC layoutUse)
     property bool windowLayouts: false      // the window layout palette (Services/WindowLayouts)
     // which layout the switcher is showing on screen right now (its id), so a
     // check can ask what is displayed instead of counting keystrokes that a
@@ -96,6 +97,7 @@ Singleton {
     property var softwareSnaps: []           // ...installed snaps,
     property var softwareTools: []           // ...command-line tools installed (Nix)
     property string softwareRef: ""          // a .flatpakref opened with Software: installed when the window is up
+    property string softwareQuery: ""        // a search asked for from elsewhere (the CLI, the renders)
     property string softwareTab: ""          // a tab asked for from elsewhere (Settings' links): taken when the window is up
     property string appPermFocus: ""         // Settings > App permissions: the app to open there (Software's "Change…")
     property bool passwords: false           // Passwords and Keys (Modules/Passwords: Seahorse parity)

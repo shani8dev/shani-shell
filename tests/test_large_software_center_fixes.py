@@ -131,7 +131,9 @@ def test_fix_05_collections_from_existing_categories():
     assert 'cats.forEach(c => ask(["category", c], r => {' in QML
     assert "const seen = new Set(merged.map(a => a.id));" in QML
     assert "win.applyCollection(merged);" in QML
-    assert 'text: Tr.t("Collections")' in QML
+    # the collections are the home's shelves now, each with See all
+    home = (ROOT / "shani/Modules/Software/SoftwareHome.qml").read_text()
+    assert "store.showCollection(modelData[0], modelData[1])" in home
 
 
 def test_fix_06_keyboard_navigation():
@@ -159,7 +161,8 @@ def test_fix_07_accessible_names():
     assert "Accessible.name: irow.modelData.name" in QML
     assert "Accessible.role: Accessible.ListItem" in QML
     assert "win.openApp(card.modelData.id)" in QML and "Accessible.onPressAction:" in QML
-    assert "Accessible.name: modelData.name + (modelData.installed" in QML
+    home = (ROOT / "shani/Modules/Software/SoftwareHome.qml").read_text()
+    assert "Accessible.name: tile.modelData.name" in home and 'Tr.t("installed")' in home
 
 
 def test_fix_08_ratings_only_where_data_exists():

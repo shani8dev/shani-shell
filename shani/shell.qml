@@ -372,6 +372,13 @@ ShellRoot {
         function recordingShrink(path: string) { Recorder.shrink(path); }
         function ring() { Ui.toggleRing(); }
         function layoutSwitcher() { Ui.toggleLayoutSwitcher(); }
+        // every setting a layout owns, as JSON: switching there and back must give it back exactly (dev/shell-parts/layouts.sh)
+        function layoutSnapshot(): string {
+            const o = {};
+            for (const k of Docking.keys) { const v = Settings.data[k]; o[k] = v && typeof v === "object" && v.length !== undefined ? Array.from(v) : v; }
+            return JSON.stringify(o);
+        }
+        function layoutUse(id: string) { Ui.closeAll(); Ui.layoutAsked = id; Ui.layoutSwitcher = true; }
         function switcher() { Ui.switcherRequested(false); }
         function switcherBack() { Ui.switcherRequested(true); }
         function inputMethod() { Ime.toggle(); }
@@ -518,6 +525,8 @@ ShellRoot {
         function calibrateCancel() { Calibrate.cancel("cancelled"); }
         function containersOpen() { Ui.closeAll(); Ui.containers = true; }
         function softwareOpen() { Ui.closeAll(); Ui.software = true; }
+        function softwareTab(tab: string) { Ui.openSoftware(tab); }
+        function softwareSearch(words: string) { Ui.openSoftware("explore"); Ui.softwareQuery = words; }
         function softwareInstallRef(path: string) { Ui.closeAll(); Ui.software = true; Ui.softwareRef = path; }
         function cleanUpOpen() { Ui.openSettings("storage"); }
         function weatherOpen() { Ui.closeAll(); Ui.weather = true; }
@@ -1161,7 +1170,7 @@ ShellRoot {
                 oskCursor: Osk.cursorLabel,
                 oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
                 launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText,
-                formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, barNarrow: FormFactor.of(Niri.focusedOutput || "").profile === "phone", barOverlap: Hiding.overlap(Niri.focusedOutput || ""), launcherNarrow: launcherWin.narrow, launcherBottomGap: launcherWin.bottomGap, sidebarShade: sidebarWin.narrow, dockState: Docking.state, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
+                formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, barNarrow: FormFactor.of(Niri.focusedOutput || "").profile === "phone", barOverlap: Hiding.overlap(Niri.focusedOutput || ""), launcherNarrow: launcherWin.narrow, launcherBottomGap: launcherWin.bottomGap, sidebarShade: sidebarWin.narrow, dockState: Docking.state, dockStarted: Docking.started, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
                 oskLastPad: Osk.lastPad, oskPadDriven: Osk.padDriven, textByKeys: Ui.textByKeys,
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,

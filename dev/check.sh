@@ -17,7 +17,7 @@
 #   keyring       a real sign-in unlocks the keyring (oo7), systemd-booted container (needs shani-desktop-niri)
 #   surfaces      every surface shell.qml loads has a capture (dev/surfaces.tsv)
 #   render[=mode] every surface to PNG in out/renders; mode shell|greeter|setup|all
-#   render=matrix the key surfaces on all 7 form factors (and all 6 layouts on a
+#   render=matrix the key surfaces on all 8 form factors, each in its own layout (and all 14 layouts on a
 #                 computer), each at its own screen shape: out/renders/matrix/<kind>
 #                 (SHANI_FORM_FACTOR=tv sh dev/check.sh render: drawn as on a TV)
 #   showcase      restage the README's two pictures in docs/ (the rest: out/showcase)
@@ -114,7 +114,7 @@ run() {
         # shape, plus every desktop layout on the computer: out/renders/matrix/<kind>
         render=matrix)
             rc=0
-            for spec in computer:1920x1080 laptop:1920x1080 tablet:1280x800 handheld:1280x800 phone:412x915 tv:1920x1080 board:1920x1080; do
+            for spec in computer:1920x1080 laptop:1920x1080 tablet:1280x800 handheld:1280x800 phone:412x915 tv:1920x1080 board:1920x1080 projector:1920x1080; do
                 kind=${spec%%:*}; wh=${spec#*:}
                 echo "== form factor $kind ($wh)"
                 ( SHANI_FORM_FACTOR=$kind SHANI_WIDTH=${wh%x*} SHANI_SCREEN=${wh#*x}

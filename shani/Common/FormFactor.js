@@ -6,6 +6,7 @@
 // What decides it, in order:
 //   - the owner's choice for that screen (Settings > Displays), always first
 //   - a big touch panel                      -> board   (a classroom board)
+//   - a projector, by its EDID name          -> projector (shown to a room)
 //   - a big screen that is not built in      -> tv
 //   - built in, small, with a built-in pad   -> handheld (Deck, Ally, Legion Go)
 //   - built in, phone-sized                  -> phone
@@ -16,12 +17,12 @@
 // unless it is built in: guessing "tv" from a resolution would be wrong for
 // every 4K monitor.
 
-var PROFILES = ["computer", "laptop", "tablet", "handheld", "phone", "tv", "board"];
+var PROFILES = ["computer", "laptop", "tablet", "handheld", "phone", "tv", "board", "projector"];
 
 // how much bigger than the desktop design everything is drawn: type, targets,
 // gaps. On top of the screen's own scale (which fixes density); this is for
 // viewing distance and fingers.
-var SCALE = { computer: 1.0, laptop: 1.0, tablet: 1.2, handheld: 1.25, phone: 1.15, tv: 1.6, board: 1.4 };
+var SCALE = { computer: 1.0, laptop: 1.0, tablet: 1.2, handheld: 1.25, phone: 1.15, tv: 1.6, board: 1.4, projector: 1.3 };
 
 // sizes some TVs put in their EDID that are only their shape (16:9, 16:10, 4:3
 // in cm), not how big they are: read as "does not say"
@@ -51,6 +52,10 @@ function detect(screen, input, chosen) {
     if (!internal) {
         if (d >= 50 && input.touch)
             return "board";
+        // a projector says so in its EDID's model ("EPSON PJ", "BenQ PJ",
+        // "Optoma ...", "... Projector"); its size is the wall's, not given
+        if (/(projector|beamer|optoma|(^|[^A-Za-z])PJ([^A-Za-z]|$))/i.test((screen && screen.label) || ""))
+            return "projector";
         if (d >= 37)
             return "tv";
         // a TV that says so in its name (its EDID's model: "LG TV SSCR2",
@@ -87,7 +92,7 @@ function barEdge(profile, chosen) {
 // what the owner sees in Settings for each choice
 function label(profile) {
     return ({ computer: "Computer", laptop: "Laptop", tablet: "Tablet", handheld: "Handheld",
-              phone: "Phone", tv: "TV", board: "Classroom board" })[profile] || "Automatic";
+              phone: "Phone", tv: "TV", board: "Classroom board", projector: "Projector" })[profile] || "Automatic";
 }
 
 // A handheld whose panel is mounted sideways (made portrait, fitted landscape):

@@ -7,7 +7,8 @@
 # changes nothing at all.
 if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     settings '{"layoutFollowsDock": true, "layoutByDock": {}}'
-    waitfor "d['dockState'] == '' and d['dockIcon'] == 48" 5 \
+    # without a built-in panel the situation is the desktop's own screen
+    waitfor "d['dockState'] == 'screen' and d['dockIcon'] == 48" 5 \
         && result laptop-no-desk-without-a-panel PASS || result laptop-no-desk-without-a-panel FAIL "$(q "['dockState'], d['dockIcon']")"
 
     ipc dockingTest docked
@@ -30,6 +31,20 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
     waitfor "d['dockIcon'] == 40" 4 && result laptop-undocked-remembers-its-own PASS \
         || result laptop-undocked-remembers-its-own FAIL "$(q "['dockIcon']")"
 
+    # folded into a tablet: the first time, the layout made for a tablet, said so;
+    # unfolded, the laptop's own comes back; folded again, the tablet's as it was left
+    ipc dockingTest alone:tablet
+    waitfor "d['dockStarted'] == 'alone:tablet' and d['layoutPreset'] == 'tablet' and d['dockIcon'] == 64" 5 \
+        && result layout-folded-starts-in-touch PASS || result layout-folded-starts-in-touch FAIL "$(q "['dockStarted'], d['layoutPreset'], d['dockIcon']")"
+    shot layout-folded-tablet 0.5
+    ipc setting dockIconSize 72
+    waitfor "d['dockIcon'] == 72" 4
+    ipc dockingTest alone
+    waitfor "d['dockIcon'] == 40" 4 && result layout-unfolded-laptop-back PASS || result layout-unfolded-laptop-back FAIL "$(q "['dockIcon']")"
+    ipc dockingTest alone:tablet
+    waitfor "d['dockIcon'] == 72" 4 && result layout-folded-again-as-left PASS || result layout-folded-again-as-left FAIL "$(q "['dockIcon']")"
+    ipc dockingTest alone
+
     # the owner can turn it off: the layout then stays where it is put
     settings '{"layoutFollowsDock": false, "dockIconSize": 40, "layoutByDock": {"docked": {"dockIconSize": 56}, "alone": {"dockIconSize": 40}}}'
     waitfor "d['dockIcon'] == 40" 4
@@ -40,5 +55,5 @@ if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
 
     settings '{}'
     ipc dockingTest ""
-    waitfor "d['dockState'] == ''" 3
+    waitfor "d['dockState'] == 'screen'" 3
 fi

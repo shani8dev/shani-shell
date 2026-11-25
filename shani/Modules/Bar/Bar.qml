@@ -37,9 +37,13 @@ Variants {
         // a phone is one column: the workspaces, the world clock and the date
         // go, and the launcher, the status cluster and the clock stay
         readonly property bool narrow: FormFactor.of(output).profile === "phone"
+        // where the bar shows your apps, as a taskbar: "", "start" or "center"
+        // (the middle only at the bottom: at the top it is the Island's)
+        readonly property string appsAt: narrow || Settings.data.barApps === "off" ? ""
+            : Settings.data.barApps === "center" && edge === "bottom" ? "center" : "start"
         // workspaces are shown in one place: the left rail, else the dock, else
         // here (no dock, or one that waits below the edge)
-        readonly property bool workspacesHere: !(Settings.data.leftRail && FormFactor.hasRail(output))
+        readonly property bool workspacesHere: !(Settings.data.leftRail && Settings.data.railContent !== "apps" && FormFactor.hasRail(output))
             && (!Settings.data.dock || Settings.data.dockVisibility === "hide")
         // the surface starts at the screen's edge, so a hidden bar can be
         // called back by resting the pointer there; the bar itself sits 8 px in
@@ -178,6 +182,16 @@ Variants {
                 // no onClicked: events propagate through when enabled
             }
 
+            // the bar as a taskbar with the apps in the middle: only at the bottom,
+            // where the middle is free (the Island has the top's)
+            BarApps {
+                visible: bar.appsAt === "center"
+                search: Settings.data.barSearch
+                anchors.centerIn: parent
+                above: true
+                size: Theme.px(26)
+            }
+
             // ---- left -----------------------------------------------------
             RowLayout {
                 id: leftCluster
@@ -195,6 +209,13 @@ Variants {
                     onClicked: Ui.toggleLauncher()
                     hasMenu: true
                     onRightClicked: Ui.toggleLauncher("=")
+                }
+                // the bar as a taskbar, apps at the start (Settings > barApps)
+                BarApps {
+                    visible: bar.appsAt === "start"
+                    search: Settings.data.barSearch
+                    above: bar.edge === "bottom"
+                    size: Theme.px(24)
                 }
 
                 // niri workspaces of this output: one accent pill slides to the
@@ -460,7 +481,8 @@ Variants {
                     id: titleChip
                     elevation: "none"
                     edge: "subtle"
-                    visible: Niri.focusedWindow !== null
+                    // a taskbar shows the windows' apps instead (as Windows' does)
+                    visible: Niri.focusedWindow !== null && bar.appsAt === ""
                     Layout.maximumWidth: Math.max(140, bar.width * 0.25) + 84
                     // sized by what it holds (it had no width of its own and drew no chip)
                     implicitWidth: titleRow.implicitWidth + 20

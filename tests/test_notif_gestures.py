@@ -40,7 +40,7 @@ def test_swipe_reveals_a_coloured_strip():
 def test_touch_profile_forces_header_buttons_on():
     """A finger has no hover: use the FormFactor pattern, not a hover-only fade."""
     assert (
-        'readonly property bool touchFirst: ["tablet", "phone"].indexOf(FormFactor.focused.profile) >= 0'
+        'readonly property bool touchFirst: ["tablet", "phone", "board"].indexOf(FormFactor.focused.profile) >= 0'
         in TEXT
     )
     assert TEXT.count("opacity: root.touchFirst || hover.hovered") == 2

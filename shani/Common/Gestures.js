@@ -7,6 +7,14 @@
 //   from the left   -> back               from the right -> the overview
 
 var ACTIONS = { bottom: "launcher", top: "quick-settings", left: "back", right: "overview" };
+// A classroom board is used standing at one side of it: as Promethean's Unified
+// Menu, SMART's and ViewSonic's side toolbars and BenQ's sidebar do, the tools
+// (the Ring) come in from whichever side the teacher stands at, the apps from
+// the bottom; the top is out of reach, so nothing is there.
+var BOARD = { bottom: "launcher", top: "", left: "ring-left", right: "ring-right" };
+function boardAction(edge, action) {
+    return action ? (BOARD[edge] || "") : "";
+}
 
 // edge: where the finger went down; dx, dy: how far it moved (screen pixels,
 // y down); min: how far in counts as a swipe (a tap or a short slip is not one)

@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """input-kinds — what this computer has to type and touch with, from udev's database.
 
-  input-kinds.py      JSON: {"keyboard": bool, "touchscreen": bool, "tabletSwitch": bool}
+  input-kinds.py      JSON: {"keyboard", "touchscreen", "tabletSwitch", "touchpad", "mouse",
+                       "pointingStick", "trackball", "pen", "controller": bool}
 
 keyboard: a device udev calls a keyboard (ID_INPUT_KEYBOARD=1) that is not a
 power, lid, sleep or video button, a hotkey device, or a virtual keyboard
 (wtype's, ydotool's). Without one - or with only a touchscreen - the screen
 keyboard opens by itself wherever a password is asked (lock, sign-in, setup, an
 administrator's prompt), so a broken keyboard never locks anyone out.
+touchpad, mouse, pointingStick (a ThinkPad's red dot), trackball, pen (a drawing
+tablet or a screen's stylus), controller (a game pad, wheel or stick): udev's own
+ID_INPUT_* tags, so Settings > Keyboard & input shows the settings for what is
+there (and the rest behind "Show all").
 tabletSwitch: a convertible's tablet-mode switch (ID_INPUT_SWITCH, SW_TABLET_MODE
 among its switches is told by the shell's tablet-mode reader).
 
@@ -37,7 +42,8 @@ def blocks(text):
 
 
 def kinds(text):
-    out = {"keyboard": False, "touchscreen": False, "tabletSwitch": False}
+    out = {"keyboard": False, "touchscreen": False, "tabletSwitch": False, "touchpad": False, "mouse": False,
+           "pointingStick": False, "trackball": False, "pen": False, "controller": False}
     for p in blocks(text):
         if p.get("SUBSYSTEM") != "input":
             continue
@@ -46,6 +52,18 @@ def kinds(text):
             out["keyboard"] = True
         if p.get("ID_INPUT_TOUCHSCREEN") == "1":
             out["touchscreen"] = True
+        if p.get("ID_INPUT_TOUCHPAD") == "1":
+            out["touchpad"] = True
+        if p.get("ID_INPUT_POINTINGSTICK") == "1":
+            out["pointingStick"] = True
+        elif p.get("ID_INPUT_TRACKBALL") == "1":
+            out["trackball"] = True
+        elif p.get("ID_INPUT_MOUSE") == "1" and p.get("ID_INPUT_TOUCHPAD") != "1" and not NOT_A_KEYBOARD.search(name):
+            out["mouse"] = True
+        if p.get("ID_INPUT_TABLET") == "1":
+            out["pen"] = True
+        if p.get("ID_INPUT_JOYSTICK") == "1":
+            out["controller"] = True
         if p.get("ID_INPUT_SWITCH") == "1" and re.search(r"tablet|virtual switches|hid switches|convertible", name, re.I):
             out["tabletSwitch"] = True
     return out
@@ -63,7 +81,8 @@ def main():
             text = subprocess.run(["udevadm", "info", "--export-db"], capture_output=True, text=True, timeout=10).stdout
         except (OSError, subprocess.TimeoutExpired):
             # no udev to ask: assume a keyboard, as before this existed
-            print(json.dumps({"keyboard": True, "touchscreen": False, "tabletSwitch": False}))
+            print(json.dumps({"keyboard": True, "touchscreen": False, "tabletSwitch": False, "touchpad": True, "mouse": True,
+                              "pointingStick": True, "trackball": True, "pen": True, "controller": False}))
             return 0
     print(json.dumps(kinds(text)))
     return 0

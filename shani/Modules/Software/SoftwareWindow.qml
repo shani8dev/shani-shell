@@ -20,7 +20,7 @@ AppWindow {
     appName: "Software"
     visible: Ui.software
     onGone: Ui.software = false
-    implicitWidth: Theme.px(860)
+    implicitWidth: Theme.px(1080)            // a store: room for its shelves, its tabs on one line
     implicitHeight: Theme.px(680)
 
     readonly property string tool: Quickshell.env("SHANI_APPSTORE_TOOL") || "/usr/lib/shani-shell/appstore.py"
@@ -64,6 +64,10 @@ AppWindow {
     property int searchGen: 0                    // ignore answers from a query the person already replaced
     property bool installedOnly: false           // filter Explore search results to installed apps
     property bool showAllReleases: false         // expand a long changelog on the app page
+    // Explore opens on the store's front page (SoftwareHome); a search or a
+    // category shows the grid, and Home goes back
+    readonly property bool home: showing === ""
+    function goHome() { win.showing = ""; win.results = []; win.snapResults = []; Ui.softwareResults = []; }
     readonly property var tabIds: ["explore", "installed", "tools", "leftovers", "appimages", "history", "repositories"]
 
     readonly property var categories: [["AudioVideo", Tr.t("Music and video")], ["Development", Tr.t("Developer tools")], ["Education", Tr.t("Learning")],
@@ -78,7 +82,14 @@ AppWindow {
     onVisibleChanged: if (visible) start()
     Component.onCompleted: if (visible) start()
     // a .flatpakref opened with Software (a website's Install link): installed at once
-    Connections { target: Ui; function onSoftwareRefChanged() { win.takeRef(); } function onSoftwareTabChanged() { win.takeTab(); } }
+    Connections { target: Ui; function onSoftwareRefChanged() { win.takeRef(); } function onSoftwareTabChanged() { win.takeTab(); } function onSoftwareQueryChanged() { win.takeQuery(); } }
+    function takeQuery() {
+        const q = Ui.softwareQuery;
+        if (!q) return;
+        Ui.softwareQuery = "";
+        win.tab = "explore"; win.app = null;
+        win.search(q);
+    }
     function takeTab() {
         const t = Ui.softwareTab;
         if (!t || win.tabIds.indexOf(t) < 0) return;
@@ -96,11 +107,11 @@ AppWindow {
     function start() {
         Qt.callLater(win.takeRef);
         Qt.callLater(win.takeTab);
+        Qt.callLater(win.takeQuery);
         ask(["installed"], r => { win.installedApps = Array.isArray(r) ? r : []; Ui.softwareInstalled = win.installedApps.map(a => a.id); });
         win.loadSnaps();
         ask(["skipped"], r => { win.skippedIds = Array.isArray(r) ? r : []; });
         ask(["catalogue"], r => { win.catalogue = r && !r.error ? r : ({}); });
-        if (!win.results.length) showCategory("Utility");
         win.loadFeatured();
     }
     // editorial picks (a fixed shortlist, plus catalogue fillers if absent)
@@ -387,6 +398,10 @@ AppWindow {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)
+            // the tabs wrap rather than run off a narrow window
+            Flow {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
             Repeater {
                 model: [["explore", Tr.t("Explore")], ["installed", win.updates ? Tr.t("Installed · %1 updates", win.updates) : Tr.t("Installed")],
                         ["tools", Tr.t("Command-line tools")], ["leftovers", Tr.t("Leftovers")], ["appimages", Tr.t("AppImages")],
@@ -399,7 +414,7 @@ AppWindow {
                     onClicked: { win.tab = modelData[0]; win.app = null; updateAllConfirm.disarm(); win.onTabChanged(modelData[0]); }
                 }
             }
-            Item { Layout.fillWidth: true }
+            }
             IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Fetch Flathub's list again"); Accessible.name: Tr.t("Refresh the app catalogue"); onClicked: win.runJob(["refresh"], "") }
         }
         // the catalogue this window is showing, and when it was last fetched
@@ -503,9 +518,10 @@ AppWindow {
             Accessible.name: text
         }
         RowLayout {
-            visible: win.tab === "explore" && !win.app
+            visible: win.tab === "explore" && !win.app && !win.home
             Layout.fillWidth: true
             spacing: Theme.px(6)
+            Choice { text: Tr.t("Home"); onClicked: win.goHome() }
             Choice { text: Tr.t("Installed only"); selected: win.installedOnly; Accessible.name: Tr.t("Show only installed results"); onClicked: win.installedOnly = !win.installedOnly }
             Item { Layout.fillWidth: true }
             Text {
@@ -515,79 +531,26 @@ AppWindow {
                 Accessible.name: text
             }
         }
-        // ---- curated picks / collections / categories --------------------------------
-        Text {
-            visible: win.tab === "explore" && !win.app && win.featured.length > 0
-            Layout.fillWidth: true
-            text: Tr.t("Featured — hand-picked from Flathub")
-            color: Theme.dim
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
-            font.weight: Font.DemiBold
-        }
-        Flow {
-            visible: win.tab === "explore" && !win.app && win.featured.length > 0
-            Layout.fillWidth: true
-            spacing: Theme.px(6)
-            Repeater {
-                model: win.featured
-                Rectangle {
-                    required property var modelData
-                    width: Theme.px(190); height: Theme.px(56)
-                    radius: Theme.px(8)
-                    color: pickArea.containsMouse ? Theme.hover : Theme.card
-                    MouseArea { id: pickArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openApp(modelData.id) }
-                    RowLayout {
-                        anchors.fill: parent; anchors.margins: Theme.px(6); spacing: Theme.px(6)
-                        Image { Layout.preferredWidth: Theme.px(32); Layout.preferredHeight: Theme.px(32); source: modelData.icon ? "file://" + modelData.icon : ""; fillMode: Image.PreserveAspectFit; asynchronous: true }
-                        ColumnLayout {
-                            Layout.fillWidth: true; spacing: 0
-                            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
-                            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.summary || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
-                        }
-                        Text { visible: modelData.installed; text: "✓"; color: Theme.accent; font.pixelSize: Theme.px(12) }
-                    }
-                    Accessible.role: Accessible.Button
-                    Accessible.name: modelData.name + (modelData.installed ? " — " + Tr.t("installed") : "")
-                    Accessible.onPressAction: win.openApp(modelData.id)
-                }
-            }
-        }
-        Text {
-            visible: win.tab === "explore" && !win.app
-            Layout.fillWidth: true
-            text: Tr.t("Collections")
-            color: Theme.dim
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
-            font.weight: Font.DemiBold
-        }
+        // ---- categories, with Home first: the store's front page is SoftwareHome ----
         Flow {
             visible: win.tab === "explore" && !win.app
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Repeater {
-                model: win.collections
-                Choice {
-                    required property var modelData
-                    text: modelData[0]
-                    selected: win.showing === "collection:" + modelData[0]
-                    Accessible.name: Tr.t("Browse the %1 collection", modelData[0])
-                    onClicked: win.showCollection(modelData[0], modelData[1])
-                }
-            }
-        }
-        Flow {
-            visible: win.tab === "explore" && !win.app
-            Layout.fillWidth: true
-            spacing: Theme.px(6)
+            Choice { text: Tr.t("Home"); selected: win.home; onClicked: win.goHome() }
             Repeater {
                 model: win.categories
                 Choice { required property var modelData; text: modelData[1]; selected: win.showing === "category:" + modelData[0]; onClicked: win.showCategory(modelData[0]) }
             }
         }
+        SoftwareHome {
+            visible: win.tab === "explore" && !win.app && win.home
+            active: visible
+            store: win
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+        }
         Text {
-            visible: win.tab === "explore" && !win.app && win.results.length === 0 && !asker.running
+            visible: win.tab === "explore" && !win.app && !win.home && win.results.length === 0 && !asker.running
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: Tr.t("Nothing here yet. If this is the first time, fetch Flathub's list with the refresh button.")
@@ -595,7 +558,7 @@ AppWindow {
         }
         EmptyState {
             Layout.fillWidth: true
-            visible: win.tab === "explore" && !win.app && win.results.length === 0 && asker.running
+            visible: win.tab === "explore" && !win.app && !win.home && win.results.length === 0 && asker.running
             icon: "preferences-system"
             title: Tr.t("Working…")
             subtitle: ""
@@ -608,7 +571,7 @@ AppWindow {
         }
         GridView {
             id: grid
-            visible: win.tab === "explore" && !win.app
+            visible: win.tab === "explore" && !win.app && !win.home
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -632,7 +595,7 @@ AppWindow {
                     anchors.margins: Theme.px(8)
                     spacing: Theme.px(10)
                     Image { visible: !card.isSnap; Layout.preferredWidth: Theme.px(48); Layout.preferredHeight: Theme.px(48); source: card.modelData.icon ? "file://" + card.modelData.icon : ""; sourceSize: Qt.size(96, 96); fillMode: Image.PreserveAspectFit; asynchronous: true }
-                    Icon { visible: card.isSnap; name: "package-x-generic"; size: Theme.px(40); color: Theme.dim }
+                    AppIcon { visible: card.isSnap; implicitSize: Theme.px(48); icon: ""; name: card.modelData.name || "" }
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0

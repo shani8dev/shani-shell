@@ -40,8 +40,9 @@ def test_switcher_excludes_minimised_windows_from_the_mru():
     # Niri documents the hidden workspace as hidden from Alt+Tab; the dock agrees
     niri = read("shani/Services/Niri.qml")
     assert "Alt+Tab treat it as hidden" in niri
-    dock = read("shani/Modules/Dock/Dock.qml")
-    assert "it.windows.filter(w => !Niri.isMinimised(w))" in dock
+    # the dock's apps and what a click does are Services/Taskbar's (shared with the bar and the rail)
+    taskbar = read("shani/Services/Taskbar.qml")
+    assert "it.windows.filter(w => !Niri.isMinimised(w))" in taskbar
 
 
 def test_switcher_keeps_the_g_toggle_between_opens():

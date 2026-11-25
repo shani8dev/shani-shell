@@ -116,34 +116,14 @@ PanelWindow {
     function newWorkspace() { Niri.newWorkspaceOn(output); }
     // the left rail, when it is on, is where the workspaces are: the dock does
     // not show a second copy of them
-    readonly property bool spacesHere: !(Settings.data.leftRail && FormFactor.hasRail(output))
-    readonly property var entryOf: id => DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id)
-    readonly property var running: {
-        const groups = {};
-        for (const w of Object.values(Niri.windows)) {
-            const key = (w.app_id || "").toLowerCase();
-            (groups[key] = groups[key] || []).push(w);
-        }
-        return groups;
-    }
-    readonly property var items: {
-        const out = [], seen = {};
-        for (const id of Settings.data.dockPinned) {
-            const e = win.entryOf(id);
-            if (!e || !AppFilter.allowed(e.id))
-                continue;
-            const key = (e.startupClass || e.id).toLowerCase();
-            const ws = win.running[key] || win.running[e.id.toLowerCase()] || [];
-            seen[key] = seen[e.id.toLowerCase()] = true;
-            out.push({ id: e.id, entry: e, windows: ws, pinned: true });
-        }
-        for (const key of Object.keys(win.running)) {
-            if (seen[key] || key === "")
-                continue;
-            out.push({ id: key, entry: win.entryOf(key), windows: win.running[key], pinned: false });
-        }
-        return out;
-    }
+    // Back and the keyboard as buttons on a touch screen, which has no keys
+    readonly property bool touchNav: Settings.data.navButtons && ["tablet", "phone", "board", "handheld"].indexOf(FormFactor.of(output).profile) >= 0
+    readonly property bool spacesHere: !(Settings.data.leftRail && Settings.data.railContent !== "apps" && FormFactor.hasRail(output))
+    // the apps (pinned, then running) and what a click does: one list with the
+    // bar's taskbar and the rail (Services/Taskbar)
+    readonly property var entryOf: Taskbar.entryOf
+    readonly property var running: Taskbar.running
+    readonly property var items: Taskbar.items
     // uninstalling an app (or its last window going away) can drop the cell a
     // menu was open on, and a reorder can move its index. Track by app id so
     // the menu follows its app, or closes when the app is gone.
@@ -175,27 +155,8 @@ PanelWindow {
     signal launched(string id)
 
     function activate(it) {
-        if (it.windows.length === 0) {
-            if (it.entry) {
-                Launch.app(it.entry.id);
-                launched(it.id);
-            }
-            return;
-        }
-        // an app whose windows are all minimised: the dock brings them back
-        const down = it.windows.filter(w => Niri.isMinimised(w));
-        if (down.length === it.windows.length) {
-            down.forEach(w => Niri.restore(w.id));
-            return;
-        }
-        const ids = it.windows.filter(w => !Niri.isMinimised(w)).map(w => w.id).sort((a, b) => a - b);
-        const cur = ids.indexOf(Niri.focusedWindowId);
-        const targetId = ids[cur < 0 ? 0 : (cur + 1) % ids.length];
-        const target = Niri.windows[targetId];
-        if (target)
-            Niri.focusWin(target);
-        else
-            Niri.action("focus-window", "--id", targetId);
+        if (Taskbar.activate(it))
+            launched(it.id);
     }
     // move a pinned app one place along the pinned list
     function movePin(it, by) {
@@ -320,6 +281,17 @@ PanelWindow {
         Row {
             id: controls
             spacing: row.spacing
+            // a touch screen has no Back, Esc or Super key: Back here, as Android's
+            // taskbar and the board makers' toolbars have it (Overview and Show
+            // the desktop, next, are Recents and Home)
+            DockTile {
+                id: backTile
+                visible: win.touchNav
+                tip: Tr.t("Back")
+                icon: "go-previous"
+                onActivated: Ui.back()
+                Icon { anchors.centerIn: parent; name: "go-previous"; size: parent.width * 0.5; color: Theme.text }
+            }
             // Multitasking View (Pantheon's first item): every workspace and its windows
             DockTile {
                 id: multi
@@ -346,6 +318,16 @@ PanelWindow {
                         }
                     }
                 }
+            }
+            // ...and the keyboard, for typing anywhere (a field in the shell opens it by itself)
+            DockTile {
+                id: keysTile
+                visible: win.touchNav
+                on: Osk.shown
+                tip: Osk.shown ? Tr.t("Hide the keyboard") : Tr.t("Show the keyboard")
+                icon: "input-keyboard"
+                onActivated: Osk.toggle()
+                Icon { anchors.centerIn: parent; name: "input-keyboard"; size: parent.width * 0.5; color: keysTile.on ? Theme.accent : Theme.text }
             }
             DockTile {
                 id: desk
@@ -387,6 +369,7 @@ PanelWindow {
                 id: cell
                 required property var modelData
                 required property int index
+                readonly property bool menuOpen: win.menuFor >= 0        // the dock's (HoverPeek has its own `win`)
                 // the pinned list's index, not the visible row's: a pin with no
                 // desktop entry (uninstalled) or one AppFilter hides is skipped
                 // above, so cell.index drifts while the real list does not
@@ -590,7 +573,8 @@ PanelWindow {
                     id: hoverPeek
                     // the delegate can be torn down while this is still being
                     // evaluated, and then modelData is null
-                    visible: cell.modelData && cell.modelData.windows.length > 0 && win.menuFor < 0
+                    // `win` here is HoverPeek's own (the window to show): the dock's menu state comes through the cell
+                    visible: cell.modelData && cell.modelData.windows.length > 0 && !cell.menuOpen
                     win: {
                         if (!cell.modelData) return null;
                         const ws = cell.modelData.windows.filter(x => !Niri.isMinimised(x));

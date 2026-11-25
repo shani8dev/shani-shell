@@ -48,12 +48,17 @@ PanelWindow {
         const ws = Niri.workspacesOn(Niri.focusedOutput);
         const apps = Settings.data.dockPinned.map(id => DesktopEntries.byId(id)).filter(e => e);
         return [
+            // what a touch screen has no keys for (a board opens the Ring from its sides)
+            { label: Tr.t("Go"), icon: "go-previous", children: [
+                { label: Tr.t("Back"), icon: "go-previous", act: () => Ui.back() },
+                { label: Tr.t("Home"), icon: "user-desktop", act: () => Niri.showDesktop() },
+                { label: Tr.t("Overview"), icon: "focus-windows", act: () => Niri.action("toggle-overview") },
+                { label: Osk.shown ? Tr.t("Hide the keyboard") : Tr.t("Keyboard"), icon: "input-keyboard", act: () => Osk.toggle() }
+            ] },
             { label: Tr.t("Chronoa"), icon: "face-smile-big", children: [
                 { label: Tr.t("Ask"), icon: "chat-message-new", act: () => Ui.askIsland() },
                 { label: Tr.t("Conversation"), icon: "face-smile-big", act: () => Chronoa.open = true },
-                { label: Tr.t("Lens"), icon: "system-search", act: () => Lens.capture() }
-            ] },
-            { label: Tr.t("Lens"), icon: "system-search", children: [
+                // seeing and hearing what is on screen (Lens was a second group with Lens in it twice)
                 { label: Tr.t("Lens"), icon: "system-search", act: () => Lens.capture() },
                 { label: Tr.t("Read aloud"), icon: "audio-speakers", act: () => Speak.speakSelection() },
                 { label: Tr.t("Magnifier"), icon: "zoom-in", act: () => { Ui.closeAll(); Ui.magnifier = true; } },

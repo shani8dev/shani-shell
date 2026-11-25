@@ -93,3 +93,11 @@ RUN pacman -Syu --noconfirm --needed djvulibre python-pymupdf && pacman -Scc --n
 # the camera's video path (Services/Camera: gst-launch, VP8 + Opus in WebM), recorded
 # from GStreamer's test pattern and tone in the suite (no camera here)
 RUN pacman -Syu --noconfirm --needed gst-plugins-base gst-plugins-good && pacman -Scc --noconfirm
+# Software's sources as ShaniOS has them (shani-docs software/*): Flatpak with
+# Flathub's real catalogue and icons baked in (so the renders show real apps,
+# offline), and Nix. snapd is not in Arch and cannot run in a container (systemd
+# + AppArmor): the session stands in a snap (dev/fake-snap.sh). AppImages need nothing.
+RUN pacman -Syu --noconfirm --needed flatpak nix && pacman -Scc --noconfirm \
+    && flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
+    && flatpak update --appstream --noninteractive flathub \
+    && ls /var/lib/flatpak/appstream/flathub/*/active/appstream.xml.gz

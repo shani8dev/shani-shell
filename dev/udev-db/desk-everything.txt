@@ -1,0 +1,51 @@
+P: /devices/virtual/input/input40
+E: SUBSYSTEM=input
+E: NAME="Elan Touchpad"
+E: ID_INPUT=1
+E: ID_INPUT_TOUCHPAD=1
+E: ID_INPUT_MOUSE=1
+
+P: /devices/virtual/input/input41
+E: SUBSYSTEM=input
+E: NAME="Elan TrackPoint"
+E: ID_INPUT=1
+E: ID_INPUT_POINTINGSTICK=1
+E: ID_INPUT_MOUSE=1
+
+P: /devices/virtual/input/input42
+E: SUBSYSTEM=input
+E: NAME="Logitech USB Optical Mouse"
+E: ID_INPUT=1
+E: ID_INPUT_MOUSE=1
+
+P: /devices/virtual/input/input43
+E: SUBSYSTEM=input
+E: NAME="Kensington Expert Wireless TB Mouse"
+E: ID_INPUT=1
+E: ID_INPUT_TRACKBALL=1
+E: ID_INPUT_MOUSE=1
+
+P: /devices/virtual/input/input44
+E: SUBSYSTEM=input
+E: NAME="Wacom Intuos S Pen"
+E: ID_INPUT=1
+E: ID_INPUT_TABLET=1
+
+P: /devices/virtual/input/input45
+E: SUBSYSTEM=input
+E: NAME="Microsoft X-Box 360 pad"
+E: ID_INPUT=1
+E: ID_INPUT_JOYSTICK=1
+
+P: /devices/virtual/input/input46
+E: SUBSYSTEM=input
+E: NAME="Thrustmaster T300RS Racing wheel"
+E: ID_INPUT=1
+E: ID_INPUT_JOYSTICK=1
+
+P: /devices/virtual/input/input47
+E: SUBSYSTEM=input
+E: NAME="AT Translated Set 2 keyboard"
+E: ID_INPUT=1
+E: ID_INPUT_KEY=1
+E: ID_INPUT_KEYBOARD=1

@@ -10,6 +10,9 @@
 // window is never tiled under it. A phone has no room for it, and a TV or a
 // handheld is driven from across the room (FormFactor.hasRail).
 // Super+Up/Down and the Overview keep working unchanged.
+//
+// Or, with railContent "apps", a launcher down the left as Unity's: the apps
+// button at the top, then your pinned and running apps (Services/Taskbar).
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
@@ -38,7 +41,8 @@ Scope {
 
             readonly property var workspaces: Niri.workspacesOn(modelData.name)
             readonly property var spaces: workspaces.filter(w => w.is_active || w.is_focused || Niri.windowsOn(w).length > 0)
-            readonly property var entryOf: id => DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id)
+            readonly property var entryOf: Taskbar.entryOf
+            readonly property bool apps: Settings.data.railContent === "apps"
 
             Rectangle {
                 id: card
@@ -66,8 +70,47 @@ Scope {
                     id: column
                     anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.px(6) }
                     spacing: Theme.px(6)
+                    // ---- as a launcher (railContent "apps") ----
+                    Item {
+                        visible: rail.apps
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: width
+                        Rectangle { anchors.fill: parent; radius: Theme.radiusSmall; color: Ui.launcher ? Theme.accentSoft : (dashArea.containsMouse ? Theme.hover : "transparent") }
+                        Icon { anchors.centerIn: parent; name: "view-app-grid"; size: parent.width * 0.5; color: Theme.accent }
+                        MouseArea { id: dashArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.toggleLauncher() }
+                        KeyFocus { name: Tr.t("Apps"); onActivated: Ui.toggleLauncher() }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: Tr.t("Apps")
+                        Accessible.onPressAction: Ui.toggleLauncher()
+                    }
                     Repeater {
-                        model: rail.spaces.concat([null])
+                        model: rail.apps ? Taskbar.items : []
+                        Item {
+                            id: appCell
+                            required property var modelData
+                            readonly property bool open: modelData.windows.length > 0
+                            readonly property bool front: modelData.windows.some(w => w.id === Niri.focusedWindowId)
+                            readonly property string label: modelData.entry ? modelData.entry.name : modelData.id
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: width
+                            Rectangle { anchors.fill: parent; radius: Theme.radiusSmall; color: appCell.front ? Theme.accentSoft : (appArea.containsMouse ? Theme.hover : "transparent") }
+                            Rectangle {
+                                visible: appCell.open
+                                anchors { left: parent.left; leftMargin: -Theme.px(5); verticalCenter: parent.verticalCenter }
+                                width: Theme.px(3); height: appCell.front ? parent.height * 0.5 : Theme.px(6); radius: width / 2
+                                color: appCell.front ? Theme.accent : Theme.dim
+                            }
+                            AppIcon { anchors.centerIn: parent; implicitSize: parent.width * 0.7; icon: appCell.modelData.entry ? appCell.modelData.entry.icon : appCell.modelData.id; name: appCell.label }
+                            MouseArea { id: appArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Taskbar.activate(appCell.modelData) }
+                            KeyFocus { name: appCell.label; onActivated: Taskbar.activate(appCell.modelData) }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: appCell.label + (appCell.open ? ", " + Tr.t("open") : "")
+                            Accessible.onPressAction: Taskbar.activate(appCell.modelData)
+                        }
+                    }
+                    // ---- as the workspaces ----
+                    Repeater {
+                        model: rail.apps ? [] : rail.spaces.concat([null])
                         Item {
                             id: cell
                             required property var modelData

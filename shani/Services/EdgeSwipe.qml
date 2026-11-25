@@ -9,7 +9,7 @@ Singleton {
     id: root
     property string last: ""              // the last swipe's action (the tests)
     // touch-first screens: the strips are up (Modules/EdgeStrips)
-    readonly property bool touchFirst: ["tablet", "phone"].indexOf(FormFactor.focused.profile) >= 0
+    readonly property bool touchFirst: ["tablet", "phone", "board"].indexOf(FormFactor.focused.profile) >= 0
     readonly property int strips: Settings.data.edgeSwipes && touchFirst && !Lock.locked ? 4 : 0
     function run(action) {
         if (!action || Lock.locked) return;

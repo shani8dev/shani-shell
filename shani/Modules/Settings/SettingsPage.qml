@@ -544,7 +544,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     icon: "view-grid"
                     title: Tr.t("Screen and layout")
-                    subtitle: Tr.t("What kind of screen this is, and Shani, Classic, Focus, Tiling, Dashboard or Touch — see each one and try it on")
+                    subtitle: Tr.t("What kind of screen this is, and a layout made for it - or a classic one, a taskbar, a side launcher; see each one and try it on")
                     trailing: "›"
                     onClicked: Ui.layoutSwitcher = true
                 }
@@ -1105,6 +1105,26 @@ ColumnLayout {
                     current: page.d.barEdge
                     onPicked: v => page.d.barEdge = v
                 }
+                Picks {
+                    label: Tr.t("Your apps in the bar")
+                    options: [{ label: Tr.t("No, in the dock"), value: "off" }, { label: Tr.t("After the apps button"), value: "start" }, { label: Tr.t("In the middle"), value: "center" }]
+                    current: page.d.barApps
+                    onPicked: v => page.d.barApps = v
+                }
+                SwitchRow {
+                    Layout.fillWidth: true
+                    visible: page.d.barApps !== "off"
+                    text: Tr.t("A box to ask or search, before them")
+                    hint: Tr.t("it opens search, which asks Chronoa what it cannot find")
+                    checked: page.d.barSearch
+                    onToggled: on => page.d.barSearch = on
+                }
+                Picks {
+                    label: Tr.t("The left rail shows")
+                    options: [{ label: Tr.t("Your workspaces"), value: "workspaces" }, { label: Tr.t("Your apps (a launcher)"), value: "apps" }]
+                    current: page.d.railContent
+                    onPicked: v => page.d.railContent = v
+                }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale
                     text: Tr.t("Out of a window's way: it stays in view and windows open beside it, and it slides away only while a window is moved over it. Only at the edge: windows get the whole screen, and it comes back when you rest the pointer on that edge. Either way it also comes back for a dragged file, an app asking for you, and the overview.")
@@ -1149,6 +1169,13 @@ ColumnLayout {
                     hint: Tr.t("swipe a screen's edges on a touch device")
                     checked: page.d.edgeSwipes
                     onToggled: on => page.d.edgeSwipes = on
+                }
+                SwitchRow {
+                    Layout.fillWidth: true
+                    text: Tr.t("Back and keyboard buttons")
+                    hint: Tr.t("in the dock on a touch screen, which has no keys")
+                    checked: page.d.navButtons
+                    onToggled: on => page.d.navButtons = on
                 }
 
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Quick tiles") }

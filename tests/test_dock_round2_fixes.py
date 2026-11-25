@@ -38,7 +38,9 @@ def test_menu_close_restores_focus_to_tile():
 
 
 def test_activate_cycles_via_focusWin():
-    act = dock.split("function activate(it) {", 1)[1].split("function movePin", 1)[0]
+    # the dock, the bar's taskbar and the rail share one activate (Services/Taskbar)
+    assert "if (Taskbar.activate(it))" in dock
+    act = (ROOT / "shani/Services/Taskbar.qml").read_text().split("function activate(it) {", 1)[1]
     assert "const target = Niri.windows[targetId];" in act
     assert "Niri.focusWin(target);" in act
     assert 'Niri.action("focus-window", "--id", targetId);' in act

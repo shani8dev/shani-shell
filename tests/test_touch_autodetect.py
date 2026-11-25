@@ -45,7 +45,8 @@ def dev(name, **props):
 
 def test_touchscreen_is_detected_from_a_udev_input_device():
     db = dev("GoodTouch Screen", ID_INPUT=1, ID_INPUT_TOUCHSCREEN=1)
-    assert kinds(db) == {"keyboard": False, "touchscreen": True, "tabletSwitch": False}
+    k = kinds(db)
+    assert {x: k[x] for x in ("keyboard", "touchscreen", "tabletSwitch")} == {"keyboard": False, "touchscreen": True, "tabletSwitch": False}
 
 
 def test_quoted_udev_values_are_accepted():

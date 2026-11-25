@@ -45,7 +45,7 @@ def test_ring_filters_empty_child_groups_and_clamps_stale_hot():
 
 def test_layout_switcher_enter_applies_and_keeps_like_button():
     assert (
-        "Keys.onReturnPressed: { if (!root.tried) root.tryOn(root.sel); root.keep(); }"
+        'Shortcut { sequences: ["Return", "Enter"]; enabled: root.visible; onActivated: { if (!root.tried) root.tryOn(root.sel); root.keep(); } }'
         in layout
     )
 

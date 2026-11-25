@@ -16,7 +16,8 @@ Scope {
     readonly property real uiScale: FormFactor.of(modelData.name).scale
     readonly property bool on: Settings.data.edgeSwipes && !Lock.locked
         && !(GameMode.top && GameMode.top.fullscreen)   // a game's own edges are its own
-        && ["tablet", "phone"].indexOf(FormFactor.of(modelData.name).profile) >= 0
+        && ["tablet", "phone", "board"].indexOf(FormFactor.of(modelData.name).profile) >= 0
+    readonly property bool board: FormFactor.of(modelData.name).profile === "board"
     // where the left rail is, a swipe there must reach the rail, not the
     // shell's Back (Alt+Left)
     readonly property bool railHere: Settings.data.leftRail && FormFactor.hasRail(modelData.name)
@@ -29,7 +30,7 @@ Scope {
             required property string modelData
             readonly property bool across: modelData === "top" || modelData === "bottom"
             screen: root.modelData
-            visible: root.on && !(modelData === "left" && root.railHere)
+            visible: root.on && !(modelData === "left" && root.railHere) && !(root.board && modelData === "top")
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.namespace: "shani-edge-" + modelData
@@ -63,8 +64,16 @@ Scope {
                 onCanceled: swipe = null
                 onReleased: m => {
                     const to = mapToGlobal(m.x, m.y);
-                    const action = G.finishSwipe(swipe, strip.modelData, to.x, to.y, distance, jitter, Date.now());
+                    let action = G.finishSwipe(swipe, strip.modelData, to.x, to.y, distance, jitter, Date.now());
                     swipe = null;
+                    if (root.board) action = G.boardAction(strip.modelData, action);
+                    // the Ring opens at the side the finger came from, at its height
+                    if (action === "ring-left" || action === "ring-right") {
+                        const w = root.modelData.width;
+                        EdgeSwipe.last = action;
+                        Ui.openRingAt(action === "ring-left" ? 180 * root.uiScale : w - 180 * root.uiScale, to.y - root.modelData.y);
+                        return;
+                    }
                     EdgeSwipe.run(action);
                 }
             }
