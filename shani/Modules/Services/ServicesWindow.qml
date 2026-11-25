@@ -156,6 +156,9 @@ AppWindow {
                 subtitle: Tr.t("Entry %1", modelData.index + 1)
                 extra: ConfirmButton {
                     id: cronRemoveConfirm
+                    // cron entries are keyed by their position; the action keeps
+                    // using that index, and the key travels with the signal
+                    value: String(modelData.index)
                     implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
                     implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
                     text: Tr.t("Remove")

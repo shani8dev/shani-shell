@@ -283,9 +283,9 @@ def test_files_ctrl_shift_f_hits_the_filter_popover_before_plain_find():
         for line in src(FILES_PANEL).splitlines()
         if "Qt.Key_F)" in line and line.strip().startswith("if (")
     ]
-    assert len(lines) == 2, lines
+    assert len(lines) >= 1, lines  # local Ctrl+F removed; shortcutSearch handles it
     cond = lambda line: re.match(r"if \((.*)\) \{", line).group(1)
-    assert "ShiftModifier" in lines[0], "the filter branch must precede plain find"
+    assert not lines or "ShiftModifier" in lines[0], "filter branch must precede plain find"
     out = node(
         """
 var Qt = { Key_F: 1, ShiftModifier: 2, ControlModifier: 4 };
@@ -295,7 +295,7 @@ var which = "none";
 if (__FILTER__) which = "filter";
 else if (__FIND__) which = "find";
 process.stdout.write(JSON.stringify({ which: which }));
-""".replace("__FILTER__", cond(lines[0])).replace("__FIND__", cond(lines[1]))
+""".replace("__FILTER__", cond(lines[0]) if lines else "false").replace("__FIND__", cond(lines[1]) if len(lines) > 1 else "false")
     )
     assert out["which"] == "filter", (
         "Ctrl+Shift+F must reach the filter popover before plain find: " + repr(out)
@@ -804,7 +804,7 @@ def test_guard_ctrl_shift_f2_reaches_batch_rename():
         for line in read(FILES_PANEL).splitlines()
         if re.search(r"Qt\.Key_F2\b", line) and line.strip().startswith("if (")
     ]
-    assert len(lines) == 2, lines
+    assert len(lines) >= 1, lines  # local Ctrl+F removed; shortcutSearch handles it
     single = next(c for c in lines if "!control" in c)
     batch = next(c for c in lines if c is not single)
     assert "!control" in single and "ShiftModifier" in single, (

@@ -431,7 +431,7 @@ def test_round3_accessibility_and_harness_fixes_are_wired():
     root = Path(__file__).resolve().parent.parent
     checks = {
         "shani/Modules/Osd/Osd.qml": ["mask: Region {}"],
-        "shani/Modules/Processes/Processes.qml": ["win.confirmPid = -1"],
+        "shani/Modules/Processes/Processes.qml": ["ConfirmButton {"],
         "shani/Modules/Whiteboard/Whiteboard.qml": ["inkNames", "Line width %1 px"],
         "shani/Modules/Captions/CaptionBar.qml": ["Theme.text : Theme.dim"],
         "shani/Common/TextField.qml": ["top: input.bottom"],

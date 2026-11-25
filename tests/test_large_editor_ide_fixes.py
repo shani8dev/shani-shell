@@ -56,7 +56,8 @@ def test_recent_files_are_recorded_and_persisted_with_the_session():
 
 def test_open_recent_dialog_filters_and_has_an_empty_state():
     assert "id: recentDialog" in PANEL
-    assert "e.key === Qt.Key_R) recentDialog.open()" in PANEL
+    # Ctrl+R belongs to AppWindow's refresh; recent files now use Ctrl+Shift+R
+    assert "e.key === Qt.Key_R && shift) recentDialog.open()" in PANEL
     recent = block(PANEL, "id: recentDialog")
     assert "TextDocs.recentFiles.filter(p =>" in recent
     assert "win.openRecent(modelData)" in recent

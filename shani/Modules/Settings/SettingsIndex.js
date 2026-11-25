@@ -300,8 +300,8 @@ var entries = [
     }),
 
     // ---- About (read-only machine info)
-    // "Updates" is the one label for this destination (SettingsAbout, SidebarHeader);
-    // "System restore" is the specific rollback panel inside it.
+    // "Updates" is the one label for this destination (SettingsAbout, SidebarHeader,
+    // SettingsPage, this index); "System restore" is the rollback panel inside it.
     { key: "updates", label: "Updates", cat: "updates", hint: "the system update, its channel and firmware", words: "updates update upgrade channel stable latest rollback firmware restart reboot" },
     { key: "systemRestore", label: "System restore", cat: "updates", hint: "blue-green slot rollback with shani-deploy", words: "system restore rollback slot blue green deploy update recovery" },
     // VPN has no app flag/IPC: no link, so a search lands on the Network category

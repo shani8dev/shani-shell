@@ -119,7 +119,7 @@ def test_fix_04_search_generation_filter_and_hint():
     assert "const gen = ++win.searchGen;" in QML
     assert "if (gen !== win.searchGen) return false;" in QML
     assert 'Tr.t("Type at least 3 characters to search.")' in QML
-    assert 'IconButton { icon: "edit-clear-all"' in QML
+    assert "SearchField {" in QML
     assert 'Choice { text: Tr.t("Installed only")' in QML
     assert "model: win.filteredResults()" in QML
     assert 'Tr.t("No installed apps in these results. Turn off Installed only.")' in QML
@@ -154,7 +154,7 @@ def test_fix_07_accessible_names():
     # Choice/Button/IconButton name themselves; these are the extra names on
     # cards, rows, fields and progress that had none.
     assert QML.count("Accessible.name:") >= 20
-    assert 'Accessible.name: Tr.t("Find apps on Flathub")' in QML
+    assert "label: Tr.t(\"Find apps on Flathub\")" in QML
     assert 'Accessible.name: Tr.t("Operation progress")' in QML
     assert "Accessible.name: irow.modelData.name" in QML
     assert "Accessible.role: Accessible.ListItem" in QML

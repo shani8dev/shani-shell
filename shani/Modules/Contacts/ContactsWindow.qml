@@ -180,7 +180,7 @@ AppWindow {
         }
         Keys.onPressed: e => {
             if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F) {
-                searchField.forceActiveFocus(); e.accepted = true;
+                searchField.input.forceActiveFocus(); e.accepted = true;
             } else if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_N) {
                 win.newContact(); e.accepted = true;
             } else if (win.mode === "list" && !win.showDuplicates && (e.key === Qt.Key_Down || e.key === Qt.Key_Up)) {
@@ -419,37 +419,19 @@ AppWindow {
                 Layout.fillHeight: true
                 clip: true
                 model: Contacts.findDuplicates()
-                delegate: Rectangle {
+                delegate: ListRow {
                     required property var modelData
                     width: dupList.width
-                    height: Theme.px(56)
-                    radius: Theme.radiusSmall
-                    color: rowArea.containsMouse ? Theme.hover : "transparent"
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.px(12)
-                        anchors.rightMargin: Theme.px(12)
-                        spacing: Theme.px(10)
-                        Icon { name: "contact-new"; size: Theme.px(22); color: Theme.dim }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 0
-                            Text {
-                                text: (Contacts.contacts.find(c => c.uid === modelData[0]) || {}).name || "—"
-                                color: Theme.text
-                                font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
-                            }
-                            Text {
-                                text: (Contacts.contacts.find(c => c.uid === modelData[1]) || {}).name || "—"
-                                color: Theme.dim
-                                font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
-                            }
-                        }
-                        Button { text: Tr.t("Merge"); kind: "outline"; onClicked: Contacts.merge(modelData[0], modelData[1]) }
+                    icon: "contact-new"
+                    title: (Contacts.contacts.find(c => c.uid === modelData[0]) || {}).name || "—"
+                    subtitle: (Contacts.contacts.find(c => c.uid === modelData[1]) || {}).name || "—"
+                    // the heading says a row click merges; KeyFocus comes from ListRow
+                    onClicked: Contacts.merge(modelData[0], modelData[1])
+                    Button {
+                        text: Tr.t("Merge")
+                        kind: "outline"
+                        onClicked: Contacts.merge(modelData[0], modelData[1])
                     }
-                    MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                 }
                 EmptyState {
                     anchors.centerIn: parent
@@ -477,7 +459,7 @@ AppWindow {
             visible: win.mode === "list" && !win.showDuplicates
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            TextField {
+            SearchField {
                 id: searchField
                 Layout.fillWidth: true
                 placeholder: Tr.t("Search name, phone, or email")

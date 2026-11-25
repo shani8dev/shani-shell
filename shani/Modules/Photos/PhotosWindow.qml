@@ -640,7 +640,7 @@ AppWindow {
         Keys.onEscapePressed: Ui.photos = false
         Keys.onPressed: event => {
             // a text field keeps Ctrl+A and Delete for its own text
-            if (photoSearch.activeFocus || albumField.activeFocus || tagsField.activeFocus || personField.activeFocus || tagNameField.activeFocus || renameField.activeFocus || smartField.activeFocus)
+            if (photoSearch.input.activeFocus || albumField.activeFocus || tagsField.activeFocus || personField.activeFocus || tagNameField.activeFocus || renameField.activeFocus || smartField.activeFocus)
                 return;
             if (win.slideshow)   // the overlay owns the keys while it is up
                 return;
@@ -735,10 +735,11 @@ AppWindow {
                         onClicked: win.minRating = win.minRating === modelData ? 0 : modelData
                     }
                 }
-                TextField {
+                SearchField {
                     id: photoSearch
                     Layout.preferredWidth: Theme.px(180)
                     placeholder: Tr.t("Search photos…")
+                    label: Tr.t("Search photos")
                     text: win.searchText
                     onTextChanged: win.searchText = text
                 }
@@ -1237,6 +1238,10 @@ AppWindow {
                         Accessible.role: Accessible.Graphic
                         Accessible.name: Tr.t("Filmstrip photo %1", modelData.path.split("/").pop())
                         Accessible.onPressAction: Viewer.open(modelData.path)
+                        KeyFocus {
+                            name: Accessible.name
+                            onActivated: Viewer.open(modelData.path)
+                        }
                     }
                 }
             }

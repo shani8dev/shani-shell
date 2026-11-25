@@ -18,6 +18,8 @@ AppWindow {
     margins: 0
     implicitWidth: Theme.px(900)
     implicitHeight: Theme.px(600)
+    shortcutSearch: filterField   // Ctrl+F focuses the note-name filter
+    // Ctrl+R is AppWindow's; notes autosave, so there is nothing to refresh
     property string note: ""            // the last word about an image, in a line of its own
     tools: [
         IconButton {
@@ -820,7 +822,7 @@ AppWindow {
         }
     }
 
-    Keys.onEscapePressed: Ui.notes = false
+    // Escape / Ctrl+W come from AppWindow and go through requestClose()
 
     /// Wrap the selection in a Markdown marker, keeping the selection after it.
     function wrapSelection(prefix, suffix) {

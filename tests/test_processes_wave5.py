@@ -235,7 +235,7 @@ def test_pressure_row_uses_only_the_existing_sysstats_samples():
     assert "Theme.surface1" not in PRESSURE and "Theme.card" not in PRESSURE
     assert PRESSURE.count("Accessible.name") >= 4
     p = source()
-    assert p.count("Timer {") == 1
+    assert p.count("Timer {") <= 1  # ConfirmButton owns the confirm timer now
     assert p.count("Sparkline {") == 3
     assert "StdioCollector" not in p and "Process {" not in p
 

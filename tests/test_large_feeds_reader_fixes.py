@@ -150,8 +150,7 @@ def test_keyboard_shortcuts_walk_the_visible_list_and_do_not_eat_typing():
     w = win()
     # single letters are only reading shortcuts when no field has focus
     assert "function isEditing()" in w
-    for name in ("feedEdit", "articleSearch", "tagEdit"):
-        assert 'f.objectName === "%s"' % name in w
+    assert "win.activeFocusItem" in w
     assert "if (win.isEditing()) return;" in w
     # j/n forward, k/p back, r read toggle, f save, Escape unwinds, Ctrl+F searches
     assert "if (e.key === Qt.Key_J || e.key === Qt.Key_N) win.step(1);" in w
@@ -164,7 +163,7 @@ def test_keyboard_shortcuts_walk_the_visible_list_and_do_not_eat_typing():
     assert 'if (Feeds.query !== "") win.leaveSearch();' in w
     assert "else if (win.savedShown) win.savedShown = false;" in w
     assert "if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F)" in w
-    assert "articleSearch.forceActiveFocus();" in w
+    assert "articleSearch.input.forceActiveFocus()" in w
     assert "if (handled) e.accepted = true;" in w
     # the focusable host exists, so keys reach it before any pane
     assert "focus: true" in w

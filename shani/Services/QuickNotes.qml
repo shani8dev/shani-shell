@@ -39,6 +39,35 @@ Singleton {
     property bool loaded: false
     property bool exists: false     // there is at least one note on disk
 
+    // ---- uniform service status contract ---------------------------------
+    // Additive: run() opens the single in-flight guard, finished() closes it
+    // and records the last success (note) or failure (error). Exit 127 means
+    // the tool behind a command is not installed.
+    property bool busy: false
+    property string note: ""
+    property string error: ""
+    property string what: ""               // the command currently in flight
+    function run(what, args) {
+        root.what = what;
+        root.busy = true;
+        root.error = "";
+        return true;
+    }
+    function finished(what, text, code) {
+        root.busy = false;
+        if (code === 127) {
+            root.error = Tr.t("The notes service is not installed");
+            return false;
+        }
+        if (code !== 0) {
+            if (root.error === "") root.error = Tr.t("Notes could not answer");
+            return false;
+        }
+        root.error = "";
+        root.note = Tr.t("Notes updated");
+        return true;
+    }
+
     // ---- checklists / attachments / locked notes -----------------------------
     property string lastAttached: ""   // last file copied into assets/, for `state`
     property var unlockedIds: []       // ids of .locked.md notes unlocked this session
@@ -67,10 +96,12 @@ Singleton {
         onExited: code => {
             root.syncState = code === 0 ? Tr.t("Synced %1", Qt.formatTime(new Date(), "HH:mm"))
                                         : Tr.t("Sync failed — check the folder");
+            root.finished("sync", "", code);
         }
     }
     function syncNotes() {
         if (!root.syncPath) return;
+        root.run("sync", [root.syncPath]);
         Quickshell.execDetached(["mkdir", "-p", root.syncPath]);
         noteSync.command = ["sh", "-c", 'rsync -au "$1/" "$2/Notes/" 2>/dev/null', "sh", root.dir, root.syncPath];
         noteSync.running = true;

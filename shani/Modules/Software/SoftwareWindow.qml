@@ -317,8 +317,8 @@ AppWindow {
         // keyboard-first navigation: / searches, Ctrl+1..6 switch tabs,
         // Up/Down walk the results and Enter opens the highlighted app
         Keys.onPressed: e => {
-            if (e.key === Qt.Key_Escape || q.activeFocus || installedSearch.activeFocus) return;
-            if (e.key === Qt.Key_Slash && win.tab === "explore" && !win.app) { q.forceActiveFocus(); e.accepted = true; return; }
+            if (e.key === Qt.Key_Escape || q.input.activeFocus || installedSearch.input.activeFocus) return;
+            if (e.key === Qt.Key_Slash && win.tab === "explore" && !win.app) { q.input.forceActiveFocus(); e.accepted = true; return; }
             if ((e.modifiers & Qt.ControlModifier) && e.key >= Qt.Key_1 && e.key <= Qt.Key_6) { win.gotoTab(e.key - Qt.Key_1); e.accepted = true; return; }
             if (win.tab === "explore" && !win.app) {
                 if (e.key === Qt.Key_Down || e.key === Qt.Key_Up) {
@@ -445,9 +445,16 @@ AppWindow {
         RowLayout {
             visible: win.tab === "explore" && !win.app
             Layout.fillWidth: true
-            TextField { id: q; Layout.fillWidth: true; placeholderText: Tr.t("Find apps on Flathub"); Accessible.name: Tr.t("Find apps on Flathub"); onTextChanged: liveSearch.restart(); onAccepted: if (text.trim()) { liveSearch.stop(); win.search(text.trim()) } }
+            SearchField {
+                id: q
+                Layout.fillWidth: true
+                placeholder: Tr.t("Find apps on Flathub")
+                label: Tr.t("Find apps on Flathub")
+                onTextChanged: liveSearch.restart()
+                onCleared: { liveSearch.stop(); win.results = []; win.showing = ""; }
+                Connections { target: q.input; function onAccepted() { if (q.text.trim()) { liveSearch.stop(); win.search(q.text.trim()) } } }
+            }
             Button { text: Tr.t("Find"); enabled: q.text.trim() !== ""; Accessible.name: Tr.t("Search for apps"); onClicked: { liveSearch.stop(); win.search(q.text.trim()) } }
-            IconButton { icon: "edit-clear-all"; size: Theme.px(24); tip: Tr.t("Clear the search"); visible: q.text !== ""; Accessible.name: Tr.t("Clear the search"); onClicked: { liveSearch.stop(); q.text = ""; win.results = []; win.showing = ""; q.forceActiveFocus() } }
         }
         Text {
             visible: win.tab === "explore" && !win.app && q.text.trim().length > 0 && q.text.trim().length < 3
@@ -805,11 +812,11 @@ AppWindow {
             visible: win.tab === "installed"
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            TextField {
+            SearchField {
                 id: installedSearch
                 Layout.fillWidth: true
                 placeholder: Tr.t("Find installed apps…")
-                Accessible.name: Tr.t("Find installed apps…")
+                label: Tr.t("Find installed apps…")
                 text: win.installedQuery
                 onTextChanged: win.installedQuery = text
             }

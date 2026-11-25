@@ -530,6 +530,7 @@ AppWindow {
             reuseItems: true
             cacheBuffer: 400
             model: win.filteredDisks()
+            // shortcut: a disk row owns a partition bar, mount toggles and action buttons — ListRow has no slot for that layout, upgrade if it gains one
             delegate: Rectangle {
                 id: diskRow
                 required property var modelData

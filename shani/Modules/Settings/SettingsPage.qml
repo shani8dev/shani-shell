@@ -10,6 +10,7 @@ import qs.Common
 import qs.Services
 import "SettingsIndex.js" as SettingsIndex
 import "../../Common/Accents.js" as Accents
+import "../../Common/Tools.js" as Tools
 
 ColumnLayout {
     id: page
@@ -73,14 +74,19 @@ ColumnLayout {
     property var modified: ({})
     // the settings matching the query, for the results row (see SettingsIndex.js)
     property var settingsMatches: []
-    readonly property var tileNames: ({ wifi: "Wi-Fi", bluetooth: "Bluetooth", airplane: "Airplane mode", mobile: "Mobile data", hotspot: "Hotspot", vpn: "VPN",
-        dnd: "Do Not Disturb", focus: "Focus", phone: "Phone", timer: "Focus timer", caffeine: "Caffeine", power: "Power mode",
-        nightlight: "Night light", dark: "Dark style", mic: "Microphone", camera: "Camera", record: "Screen record",
-        screenshot: "Screenshot", lens: "Lens", ruler: "Ruler", colorpicker: "Color picker", snippets: "Snippets", compress: "Compress", qrgen: "QR code",
-        rotate: "Auto-rotate", flashlight: "Flashlight", kbdbacklight: "Keyboard backlight",
-        display: "Display", osk: "Screen keyboard", keyboard: "Keyboard", clipboard: "Clipboard", backup: "Backup", access: "Accessibility",
-        captions: "Live captions", transcribe: "Live transcribe", speak: "Read aloud", magnifier: "Magnifier", callrecord: "Call record",
-        cast: "Cast", touch: "Smart touch", photo: "Photo", chronoa: "Chronoa" })
+    readonly property var tileNames: {
+        const n = { wifi: "Wi-Fi", bluetooth: "Bluetooth", airplane: "Airplane mode", mobile: "Mobile data", hotspot: "Hotspot", vpn: "VPN",
+            dnd: "Do Not Disturb", focus: "Focus", phone: "Phone", timer: "Focus timer", caffeine: "Caffeine", power: "Power mode",
+            nightlight: "Night light", dark: "Dark style", mic: "Microphone", camera: "Camera", record: "Screen record",
+            screenshot: "Screenshot", lens: "Lens", ruler: "Ruler", colorpicker: "Color picker", compress: "Compress", qrgen: "QR code",
+            rotate: "Auto-rotate", flashlight: "Flashlight", kbdbacklight: "Keyboard backlight",
+            display: "Display", osk: "Screen keyboard", keyboard: "Keyboard", clipboard: "Clipboard", backup: "Backup", access: "Accessibility",
+            captions: "Live captions", transcribe: "Live transcribe", speak: "Read aloud", magnifier: "Magnifier", callrecord: "Call record",
+            cast: "Cast", touch: "Smart touch", photo: "Photo", chronoa: "Chronoa", characters: "Characters", compass: "Compass" };
+        // one catalog for the sidebar tiles and this list: names cannot drift
+        Tools.list.forEach(t => { n[t.flag] = t.label; });
+        return n;
+    }
     readonly property var tileOrder: {
         const known = Object.keys(tileNames);
         const o = Array.from(d.tileOrder).filter(t => known.indexOf(t) >= 0);
@@ -212,7 +218,7 @@ ColumnLayout {
             onClicked: { page.showToast("Connected to Wi-Fi", false, ""); page.openSetting({ cat: "network", label: "Wi-Fi" }); }
         }
         Button {
-            text: Tr.t("Update check")
+            text: Tr.t("Updates")
             kind: "outline"
             implicitHeight: Theme.px(32)
             onClicked: { Ui.closeAll(); Ui.settingsCat = "updates"; }

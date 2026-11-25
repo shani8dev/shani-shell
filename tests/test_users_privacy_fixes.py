@@ -44,12 +44,11 @@ def test_privacy_has_a_location_master_switch_and_no_stale_claim():
 
 def test_privacy_destructive_buttons_need_a_second_tap():
     s = read("shani/Modules/Settings/SettingsPrivacy.qml")
-    assert "property string confirming" in s
-    assert "function confirmThen" in s
+    assert s.count("ConfirmButton {") >= 3
     for kind, call in (
         ("recent", "Housekeeping.clearRecent()"),
         ("trash", "Housekeeping.emptyTrash()"),
         ("clipboard", "Clipboard.wipe()"),
     ):
-        assert 'page.confirmThen("%s", () => %s)' % (kind, call) in s
+        assert call in s  # action now lives in ConfirmButton.onConfirmed
         assert "onClicked: %s" % call not in s

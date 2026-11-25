@@ -104,62 +104,33 @@ AppWindow {
                 reuseItems: true
                 cacheBuffer: 400
                 model: Backup.snapshots
-                delegate: Rectangle {
+                delegate: ListRow {
                     required property var modelData
                     width: timeline.width
-                    height: Theme.px(60)
-                    radius: Theme.radiusSmall
-                    color: rowArea.containsMouse ? Theme.hover : "transparent"
-                    RowLayout {
-                        anchors { fill: parent; margins: Theme.px(10) }
-                        spacing: Theme.px(10)
-                        // timeline dot
-                        Rectangle {
-                            Layout.preferredWidth: Theme.px(10)
-                            Layout.preferredHeight: Theme.px(10)
-                            radius: Theme.px(5)
-                            color: Theme.accent
-                        }
-                        // date + info
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text {
-                                text: modelData.displayDate
-                                color: Theme.text
-                                font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
-                                font.weight: Font.DemiBold
-                            }
-                            Text {
-                                text: modelData.size > 0 ? Backup.formatBytes(modelData.size) + " · " + modelData.name : modelData.name
-                                color: Theme.dim
-                                font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
-                            }
-                        }
-                        // restore buttons
-                        Button {
-                            text: Tr.t("Restore")
-                            kind: "primary"
-                            enabled: Backup.driveSetUp
-                            onClicked: {
-                                Backup.restoreFromSnapshot(modelData.name, "all");
-                                win.visible = false;
-                            }
-                        }
-                        Button {
-                            text: Tr.t("Files only")
-                            kind: "outline"
-                            flat: true
-                            enabled: Backup.driveSetUp
-                            onClicked: {
-                                Backup.restoreFromSnapshot(modelData.name, "files");
-                                win.visible = false;
-                            }
+                    icon: "document-open-recent"
+                    title: modelData.displayDate
+                    subtitle: modelData.size > 0 ? Backup.formatBytes(modelData.size) + " · " + modelData.name : modelData.name
+                    // restore is an explicit button, never a stray row tap
+                    interactive: false
+                    Button {
+                        text: Tr.t("Restore")
+                        kind: "primary"
+                        enabled: Backup.driveSetUp
+                        onClicked: {
+                            Backup.restoreFromSnapshot(modelData.name, "all");
+                            win.visible = false;
                         }
                     }
-                    MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+                    Button {
+                        text: Tr.t("Files only")
+                        kind: "outline"
+                        flat: true
+                        enabled: Backup.driveSetUp
+                        onClicked: {
+                            Backup.restoreFromSnapshot(modelData.name, "files");
+                            win.visible = false;
+                        }
+                    }
                 }
             }
 

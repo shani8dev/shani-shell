@@ -16,12 +16,12 @@ ColumnLayout {
     property bool active: false
     readonly property var d: Settings.data
     property var grants: []               // [{ table, id, app, perms }]
-    property string confirming: ""        // the destructive action waiting for a second tap
-    function confirmThen(kind, fn) {
-        if (page.confirming === kind) { page.confirming = ""; fn(); }
-        else page.confirming = kind;
+    // each destructive action owns its two-tap ConfirmButton; hiding the page
+    // disarms them so a first tap on a previous visit cannot fire later
+    onActiveChanged: {
+        if (active) perms.running = true;
+        else { clearRecentConfirm.disarm(); emptyTrashConfirm.disarm(); clearClipboardConfirm.disarm(); }
     }
-    onActiveChanged: { if (active) perms.running = true; else page.confirming = ""; }
     // made already active (a Settings category is a Loader): load now too
     Component.onCompleted: if (active) perms.running = true
     readonly property var names: ({ "devices/camera": "Camera", "devices/microphone": "Microphone", "devices/speakers": "Speakers",
@@ -169,12 +169,17 @@ ColumnLayout {
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Remember recently used files"); hint: Tr.t("for apps' Recent lists"); checked: page.d.rememberRecent; onToggled: on => page.d.rememberRecent = on }
     RowLayout {
         spacing: Theme.px(6)
-        Button {
-            text: page.confirming === "recent" ? Tr.t("Tap again to clear the recent files list") : Tr.t("Clear the recent files list")
-            kind: page.confirming === "recent" ? "danger" : "plain"
-            onClicked: page.confirmThen("recent", () => Housekeeping.clearRecent())
+        ConfirmButton {
+            id: clearRecentConfirm
+            implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+            implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+            text: Tr.t("Clear the recent files list")
+            armedText: Tr.t("Tap again to clear the recent files list")
+            kind: clearRecentConfirm.armed ? "danger" : "plain"
+            interval: 4000
+            onConfirmed: Housekeeping.clearRecent()
         }
-        Button { visible: page.confirming === "recent"; text: Tr.t("Cancel"); onClicked: page.confirming = "" }
+        Button { visible: clearRecentConfirm.armed; text: Tr.t("Cancel"); onClicked: clearRecentConfirm.disarm() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Trash") }
@@ -193,23 +198,33 @@ ColumnLayout {
     }
     RowLayout {
         spacing: Theme.px(6)
-        Button {
-            text: page.confirming === "trash" ? Tr.t("Tap again to empty the trash") : Tr.t("Empty the trash now")
-            kind: page.confirming === "trash" ? "danger" : "plain"
-            onClicked: page.confirmThen("trash", () => Housekeeping.emptyTrash())
+        ConfirmButton {
+            id: emptyTrashConfirm
+            implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+            implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+            text: Tr.t("Empty the trash now")
+            armedText: Tr.t("Tap again to empty the trash")
+            kind: emptyTrashConfirm.armed ? "danger" : "plain"
+            interval: 4000
+            onConfirmed: Housekeeping.emptyTrash()
         }
-        Button { visible: page.confirming === "trash"; text: Tr.t("Cancel"); onClicked: page.confirming = "" }
+        Button { visible: emptyTrashConfirm.armed; text: Tr.t("Cancel"); onClicked: emptyTrashConfirm.disarm() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Clipboard") }
     RowLayout {
         spacing: Theme.px(6)
-        Button {
-            text: page.confirming === "clipboard" ? Tr.t("Tap again to clear clipboard history") : Tr.t("Clear clipboard history")
-            kind: page.confirming === "clipboard" ? "danger" : "plain"
-            onClicked: page.confirmThen("clipboard", () => Clipboard.wipe())
+        ConfirmButton {
+            id: clearClipboardConfirm
+            implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+            implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+            text: Tr.t("Clear clipboard history")
+            armedText: Tr.t("Tap again to clear clipboard history")
+            kind: clearClipboardConfirm.armed ? "danger" : "plain"
+            interval: 4000
+            onConfirmed: Clipboard.wipe()
         }
-        Button { visible: page.confirming === "clipboard"; text: Tr.t("Cancel"); onClicked: page.confirming = "" }
+        Button { visible: clearClipboardConfirm.armed; text: Tr.t("Cancel"); onClicked: clearClipboardConfirm.disarm() }
     }
 
     SectionTitle { Layout.fillWidth: true; text: Tr.t("What apps may use") }

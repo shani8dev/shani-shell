@@ -57,19 +57,13 @@ def test_window_layouts_tiles_are_keyboard_accessible():
 
 def test_window_layouts_custom_delete_requires_confirmation():
     qml = read("shani/Modules/WindowLayouts/WindowLayouts.qml")
-    assert 'property string pendingDeleteId: ""' in qml
-    assert (
-        'Timer { id: pendingDeleteTimer; interval: 3000; onTriggered: win.pendingDeleteId = "" }'
-        in qml
-    )
-    assert (
-        'win.pendingDeleteId === modelData.id ? "dialog-warning" : "edit-clear-all"'
-        in qml
-    )
+    assert "deleteLayoutConfirm" in qml
+    assert "interval: 3000" in qml  # ConfirmButton owns the timer now
+    assert 'deleteLayoutConfirm.armed ? "danger" : "plain"' in qml
     assert 'Tr.t("Click again to delete")' in qml
-    assert "WindowLayouts.removeCustom(modelData.id);" in qml
+    assert "onConfirmed: WindowLayouts.removeCustom(modelData.id)" in qml
     # closing palette resets transient custom-edit/delete state
     assert (
-        'onVisibleChanged: if (!visible) { customEditing = false; customName = ""; pendingDeleteId = "" }'
+        'deleteLayoutConfirm.disarm()'
         in qml
     )

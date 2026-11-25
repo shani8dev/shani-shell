@@ -4,10 +4,11 @@
 // loses nothing: what was typed is there when it opens again.
 //
 // Every action is a button with its shortcut in the tooltip - Ctrl+N new,
-// Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as, Ctrl+W close the tab,
+// Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as, Ctrl+Shift+W close the tab,
 // Ctrl+Z undo, Ctrl+Shift+Z / Ctrl+Y redo, Ctrl+F find, Ctrl+H replace,
-// Ctrl +/-/0 text size, Ctrl+Tab / Ctrl+PgUp/PgDn switch tabs,
+// Ctrl+Shift+R open recent, Ctrl +/-/0 text size, Ctrl+Tab / Ctrl+PgUp/PgDn switch tabs,
 // Ctrl+Shift+T reopen the last closed tab, Ctrl+Shift+P present in the teleprompter.
+// Ctrl+W closes the window and Ctrl+R refreshes: both belong to AppWindow.
 // The image's default for text files (dev.shani.TextEditor.desktop).
 import Quickshell
 import Quickshell.Io
@@ -29,7 +30,7 @@ AppWindow {
         IconButton { size: Theme.px(30); icon: "edit-undo"; tip: Tr.t("Undo") + " (Ctrl+Z)"; enabled: TextDocs.canUndo; onClicked: win.undo() },
         IconButton { size: Theme.px(30); icon: "edit-redo"; tip: Tr.t("Redo") + " (Ctrl+Shift+Z)"; enabled: TextDocs.canRedo; onClicked: win.redo() },
         IconButton { size: Theme.px(30); icon: "document-open"; tip: Tr.t("Open") + " (Ctrl+O)"; onClicked: win.pick() },
-        IconButton { size: Theme.px(30); icon: "document-open-recent"; tip: "Open recent (Ctrl+R)"; onClicked: recentDialog.open() },
+        IconButton { size: Theme.px(30); icon: "document-open-recent"; tip: "Open recent (Ctrl+Shift+R)"; onClicked: recentDialog.open() },
         IconButton { size: Theme.px(30); icon: "folder-open"; tip: "Project folder (Ctrl+K, O)"; on: win.sidebarOpen; onClicked: { if (TextDocs.folder === "") win.pickFolder(); else win.sidebarOpen = !win.sidebarOpen; } },
         IconButton { size: Theme.px(30); icon: "edit-find-in"; tip: "Find in files (Ctrl+Shift+F)"; on: win.findFilesOpen; onClicked: win.openFindFiles() },
         IconButton { size: Theme.px(30); icon: "view-split-left-right"; tip: "Split view (Ctrl+K, D)"; on: win.splitView; onClicked: win.splitView = !win.splitView },
@@ -652,9 +653,9 @@ AppWindow {
         else if (e.key === Qt.Key_Z) { if (shift) win.redo(); else win.undo(); }
         else if (e.key === Qt.Key_Y) win.redo();
         else if (e.key === Qt.Key_O) win.pick();
-        else if (e.key === Qt.Key_R) recentDialog.open();
+        else if (e.key === Qt.Key_R && shift) recentDialog.open();   // Ctrl+R is AppWindow's
         else if (e.key === Qt.Key_N) TextDocs.newDoc();
-        else if (e.key === Qt.Key_W) win.closeTab(TextDocs.active);
+        else if (e.key === Qt.Key_W && shift) win.closeTab(TextDocs.active);   // Ctrl+W is AppWindow's
         else if (e.key === Qt.Key_T && shift) win.reopenTab();
         else if (e.key === Qt.Key_P && shift) win.present();
         else if (e.key === Qt.Key_Tab && TextDocs.docs.length > 1)
@@ -681,7 +682,7 @@ AppWindow {
             win.finding = false;
             edit.forceActiveFocus();
         } else if (TextDocs.docs.length <= 1) {
-            Ui.textEditor = false;
+            win.requestClose();   // the unsaved-work guard must not be bypassed
         }
     }
 

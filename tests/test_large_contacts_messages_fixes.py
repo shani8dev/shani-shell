@@ -199,7 +199,7 @@ def test_contacts_keyboard_shortcuts_and_wrapping_selection():
     assert "function onQueryChanged() { win.currentIndex = -1; }" in w
     keys = block(w, "Keys.onPressed: e => {", "ColumnLayout {")
     assert "(e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F" in keys
-    assert "searchField.forceActiveFocus();" in keys
+    assert "searchField.input.forceActiveFocus()" in keys
     assert "win.newContact(); e.accepted = true;" in keys
     assert "win.step(e.key === Qt.Key_Down ? 1 : -1); e.accepted = true;" in keys
     assert "win.showContact(rows[win.currentIndex]);" in keys

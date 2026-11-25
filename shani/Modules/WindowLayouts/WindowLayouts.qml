@@ -16,9 +16,9 @@ PanelWindow {
     property bool arrangeAllMode: false     // apply the layout to every column, not just focus
     property bool customEditing: false
     property string customName: ""
-    property string pendingDeleteId: ""
-    Timer { id: pendingDeleteTimer; interval: 3000; onTriggered: win.pendingDeleteId = "" }
-    onVisibleChanged: if (!visible) { customEditing = false; customName = ""; pendingDeleteId = "" }
+    // custom-layout deletion is a per-row ConfirmButton keyed by the layout id,
+    // which stays stable across refreshes; hiding the palette disarms it
+    onVisibleChanged: if (!visible) { customEditing = false; customName = "" }
     visible: Ui.windowLayouts && !Lock.locked && !Polkit.active
     screen: Quickshell.screens.find(s => s.name === Niri.focusedOutput) || Quickshell.screens[0]
     // appear near the center of the screen, not full-screen
@@ -231,20 +231,21 @@ PanelWindow {
                                 radius: Theme.px(12)
                                 color: Theme.hover
                                 Text { id: customLabel; anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                                IconButton {
+                                ConfirmButton {
+                                    id: deleteLayoutConfirm
                                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                                    size: Theme.px(20)
-                                    icon: win.pendingDeleteId === modelData.id ? "dialog-warning" : "edit-clear-all"
-                                    tip: win.pendingDeleteId === modelData.id ? Tr.t("Click again to delete") : Tr.t("Delete layout")
-                                    onClicked: {
-                                        if (win.pendingDeleteId === modelData.id) {
-                                            pendingDeleteTimer.stop();
-                                            win.pendingDeleteId = "";
-                                            WindowLayouts.removeCustom(modelData.id);
-                                        } else {
-                                            win.pendingDeleteId = modelData.id;
-                                            pendingDeleteTimer.restart();
-                                        }
+                                    implicitWidth: Math.max(Theme.touchTarget, armedText.length * 6 + 16)
+                                    implicitHeight: Theme.px(24)
+                                    value: String(modelData.id)
+                                    text: Tr.t("Delete")
+                                    armedText: Tr.t("Click again to delete")
+                                    kind: deleteLayoutConfirm.armed ? "danger" : "plain"
+                                    interval: 3000
+                                    Accessible.name: deleteLayoutConfirm.armed ? Tr.t("Click again to delete") : Tr.t("Delete layout")
+                                    onConfirmed: WindowLayouts.removeCustom(modelData.id)
+                                    Connections {
+                                        target: win
+                                        function onVisibleChanged() { if (!win.visible) deleteLayoutConfirm.disarm() }
                                     }
                                 }
                             }

@@ -41,6 +41,34 @@ Singleton {
     property bool reading: false
     property bool extracting: false
     property string error: ""
+    // ---- uniform service status contract ---------------------------------
+    // Additive: run() opens the single in-flight guard, finished() closes it
+    // and records the last success (note) or failure (error). Exit 127 means
+    // the archive tool is not installed.
+    property bool busy: false
+    property string note: ""               // last successful job
+    property string what: ""               // the command currently in flight
+    function run(what, args) {
+        root.what = what;
+        root.busy = true;
+        root.error = "";
+        return true;
+    }
+    function finished(what, text, code) {
+        root.busy = false;
+        if (code === 127) {
+            root.error = Tr.t("The archive tool is not installed");
+            return false;
+        }
+        if (code !== 0) {
+            if (root.error === "")
+                root.error = Tr.t("Could not use the archive tool");
+            return false;
+        }
+        root.error = "";
+        root.note = Tr.t("Archive ready");
+        return true;
+    }
     property string extractedTo: ""       // the folder the last extraction made
     property string passphrase: ""        // what a person typed for a protected archive
     property bool needsPassword: false    // bsdtar said the passphrase is wrong (or none was given)
@@ -159,6 +187,7 @@ Singleton {
         list();
     }
     function list() {
+        root.run("list", [root.file]);
         root.reading = true;
         lister.command = ["bsdtar", "--passphrase", root.pass, "-tvf", root.file];
         lister.running = true;
@@ -236,8 +265,11 @@ Singleton {
         id: tool
         property bool found: false
         running: true
-        command: ["sh", "-c", "command -v bsdtar"]
-        onExited: code => found = code === 0
+        command: ["sh", "-c", 'command -v bsdtar >/dev/null 2>&1 || exit 127']
+        onExited: code => {
+            found = code === 0;
+            root.finished("probe", "", code);
+        }
     }
 
     // "-rw-r--r--  0 user group  1234 Nov 11 18:00 dir/file" - the name is what follows the eighth field
@@ -268,7 +300,9 @@ Singleton {
         }
         stderr: StdioCollector { id: listErr }
         onExited: code => {
+            root.finished("list", listErr.text, code);
             root.reading = false;
+            if (code === 127) { root.extractWhenRead = false; return; }
             if (code !== 0) {
                 root.extractWhenRead = false;
                 if (root.askPassword(listErr.text, "list"))

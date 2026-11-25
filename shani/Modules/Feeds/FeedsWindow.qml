@@ -29,7 +29,7 @@ AppWindow {
     // single keypresses must not eat letters typed into the three fields
     function isEditing() {
         const f = win.activeFocusItem;
-        return !!f && (f.objectName === "feedEdit" || f.objectName === "articleSearch" || f.objectName === "tagEdit");
+        return !!f && (f.objectName === "feedEdit" || f === articleSearch.input || f.objectName === "tagEdit");
     }
 
     // shortcut: only feeds opened once are known to carry audio (bridge `list`
@@ -96,7 +96,7 @@ AppWindow {
         focus: true
         Keys.onPressed: e => {
             if ((e.modifiers & Qt.ControlModifier) && e.key === Qt.Key_F) {
-                articleSearch.forceActiveFocus();
+                articleSearch.input.forceActiveFocus();
                 e.accepted = true;
                 return;
             }
@@ -327,14 +327,13 @@ AppWindow {
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
-            TextField {
+            SearchField {
                 id: articleSearch
-                objectName: "articleSearch"
-                label: Tr.t("Search all articles")
                 Layout.fillWidth: true
                 placeholder: Tr.t("Search all articles…")
-                onAccepted: Feeds.search(text.trim())
+                label: Tr.t("Search all articles")
                 onTextChanged: if (text.trim() === "" && Feeds.query !== "") Feeds.search("")
+                Connections { target: articleSearch.input; function onAccepted() { Feeds.search(articleSearch.text.trim()) } }
             }
             Text {
                 Layout.fillWidth: true

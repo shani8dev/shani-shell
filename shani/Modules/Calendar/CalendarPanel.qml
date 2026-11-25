@@ -20,7 +20,7 @@ AppWindow {
     property string accountKind: "other"
     appName: "Calendar"
     tools: [
-        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: Agenda.refresh() },
+        IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Refresh"); onClicked: win.refresh() },
         IconButton {
             size: Theme.px(30); icon: "document-import"; tip: Tr.t("Import an .ics file")
             onClicked: FilePicker.open({ mode: "open", title: Tr.t("An invitation or calendar file"),
@@ -33,7 +33,10 @@ AppWindow {
     margins: 0
     implicitWidth: Theme.px(760)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
+    shortcutSearch: searchField.input  // Ctrl+F focuses the calendar search
+    shortcutRefresh: win.refresh       // Ctrl+R reloads the date range
     // blur behind the card, as on every shell surface (ext-background-effect)
+    function refresh() { Agenda.refresh(); }
 
     onVisibleChanged: if (visible) { Agenda.refresh(); win.view = Ui.calendarView || "month"; win.ensureRange(); }
     Connections { target: Ui; function onCalendarViewChanged() { win.view = Ui.calendarView || "month"; } }
@@ -41,7 +44,7 @@ AppWindow {
     Item {
         anchors.fill: parent
         focus: win.visible
-        Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else Ui.calendar = false; }
+        Keys.onEscapePressed: { if (win.editor) win.closeEditor(); else win.requestClose(); }
         // Keys from the grid's KeyFocus delegates bubble up to here. Arrows move
         // the selection; Home/End/PageUp/PageDown are the calendar conventions.
         Keys.onPressed: event => {
@@ -2015,6 +2018,7 @@ AppWindow {
         }
     }
 
-    Shortcut { sequence: "Escape"; onActivated: { if (win.viewing) { win.viewing = false; win.viewingEvent = null; } else if (win.editor) win.closeEditor(); else Ui.calendar = false; } }
-    Shortcut { sequence: "Ctrl+R"; onActivated: Agenda.refresh() }
+    // Escape unwinds the sheet first, then closes through the guard; Ctrl+R is
+    // AppWindow's refresh (shortcutRefresh above), so no local Shortcut for it.
+    Shortcut { sequence: "Escape"; onActivated: { if (win.viewing) { win.viewing = false; win.viewingEvent = null; } else if (win.editor) win.closeEditor(); else win.requestClose(); } }
 }

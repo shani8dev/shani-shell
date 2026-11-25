@@ -31,6 +31,13 @@ AppWindow {
     margins: 0
     implicitWidth: Theme.px(1100)
     implicitHeight: Theme.px(760)
+    shortcutSearch: searchBox   // Ctrl+F focuses this folder's search
+    shortcutRefresh: win.refresh  // Ctrl+R reloads the folder
+    function refresh() { dir.reload(); }
+    // the refresh action lives in AppWindow's header tools, not a second toolbar
+    tools: [
+        IconButton { icon: "view-refresh"; size: Theme.px(30); tip: Tr.t("Refresh (F5)"); onClicked: win.refresh() }
+    ]
 
     // the keys the surface answers, wherever the focus is not on a control
     Item {
@@ -70,7 +77,7 @@ AppWindow {
             if (Files.canUp)
                 Files.up();
             else
-                Files.hide();
+                win.requestClose();
         }
         Keys.onPressed: event => {
             const control = (event.modifiers & Qt.ControlModifier) !== 0;
@@ -151,9 +158,9 @@ AppWindow {
                 const n = event.key - Qt.Key_1;
                 if (n < Files.tabPaths.length) { Files.switchTab(n); event.accepted = true; return; }
             }
-            // tabs: Ctrl+T a new one here, Ctrl+W this one closed, Ctrl+Tab / Ctrl+Shift+Tab the next / the last
+            // tabs: Ctrl+T a new one here, Ctrl+Shift+W this one closed (Ctrl+W closes the window in AppWindow), Ctrl+Tab / Ctrl+Shift+Tab the next / the last
             if (control && event.key === Qt.Key_T) { Files.newTab(Files.path); event.accepted = true; return; }
-            if (control && event.key === Qt.Key_W && Files.tabs.length > 1) { Files.closeTab(); event.accepted = true; return; }
+            if (control && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_W && Files.tabs.length > 1) { Files.closeTab(); event.accepted = true; return; }
             if (control && (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) && Files.tabs.length > 1) {
                 const n = Files.tabs.length, back = event.key === Qt.Key_Backtab;
                 Files.switchTab((Files.tabIndex + (back ? n - 1 : 1)) % n);
@@ -203,18 +210,14 @@ AppWindow {
                 event.accepted = true;
                 return;
             }
-            if (control && event.key === Qt.Key_F) {
-                searchBox.forceActiveFocus();
-                event.accepted = true;
-                return;
-            }
+            // plain Ctrl+F is AppWindow's: shortcutSearch focuses searchBox
             if (alt && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && Files.selected.length > 0) {
                 Files.showProps([]);
                 event.accepted = true;
                 return;
             }
             if (event.key === Qt.Key_F5) {
-                dir.reload();
+                win.refresh();
                 event.accepted = true;
                 return;
             }
@@ -685,7 +688,6 @@ AppWindow {
                 IconButton { icon: "folder-new"; size: Theme.px(30); tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
                 IconButton { icon: Files.isBookmarked(Files.path) ? "user-bookmarks" : "bookmark-new"; size: Theme.px(30); tip: Tr.t("Bookmark this folder (Ctrl+D)"); onClicked: Files.toggleBookmark(); Accessible.name: Tr.t("Bookmark this folder") }
                 IconButton { icon: "edit-clear-all"; size: Theme.px(30); tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
-                IconButton { icon: "view-refresh"; size: Theme.px(30); tip: Tr.t("Refresh (F5)"); onClicked: dir.reload() }
                 IconButton { icon: "help-faq"; size: Theme.px(30); tip: Tr.t("Keyboard shortcuts (Ctrl+/)"); onClicked: win.toggleShortcuts(); Accessible.name: Tr.t("Keyboard shortcuts") }
             }
 

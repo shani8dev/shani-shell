@@ -81,7 +81,7 @@ def test_overview_sits_above_the_sparklines_and_uses_only_sysstats():
 def test_no_second_poller_or_reader_was_added():
     text = qml()
     # the confirmation timer is the only timer this window has ever had
-    assert text.count("Timer {") == 1
+    assert text.count("Timer {") <= 1  # ConfirmButton owns the confirm timer now
     for forbidden in (
         "StdioCollector",
         "Process {",

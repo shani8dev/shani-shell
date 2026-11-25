@@ -133,6 +133,7 @@ Singleton {
         if (query === "") { searchResults = []; searchError = Tr.t("Type a city name"); return; }
         searchError = "";
         searchBusy = true;
+        root.run("search", [query]);
         geoSearch.command = ["curl", "-sf", "--max-time", "8", "https://geocoding-api.open-meteo.com/v1/search?count=5&name=" + encodeURIComponent(query)];
         geoSearch.running = true;
     }
@@ -151,6 +152,7 @@ Singleton {
         onExited: code => {
             root.searchBusy = false;
             if (code !== 0 && root.searchError === "") root.searchError = Tr.t("City search failed");
+            root.finished("search", "", code);
         }
     }
 
@@ -205,6 +207,37 @@ Singleton {
     property var hourly: []
     property string error: ""              // "" when the last look-up/fetch worked
     property bool loading: false
+
+    // ---- uniform service status contract ---------------------------------
+    // Additive status surface shared with the newer singletons: run() opens
+    // the single in-flight guard, finished() closes it and records the last
+    // success (note) or failure (error). Exit 127 means the tool is absent.
+    property bool busy: false
+    property string note: ""               // last successful look-up/fetch
+    property string what: ""               // the command currently in flight
+    function run(what, args) {
+        root.what = what;
+        root.busy = true;
+        root.error = "";
+        return true;
+    }
+    function finished(what, text, code) {
+        root.busy = false;
+        if (code === 127) {
+            root.error = Tr.t("The weather service is not installed");
+            return false;
+        }
+        if (code !== 0) {
+            // a specific handler may already have said why; keep its words
+            if (root.error === "")
+                root.error = Tr.t("Could not get the weather — check your internet connection");
+            return false;
+        }
+        root.error = "";
+        root.note = Tr.t("Weather updated");
+        return true;
+    }
+
     property int updatedMs: 0              // Date.now() of the last successful fetch
     property string lastUpdated: ""        // "HH:MM" (or h:mm AP) of that fetch
     readonly property bool stale: error !== "" && updatedMs > 0
@@ -266,6 +299,7 @@ Singleton {
     function lookUp() {
         if (!enabled)
             return;
+        root.run("lookup", [currentName()]);
         geo.command = ["curl", "-sf", "--max-time", "8", "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + encodeURIComponent(currentName())];
         geo.running = true;
     }
@@ -273,6 +307,7 @@ Singleton {
         const lat = currentLat(), lon = currentLon();
         if (!enabled || (!lat && !lon))
             return;
+        root.run("fetch", [lat, lon]);
         loading = true;
         now.command = ["curl", "-sf", "--max-time", "8", "https://api.open-meteo.com/v1/forecast?current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m,surface_pressure,visibility,uv_index"
             + "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,precipitation_probability_max,wind_speed_10m_max,uv_index_max"
@@ -324,6 +359,7 @@ Singleton {
         onExited: code => {
             if (code !== 0 && root.error === "")
                 root.error = Tr.t("Could not look up that place — check your internet connection");
+            root.finished("lookup", "", code);
         }
     }
     Process {
@@ -409,6 +445,7 @@ Singleton {
             root.loading = false;
             if (code !== 0 && root.error === "" && root.updatedMs === 0)
                 root.error = Tr.t("Could not get the weather — check your internet connection");
+            root.finished("fetch", "", code);
         }
     }
     Timer {

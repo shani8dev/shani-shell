@@ -34,11 +34,9 @@ AppWindow {
     property var treeList: []
     property string procQuery: ""
     property string endSignal: "TERM"
-    // end confirmation is keyed by pid, not by a delegate row: a 2s refresh or
-    // a sort can recycle the row and must not retarget or silently drop it
-    property int confirmPid: -1
-    Timer { id: endConfirmTimer; interval: 3000; onTriggered: win.confirmPid = -1 }
-    onConfirmPidChanged: if (confirmPid > 0) endConfirmTimer.restart()
+    // end confirmation lives in a per-row ConfirmButton keyed by pid. The
+    // delegate records the pid at arm time, so a 2s refresh or a sort that
+    // recycles the row cannot retarget the second tap to a different process.
 
     // ---- click-to-sort (htop style): a header tap picks a key, tapping it
     // again flips the direction. The tree keeps parents above their children;
@@ -159,10 +157,7 @@ AppWindow {
     }
     Connections {
         target: TopProcesses
-        function onListChanged() {
-            treeList = buildTree();
-            if (win.confirmPid > 0 && !TopProcesses.list.some(p => p.pid === win.confirmPid)) win.confirmPid = -1;
-        }
+        function onListChanged() { treeList = buildTree(); }
         function onDiskIoChanged() { if (win.sortKey === "disk") treeList = buildTree(); }
     }
     property int detailPid: -1
@@ -910,16 +905,35 @@ AppWindow {
                         Accessible.name: Tr.t("Details for") + " " + procRow.p.name
                         onClicked: win.openDetails(procRow.p.pid)
                     }
-                    Button {
-                        text: win.confirmPid === procRow.p.pid ? Tr.t("Tap again") : Tr.t("End")
-                        kind: win.confirmPid === procRow.p.pid ? "danger" : "plain"
-                        flat: true
+                    ConfirmButton {
+                        id: endConfirm
+                        // a recycled delegate changes `value`; only the pid armed
+                        // by the first tap may be ended by the second
+                        property int armedPid: -1
+                        onArmedChanged: if (armed) armedPid = procRow.p.pid
+                        implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                        implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                        value: String(procRow.p.pid)
+                        text: Tr.t("End")
+                        armedText: Tr.t("Tap again")
+                        kind: endConfirm.armed ? "danger" : "plain"
+                        interval: 3000
                         // ending the compositor or the shell takes the session down
                         enabled: !/^(niri|qs|quickshell|systemd|init)$/.test(procRow.p.name)
                         Accessible.name: Tr.t("End") + " " + procRow.p.name
-                        onClicked: {
-                            if (win.confirmPid === procRow.p.pid) { TopProcesses.end(procRow.p.pid, win.endSignal); win.confirmPid = -1; }
-                            else win.confirmPid = procRow.p.pid;
+                        onConfirmed: {
+                            if (endConfirm.armedPid === procRow.p.pid) TopProcesses.end(procRow.p.pid, win.endSignal);
+                        }
+                        Connections {
+                            target: TopProcesses
+                            // a refresh that drops the armed process cancels the confirm
+                            function onListChanged() {
+                                if (endConfirm.armed && !TopProcesses.list.some(p => p.pid === endConfirm.armedPid)) endConfirm.disarm();
+                            }
+                        }
+                        Connections {
+                            target: win
+                            function onVisibleChanged() { if (!win.visible) endConfirm.disarm() }
                         }
                     }
                 }

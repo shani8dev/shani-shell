@@ -19,6 +19,13 @@ AppWindow {
     onGone: Ui.mail = false
     implicitWidth: Theme.px(1080)
     implicitHeight: Theme.px(680)
+    shortcutSearch: searchField.input   // Ctrl+F focuses the folder's search
+    shortcutRefresh: win.refresh        // Ctrl+R re-reads the folder
+    function refresh() { Mail.refresh(); }
+    // refresh lives in AppWindow's header tools, not in the folders pane
+    tools: [
+        IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(26); on: Mail.busy; onClicked: win.refresh() }
+    ]
 
     // ---- view state ---------------------------------------------------------
     property bool threaded: false          // group messages into conversations
@@ -371,7 +378,6 @@ AppWindow {
                     spacing: Theme.px(6)
                     Text { text: Tr.t("Mail"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
-                    IconButton { icon: "view-refresh"; tip: Tr.t("Refresh"); size: Theme.px(26); on: Mail.busy; onClicked: Mail.refresh() }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -390,13 +396,13 @@ AppWindow {
                     visible: !!Mail.draft
                     onClicked: win.resumeDraft()
                 }
-                TextField {
+                SearchField {
                     id: searchField
                     Layout.fillWidth: true
                     placeholder: Tr.t("Search the mail…")
                     label: Tr.t("Search mail")
-                    onAccepted: win.applySearch(text)
                     onTextChanged: if (text.trim() === "" && (Mail.query !== "" || win.filterText !== "")) win.clearFilters()
+                    Connections { target: searchField.input; function onAccepted() { win.applySearch(searchField.text) } }
                 }
                 ListView {
                     id: folderList

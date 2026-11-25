@@ -17,6 +17,14 @@ ColumnLayout {
     onActiveChanged: if (active) Updates.check()
     Component.onCompleted: if (active) Updates.check()
 
+    // A panel, not an AppWindow: Ctrl+R checks for updates, while Ctrl+F
+    // (search) and Ctrl+W (close) belong to the hosting Settings window.
+    Keys.onPressed: event => {
+        if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_R) {
+            Updates.check(); event.accepted = true;
+        }
+    }
+
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Updates") }
     Text {
         Layout.fillWidth: true

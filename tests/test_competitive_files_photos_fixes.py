@@ -59,8 +59,7 @@ def test_photos_ctrl_a_selects_the_whole_view():
         r"control && event\.key === Qt\.Key_A\)\s*\{\s*win\.selectAll\(\);", s
     )
     assert (
-        "photoSearch.activeFocus || albumField.activeFocus || tagsField.activeFocus"
-        in s
+        "photoSearch.input.activeFocus" in s
     )
 
 

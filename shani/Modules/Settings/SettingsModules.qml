@@ -55,6 +55,9 @@ ColumnLayout {
             || (m.usedBy || []).some(d => String(d).toLowerCase().indexOf(q) >= 0));
     }
 
+    // shortcut: managed-list Remove stays single-click; a two-tap keyed on the
+    // list index would retarget after a save/reload shifts entries, upgrade
+    // only when removals carry a stable module name as their key.
     SectionTitle { Layout.fillWidth: true; text: Tr.t("Blacklisted modules") }
     Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/modprobe.d/50-shani-shell.conf. Blacklisted modules are prevented from loading."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
     RowLayout {

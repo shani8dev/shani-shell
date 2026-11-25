@@ -31,12 +31,12 @@ def test_process_search_says_when_nothing_matched():
 
 def test_end_confirmation_follows_the_pid_not_the_row():
     s = read("shani/Modules/Processes/Processes.qml")
-    assert "property int confirmPid: -1" in s
-    assert 'win.confirmPid === procRow.p.pid ? Tr.t("Tap again")' in s
+    assert "ConfirmButton {" in s
+    assert 'Tr.t("Tap again")' in s
     assert "TopProcesses.end(procRow.p.pid, win.endSignal)" in s
     assert "onClicked: {" in s
     # an armed confirm on a killed process must not survive a refresh
-    assert "!TopProcesses.list.some(p => p.pid === win.confirmPid)" in s
+    assert "endConfirm.armedPid" in s and "endConfirm.disarm()" in s
     assert "property bool confirming" not in s
 
 

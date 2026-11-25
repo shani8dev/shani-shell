@@ -276,7 +276,6 @@ ColumnLayout {
             model: [
                 { label: Tr.t("Updates"), cat: "updates" },
                 { label: Tr.t("Update channel: %1", Updates.channel === "latest" ? Tr.t("Latest") : Tr.t("Stable")), id: "update-channel" },
-                { label: Tr.t("Firmware"), cat: "updates" },
                 { label: Tr.t("Disk space & clean-up"), cat: "storage" },
                 { label: Tr.t("Disk health"), app: "models" },
                 { label: Tr.t("Firewall"), cat: "firewall" },

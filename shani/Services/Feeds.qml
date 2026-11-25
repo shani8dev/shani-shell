@@ -23,7 +23,8 @@ Singleton {
     property bool articleSaved: false
     property string openId: ""       // the article being read, for the read flag
     property bool busy: false
-    property string note: ""
+    property string note: ""        // last successful action
+    property string error: ""       // last failure, including a missing tool
     property int refreshMinutes: 0  // refresh every so often, 0 = never on its own
     property string opml: ""        // the last exported document
     property string pendingExport: ""   // where "Export…" is writing
@@ -159,11 +160,17 @@ Singleton {
     property var pending: null
 
     function finished(what, text, code) {
-        busy = false;
-        if (code !== 0) {
-            root.note = Tr.t("The feed reader could not answer");
+        root.busy = false;
+        if (code === 127) {
+            root.error = Tr.t("The feed reader is not installed");
             return;
         }
+        if (code !== 0) {
+            root.error = Tr.t("The feed reader could not answer");
+            root.note = "";
+            return;
+        }
+        root.error = "";
         let data = null;
         if (what === "export") {
             // OPML, not JSON: the document is the answer

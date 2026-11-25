@@ -47,6 +47,33 @@ Singleton {
     property real position: 0             // seconds
     property real duration: Theme.mot(0)
     property string error: ""
+    // ---- uniform service status contract ---------------------------------
+    // Additive: run() opens the single in-flight guard, finished() closes it
+    // and records the last success (note) or failure (error). Exit 127 means
+    // the playlist bridge is not installed.
+    property bool busy: false
+    property string note: ""               // last successful command
+    property string what: ""               // the command currently in flight
+    function run(what, args) {
+        root.what = what;
+        root.busy = true;
+        root.error = "";
+        return true;
+    }
+    function finished(what, text, code) {
+        root.busy = false;
+        if (code === 127) {
+            root.error = Tr.t("The media service is not installed");
+            return false;
+        }
+        if (code !== 0) {
+            if (root.error === "") root.error = Tr.t("Media service could not answer");
+            return false;
+        }
+        root.error = "";
+        root.note = Tr.t("Media service ready");
+        return true;
+    }
     property real volume: 1
     property bool muted: false
     property real rate: 1
@@ -216,6 +243,7 @@ Singleton {
         if (!p.startsWith("/") || root.queue.length === 0)
             return false;
         const entries = root.queue.map(x => ({ path: x, title: root.streamNames[x] || "" }));
+        root.run("write", [p]);
         m3uWrite.running = false;
         m3uWrite.command = ["python3", root.playlistTool, "write", p, JSON.stringify({ entries: entries })];
         m3uWrite.running = true;
@@ -239,7 +267,10 @@ Singleton {
                 root.playlistNote = d.error || (d.ok ? Tr.t("Saved %1 tracks", d.count) : Tr.t("Could not save the playlist"));
             }
         }
-        onExited: code => { if (code !== 0) root.playlistNote = Tr.t("Could not save the playlist"); }
+        onExited: code => {
+            if (code !== 0) root.playlistNote = Tr.t("Could not save the playlist");
+            root.finished("write", "", code);
+        }
     }
     Process {
         id: m3uRead
