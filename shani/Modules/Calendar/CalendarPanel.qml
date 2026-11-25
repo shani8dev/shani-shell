@@ -347,6 +347,51 @@ AppWindow {
         return e.allDay ? day + " · " + Tr.t("All day")
                         : day + " · " + win.zoneTime(e.start) + " – " + win.zoneTime(e.end || 0);
     }
+    // ---- event -> note (both surfaces own plain files, no new store) --------
+    property string pendingNoteName: ""
+    property string pendingNoteBody: ""
+    function eventNoteName(e) {
+        const n = QuickNotes.valid((e || {}).summary || "");
+        return n === "" ? Tr.t("Event") : n;
+    }
+    function isoDay(ms) {
+        const d = new Date(ms);
+        return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    }
+    function eventNoteBody(e) {
+        const ev = e || {};
+        const title = String(ev.summary || "").trim() || Tr.t("Event");
+        let body = "# " + title + "\n\n- Date: [[" + win.isoDay(Number(ev.start || 0) * 1000) + "]]\n";
+        if (ev.location) body += "- Location: " + ev.location + "\n";
+        if (ev.description) body += "\n" + ev.description + "\n";
+        return body;
+    }
+    function noteForEvent(e) {
+        if (!e) return;
+        const name = win.eventNoteName(e);
+        Ui.openNotes();
+        // a note with the same name is opened, never overwritten
+        if (QuickNotes.notes.some(n => n.name === name && n.notebook === "")) {
+            QuickNotes.open(name, "");
+            return;
+        }
+        win.pendingNoteName = name;
+        win.pendingNoteBody = win.eventNoteBody(e);
+        QuickNotes.create(name, "");
+        noteFill.restart();
+    }
+    // shortcut: FileView loads the new file asynchronously; 800 ms is enough
+    // on local disk, but a load signal from QuickNotes would be more reliable
+    Timer {
+        id: noteFill
+        interval: 800
+        onTriggered: {
+            if (QuickNotes.current !== win.pendingNoteName || win.pendingNoteBody === "") return;
+            QuickNotes.set(win.pendingNoteBody);
+            win.pendingNoteBody = "";
+        }
+    }
+
     // the week on screen: seven days from its first, which follows "week starts on"
     readonly property date weekStart: new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(),
         weekAnchor.getDate() - (sundayFirst ? weekAnchor.getDay() : (weekAnchor.getDay() + 6) % 7))
@@ -1969,6 +2014,12 @@ AppWindow {
                         Layout.fillWidth: true
                         spacing: Theme.px(8)
                         Button { Layout.fillWidth: true; text: Tr.t("Close"); onClicked: { win.viewing = false; win.viewingEvent = null; } }
+                        Button {
+                            Layout.fillWidth: true
+                            text: Tr.t("Add note")
+                            Accessible.name: Tr.t("Add a note for this event")
+                            onClicked: win.noteForEvent(win.viewingEvent)
+                        }
                         Button { Layout.fillWidth: true; text: Tr.t("Edit"); kind: "primary"; onClicked: win.editViewed() }
                     }
                 }

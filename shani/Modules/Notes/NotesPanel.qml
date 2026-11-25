@@ -608,9 +608,10 @@ AppWindow {
                         model: Services.QuickNotes.links()
                         delegate: Button {
                             text: "[[" + modelData + "]]"
-                            // jumpTo finds the note wherever it lives and
-                            // creates an empty stub when it does not exist yet
-                            onClicked: Services.QuickNotes.jumpTo(modelData)
+                            Accessible.name: Tr.t("Follow the link %1").arg(modelData)
+                            // a date goes to Calendar, a contact name to the
+                            // address book, everything else is a note link
+                            onClicked: win.followWikiLink(modelData)
                         }
                     }
                 }
@@ -966,6 +967,41 @@ AppWindow {
         win.statusText = ok ? Tr.t("Removed tag %1").arg(win.tagFilter)
                             : Tr.t("That tag is not in this note");
         return ok;
+    }
+
+    /// Resolve [[2026-11-25]] to a Calendar day and [[Ada Lovelace]] to a
+    /// contact; anything else stays an ordinary wiki link to a note.
+    function wikiLinkTarget(name) {
+        const raw = String(name || "").trim();
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+        if (m) {
+            const y = Number(m[1]), mo = Number(m[2]) - 1, d = Number(m[3]);
+            const day = new Date(y, mo, d);
+            if (day.getFullYear() === y && day.getMonth() === mo && day.getDate() === d)
+                return { kind: "date", label: raw, when: day.getTime() };
+        }
+        const needle = raw.toLowerCase();
+        const c = Services.Contacts.contacts.find(x => String(x.name || "").trim().toLowerCase() === needle);
+        if (c) return { kind: "contact", label: c.name, uid: c.uid };
+        return { kind: "note", label: raw };
+    }
+    function followWikiLink(name) {
+        const target = win.wikiLinkTarget(name);
+        if (target.kind === "date") {
+            Services.Agenda.openCalendar();
+            Services.Agenda.showDay(target.when);
+            return;
+        }
+        if (target.kind === "contact") {
+            const c = Services.Contacts.contacts.find(x => x.uid === target.uid);
+            if (c) {
+                Services.Contacts.selected = null;
+                Ui.openContacts();
+                Services.Contacts.selected = c;
+                return;
+            }
+        }
+        Services.QuickNotes.jumpTo(name);
     }
 
     Shortcut { sequence: "Ctrl+N"; onActivated: Services.QuickNotes.create(Tr.t("Untitled"), win.selectedNotebook) }

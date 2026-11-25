@@ -49,6 +49,8 @@ AppWindow {
         target: Contacts
         function onVcardReady(text, name) { Qr.show(name || "Contact", text); }
         function onQueryChanged() { win.currentIndex = -1; }
+        // launcher and wiki links hand a card over through Contacts.selected
+        function onSelectedChanged() { if (Contacts.selected) win.showContact(Contacts.selected); }
     }
     // The form offers four labels; older cards use vCard's "cell" for mobile.
     // Display labels go through Tr.t; the first element is the vCard type key.
@@ -109,6 +111,48 @@ AppWindow {
         if (s) Quickshell.clipboardText = s;
     }
     function openExternal(url) { Quickshell.execDetached(["xdg-open", url]); }
+
+    // ---- contact -> note ----------------------------------------------------
+    property string pendingNoteName: ""
+    property string pendingNoteBody: ""
+    function contactNoteName(c) {
+        const n = QuickNotes.valid((c || {}).name || "");
+        return n === "" ? Tr.t("Contact") : Tr.t("Contact: %1").arg(n);
+    }
+    function contactNoteBody(c) {
+        const p = c || {};
+        const name = String(p.name || "").trim() || Tr.t("Contact");
+        const email = p.email || ((p.emails || [])[0] || {}).address || "";
+        const phone = p.phone || ((p.phones || [])[0] || {}).number || "";
+        let body = "# " + name + "\n\n";
+        if (email) body += "- Email: " + email + "\n";
+        if (phone) body += "- Phone: " + phone + "\n";
+        return body + "\n[[" + name + "]]\n";   // the link points back to the card
+    }
+    function contactToNote(c) {
+        if (!c) return;
+        const name = win.contactNoteName(c);
+        Ui.openNotes();
+        if (QuickNotes.notes.some(n => n.name === name && n.notebook === "")) {
+            QuickNotes.open(name, "");
+            return;
+        }
+        win.pendingNoteName = name;
+        win.pendingNoteBody = win.contactNoteBody(c);
+        QuickNotes.create(name, "");
+        noteFill.restart();
+    }
+    // shortcut: FileView loads the new file asynchronously; 800 ms is enough
+    // on local disk, but a load signal from QuickNotes would be more reliable
+    Timer {
+        id: noteFill
+        interval: 800
+        onTriggered: {
+            if (QuickNotes.current !== win.pendingNoteName || win.pendingNoteBody === "") return;
+            QuickNotes.set(win.pendingNoteBody);
+            win.pendingNoteBody = "";
+        }
+    }
 
     function pickImport() {
         FilePicker.open({
@@ -753,6 +797,13 @@ AppWindow {
                         flat: true
                         enabled: (detailCol.c.phones || []).length > 0
                         onClicked: win.messageContact(detailCol.c)
+                    }
+                    Button {
+                        text: Tr.t("Add to note")
+                        flat: true
+                        Accessible.name: Tr.t("Add this contact to a note")
+                        enabled: !!(detailCol.c.name)
+                        onClicked: win.contactToNote(detailCol.c)
                     }
                     Button { Layout.fillWidth: true; text: Tr.t("Close"); onClicked: win.showDetail = false }
                     Button {
