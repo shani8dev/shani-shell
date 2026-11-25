@@ -52,7 +52,7 @@ def test_blank_frame_reissues_ipc_and_recaptures_before_failing():
     assert 'grim "$_path"' in b
     assert b.count('grim "$_path"') == 2  # first shot + recapture
     assert 'frame_is_blank "$_path"' in b
-    assert 'ipc "$_cmd"' in b  # reissue the opening IPC once
+    assert 'ipc_line "$_cmd"' in b  # reissue the opening IPC once
     assert "sleep 1.5" in b
     assert "failed=$((failed+1))" in b
     assert "but no surface drew" in b
@@ -67,7 +67,7 @@ def test_both_capture_paths_route_through_shoot_with_expectation():
 
 def test_close_all_waits_for_previous_surface_to_clear():
     b = body("close_all")
-    assert "ipc dismissAll" in b
+    assert "ipc_line dismissAll" in b
     assert "waitfor" in b
     for key in (
         "controlCenter",
