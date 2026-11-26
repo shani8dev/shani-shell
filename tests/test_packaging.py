@@ -33,6 +33,26 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+_names = shutil.ignore_patterns(
+    ".git", "out", "__pycache__", ".pytest_cache", "docs", "tests", "dev", ".codegraph"
+)
+
+
+def _ignore(directory, names):
+    """The names above, plus sockets and pipes: an indexing tool's socket in the
+    checkout (.codegraph/daemon.sock) made copytree fail every test here."""
+    import stat
+    skip = set(_names(directory, names))
+    for name in names:
+        try:
+            mode = os.lstat(os.path.join(directory, name)).st_mode
+        except OSError:
+            continue
+        if stat.S_ISSOCK(mode) or stat.S_ISFIFO(mode):
+            skip.add(name)
+    return skip
+
+
 @pytest.fixture(scope="module")
 def pkgdir(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("pkg")
@@ -42,9 +62,7 @@ def pkgdir(tmp_path_factory):
         ROOT,
         src,
         symlinks=True,
-        ignore=shutil.ignore_patterns(
-            ".git", "out", "__pycache__", ".pytest_cache", "docs", "tests", "dev"
-        ),
+        ignore=_ignore,
     )
     out = tmp / "pkg"
     out.mkdir()

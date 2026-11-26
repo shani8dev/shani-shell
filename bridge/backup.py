@@ -33,7 +33,7 @@ def _error(r) -> str:
     return lines[-1] if lines else f"exit {r.returncode}"
 
 
-def run(args: list[str], privileged: bool = False, timeout: int = 120) -> dict:
+def backup_call(args: list[str], privileged: bool = False, timeout: int = 120) -> dict:
     """Run shani-backup with args; return its JSON object or a failure dict."""
     cmd = [*BACKUP, *args]
     if privileged and PKEXEC:
@@ -57,7 +57,7 @@ def run(args: list[str], privileged: bool = False, timeout: int = 120) -> dict:
 
 
 def list_backups() -> dict:
-    return run(["backups", "--json"])
+    return backup_call(["backups", "--json"])
 
 
 def _progress(segment: str, state: dict) -> None:
@@ -133,15 +133,15 @@ def backup(emit=lambda d: None) -> dict:
 
 
 def restore(target: str, snapshot: str) -> dict:
-    return run(["restore", target, "--snapshot", snapshot, "--json"])
+    return backup_call(["restore", target, "--snapshot", snapshot, "--json"])
 
 
 def snapshot_list(path: str) -> dict:
-    return run(["snapshot", "list", path, "--json"])
+    return backup_call(["snapshot", "list", path, "--json"])
 
 
 def snapshot_create(source: str, destination: str, readonly: bool = False) -> dict:
-    return run(
+    return backup_call(
         [
             "snapshot",
             "create",
@@ -155,30 +155,30 @@ def snapshot_create(source: str, destination: str, readonly: bool = False) -> di
 
 
 def snapshot_delete(path: str) -> dict:
-    return run(["snapshot", "delete", path, "--json"], privileged=True)
+    return backup_call(["snapshot", "delete", path, "--json"], privileged=True)
 
 
 def home_list() -> dict:
-    return run(["home", "list", "--json"])
+    return backup_call(["home", "list", "--json"])
 
 
 def home_snapshot() -> dict:
-    return run(["home", "snapshot", "--json"], privileged=True)
+    return backup_call(["home", "snapshot", "--json"], privileged=True)
 
 
 def home_remove(name: str) -> dict:
-    return run(["home", "remove", name, "--json"], privileged=True)
+    return backup_call(["home", "remove", name, "--json"], privileged=True)
 
 
 def schedule(mode: str, value: str = "") -> dict:
     if mode == "on":
-        return run(["schedule", "--enable"])
+        return backup_call(["schedule", "--enable"])
     if mode == "off":
-        return run(["schedule", "--disable"])
+        return backup_call(["schedule", "--disable"])
     if mode == "at":
         if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value or ""):
             return {"ok": False, "error": "Time must be HH:MM"}
-        return run(["schedule", "--at", value])
+        return backup_call(["schedule", "--at", value])
     return {"ok": False, "error": "Unknown schedule mode"}
 
 
