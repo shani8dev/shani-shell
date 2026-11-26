@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Stands in for systemctl and ssh-keygen (tests/test_system_access.py).
+"""Stands in for systemctl, ssh-keygen, pcsc_scan and oathtool
+(tests/test_system_access.py and tests/test_system_access_gaps.py).
 
 Invoked by basename through a symlink; answers come from $FAKE_SYSTEM_ACCESS/
-systemctl-<unit>.out or ssh-keygen.out when present, otherwise from small
-fixtures here. Every call is logged in $FAKE_SYSTEM_ACCESS/calls.
+systemctl-<unit>.out, ssh-keygen.out, pcsc_scan.out or oathtool.out when present,
+otherwise from small fixtures here. Unknown options are rejected with exit 2 and
+stderr, as the real commands are. Every call is logged in $FAKE_SYSTEM_ACCESS/calls.
 """
 
 import os
@@ -23,6 +25,19 @@ prog = os.path.basename(sys.argv[0])
 a = sys.argv[1:]
 with open(os.path.join(D, "calls"), "a") as f:
     f.write(prog + " " + " ".join(a) + "\n")
+
+
+def _valid_argv():
+    if prog == "pcsc_scan":
+        return len(a) <= 1 and all(x == "-n" for x in a)
+    if prog == "oathtool":
+        return a == ["--version"]
+    return True
+
+
+if not _valid_argv():
+    sys.stderr.write(prog + ": invalid option\n")
+    sys.exit(2)
 
 
 def _fixture():
@@ -56,6 +71,10 @@ def _default():
             % (i, line.split()[2] if len(line.split()) > 2 else "no comment")
             for i, line in enumerate(lines, 1)
         )
+    if prog == "pcsc_scan":
+        return "Scanning present readers..."
+    if prog == "oathtool":
+        return "oathtool 2.4.1"
     return ""
 
 

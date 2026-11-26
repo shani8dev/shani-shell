@@ -13,6 +13,18 @@ one on stdout ({"ok": true} or {"ok": false, "error": "..."}).
     shani-admin.py wakeup          {"path", "enabled": bool}  (a device of bridge/wakeup.py's list)
     shani-admin.py lighting        {"led", "color": "#rrggbb", "level": 0..100}  (bridge/lighting.py's)
     shani-admin.py power-limit     {"watts"}               (bridge/powerlimit.py's range)
+     shani-admin.py remote-access-set  {"text", "sha256"} or the boolean fields
+     shani-admin.py sudoers-rows-get   {}                  (parsed grants)
+     shani-admin.py sudoers-set        {"rows", "other"} or {"text", "sha256"}
+     shani-admin.py hosts-set          {"text", "sha256"?}
+     shani-admin.py nfs-exports-set    {"text", "sha256"}
+     shani-admin.py smb-share-set      {"text", "sha256"}
+     shani-admin.py pam-config-set     {"target": "fido2"|"yubico", "text", "sha256"}
+     shani-admin.py pkcs11-mapping-set {"text", "sha256"}
+
+Staged text travels on stdin with its SHA-256, never in argv. The file is
+pre-checked on a temp file in its own directory, installed with os.replace,
+then checked live; a failed live check restores the old bytes.
 
 polkit (shani-desktop-niri's 50-shani-admin.rules) asks a wheel member for an
 administrator's password for the user-* commands, and their own for the
@@ -32,6 +44,8 @@ power button are a logind drop-in, logind reloaded.
 from __future__ import annotations
 
 import grp
+import hashlib
+import ipaddress
 import json
 import os
 import pwd
@@ -39,6 +53,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 USERNAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
@@ -121,6 +136,74 @@ def run(cmd: list[str], stdin: str | None = None) -> None:
     out = subprocess.run(cmd, input=stdin, capture_output=True, text=True, timeout=60)
     if out.returncode != 0:
         raise Refused((out.stderr.strip().splitlines() or [f"{cmd[0]} failed"])[-1])
+
+
+def _tool_error(result, default: str) -> str:
+    """The tool's own last error line; no UI words."""
+    lines = (
+        (getattr(result, "stderr", "") or getattr(result, "stdout", ""))
+        .strip()
+        .splitlines()
+    )
+    return lines[-1][:200] if lines else default
+
+
+def _verify_digest(req: dict, text: str, required: bool = True) -> None:
+    sha = req.get("sha256")
+    if sha is None:
+        if required:
+            raise Refused("sha256 required for text")
+        return
+    if hashlib.sha256(text.encode("utf-8")).hexdigest() != str(sha).lower():
+        raise Refused("SHA-256 does not match the content")
+
+
+def _install_atomic(path: Path, content: str, mode: int, precheck=None) -> bytes | None:
+    """Pre-check on a sibling temp file, then replace. Return the old bytes."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    old = path.read_bytes() if path.exists() else None
+    fd, tmp = tempfile.mkstemp(
+        prefix="." + path.name + ".", suffix=".tmp", dir=str(path.parent)
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.chmod(tmp, mode)
+        if precheck is not None:
+            precheck(tmp)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    return old
+
+
+def _restore(path: Path, old: bytes | None, mode: int) -> None:
+    if old is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_bytes(old)
+        os.chmod(path, mode)
+
+
+def _file_meta(path: Path) -> dict:
+    """Read back mode and owner as plain data."""
+    try:
+        st = path.stat()
+    except OSError:
+        return {"mode": "", "owner": ""}
+    try:
+        user = pwd.getpwuid(st.st_uid).pw_name
+    except KeyError:
+        user = str(st.st_uid)
+    try:
+        group = grp.getgrgid(st.st_gid).gr_name
+    except KeyError:
+        group = str(st.st_gid)
+    return {"mode": format(st.st_mode & 0o777, "03o"), "owner": f"{user}:{group}"}
 
 
 def person(name: str) -> pwd.struct_passwd:
@@ -503,6 +586,19 @@ def guest(req: dict) -> dict:
 
 
 SSHD_DROPIN = Path("/etc/ssh/sshd_config.d/50-shani-shell.conf")
+SSHD_TOOL = os.environ.get("SHANI_SSHD", "sshd")
+SYSTEMCTL_TOOL = os.environ.get("SHANI_SYSTEMCTL", "systemctl")
+VISUDO_TOOL = os.environ.get("SHANI_VISUDO", "visudo")
+SSH_MANAGED_KEYS = (
+    "PasswordAuthentication",
+    "PubkeyAuthentication",
+    "PermitRootLogin",
+    "AllowTcpForwarding",
+    "X11Forwarding",
+    "MaxAuthTries",
+    "AllowUsers",
+    "AllowGroups",
+)
 PWQUALITY = Path("/etc/security/pwquality.conf")
 PW_KEYS = {
     "minlen",
@@ -544,7 +640,7 @@ def remote_access_get(_req: dict) -> dict:
     def on(name):
         try:
             r = subprocess.run(
-                ["systemctl", "is-active", name],
+                [SYSTEMCTL_TOOL, "is-active", name],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -604,7 +700,8 @@ def _ssh_names(raw: str, label: str) -> str:
     return " ".join(toks)
 
 
-def remote_access_set(req: dict) -> dict:
+def _remote_access_content(req: dict) -> str:
+    """Build the drop-in, replacing managed lines in place, keeping the rest."""
     vals = {
         "PasswordAuthentication": "yes" if req.get("password", True) else "no",
         "PubkeyAuthentication": "yes" if req.get("pubkey", True) else "no",
@@ -621,45 +718,68 @@ def remote_access_set(req: dict) -> dict:
     vals["MaxAuthTries"] = str(mat)
     allow_users = _ssh_names(req.get("allowUsers", ""), "AllowUsers")
     allow_groups = _ssh_names(req.get("allowGroups", ""), "AllowGroups")
-    content = "# Managed by shani-shell. sshd reads this drop-in after the main config;\n# a bad line here can be removed by deleting this file.\n"
-    for k, v in vals.items():
-        content += f"{k} {v}\n"
     if allow_users:
-        content += f"AllowUsers {allow_users}\n"
+        vals["AllowUsers"] = allow_users
     if allow_groups:
-        content += f"AllowGroups {allow_groups}\n"
-    SSHD_DROPIN.parent.mkdir(parents=True, exist_ok=True)
-    # pre-validate on a temp file with sshd -t -f when available
-    if shutil.which("sshd"):
-        import tempfile
-
-        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tf:
-            tf.write(content)
-            tmp = tf.name
-        try:
-            r = subprocess.run(
-                ["sshd", "-t", "-f", tmp], capture_output=True, text=True, timeout=10
-            )
-            if r.returncode != 0:
-                raise Refused(
-                    (r.stderr or r.stdout).strip().splitlines()[-1][:160]
-                    or "sshd rejected the config"
-                )
-        finally:
-            os.unlink(tmp)
-    SSHD_DROPIN.write_text(content, encoding="utf-8")
-    os.chmod(SSHD_DROPIN, 0o644)
-    # reload sshd if active; enable/disable handled separately
+        vals["AllowGroups"] = allow_groups
     try:
-        subprocess.run(
-            ["systemctl", "reload-or-restart", "sshd"],
-            capture_output=True,
-            text=True,
-            timeout=20,
+        old = SSHD_DROPIN.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        old = [
+            "# Managed by shani-shell. sshd reads this drop-in after the main config;",
+            "# a bad line here can be removed by deleting this file.",
+        ]
+    seen = set()
+    out = []
+    for line in old:
+        s = line.strip()
+        parts = s.split(None, 1)
+        if s and not s.startswith("#") and parts[0] in SSH_MANAGED_KEYS:
+            key = parts[0]
+            if key in vals:
+                out.append(f"{key} {vals[key]}")
+                seen.add(key)
+            continue
+        out.append(line)
+    for key in SSH_MANAGED_KEYS:
+        if key in vals and key not in seen:
+            out.append(f"{key} {vals[key]}")
+    return "\n".join(out).rstrip("\n") + "\n"
+
+
+def remote_access_set(req: dict) -> dict:
+    if "text" in req:
+        text = req["text"]
+        if not isinstance(text, str):
+            raise Refused("text must be a string")
+        _verify_digest(req, text)
+        content = text
+    else:
+        content = _remote_access_content(req)
+    available = bool(shutil.which(SSHD_TOOL))
+
+    def precheck(tmp: str) -> None:
+        if not available:
+            return
+        r = subprocess.run(
+            [SSHD_TOOL, "-t", "-f", tmp], capture_output=True, text=True, timeout=10
         )
-    except Exception:
-        pass
-    return remote_access_get(req)
+        if r.returncode != 0:
+            raise Refused(_tool_error(r, "sshd rejected the config"))
+
+    old = _install_atomic(SSHD_DROPIN, content, 0o644, precheck)
+    if available:
+        r = subprocess.run(
+            [SSHD_TOOL, "-t"], capture_output=True, text=True, timeout=10
+        )
+        if r.returncode != 0:
+            _restore(SSHD_DROPIN, old, 0o644)
+            raise Refused(_tool_error(r, "sshd rejected the config"))
+    # reload sshd if active; enable/disable handled separately
+    run([SYSTEMCTL_TOOL, "reload-or-restart", "sshd"])
+    out = remote_access_get(req)
+    out.update(_file_meta(SSHD_DROPIN))
+    return out
 
 
 def pwquality_get(_req: dict) -> dict:
@@ -784,12 +904,34 @@ def faillock_set(req: dict) -> dict:
     return faillock_get(req)
 
 
-import ipaddress
+HOSTS_FILE = Path(os.environ.get("SHANI_HOSTS_FILE", "/etc/hosts"))
+SYSTEM_HOST_IPS = {
+    ipaddress.ip_address("127.0.0.1"),
+    ipaddress.ip_address("127.0.1.1"),
+    ipaddress.ip_address("::1"),
+}
+
+
+def _hosts_path() -> Path:
+    return Path(str(HOSTS_FILE))
+
+
+def _hosts_ips(text: str) -> set:
+    ips = set()
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        try:
+            ips.add(ipaddress.ip_address(s.split()[0]))
+        except ValueError:
+            continue
+    return ips
 
 
 def hosts_get(_req: dict) -> dict:
     try:
-        text = Path("/etc/hosts").read_text(encoding="utf-8", errors="replace")
+        text = _hosts_path().read_text(encoding="utf-8", errors="replace")
     except OSError as e:
         return {"text": "", "error": str(e)}
     return {"text": text}
@@ -799,6 +941,7 @@ def hosts_set(req: dict) -> dict:
     text = req.get("text", "")
     if not isinstance(text, str) or len(text) > 65536:
         raise Refused("hosts text too large")
+    _verify_digest(req, text, required=False)
     lines = text.splitlines()
     for i, line in enumerate(lines, 1):
         s = line.strip()
@@ -811,14 +954,136 @@ def hosts_set(req: dict) -> dict:
             raise Refused(f"line {i}: expected IP address")
         if len(parts) < 2:
             raise Refused(f"line {i}: expected at least one hostname")
-    Path("/etc/hosts").write_text(
-        "\n".join(lines).rstrip("\n") + "\n", encoding="utf-8"
-    )
-    os.chmod("/etc/hosts", 0o644)
+    try:
+        original = _hosts_path().read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        original = ""
+    missing = (_hosts_ips(original) & SYSTEM_HOST_IPS) - _hosts_ips(text)
+    if missing:
+        raise Refused(
+            "system address must stay in hosts: "
+            + ", ".join(sorted(str(ip) for ip in missing))
+        )
+    path = _hosts_path()
+    path.write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+    os.chmod(path, 0o644)
     return hosts_get(req)
 
 
 SUDOERS_DROPIN = Path("/etc/sudoers.d/50-shani-shell")
+SUDOERS_TAGS = ("NOPASSWD", "PASSWD", "EXEC", "NOEXEC")
+SUDOERS_PRINCIPAL = re.compile(r"^[%A-Za-z0-9._-]{1,64}$")
+SUDOERS_RUNAS = re.compile(r"^[A-Za-z0-9._%:-]{0,64}$")
+SUDOERS_BAD_COMMAND = re.compile(r"[;|&$`\\\n\r]")
+SUDOERS_RULE = re.compile(
+    r"^(?P<who>%?[A-Za-z0-9._-]+)\s+(?P<host>[A-Za-z0-9._-]+)"
+    r"(?:=\((?P<runas>[^)]*)\))?\s*(?P<rest>.*)$"
+)
+
+
+def _sudoers_row(row: dict) -> dict:
+    if not isinstance(row, dict):
+        raise Refused("row must be an object")
+    who = str(row.get("who") or "").strip()
+    if not SUDOERS_PRINCIPAL.match(who):
+        raise Refused("bad principal")
+    runas = str(row.get("runas") or "").strip()
+    if not SUDOERS_RUNAS.match(runas):
+        raise Refused("bad runas")
+    tags = row.get("tags") or []
+    if isinstance(tags, str):
+        tags = tags.replace(",", " ").split()
+    if not isinstance(tags, list):
+        raise Refused("bad tags")
+    clean_tags = []
+    for tag in tags:
+        tag = str(tag).strip()
+        if tag not in SUDOERS_TAGS:
+            raise Refused("bad tag")
+        if tag not in clean_tags:
+            clean_tags.append(tag)
+    clean_tags.sort(key=SUDOERS_TAGS.index)
+    commands = row.get("commands") or []
+    if isinstance(commands, str):
+        commands = [commands]
+    if not isinstance(commands, list) or not commands:
+        raise Refused("bad commands")
+    clean_commands = []
+    for command in commands:
+        command = str(command).strip()
+        if not command or SUDOERS_BAD_COMMAND.search(command):
+            raise Refused("bad command")
+        head = command.split()[0]
+        if head != "ALL" and not head.startswith("/"):
+            raise Refused("bad command")
+        clean_commands.append(command)
+    out = {"who": who, "runas": runas, "tags": clean_tags, "commands": clean_commands}
+    if any(c.split()[0] == "ALL" for c in clean_commands):
+        out["warning"] = "all_commands"
+    return out
+
+
+def _sudoers_line(row: dict) -> str:
+    line = f"{row['who']} ALL"
+    if row["runas"]:
+        line += f"=({row['runas']})"
+    if row["tags"]:
+        line += " " + ", ".join(row["tags"]) + ":"
+    return line + " " + ", ".join(row["commands"])
+
+
+def sudoers_rows_get(_req: dict) -> dict:
+    """Parse the drop-in into stable row codes; anything odd goes to unreadable."""
+    path = str(SUDOERS_DROPIN)
+    try:
+        text = SUDOERS_DROPIN.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return {
+            "rows": [],
+            "other": [],
+            "unreadable": [],
+            "path": path,
+            "text": "",
+            "error": "unreadable",
+        }
+    rows, other, unreadable = [], [], []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            other.append(line)
+            continue
+        m = SUDOERS_RULE.match(s)
+        if not m:
+            unreadable.append(line)
+            continue
+        rest = m.group("rest").strip()
+        if ":" in rest:
+            tagpart, commandpart = rest.split(":", 1)
+            tags = [t.strip() for t in tagpart.split(",") if t.strip()]
+        else:
+            tags, commandpart = [], rest
+        commands = [c.strip() for c in commandpart.split(",") if c.strip()]
+        try:
+            row = _sudoers_row(
+                {
+                    "who": m.group("who"),
+                    "runas": m.group("runas") or "",
+                    "tags": tags,
+                    "commands": commands,
+                }
+            )
+        except Refused:
+            unreadable.append(line)
+            continue
+        rows.append(row)
+    return {
+        "rows": rows,
+        "other": other,
+        "unreadable": unreadable,
+        "path": path,
+        "text": text,
+        "error": "",
+    }
 
 
 def sudoers_get(_req: dict) -> dict:
@@ -830,45 +1095,139 @@ def sudoers_get(_req: dict) -> dict:
 
 
 def sudoers_set(req: dict) -> dict:
-    text = req.get("text", "")
-    if not isinstance(text, str) or len(text) > 16384:
-        raise Refused("sudoers text too large")
-    # normalize: keep lines, ensure trailing newline
-    content = "\n".join(text.splitlines()).rstrip("\n") + "\n" if text.strip() else ""
-    if content:
-        import tempfile
-
-        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tf:
-            tf.write(content)
-            tmp = tf.name
-        try:
-            os.chmod(tmp, 0o440)
-            r = subprocess.run(
-                ["visudo", "-c", "-f", tmp], capture_output=True, text=True, timeout=10
-            )
-            if r.returncode != 0:
-                raise Refused(
-                    (r.stderr or r.stdout).strip().splitlines()[-1][:200]
-                    or "visudo rejected the drop-in"
-                )
-        finally:
-            os.unlink(tmp)
-        SUDOERS_DROPIN.write_text(content, encoding="utf-8")
-        os.chmod(SUDOERS_DROPIN, 0o644)
-        r = subprocess.run(["visudo", "-c"], capture_output=True, text=True, timeout=10)
-        if r.returncode != 0:
-            # rollback
-            try:
-                SUDOERS_DROPIN.unlink()
-            except OSError:
-                pass
-            raise Refused("sudoers check failed after write; rolled back")
+    by_rows = "rows" in req
+    if by_rows:
+        given = req["rows"]
+        if not isinstance(given, list):
+            raise Refused("rows must be a list")
+        rows = [_sudoers_row(item) for item in given]
+        other = req.get("other") or []
+        if not isinstance(other, list):
+            raise Refused("other must be a list")
+        other_lines = []
+        for line in other:
+            line = str(line)
+            if "\n" in line or "\r" in line:
+                raise Refused("bad other line")
+            other_lines.append(line)
+        content = "\n".join([*other_lines, *(_sudoers_line(r) for r in rows)]).rstrip(
+            "\n"
+        )
+        content = content + "\n" if content else ""
     else:
+        text = req.get("text", "")
+        if not isinstance(text, str) or len(text) > 16384:
+            raise Refused("sudoers text too large")
+        _verify_digest(req, text, required=False)
+        content = (
+            "\n".join(text.splitlines()).rstrip("\n") + "\n" if text.strip() else ""
+        )
+        other_lines = []
+
+    def precheck(tmp: str) -> None:
+        r = subprocess.run(
+            [VISUDO_TOOL, "-c", "-f", tmp], capture_output=True, text=True, timeout=10
+        )
+        if r.returncode != 0:
+            raise Refused(_tool_error(r, "visudo rejected the drop-in"))
+
+    if content:
+        old = _install_atomic(SUDOERS_DROPIN, content, 0o440, precheck)
+    else:
+        old = SUDOERS_DROPIN.read_bytes() if SUDOERS_DROPIN.exists() else None
+        SUDOERS_DROPIN.unlink(missing_ok=True)
+    r = subprocess.run([VISUDO_TOOL, "-c"], capture_output=True, text=True, timeout=10)
+    if r.returncode != 0:
+        # rollback
+        _restore(SUDOERS_DROPIN, old, 0o440)
+        raise Refused("sudoers check failed after write; rolled back")
+    out = sudoers_get(req)
+    out.update(_file_meta(SUDOERS_DROPIN))
+    if by_rows:
+        out["rows"] = rows
+        out["other"] = other_lines
+    return out
+
+
+EXPORTS_FILE = Path(
+    os.environ.get("SHANI_EXPORTS_FILE", "/etc/exports.d/50-shani-shell.exports")
+)
+SMB_DROPIN = Path(
+    os.environ.get("SHANI_SMB_DROPIN", "/etc/samba/smb.conf.d/50-shani-shell.conf")
+)
+PAM_U2F_CONF = Path(os.environ.get("SHANI_PAM_U2F_CONF", "/etc/security/pam_u2f.conf"))
+PAM_YUBICO_CONF = Path(
+    os.environ.get("SHANI_PAM_YUBICO_CONF", "/etc/security/pam_yubico.conf")
+)
+PKCS11_MAP_FILE = Path(
+    os.environ.get("SHANI_PKCS11_MAP_FILE", "/etc/pam_pkcs11/subject_mapping")
+)
+EXPORTFS_TOOL = os.environ.get("SHANI_EXPORTFS", "exportfs")
+TESTPARM_TOOL = os.environ.get("SHANI_TESTPARM", "testparm")
+
+
+def _readback_check(path: Path, text: str):
+    def check() -> None:
+        if path.read_bytes() != text.encode("utf-8"):
+            raise Refused("post-check failed")
+
+    return check
+
+
+def _staged_install(req: dict, path: Path, mode: int, postcheck=None) -> dict:
+    """Digest-check staged text, install it, check it, roll it back on failure."""
+    text = req.get("text")
+    if not isinstance(text, str):
+        raise Refused("text required")
+    _verify_digest(req, text)
+    old = _install_atomic(path, text, mode)
+    check = postcheck(path, text) if postcheck is not None else None
+    if check is not None:
         try:
-            SUDOERS_DROPIN.unlink()
-        except OSError:
-            pass
-    return sudoers_get(req)
+            check()
+        except BaseException:
+            _restore(path, old, mode)
+            raise
+    out = {"text": text, "ok": True}
+    out.update(_file_meta(path))
+    return out
+
+
+def _exportfs_check(path: Path, text: str):
+    def check() -> None:
+        run([EXPORTFS_TOOL, "-ra"])
+
+    return check
+
+
+def _testparm_check(path: Path, text: str):
+    def check() -> None:
+        run([TESTPARM_TOOL, "-s", str(path)])
+
+    return check
+
+
+def nfs_exports_set(req: dict) -> dict:
+    return _staged_install(req, EXPORTS_FILE, 0o644, _exportfs_check)
+
+
+def smb_share_set(req: dict) -> dict:
+    return _staged_install(req, SMB_DROPIN, 0o644, _testparm_check)
+
+
+def pam_config_set(req: dict) -> dict:
+    target = req.get("target")
+    if target == "fido2":
+        path = PAM_U2F_CONF
+    elif target == "yubico":
+        path = PAM_YUBICO_CONF
+    else:
+        raise Refused("unknown PAM target")
+    return _staged_install(req, path, 0o644, _readback_check)
+
+
+def pkcs11_mapping_set(req: dict) -> dict:
+    return _staged_install(req, PKCS11_MAP_FILE, 0o644, _readback_check)
 
 
 def apparmor_set(req: dict) -> dict:
@@ -1823,7 +2182,12 @@ COMMANDS = {
     "hosts-get": hosts_get,
     "hosts-set": hosts_set,
     "sudoers-get": sudoers_get,
+    "sudoers-rows-get": sudoers_rows_get,
     "sudoers-set": sudoers_set,
+    "nfs-exports-set": nfs_exports_set,
+    "smb-share-set": smb_share_set,
+    "pam-config-set": pam_config_set,
+    "pkcs11-mapping-set": pkcs11_mapping_set,
     "apparmor-set": apparmor_set,
     "modprobe-blacklist-get": modprobe_blacklist_get,
     "modprobe-blacklist-set": modprobe_blacklist_set,
