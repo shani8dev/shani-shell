@@ -23,9 +23,59 @@ Singleton {
     property bool _wasOnBattery: false
     property bool _wasLow: false
 
+    // The shutdown policy is a separate read of the same bridge. The live read
+    // above stays as it is: one short call a minute, only with a UPS present.
+    property var policy: ({})
+    property bool policyLoaded: false
+    property bool policyBusy: false
+    property string policyNote: ""
+    property bool policyNoteOk: false
+
     function refresh() { reader.running = true; }
     Component.onCompleted: refresh()
     Timer { interval: 60000; repeat: true; running: root.present; onTriggered: root.refresh() }
+
+    function loadPolicy() { if (!policyRead.running) policyRead.running = true; }
+    function savePolicy(obj) {
+        if (policyWrite.running) return;
+        policyBusy = true;
+        policyNote = "";
+        policyWrite.payload = obj;
+        policyWrite.stdinEnabled = true;
+        policyWrite.running = true;
+    }
+    Process {
+        id: policyRead
+        command: ["python3", root.tool, "policy"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let p;
+                try { p = JSON.parse(text); } catch (e) { return; }
+                root.policy = p || {};
+                root.policyLoaded = true;
+            }
+        }
+    }
+    Process {
+        id: policyWrite
+        command: ["python3", root.tool, "policy-save"]
+        stdinEnabled: true
+        property var payload: ({})
+        stdout: StdioCollector { id: policyOut }
+        onStarted: { write(JSON.stringify(payload) + "\n"); stdinEnabled = false; }
+        onExited: code => {
+            stdinEnabled = true;
+            root.policyBusy = false;
+            // policy-save reports refusal in its JSON, with exit code 0
+            let r = {};
+            try { r = JSON.parse(policyOut.text) || {}; } catch (e) { r = {}; }
+            root.policyNoteOk = code === 0 && r.ok === true;
+            root.policyNote = root.policyNoteOk
+                ? Tr.t("Shutdown policy saved")
+                : Tr.t("Could not save the shutdown policy. Check the values and try again.");
+            if (root.policyNoteOk) root.loadPolicy();
+        }
+    }
 
     function says(i) {
         const parts = [];

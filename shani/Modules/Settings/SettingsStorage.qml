@@ -10,6 +10,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import "../../Common/Format.js" as Format
+import "../../Common/ToolPath.js" as ToolPath
 
 ColumnLayout {
     id: page
@@ -18,7 +19,26 @@ ColumnLayout {
     readonly property var adminCmd: (Quickshell.env("SHANI_ADMIN_TOOL") || "pkexec /usr/lib/shani-shell/shani-admin.py").split(" ")
     property bool fstrimEnabled: false
     property bool fstrimLoaded: false
-    onActiveChanged: if (active) { scan(); fstrimGet.running = false; fstrimGet.running = true; }
+
+    // System storage is a read of this system, not of a person's files. It runs
+    // when the page opens or the person asks again, never on a timer.
+    readonly property string healthTool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_HEALTH_TOOL"), "system_health.py")
+    property var storageInfo: ({})
+    property bool storageBusy: false
+    property bool storageReadDone: false
+    readonly property var capacityKeys: ["Free", "Total", "Used", "Snapshots", "Quotas"]
+    readonly property var maintenanceKeys: ["Scrub", "Scrub tmr", "Maint tmrs", "bees", "Dedup", "Dev errors"]
+    readonly property var capacityTitles: ({
+        "Free": Tr.t("Free space"), "Total": Tr.t("Total space"), "Used": Tr.t("Used space"),
+        "Snapshots": Tr.t("Snapshots"), "Quotas": Tr.t("Quotas")
+    })
+    readonly property var maintenanceTitles: ({
+        "Scrub": Tr.t("Data check"), "Scrub tmr": Tr.t("Data check schedule"),
+        "Maint tmrs": Tr.t("Maintenance schedule"), "bees": Tr.t("Background compression"),
+        "Dedup": Tr.t("Deduplication"), "Dev errors": Tr.t("Device errors")
+    })
+
+    onActiveChanged: if (active) { scan(); fstrimGet.running = false; fstrimGet.running = true; storageReload(); }
 
     readonly property string tool: Quickshell.env("SHANI_CLEANUP_TOOL") || "/usr/lib/shani-shell/cleanup.py"
     property var found: null
@@ -30,6 +50,61 @@ ColumnLayout {
         + found.caches.filter(c => c.keep === "").reduce((a, c) => a + c.size, 0)
 
     function scan() { scanning = true; scanner.running = true; }
+
+    // Only stable read state goes to the harness. A failed read publishes an
+    // empty report with its error, never an invented "all clear".
+    function publishStorage() {
+        const o = Object.assign({}, Ui.systemState || {});
+        const info = page.storageInfo || {};
+        o.storageInfo = {
+            summary: info.summary || {}, warnings: info.warnings || [],
+            subvolumes: info.subvolumes || [], error: info.error || "", have: !!info.have
+        };
+        Ui.systemState = o;
+    }
+    function storageReload() {
+        if (page.storageBusy) return;
+        page.storageBusy = true;
+        page.storageReadDone = false;
+        storageReader.running = false;
+        storageReader.running = true;
+        publishStorage();
+    }
+    function applyStorage(r) {
+        const raw = r && typeof r === "object" ? r : {};
+        page.storageInfo = {
+            have: !!raw.have,
+            error: raw.error ? String(raw.error) : "",
+            summary: raw.summary && typeof raw.summary === "object" ? raw.summary : {},
+            subvolumes: Array.isArray(raw.subvolumes) ? raw.subvolumes : [],
+            warnings: Array.isArray(raw.warnings) ? raw.warnings : []
+        };
+        page.storageReadDone = true;
+        publishStorage();
+    }
+    function sizeText(v) { return typeof v === "number" ? page.human(v) : String(v || ""); }
+    function statusIcon(s) {
+        const v = String(s || "").toLowerCase();
+        if (v === "ok" || v === "pass" || v === "passed" || v === "good") return "dialog-ok";
+        if (["warn", "warning", "critical", "fail", "failed", "error"].indexOf(v) >= 0) return "dialog-warning";
+        return "dialog-information";
+    }
+    function storageDetail(row) {
+        if (!row || typeof row !== "object") return "";
+        let out = String(row.message || "");
+        const used = page.sizeText(row.used);
+        const uncompressed = page.sizeText(row.uncompressed);
+        if (uncompressed !== "") {
+            const extra = used !== ""
+                ? Tr.t("uses %1, uncompressed %2").arg(used).arg(uncompressed)
+                : Tr.t("uncompressed %1").arg(uncompressed);
+            out = out ? out + "  ·  " + extra : extra;
+        } else if (out === "" && used !== "") {
+            out = Tr.t("uses %1").arg(used);
+        }
+        return out;
+    }
+
     function clean(what, arg, label) {
         busy = what + (arg ? ":" + arg : "");
         asking = "";
@@ -43,7 +118,8 @@ ColumnLayout {
         page.clean(what, arg, label);
     }
     Timer { id: askTimer; interval: 4000; onTriggered: page.asking = "" }
-    Component.onCompleted: { scan(); fstrimGet.running = false; fstrimGet.running = true; }
+    Component.onCompleted: { scan(); fstrimGet.running = false; fstrimGet.running = true; if (active) storageReload(); else publishStorage(); }
+    onStorageInfoChanged: publishStorage()
     // read-only status: no pkexec, so the toggle is never hidden behind an auth prompt
     Process { id: fstrimGet; command: ["sh", "-c", "systemctl is-enabled fstrim.timer 2>/dev/null || true"]; stdout: StdioCollector { onStreamFinished: { page.fstrimEnabled = text.trim() === "enabled" || text.trim() === "static"; page.fstrimLoaded = true; } } }
     Process { id: fstrimSet; stdinEnabled: true; property string payload: ""; onStarted: { write(payload + "\n"); stdinEnabled = false; } onExited: code => { stdinEnabled = true; fstrimGet.running = false; fstrimGet.running = true; if (code !== 0) page.done = Tr.t("Could not change SSD trim"); } }
@@ -52,6 +128,24 @@ ColumnLayout {
         command: ["python3", page.tool, "scan"]
         stdout: StdioCollector { onStreamFinished: { try { page.found = JSON.parse(text); } catch (e) {} page.scanning = false; } }
         onExited: page.scanning = false
+    }
+    Process {
+        id: storageReader
+        command: ["python3", page.healthTool, "storage"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text) || {}; }
+                catch (e) { r = { have: false, error: Tr.t("Could not read the storage check") }; }
+                page.applyStorage(r);
+            }
+        }
+        onExited: code => {
+            if (code !== 0 && (!page.storageInfo.have || !page.storageReadDone))
+                page.applyStorage({ have: false, error: Tr.t("The storage check could not finish") });
+            page.storageBusy = false;
+            publishStorage();
+        }
     }
     Process {
         id: cleaner
@@ -206,6 +300,89 @@ ColumnLayout {
             onGo: page.confirmThen("cache:" + modelData.name, "cache", modelData.name, modelData.name + " " + Tr.t("cleared"))
         }
     }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        spacing: Theme.px(8)
+        title: Tr.t("System storage")
+        hint: Tr.t("Space and upkeep on this system. Reading it may ask for administrator access; nothing here is changed.")
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Button {
+                text: Tr.t("Read storage")
+                enabled: !page.storageBusy
+                busy: page.storageBusy
+                onClicked: page.storageReload()
+            }
+            Item { Layout.fillWidth: true }
+        }
+        BusyNote { Layout.fillWidth: true; visible: page.storageBusy; note: Tr.t("Reading storage…"); iconSize: Theme.px(16) }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.storageReadDone && !page.storageInfo.have
+            tone: "error"
+            title: Tr.t("Storage check could not finish")
+            text: page.storageInfo.error || Tr.t("No storage details could be read; nothing was changed.")
+        }
+
+        Repeater {
+            model: page.capacityKeys
+            ListRow {
+                required property string modelData
+                Layout.fillWidth: true
+                visible: !!page.storageInfo.summary && !!page.storageInfo.summary[modelData]
+                icon: "drive-harddisk"
+                title: page.capacityTitles[modelData] || modelData
+                subtitle: page.storageDetail((page.storageInfo.summary || {})[modelData] || {})
+                interactive: false
+            }
+        }
+        Repeater {
+            model: page.maintenanceKeys
+            ListRow {
+                required property string modelData
+                Layout.fillWidth: true
+                visible: !!page.storageInfo.summary && !!page.storageInfo.summary[modelData]
+                icon: page.statusIcon(((page.storageInfo.summary || {})[modelData] || {}).status)
+                title: page.maintenanceTitles[modelData] || modelData
+                subtitle: page.storageDetail((page.storageInfo.summary || {})[modelData] || {})
+                interactive: false
+            }
+        }
+        Repeater {
+            model: page.storageInfo.subvolumes || []
+            ListRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: page.statusIcon(modelData.status)
+                title: modelData.name || Tr.t("Subvolume")
+                subtitle: page.storageDetail(modelData)
+                interactive: false
+            }
+        }
+        Repeater {
+            model: page.storageInfo.warnings || []
+            ListRow {
+                required property var modelData
+                Layout.fillWidth: true
+                icon: page.statusIcon(modelData.status)
+                title: modelData.message || modelData.key || Tr.t("Warning")
+                interactive: false
+            }
+        }
+        EmptyState {
+            Layout.fillWidth: true
+            visible: page.storageReadDone && page.storageInfo.have && !page.storageBusy
+                && Object.keys(page.storageInfo.summary || {}).length === 0
+                && (page.storageInfo.subvolumes || []).length === 0
+                && (page.storageInfo.warnings || []).length === 0
+            icon: "drive-harddisk"
+            title: Tr.t("No storage details")
+            subtitle: Tr.t("The check finished without any storage details to show.")
+        }
     }
 
     Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.border }
