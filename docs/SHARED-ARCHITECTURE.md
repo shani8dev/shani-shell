@@ -156,8 +156,13 @@ ShaniOS's own (the backends' name is still open):
   (decided 2026-11-26).
 - **ShaniOS extras** (`shani-*`): everything specific to ShaniOS, kept out of
   the neutral projects (below).
-- D-Bus/Varlink names move to the neutral names with the interface change
-  (phase 3), with the old names kept as aliases for a release.
+- **Identifiers stay `dev.shani.*`** (app IDs, D-Bus and Varlink names,
+  GSettings-free config IDs): reverse-DNS IDs name the publisher, not the
+  product, and the project owns **shani.dev** (and **shanios.com**, the
+  distribution's own). Like `org.kde.*` and `org.gnome.*`, they stay the same on
+  every distribution and through the Chrono rename, so no dock pin, default app
+  or file association breaks. shani.dev is the projects' home (Chrono Shell,
+  Chronoa, the shared backends); shanios.com is ShaniOS's.
 
 ## Structure: one repo to maintain, many parts to run and package
 
