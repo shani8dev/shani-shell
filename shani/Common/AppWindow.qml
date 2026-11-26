@@ -50,7 +50,9 @@ FloatingWindow {
     implicitWidth: Theme.px(900)
     implicitHeight: Theme.px(640)
     // glass, as the rest of the shell: translucent over a blur of what is behind
-    color: Settings.blurWanted ? Theme.alpha(Theme.bg, 0.86) : Theme.bg
+    // nearly solid (docs/DESIGN.md: glass for panels over the desktop, solid
+    // for app content): at 0.86 a bright wallpaper tinted every app brown
+    color: Settings.blurWanted ? Theme.alpha(Theme.bg, 0.97) : Theme.bg
     BackgroundEffect.blurRegion: Settings.blurWanted ? whole : null
     Region { id: whole; item: frame }
     onVisibleChanged: { if (!visible) win.gone(); register(); }
@@ -138,7 +140,7 @@ FloatingWindow {
             visible: win.header
             anchors { left: parent.left; right: parent.right; top: parent.top }
             height: visible ? Math.max(42, Theme.touchTarget + Theme.px(8)) : 0
-            color: Settings.blurWanted ? Theme.alpha(Theme.surface1, 0.7) : Theme.surface1
+            color: Theme.surface1
             Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: Theme.border }
 
             // the empty part of the header moves the window, and maximises it on a double click

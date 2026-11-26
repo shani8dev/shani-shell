@@ -9,10 +9,7 @@ Item {
     id: glyph
     property string tone: "info"
     property real size: Theme.px(20)
-    readonly property color toneColor: tone === "ok" ? Theme.accent
-                                      : tone === "warn" ? Theme.amber
-                                      : tone === "error" || tone === "danger" ? Theme.danger
-                                      : Theme.blue
+    readonly property color toneColor: Theme.toneColor(tone || "info")
     readonly property real stroke: Math.max(1.6, size * 0.115)
 
     width: size

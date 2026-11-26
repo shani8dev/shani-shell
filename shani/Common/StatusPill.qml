@@ -9,11 +9,7 @@ Rectangle {
     property string text: ""
     property string tone: "accent"
     property bool dot: true
-    readonly property color toneColor: tone === "ok" ? Theme.accent
-                                      : tone === "warn" ? Theme.amber
-                                      : tone === "error" || tone === "danger" ? Theme.danger
-                                      : tone === "neutral" ? Theme.dim
-                                      : Theme.accent
+    readonly property color toneColor: Theme.toneColor(tone)
 
     implicitWidth: row.implicitWidth + Theme.px(20)
     implicitHeight: Theme.px(24)

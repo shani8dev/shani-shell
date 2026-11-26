@@ -145,7 +145,7 @@ Singleton {
         return Settings.data.adaptivePalette && Matugen.ready && Matugen.palette[role]
             ? Matugen.palette[role] : fallback;
     }
-    readonly property color bg: contrast ? mix("#ffffff", "#000000") : mix(_mat("surface", tone(0.28, 0.945)), _mat("surface", tone(0.22, 0.065)))
+    readonly property color bg: contrast ? mix("#ffffff", "#000000") : _calm(mix(_mat("surface", tone(0.28, 0.945)), _mat("surface", tone(0.22, 0.065))))
     readonly property color text: contrast ? mix("#000000", "#ffffff") : mix(_mat("on_surface", tone(0.35, 0.11)), _mat("on_surface", tone(0.20, 0.93)))
     readonly property color dim: contrast ? mix("#1a1a1a", "#e0e6ee") : mix(_mat("on_surface_variant", tone(0.14, 0.37)), _mat("on_surface_variant", tone(0.14, 0.66)))
     readonly property color faint: contrast ? mix("#333333", "#b8c2cf") : mix(_mat("outline", tone(0.10, 0.58)), _mat("outline", tone(0.10, 0.44)))
@@ -161,19 +161,37 @@ Singleton {
                        Math.min(1, Math.max(0, col.hslSaturation + ds)),
                        Math.min(1, Math.max(0, col.hslLightness + dl)), a);
     }
-    readonly property color _base: _mat("surface", mix(tone(0.28, 0.945), tone(0.22, 0.065)))
+    // Calm surfaces: the wallpaper's hue, at most a little of its colour.
+    // Matugen's surface for a warm wallpaper is brown; capped, it is a warm
+    // grey, and colour is left for state and the accent (docs/DESIGN.md).
+    function _calm(c) {
+        const col = Qt.color(c);
+        return Qt.hsla(col.hslHue, Math.min(col.hslSaturation, 0.10 + 0.04 * darkT), col.hslLightness, col.a);
+    }
+    readonly property color _base: _calm(_mat("surface", mix(tone(0.28, 0.945), tone(0.22, 0.065))))
     readonly property color amber: mix("#b7791f", "#e0af68")
     readonly property color blue: mix("#3461c1", "#7aa2f7")
     readonly property color red: mix("#c8364f", "#f7768e")
     readonly property color success: mix("#27794a", "#4ade80")
     readonly property color danger: mix("#c0392b", "#f28b82")
+    // a state's colour, one table for every status mark (pill, glyph, ring,
+    // hero): green is fine, amber needs a look, red is wrong, blue is news.
+    // The accent stays for what can be pressed (docs/DESIGN.md).
+    function toneColor(tone) {
+        return tone === "ok" ? success
+             : tone === "warn" ? amber
+             : tone === "error" || tone === "danger" ? danger
+             : tone === "info" ? blue
+             : tone === "neutral" ? dim
+             : accent;
+    }
 
     // glass: the translucent card every surface is drawn on
     // with blur the glass is thinner - what is behind shows, softened; without
     // it, denser, so text stays readable over whatever is there
     readonly property bool blurred: Settings.blurWanted && !Settings.data.reduceTransparency
-    readonly property color glass: contrast ? bg : mix(_shade(_base, 0.07, 0.030, blurred ? 0.68 : 0.72), _shade(_base, 0.04, 0.010, blurred ? 0.58 : 0.66))
-    readonly property color glassStrong: contrast ? bg : mix(_shade(_base, 0.07, 0.030, blurred ? 0.82 : 0.93), _shade(_base, 0.04, 0.010, blurred ? 0.74 : 0.88))
+    readonly property color glass: contrast ? bg : mix(_shade(_base, 0.0, 0.030, blurred ? 0.68 : 0.72), _shade(_base, 0.0, 0.010, blurred ? 0.58 : 0.66))
+    readonly property color glassStrong: contrast ? bg : mix(_shade(_base, 0.0, 0.030, blurred ? 0.82 : 0.93), _shade(_base, 0.0, 0.010, blurred ? 0.74 : 0.88))
     readonly property color stroke: contrast ? alpha(text, 0.85) : mix(Qt.rgba(0, 0, 0, 0.09), Qt.rgba(1, 1, 1, 0.10))
     readonly property color hover: mix(Qt.rgba(0, 0, 0, 0.05), Qt.rgba(1, 1, 1, 0.06))
     readonly property color pressed: mix(Qt.rgba(0, 0, 0, 0.09), Qt.rgba(1, 1, 1, 0.10))
@@ -191,7 +209,7 @@ Singleton {
 
     // card: a solid surface that floats on glass — for tiles, chips, buttons
     readonly property color card: contrast ? bg : mix(_shade(_base, 0.02, 0.045, 0.82), _shade(_base, 0.02, 0.035, 0.62))
-    readonly property color cardBorder: contrast ? alpha(text, 0.5) : mix(Qt.rgba(0, 0, 0, 0.06), Qt.rgba(1, 1, 1, 0.08))
+    readonly property color cardBorder: contrast ? alpha(text, 0.5) : mix(Qt.rgba(0, 0, 0, 0.08), Qt.rgba(1, 1, 1, 0.09))
 
     // ---- type and shape --------------------------------------------------------
     // Inter where installed (shani-shell depends on it), the system sans otherwise
@@ -211,9 +229,17 @@ Singleton {
     readonly property int touchTarget: ["phone", "tablet", "handheld", "board"].indexOf(formFactor) >= 0 ? px(44) : 0
     // a design size in pixels, drawn for this screen: px(16) is 16 on a computer
     function px(n) { return Math.round(n * ui); }
-    readonly property int fontSmall: 11
-    readonly property int fontBody: 13
-    readonly property int fontTitle: 15
+    // The type scale (docs/DESIGN.md): seven steps, nothing below 12. Use
+    // Theme.type("body") etc. - it is already scaled for the screen and for
+    // large text; the bare numbers are the design sizes.
+    readonly property var typeScale: ({ caption: 12, small: 13, body: 14, heading: 16, subtitle: 20, title: 26, display: 32 })
+    function type(step) { return px(typeScale[step] || typeScale.body) * fontScale; }
+    // older names, kept on the same scale
+    readonly property int fontSmall: typeScale.caption
+    readonly property int fontBody: typeScale.body
+    readonly property int fontTitle: typeScale.heading
+    // spacing: a 4px grid (docs/DESIGN.md)
+    function space(n) { return px(4 * n); }
 
     // the corner scale: one table of shapes (Shape.js), so a card, a button
     // and a chip are cut from the same scale instead of each picking a number

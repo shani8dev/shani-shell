@@ -33,10 +33,11 @@ Item {
         anchors.fill: parent
         spacing: Theme.px(10)
 
-        Column {
+        ColumnLayout {
             Layout.fillWidth: true
-            Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-            Text { visible: root.hint !== ""; text: root.hint; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            spacing: Theme.px(1)
+            Text { Layout.fillWidth: true; text: root.text; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+            Text { Layout.fillWidth: true; visible: root.hint !== ""; text: root.hint; color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         }
         Icon {
             visible: root.info !== ""

@@ -11,7 +11,7 @@ RowLayout {
         text: parent.text
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
         font.weight: Font.DemiBold
         font.capitalization: Font.AllUppercase
         font.letterSpacing: 1

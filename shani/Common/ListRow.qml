@@ -23,7 +23,7 @@ Rectangle {
     Accessible.selected: root.selected
     Accessible.onPressAction: if (root.interactive) root.clicked()
 
-    implicitHeight: Math.max(Theme.px(40), Theme.touchTarget)
+    implicitHeight: Math.max(Theme.px(40), texts.implicitHeight + Theme.px(14), Theme.touchTarget)
     radius: Theme.radiusSmall
     color: selected ? Theme.accentSoft : (interactive && area.containsMouse ? Theme.hover : "transparent")
 
@@ -37,6 +37,8 @@ Rectangle {
         color: root.selected ? Theme.accent : Theme.text
     }
     Column {
+        id: texts
+        spacing: Theme.px(1)
         anchors.left: ic.right
         anchors.leftMargin: Theme.px(10)
         anchors.right: tail.left
@@ -48,7 +50,7 @@ Rectangle {
             color: root.selected ? Theme.accent : Theme.text
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Text {
             width: parent.width
@@ -57,7 +59,7 @@ Rectangle {
             color: Theme.dim
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
     MouseArea {
@@ -87,7 +89,7 @@ Rectangle {
             text: root.trailing
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             anchors.verticalCenter: tail.verticalCenter
         }
     }
