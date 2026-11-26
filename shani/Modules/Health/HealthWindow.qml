@@ -661,6 +661,7 @@ AppWindow {
                         model: Health.sleepStages
                         Rectangle {
                             required property var modelData
+                            required property int index
                             x: parent.width * Health.sleepStages.slice(0, index).reduce((n, s) => n + Math.max(0, Number(s && s.minutes) || 0), 0) / Math.max(1, win.stageTotal())
                             width: parent.width * Math.max(0.01, Math.max(0, Number(modelData.minutes) || 0) / Math.max(1, win.stageTotal()))
                             height: parent.height

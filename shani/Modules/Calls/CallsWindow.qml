@@ -123,7 +123,7 @@ AppWindow {
                     required property var modelData
                     text: modelData[1]
                     selected: win.tab === modelData[0]
-                    onClicked: win.tab = modelData[0]
+                    onClicked: { win.tab = modelData[0]; PhoneTools.refresh(); }
                 }
             }
         }

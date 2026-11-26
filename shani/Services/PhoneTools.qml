@@ -61,7 +61,7 @@ Singleton {
     function start(what, args) {
         root.busy = true;
         job.what = what;
-        job.arg = args.length > 1 ? String(args[1]) : "";
+        job.arg = args.length ? String(args[0]) : "";
         job.command = ["python3", root.tool, what].concat(args);
         job.running = false;
         job.running = true;
@@ -95,8 +95,9 @@ Singleton {
             if (job.arg === "status") {
                 root.remote = data && typeof data === "object" ? data : ({});
             } else {
-                if (!failed && data && typeof data.on === "boolean") root.remote = Object.assign({}, root.remote, { on: data.on });
                 root.note = failed || (data && data.note) || Tr.t("Done on the phone");
+                root.remote = Object.assign({}, root.remote, { note: root.note },
+                    !failed && data && typeof data.on === "boolean" ? { on: data.on } : {});
             }
         } else if (what === "link") {
             if (job.arg === "state") {

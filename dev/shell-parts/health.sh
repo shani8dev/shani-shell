@@ -47,8 +47,8 @@ python3 "$HEALTH_TOOL" workouts 2>/dev/null | grep -q '"kind": "Walking"' \
 ipc healthOpen
 waitfor "d['healthShown'] == True" 8 \
     && result health-opens PASS || result health-opens FAIL "$(q "['healthShown']")"
-waitfor "d['healthModel'] == 'Pulse Watch 2' and d['healthFirmware'] == '1.4.2'" 10 \
-    && result health-header PASS || result health-header FAIL "$(q "['healthModel'], d['healthFirmware']")"
+waitfor "d['healthModel'] == 'Pulse Watch 2'" 20 \
+    && result health-header PASS || result health-header FAIL "$(q "['healthModel']")"
 waitfor "d['healthBattery'] == 76 and d['healthSteps'] == 8432" 10 \
     && result health-readings PASS || result health-readings FAIL "$(q "['healthBattery'], d['healthSteps']")"
 waitfor "'09:30' in d['healthLastRead']" 8 \

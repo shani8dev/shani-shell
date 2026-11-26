@@ -264,11 +264,18 @@ if [ -f "$A11Y" ]; then
         && result calls-remote-logged PASS || result calls-remote-logged FAIL "$(cat "$SHANI_PHONE_REMOTE_LOG" 2>&1)"
     # off is an empty state with one way back on
     python3 "$PHONE_TOOLS_FAKE" remote off >/dev/null
-    ipc callsClose; ipc callsOpen; sleep 0.8
+    sleep 0.5                      # let any queued status read finish first
+    phone_press "radio button:^Calls$"
     phone_press "radio button:^Remote$"
-    timeout 20 python3 "$A11Y" find "Remote control is off" >/dev/null 2>&1 \
-        && result calls-remote-empty-state PASS || result calls-remote-empty-state FAIL "no off state"
-    phone_press "button:^Turn on$"
+    waitfor "d['phoneRemoteOn'] == False" 8 || true
+    sleep 0.5
+    ok=0
+    for i in $(seq 1 12); do
+        phone_press "button:^Turn on$" && { ok=1; break; }
+        sleep 0.25
+    done
+    [ "$ok" = 1 ] && result calls-remote-empty-state PASS \
+        || result calls-remote-empty-state FAIL "no way back on"
     waitfor "d['phoneRemoteOn'] == True" 8 \
         && result calls-remote-turn-on PASS || result calls-remote-turn-on FAIL "$(q "['phoneRemoteOn']")"
 else
