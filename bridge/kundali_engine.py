@@ -98,7 +98,7 @@ ACTION_GROUPS = (
     ("sky", ("grahana", "eclipse", "meanmotion")),
     ("traditions", ("bazi", "ziwei", "chinese", "temperament")),
     ("matching", ("ashtakoota",)),
-    ("doshas", ("mangaldosha",)),
+    ("doshas", ("mangaldosha", "kalasarpa", "sadesati")),
 )
 ACTIONS = tuple(a for _, group in ACTION_GROUPS for a in group)
 
@@ -298,6 +298,10 @@ def new_data(action: str, arguments: dict, astronomy) -> dict:
         return astronomy.ashtakoota_guna_milan(chart, other)
     if action == "mangaldosha":
         return astronomy.mangal_dosha(chart)
+    if action == "kalasarpa":
+        return astronomy.kaal_sarpa_dosha(chart)
+    if action == "sadesati":
+        return astronomy.sade_sati(chart, arguments.get("now"))
     return {"error": f"Unknown calculation: {action}"}
 
 
@@ -336,6 +340,28 @@ def render_new(action: str, data: dict) -> str:
             lines.append(f"  From {name}: house {view['house']} ({view['afflicted']})")
         lines.append(f"  Cancellations: {', '.join(data['cancellations']) or 'none'}")
         return "\n".join(lines)
+    if action == "kalasarpa":
+        return "\n".join(
+            [
+                "Kaal Sarp Dosha:",
+                f"  Present: {data['present']} ({data['type']})",
+                f"  Rahu: house {data['rahu_house']}, Ketu: house {data['ketu_house']}",
+                f"  Planets between: {', '.join(data['planets_between']) or 'none'}",
+                f"  Planets outside: {', '.join(data['planets_outside']) or 'none'}",
+            ]
+        )
+    if action == "sadesati":
+        lines = [
+            "Sade Sati:",
+            f"  Running: {data['running']}",
+            f"  Moon sign: {data['moon_sign']}",
+            f"  Phase: {data['phase']}",
+            f"  Start: {data['start']}",
+            f"  End: {data['end']}",
+        ]
+        for span in data["phases"]:
+            lines.append(f"  {span['phase']}: {span['start']} to {span['end']}")
+        return "\n".join(lines)
     return "Calculation failed: no renderer"
 
 
@@ -373,6 +399,12 @@ def compute(arguments: dict, astronomy) -> str:
 
     if action == "mangaldosha":
         return _answer_new("mangaldosha", arguments, astronomy)
+
+    if action == "kalasarpa":
+        return _answer_new("kalasarpa", arguments, astronomy)
+
+    if action == "sadesati":
+        return _answer_new("sadesati", arguments, astronomy)
 
     # ---- every calculation the engine offers (restored from 98075ba) ----
 

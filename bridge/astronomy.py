@@ -4520,3 +4520,171 @@ def mangal_match(chart_a: dict, chart_b: dict) -> dict:
             (first["effective"] or second["effective"]) and not both
         ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Kaal Sarp dosha and Sade Sati
+# ---------------------------------------------------------------------------
+
+#: The twelve named yogas, indexed by Rahu's house from the ascendant.
+KAAL_SARP_TYPES = [
+    "Anapha",
+    "Durdhara",
+    "Bharti",
+    "Phalashruti",
+    "Ulupi",
+    "Shankhapala",
+    "Shankhachuda",
+    "Ghataka",
+    "Trishanku",
+    "Kaleshi",
+    "Sadhaka",
+    "Sampurna",
+]
+
+SADE_SATI_PHASES = {11: "12th", 0: "1st", 1: "2nd"}
+
+
+def kaal_sarpa_dosha(chart: dict) -> dict:
+    """All seven planets between Rahu and Ketu (in the direction of the
+    zodiac), with the named yoga from Rahu's house. The nodes themselves are
+    not counted among the seven.
+    """
+    planets = {p.get("name"): p for p in chart.get("planets", [])}
+    if "Rahu" not in planets:
+        raise ValueError("chart has no Rahu")
+
+    def lon(name):
+        p = planets.get(name)
+        return float(p.get("sidereal_longitude") or 0) % 360 if p else None
+
+    rahu = lon("Rahu")
+    names = ("Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn")
+    between, outside = [], []
+    for name in names:
+        value = lon(name)
+        if value is None:
+            continue
+        (between if (value - rahu) % 360 < 180 else outside).append(name)
+    asc = float(chart.get("ascendant") or 0) % 360
+    rahu_house = _house_from(asc, rahu)
+    ketu_house = ((rahu_house + 5) % 12) + 1
+    return {
+        "present": bool(len(between) == 7),
+        "type": KAAL_SARP_TYPES[rahu_house - 1],
+        "rahu_house": rahu_house,
+        "ketu_house": ketu_house,
+        "rahu_longitude": round(rahu, 4),
+        "planets_between": between,
+        "planets_outside": outside,
+    }
+
+
+def _jd_to_iso(jd: float) -> str:
+    """Julian day to a UTC ISO minute stamp."""
+    from datetime import datetime, timedelta, timezone
+
+    return (
+        datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(days=jd - 2440587.5)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _saturn_sidereal(jd: float) -> float:
+    return _norm(_planet_longitude("saturn", jd) - ayanamsa_lahiri(jd))
+
+
+def sade_phase(moon_sign: int, saturn_lon: float) -> str | None:
+    """Saturn in the 12th, 1st or 2nd from the natal Moon sign."""
+    rel = (int(saturn_lon / 30) - moon_sign) % 12
+    return SADE_SATI_PHASES.get(rel)
+
+
+def _phase_jd(start: float, moon_sign: int, phase: str, limit: int = 12000) -> float:
+    """Walk Saturn forward one day at a time until it leaves ``phase``."""
+    jd = start
+    for offset in range(1, limit + 1):
+        if sade_phase(moon_sign, _saturn_sidereal(start + offset)) != phase:
+            low, high = start + offset - 1, start + offset
+            for _ in range(12):
+                mid = (low + high) / 2
+                if sade_phase(moon_sign, _saturn_sidereal(mid)) == phase:
+                    low = mid
+                else:
+                    high = mid
+            return high
+        jd = start + offset
+    return jd
+
+
+def sade_sati(chart: dict, now: str | None = None) -> dict:
+    """Whether Sade Sati is running and the start/end of the current phase
+    (or the next phase, when it is not running). Boundaries are found by
+    stepping Saturn's sidereal position one day at a time, then bisecting.
+    """
+    moon = next((p for p in chart.get("planets", []) if p.get("name") == "Moon"), None)
+    if moon is None:
+        raise ValueError("chart has no Moon")
+    moon_sign = int(float(moon.get("sidereal_longitude") or 0) / 30) % 12
+    from datetime import datetime, timezone
+
+    when = str(now or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    jd = julian_day(when)
+    saturn = _saturn_sidereal(jd)
+    phase = sade_phase(moon_sign, saturn)
+    if phase is not None:
+        low, high = jd - 1, jd
+        for _ in range(12):
+            mid = (low + high) / 2
+            if sade_phase(moon_sign, _saturn_sidereal(mid)) == phase:
+                high = mid
+            else:
+                low = mid
+        start, end = high, _phase_jd(jd, moon_sign, phase)
+    else:
+        start = jd
+        for offset in range(1, 12001):
+            candidate = jd + offset
+            if sade_phase(moon_sign, _saturn_sidereal(candidate)) == "12th":
+                low, high = candidate - 1, candidate
+                for _ in range(12):
+                    mid = (low + high) / 2
+                    if sade_phase(moon_sign, _saturn_sidereal(mid)) == "12th":
+                        high = mid
+                    else:
+                        low = mid
+                start = high
+                phase = "12th"
+                break
+        if phase is None:
+            return {
+                "moon_sign": SIGNS[moon_sign],
+                "saturn_longitude": round(saturn, 4),
+                "running": False,
+                "phase": None,
+                "start": None,
+                "end": None,
+                "phases": [],
+                "method": "stepping_saturn",
+            }
+        end = _phase_jd(start, moon_sign, phase)
+    order = {"12th": 0, "1st": 1, "2nd": 2}
+    phases = [{"phase": phase, "start": _jd_to_iso(start), "end": _jd_to_iso(end)}]
+    cursor = end
+    for following in ("1st", "2nd"):
+        if order[following] <= order[phase]:
+            continue
+        stop = _phase_jd(cursor, moon_sign, following)
+        phases.append(
+            {"phase": following, "start": _jd_to_iso(cursor), "end": _jd_to_iso(stop)}
+        )
+        cursor = stop
+    return {
+        "moon_sign": SIGNS[moon_sign],
+        "saturn_longitude": round(saturn, 4),
+        "running": sade_phase(moon_sign, saturn) is not None,
+        "phase": phase,
+        "start": _jd_to_iso(start),
+        "end": _jd_to_iso(end),
+        "phases": phases,
+        "method": "stepping_saturn",
+    }

@@ -110,3 +110,83 @@ def test_guna_milan_carries_the_mangal_matching_result():
 def test_a_chart_without_mars_is_not_a_crash_in_matching():
     with pytest.raises(ValueError):
         a.mangal_dosha({"planets": []})
+
+
+def hemmed_chart(rahu_longitude):
+    """Seven planets placed 10-175 degrees after Rahu, well inside the
+    Rahu-to-Ketu half of the zodiac."""
+    values = {
+        "Sun": 10,
+        "Moon": 40,
+        "Mercury": 70,
+        "Venus": 100,
+        "Mars": 130,
+        "Jupiter": 160,
+        "Saturn": 175,
+        "Rahu": 0,
+    }
+    return chart(
+        0.0,
+        **{name: (value + rahu_longitude) % 360 for name, value in values.items()},
+    )
+
+
+def test_kaal_sarp_when_all_seven_planets_are_between_the_nodes():
+    """Rahu at 10° Aries (house 1 from Aries rising) and Ketu at 10° Libra.
+    All seven planets lie between 10° and 190°, so the dosha is present and
+    the named yoga for Rahu in house 1 is Anapha.
+    """
+    r = a.kaal_sarpa_dosha(hemmed_chart(10.0))
+    assert r["present"] is True
+    assert r["type"] == "Anapha"
+    assert r["rahu_house"] == 1 and r["ketu_house"] == 7
+    assert len(r["planets_between"]) == 7
+    assert r["planets_outside"] == []
+
+
+def test_kaal_sarp_absent_when_one_planet_is_beyond_ketu():
+    """Rahu at 10°, Ketu at 190°: Saturn at 185°+10° = 195° is past Ketu."""
+    c = hemmed_chart(10.0)
+    saturn = next(p for p in c["planets"] if p["name"] == "Saturn")
+    saturn["sidereal_longitude"] = 195.0
+    r = a.kaal_sarpa_dosha(c)
+    assert r["present"] is False
+    assert "Saturn" in r["planets_outside"]
+
+
+def test_kaal_sarp_type_follows_rahus_house():
+    """Rahu at 45° (Taurus) is house 2 from Aries rising: Durdhara."""
+    r = a.kaal_sarpa_dosha(hemmed_chart(45.0))
+    assert r["rahu_house"] == 2 and r["ketu_house"] == 8
+    assert r["type"] == "Durdhara"
+
+
+def test_sade_phase_from_the_moon_sign_by_hand():
+    """Pisces is the 12th from Aries, Taurus the 2nd, Cancer the 4th."""
+    assert a.sade_phase(0, 330.0) == "12th"  # Pisces
+    assert a.sade_phase(0, 10.0) == "1st"  # Aries
+    assert a.sade_phase(0, 40.0) == "2nd"  # Taurus
+    assert a.sade_phase(0, 100.0) is None  # Cancer
+
+
+def test_sade_sati_dates_bracket_the_moment_and_keep_phase_order():
+    """Saturn's sidereal sign against an Aries Moon decides the phase.
+    Stepping finds a start before the moment and an end after it when the
+    phase is running; otherwise the next phase starts later.
+    """
+    when = "2026-11-26T00:00:00Z"
+    jd = a.julian_day(when)
+    expected = a.sade_phase(0, a._saturn_sidereal(jd))
+    r = a.sade_sati(chart(0.0, Moon=0.0), now=when)
+    assert r["phase"] == expected
+    assert r["running"] == (expected is not None)
+    assert r["method"] == "stepping_saturn"
+    assert r["phases"][0]["phase"] == expected
+    if expected is not None:
+        assert a.julian_day(r["start"]) <= jd < a.julian_day(r["end"])
+    else:
+        assert a.julian_day(r["start"]) > jd
+    if expected is not None:
+        assert [p["phase"] for p in r["phases"]] == ["12th", "1st", "2nd"][
+            ["12th", "1st", "2nd"].index(expected) :
+        ]
