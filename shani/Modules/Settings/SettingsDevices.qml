@@ -11,7 +11,7 @@ ColumnLayout {
     id: page
     spacing: Theme.px(12)
     property bool active: false
-    property string connectKind: "phone"
+    property string connectKind: "cable"
     property string screenMode: "window"
     property bool screenTouch: true
     property bool screenTyping: false
