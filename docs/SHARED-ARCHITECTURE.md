@@ -154,5 +154,9 @@ Add a line when you finish a piece (date, repo, what, commit).
 
 - 2026-11-26 shani-shell: `tests/test_os_cli_contract.py` (rule 4) and the
   `shani-deploy --yes` fix (e5a8d23).
+- 2026-11-26 shani-shell: row 1 of the inventory done — Security > Encryption
+  and boot consumes `gen-efi` through bridge/system_security_boot.py; secrets
+  on stdin, pkexec for writes, a rejecting stand-in and a live check (fce9d4f,
+  aa45f75).
 - 2026-11-26 shani-chronoa-extras: split from `apps/shani-sysadmin` with
   history (rule 7); public.

@@ -91,10 +91,15 @@ def bridge_calls():
 def accepts(command, word):
     """Whether the command's own parser knows this option or subcommand."""
     text = (SCRIPTS / COMMANDS[command]).read_text(errors="ignore")
+    quoted = re.search(r"""["']""" + re.escape(word) + r"""["']""", text) is not None
     if text.startswith("#!/usr/bin/env python") or text.startswith("#!/usr/bin/python"):
-        return re.search(r"""["']""" + re.escape(word) + r"""["']""", text) is not None
+        return quoted
     # a bash case label: `--json)`, `-c|--cleanup)`, `tpm2-status)`
-    return re.search(r"(^|[\s|(])" + re.escape(word) + r"(\)|\|)", text, re.M) is not None
+    if re.search(r"(^|[\s|(])" + re.escape(word) + r"(\)|\|)", text, re.M) is not None:
+        return True
+    # gen-efi checks a flag with `[[ "${2:-}" == "--json" ]]`, not a case label;
+    # a quoted comparison is the parser accepting the word too.
+    return re.search(r'[=]=?\s*["\']' + re.escape(word) + r'["\']', text) is not None
 
 
 def test_the_scan_finds_the_known_calls():
@@ -107,6 +112,13 @@ def test_a_made_up_option_is_caught():
     # the negative control: the check cannot pass everything
     assert not accepts("shani-deploy", "--yes")
     assert accepts("shani-deploy", "--cleanup")
+    assert not accepts("gen-efi", "--yes")
+
+
+def test_gen_efi_checks_its_json_flag_in_a_comparison():
+    # `[[ "$2" == "--json" ]]` is the parser, not a case label
+    assert accepts("gen-efi", "--json")
+    assert accepts("gen-efi", "recovery-key")
 
 
 def test_every_option_the_bridges_pass_is_accepted():

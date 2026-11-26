@@ -199,6 +199,11 @@ ColumnLayout {
         loginDefsSaveProc.running = true;
     }
 
+    // Disk encryption, TPM unlock and Secure Boot keys: one page in the
+    // Security category, reading gen-efi through its own bridge. It keeps its
+    // state to itself; no secret ever reaches this page's neighbours.
+    SettingsEncryptionBoot { Layout.fillWidth: true; active: page.active }
+
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Security")
