@@ -75,6 +75,12 @@ def test_rise_set_match_published_times(place):
         assert delta(result["moon"]["moonrise"], moonrise) <= 2
 
 
+def test_an_empty_zone_means_this_computers_zone():
+    result = compute("2026-10-19", 18.5204, 73.8567, "")
+    assert result["place"]["timezone"] != ""
+    assert result["sun"]["sunrise"] is not None
+
+
 def test_day_and_night_lengths_cover_the_whole_day():
     result = compute("2026-10-19", 18.5204, 73.8567, "Asia/Kolkata")
     day = minutes(result["sun"]["day_length"])

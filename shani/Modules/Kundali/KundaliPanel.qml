@@ -33,6 +33,7 @@ AppWindow {
     // ---- what came back ------------------------------------------------------
     property var chart: null                // the birth chart (planets, houses, dasha, navamsa)
     property var day: null                  // the panchang
+    property var times: null                // the day's rise/set, ends, muhurtas and hours
     property string error: ""
     property bool loading: false
     property string varga: "D1"
@@ -142,6 +143,7 @@ AppWindow {
     function clearResult() {
         win.chart = null;
         win.day = null;
+        win.times = null;
         win.error = "";
         win.sectionText = "";
         win.calcText = "";
@@ -153,9 +155,16 @@ AppWindow {
 
     // ---- running the bridge --------------------------------------------------
     readonly property string scriptPath: Quickshell.env("SHANI_KUNDALI_TOOL") || "/usr/lib/shani-shell/kundali.py"
+    readonly property string timesTool: Quickshell.env("SHANI_KUNDALI_PANCHANG_TOOL") || "/usr/lib/shani-shell/panchang_times.py"
+    function loadTimes() {
+        timesProc.command = ["python3", win.timesTool, win.dateInput, String(win.place.lat),
+                             String(win.place.lon), win.place.timezone || ""];
+        timesProc.running = true;
+    }
     function calculate() {
         win.clearResult();
         win.loading = true;
+        if (win.mode === "panchang") win.loadTimes();
         main.command = win.mode === "panchang"
             ? ["python3", win.scriptPath, "panchang", win.birthArg(), String(win.place.lat), String(win.place.lon)]
             : ["python3", win.scriptPath, "kundali", win.birthArg(), String(win.place.lat), String(win.place.lon)];
@@ -232,6 +241,16 @@ AppWindow {
                              Qt.formatDate(new Date(), "yyyy-MM-dd"), "14"];
         aheadProc.running = true;
     }
+    function choghadiyaRows() {
+        const c = (win.times || {}).choghadiya || {};
+        return (c.day || []).map(p => Object.assign({ part: Tr.t("Day") }, p))
+            .concat((c.night || []).map(p => Object.assign({ part: Tr.t("Night") }, p)));
+    }
+    // a time after midnight carries +1 in the bridge; say it in plain words
+    function clock(text) {
+        const s = String(text || "–");
+        return s.endsWith("+1") ? s.slice(0, -2) + " · " + Tr.t("next day") : s;
+    }
     function stepDay(n) {
         const d = new Date(win.dateInput + "T12:00:00");
         d.setDate(d.getDate() + n);
@@ -293,6 +312,13 @@ AppWindow {
             }
         }
         onExited: code => { if (code !== 0 && win.error === "" && !win.chart && !win.day) { win.loading = false; win.error = Tr.t("The calculation failed — is the Kundali helper installed?"); } }
+    }
+    Process {
+        id: timesProc
+        stdout: StdioCollector { onStreamFinished: {
+            try { const d = JSON.parse(text); win.times = d.error ? null : d; }
+            catch (e) { win.times = null; }
+        } }
     }
     Process {
         id: sectionProc
@@ -672,6 +698,120 @@ AppWindow {
                         spacing: 0
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData.v || "–"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
                         Text { visible: modelData.d !== ""; text: modelData.d; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                    }
+                }
+            }
+        }
+
+        // ---- the day's times: the same day, read hour by hour --------------------------------
+        Card {
+            Layout.fillWidth: true
+            visible: win.mode === "panchang" && win.times !== null
+            icon: "weather-sunset"
+            tint: Theme.amber
+            title: Tr.t("Sun and Moon")
+            subtitle: Tr.t("Rise and set at %1", win.placeTitle)
+            TileGrid {
+                Layout.fillWidth: true
+                minTileWidth: Theme.px(145)
+                StatTile { icon: "weather-sun"; label: Tr.t("Sunrise"); tint: Theme.amber
+                           value: win.clock(((win.times || {}).sun || {}).sunrise); detail: "" }
+                StatTile { icon: "weather-sunset"; label: Tr.t("Sunset"); tint: Theme.amber
+                           value: win.clock(((win.times || {}).sun || {}).sunset); detail: Tr.t("Day: %1", ((win.times || {}).sun || {}).day_length || "–") }
+                StatTile { icon: "weather-clear-night"; label: Tr.t("Moonrise"); tint: Theme.blue
+                           value: win.clock(((win.times || {}).moon || {}).moonrise); detail: "" }
+                StatTile { icon: "weather-clear-night"; label: Tr.t("Moonset"); tint: Theme.blue
+                           value: win.clock(((win.times || {}).moon || {}).moonset); detail: Tr.t("Night: %1", ((win.times || {}).sun || {}).night_length || "–") }
+            }
+        }
+
+        Card {
+            Layout.fillWidth: true
+            visible: win.mode === "panchang" && win.times !== null
+            icon: "view-list-details"
+            title: Tr.t("When each limb ends")
+            subtitle: Tr.t("Tithi, nakshatra, yoga and karana, with what follows")
+            spacing: 0
+            Repeater {
+                model: [
+                    { k: Tr.t("Tithi"), v: ((win.times || {}).limbs || {}).tithi },
+                    { k: Tr.t("Nakshatra"), v: ((win.times || {}).limbs || {}).nakshatra },
+                    { k: Tr.t("Yoga"), v: ((win.times || {}).limbs || {}).yoga },
+                    { k: Tr.t("Karana"), v: ((win.times || {}).limbs || {}).karana }
+                ]
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    visible: !!modelData.v
+                    interactive: false
+                    icon: "go-next"
+                    title: modelData.k + " · " + ((modelData.v || {}).name || "")
+                    subtitle: modelData.v ? Tr.t("Ends %1 · next %2", win.clock(modelData.v.ends_at), modelData.v.next || "–") : ""
+                }
+            }
+        }
+
+        Card {
+            Layout.fillWidth: true
+            visible: win.mode === "panchang" && win.times !== null
+            icon: "chronometer"
+            title: Tr.t("Times of the day")
+            subtitle: Tr.t("What to avoid, what is good, and the planetary hours")
+            spacing: Theme.space(3)
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Muhurtas")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.type("small")
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.space(2)
+                Repeater {
+                    model: (win.times || {}).muhurtas || []
+                    StatusPill {
+                        required property var modelData
+                        tone: modelData.auspicious ? "ok" : "warn"
+                        text: modelData.name + " " + win.clock(modelData.start) + "–" + win.clock(modelData.end)
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Choghadiya")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.type("small")
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.space(2)
+                Repeater {
+                    model: win.choghadiyaRows()
+                    StatusPill {
+                        required property var modelData
+                        tone: modelData.nature === "good" ? "ok" : (modelData.nature === "bad" ? "error" : "neutral")
+                        text: modelData.part + " · " + modelData.name + " " + win.clock(modelData.start) + "–" + win.clock(modelData.end)
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Planetary hours")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.type("small")
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.space(2)
+                Repeater {
+                    model: (win.times || {}).horas || []
+                    StatusPill {
+                        required property var modelData
+                        tone: "accent"
+                        text: modelData.lord + " " + win.clock(modelData.start) + "–" + win.clock(modelData.end)
                     }
                 }
             }

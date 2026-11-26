@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 from datetime import date as date_type, datetime, time, timedelta, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:  # script (sys.path[0] = bridge/) and import (tests) both work
@@ -618,9 +620,24 @@ def _rise_set(
     return sun_block, moon_block, sunrise, sunset, night_end
 
 
+def _zone(name: str) -> ZoneInfo:
+    """An IANA zone; an empty name means this computer's zone, not UTC."""
+    if not name:
+        name = os.environ.get("TZ", "").lstrip(":")
+        if not name:
+            parts = Path("/etc/localtime").resolve().parts
+            name = (
+                "/".join(parts[parts.index("zoneinfo") + 1 :])
+                if "zoneinfo" in parts
+                else "UTC"
+            )
+    return ZoneInfo(name)
+
+
 def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
     """All Panchang figures for ``day`` at (lat, lon) in the IANA zone."""
-    zone = ZoneInfo(zone_name)
+    zone = _zone(zone_name)
+    zone_name = str(zone)
     if not -90 <= lat <= 90 or not -180 <= lon <= 180:
         raise ValueError("latitude must be -90..90 and longitude -180..180")
     sun, moon, sunrise, sunset, night_end = _rise_set(day, lat, lon, zone)

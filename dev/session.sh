@@ -31,7 +31,7 @@ export SHANI_BACKUP_PKEXEC=
 export SHANI_CHRONOA_AGENT=/work/dev/fake-chronoa-agent.py
 export SHANI_CHRONOA_SYSTEMCTL=/work/dev/fake-chronoa-systemctl.py
 export SHANI_CHRONOA_SYSTEMCTL_LOG=/tmp/fake-chronoa-systemctl/calls
-export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py SHANI_MAIL_TOOL=/work/bridge/mail.py SHANI_AUTOSTART_TOOL=/work/bridge/autostart.py SHANI_MEDIAINFO_TOOL=/work/dev/fake-mediainfo.sh SHANI_EXIV2_TOOL=/work/dev/fake-exiv2.sh SHANI_KUNDALI_TOOL=/work/bridge/kundali.py SHANI_KUNDALI_FORECAST_TOOL=/work/bridge/kundali_forecast.py SHANI_KUNDALI_TODAY=2026-12-02
+export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py SHANI_MAIL_TOOL=/work/bridge/mail.py SHANI_AUTOSTART_TOOL=/work/bridge/autostart.py SHANI_MEDIAINFO_TOOL=/work/dev/fake-mediainfo.sh SHANI_EXIV2_TOOL=/work/dev/fake-exiv2.sh SHANI_KUNDALI_TOOL=/work/bridge/kundali.py SHANI_KUNDALI_FORECAST_TOOL=/work/bridge/kundali_forecast.py SHANI_KUNDALI_PANCHANG_TOOL=/work/bridge/panchang_times.py SHANI_KUNDALI_TODAY=2026-12-02
 # devices plugged in: the real watcher over recorded udev events (dev/udev/, written
 # into the FIFO /tmp/udev-events by the suite), a second monitor through a niri
 # shim, a gaming mouse (fake ratbagctl), a security key (fake fido2-token and
