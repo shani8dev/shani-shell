@@ -30,6 +30,7 @@ AppWindow {
     property string dtmfDigits: ""          // digits sent to the live call's keypad
 
     onVisibleChanged: if (visible) { Link.refresh(); if (Ui.callsNumber !== "") { number.text = Ui.callsNumber; Ui.callsNumber = ""; } }
+    Connections { target: number; function onTextChanged() { Ui.callsPad = number.text; } }
 
     Connections {
         target: Modem

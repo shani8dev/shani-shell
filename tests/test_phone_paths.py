@@ -127,3 +127,21 @@ def test_a_missed_call_opens_the_shells_own_window(tmp_path, monkeypatch):
     got = log.read_text(encoding="utf-8").splitlines()
     assert "messagesOpen" in got and "+919900000000" in got
     assert "phoneOpen" in got and "+919911111111" in got
+
+
+def test_tel_and_sms_links_open_the_shells_own_apps():
+    """A number on a web page (tel:, sms:) opens the shell's Calls or Messages with
+    it filled in - the old phone app's dialer is gone from niri."""
+    import importlib.machinery, importlib.util
+    root = Path(__file__).resolve().parents[1]
+    loader = importlib.machinery.SourceFileLoader("shani_cli", str(root / "bin" / "shani"))
+    spec = importlib.util.spec_from_loader("shani_cli", loader)
+    cli = importlib.util.module_from_spec(spec)
+    loader.exec_module(cli)
+    calls, messages = cli.APPS["calls"], cli.APPS["messages"]
+    assert "x-scheme-handler/tel" in calls[5] and calls[7] == "callsOpen"
+    assert "x-scheme-handler/sms" in messages[5] and messages[7] == "messagesOpen"
+    # the link reaches the app as it is, not as a file path
+    assert cli._file_arg("tel:+919820012345") == "tel:+919820012345"
+    assert cli._file_arg("sms:+91987?body=hi") == "sms:+91987?body=hi"
+    assert cli._file_arg("~/x.txt").endswith("/x.txt")

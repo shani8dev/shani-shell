@@ -113,7 +113,9 @@ Singleton {
     property bool devices: false             // the Devices app (Modules/Devices): phones, gadgets, this screen
     property bool irc: false                 // the IRC app (Modules/Irc): channels, chat and nick list
     property bool cloudSync: false           // the Cloud sync app (Modules/Cloud)
-    property string callsNumber: ""          // the Calls app: the number the dial pad opens with
+    property string callsNumber: ""          // the Calls app: the number the dial pad opens with (it takes it)
+    property string callsPad: ""             // ...what its dial pad shows now (the tests)
+    property string messagesPending: ""      // the Messages app: the number it was opened for (the tests)
     property string messagesNumber: ""       // the Messages app: the conversation to open
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
     property string notesNotebook: ""         // the notes notebook filter (SidebarNotes): "" = all notebooks, else a notebook name

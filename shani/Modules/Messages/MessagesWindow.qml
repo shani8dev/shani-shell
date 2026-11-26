@@ -24,6 +24,7 @@ AppWindow {
 
     onVisibleChanged: if (visible) {
         pendingNumber = Ui.messagesNumber.trim();
+        Ui.messagesPending = pendingNumber;
         Ui.messagesNumber = "";
         Link.openDevice("");
         win.tryPendingNumber();

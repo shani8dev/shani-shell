@@ -48,7 +48,8 @@ Singleton {
     // the pad or the composer; nothing is dialled or sent until the person
     // presses Call or Send. Phone.available gates the device actions above.
     function openDial(number) {
-        Ui.callsNumber = (number || "").trim();
+        // a tel:/callto: link's number (tel:+91-98200%2012345;ext=1 -> +91-98200 12345)
+        Ui.callsNumber = decodeURIComponent(String(number || "").trim().replace(/^(tel|callto):(\/\/)?/i, "").split(";")[0]);
         Ui.calls = true;
     }
     function openMessages(number) {

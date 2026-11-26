@@ -520,10 +520,12 @@ APPS: dict[str, tuple] = {
               [], ["tasksOpen"], None, "tasksShown"),
     "services": ("dev.shani.Services", "Services", "Your services, timers and scheduled jobs", "preferences-system", "System;Utility;",
                  [], ["servicesOpen"], "servicesOpen", "servicesShown"),
+    # tel: and sms: links (a number on a web page) open the pad or the composer
+    # with the number in - nothing is dialled or sent until the person presses
     "calls": ("dev.shani.Calls", "Calls", "The dial pad and the call history, for every line", "call-start", "Utility;",
-              [], ["callsAppOpen"], "callsAppOpen", "callsShown"),
+              ["x-scheme-handler/tel", "x-scheme-handler/callto"], ["callsAppOpen"], "callsOpen", "callsShown"),
     "messages": ("dev.shani.Messages", "Messages", "The phone's texts, read and answered here", "mail-unread", "Utility;",
-                   [], ["messagesAppOpen"], "messagesAppOpen", "messagesShown"),
+                   ["x-scheme-handler/sms", "x-scheme-handler/smsto"], ["messagesAppOpen"], "messagesOpen", "messagesShown"),
     "devices": ("dev.shani.Devices", "Devices", "Phones, gadgets and your screen on a phone", "smartphone", "Utility;System;",
                 [], ["devicesOpen"], "devicesOpen", "devicesShown"),
     "contacts": ("dev.shani.Contacts", "Contacts", "Your address book, as vCard files", "x-office-address-book", "Office;Utility;",
@@ -655,9 +657,13 @@ APP_KEYWORDS: dict[str, tuple] = {
 
 
 def _file_arg(arg: str) -> str:
-    """A desktop entry's %u: a path, or a file:// URI, as an absolute path."""
+    """A desktop entry's %u: a path, or a file:// URI, as an absolute path; a
+    link of another kind (tel:, sms:) as it is, for the app to read."""
     import os
+    import re
     from urllib.parse import unquote, urlparse
+    if re.match(r"^(tel|callto|sms|smsto):", arg, re.I):
+        return arg
     if arg.startswith("file://"):
         arg = unquote(urlparse(arg).path)
     return os.path.abspath(os.path.expanduser(arg))

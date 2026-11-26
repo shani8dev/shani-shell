@@ -432,10 +432,10 @@ ShellRoot {
         // `number` prefills the pad. Typed on purpose: Quickshell's IPC
         // reflection skips a function whose parameter has no type, and `shani app
         // calls` passes "" - see bin/shani's APPS.
+        // a number, or a tel:/callto: link (a desktop entry's %u)
         function callsOpen(number: string) {
             Ui.closeAll();
-            Ui.callsNumber = (number || "").trim();
-            Ui.calls = true;
+            Phone.openDial(number);
         }
         function callsClose() { Ui.calls = false; }
         function devicesOpen() { Ui.closeAll(); Ui.devices = true; }
@@ -454,7 +454,8 @@ ShellRoot {
         // the Messages app, on the conversation with `number` when one is given
         function messagesOpen(number: string) {
             Ui.closeAll();
-            Ui.messagesNumber = (number || "").trim();
+            // a number, or an sms:/smsto: link (sms:+91987?body=hi -> +91987)
+            Ui.messagesNumber = decodeURIComponent(String(number || "").trim().replace(/^(sms|smsto):(\/\/)?/i, "").split(/[?;]/)[0]);
             Ui.messages = true;
         }
         function messagesClose() { Ui.messages = false; }
@@ -1271,7 +1272,7 @@ ShellRoot {
                 servicesShown: Ui.servicesApp, servicesTab: SysServices.tab,
                 servicesCount: SysServices.services.length, timersCount: SysServices.timers.length,
                 cronCount: SysServices.cron.length, servicesNote: SysServices.note,
-                callsShown: Ui.calls, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
+                callsShown: Ui.calls, callsPad: Ui.callsPad, messagesPending: Ui.messagesPending, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
                 incoming: Link.incoming.name || Link.incoming.number || "", incomingId: Link.incoming.id || "", incomingLine: Link.incoming.line || "",
                 devicesShown: Ui.devices, devicesCount: new Set(Link.devices.map(d => d.id)
                     .concat(Devices.devices.map(d => d.id || d.serial || d.name),

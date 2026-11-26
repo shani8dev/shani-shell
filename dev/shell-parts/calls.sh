@@ -134,3 +134,15 @@ else
     cp "$CALLS_BACKUP" "$CALLS_FILE"
 fi
 rm -f "$CALLS_BACKUP"
+
+export SHANI_QS_CONFIG=/work/shani   # `shani app` speaks to the dev session's shell
+# a number on a web page: tel: and sms: links open the shell's own Calls and
+# Messages with the number in (the desktop entry's %u) - nothing is dialled
+ipc closeAll
+python3 /work/bin/shani app calls "tel:+91-98200%2012345;ext=1" >/dev/null 2>&1
+waitfor "d['callsShown'] and d['callsPad'] == '+91-98200 12345'" 6 && result calls-tel-link-fills-the-pad PASS \
+    || result calls-tel-link-fills-the-pad FAIL "$(q "['callsShown'], d['callsPad']")"
+python3 /work/bin/shani app messages "sms:+919876543210?body=hi" >/dev/null 2>&1
+waitfor "d['messagesPending'] == '+919876543210'" 6 && result messages-sms-link-fills-the-number PASS \
+    || result messages-sms-link-fills-the-number FAIL "$(q "['messagesPending']")"
+ipc closeAll
