@@ -272,14 +272,13 @@ AppWindow {
                     }
                 }
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
                     model: win.overviewLinks
                     Button {
                         required property var modelData
-                        Layout.fillWidth: true
                         kind: "outline"
                         text: modelData.label
                         Accessible.name: Tr.t("Open %1", modelData.label)
@@ -774,18 +773,17 @@ AppWindow {
                 text: win.procQuery
                 onTextChanged: win.procQuery = text
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("View:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("View:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; height: Math.max(Theme.px(24), Theme.touchTarget); verticalAlignment: Text.AlignVCenter }
                 Choice { text: Tr.t("Processes"); selected: !win.byUser; onClicked: win.byUser = false }
                 Choice { text: Tr.t("Users"); selected: win.byUser; onClicked: win.byUser = true }
-                Item { Layout.fillWidth: true }
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("End with signal:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("End with signal:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; height: Math.max(Theme.px(24), Theme.touchTarget); verticalAlignment: Text.AlignVCenter }
                 Repeater {
                     model: ["TERM", "KILL", "INT", "HUP", "STOP", "CONT"]
                     Choice {
@@ -800,15 +798,15 @@ AppWindow {
             RowLayout {
                 visible: !win.byUser
                 Layout.fillWidth: true
-                Layout.leftMargin: Theme.px(20)
+                Layout.leftMargin: win.compact ? 0 : Theme.px(20)
                 spacing: Theme.px(6)
                 Repeater {
                     model: [
                         { key: "name", label: Tr.t("Name"), width: -1 },
-                        { key: "pid", label: "PID", width: 60 },
-                        { key: "cpu", label: "CPU", width: 70 },
-                        { key: "mem", label: Tr.t("Memory"), width: 70 },
-                        { key: "disk", label: Tr.t("Disk"), width: 64 }
+                        { key: "pid", label: "PID", width: win.compact ? 42 : 60 },
+                        { key: "cpu", label: "CPU", width: win.compact ? 46 : 70 },
+                        { key: "mem", label: Tr.t("Memory"), width: win.compact ? 46 : 70 },
+                        { key: "disk", label: Tr.t("Disk"), width: win.compact ? 44 : 64 }
                     ]
                     Text {
                         required property var modelData
@@ -850,7 +848,7 @@ AppWindow {
                     width: procList.width
                     height: Math.max(Theme.px(36), Theme.touchTarget)
                     spacing: Theme.px(6)
-                    Item { implicitWidth: procRow.indent * 14; implicitHeight: 1 }
+                    Item { implicitWidth: Math.min(procRow.indent, win.compact ? 2 : 99) * 14; implicitHeight: 1 }
                     Text {
                         text: procRow.p.name
                         font.family: Theme.font
@@ -873,7 +871,7 @@ AppWindow {
                         font.features: { "tnum": 1 }
                         color: procRow.p.cpu >= 50 ? Theme.danger : Theme.dim
                         horizontalAlignment: Text.AlignRight
-                        Layout.preferredWidth: Theme.px(96)
+                        Layout.preferredWidth: win.compact ? Theme.px(52) : Theme.px(96)
                     }
                     Text {
                         text: win.diskText(TopProcesses.diskIo[procRow.p.pid] || 0)
@@ -882,13 +880,14 @@ AppWindow {
                         font.features: { "tnum": 1 }
                         color: Theme.faint
                         horizontalAlignment: Text.AlignRight
-                        Layout.preferredWidth: Theme.px(64)
+                        Layout.preferredWidth: win.compact ? Theme.px(44) : Theme.px(64)
                         Accessible.name: Tr.t("Disk I/O") + " " + text
                         Hint { text: Tr.t("Total read + write for this process, from /proc/<pid>/io") }
                     }
                     Text {
                         // cpu is already a percentage of one core (it includes the
                         // core count), so ~6.5 W per fully loaded core = cpu * 0.065
+                        visible: !win.compact
                         text: Math.round(procRow.p.cpu * 0.065) + " W"
                         font.family: Theme.font
                         font.pixelSize: Theme.px(10) * Theme.fontScale

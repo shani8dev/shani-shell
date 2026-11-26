@@ -616,6 +616,10 @@ AppWindow {
                 Accessible.role: Accessible.Button
                 Accessible.name: card.modelData.name
                 Accessible.onPressAction: card.isSnap ? win.snapJob(card.modelData.installed ? "remove" : "install", card.modelData) : win.openApp(card.modelData.id)
+                KeyFocus {
+                    name: card.modelData.name
+                    onActivated: card.isSnap ? win.snapJob(card.modelData.installed ? "remove" : "install", card.modelData) : win.openApp(card.modelData.id)
+                }
             }
         }
         Text {
@@ -637,13 +641,13 @@ AppWindow {
                 width: parent.width
                 spacing: Theme.px(10)
                 readonly property var a: win.app || ({})
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(12)
                     IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Back"); onClicked: win.app = null }
-                    Image { Layout.preferredWidth: Theme.px(72); Layout.preferredHeight: Theme.px(72); source: appCol.a.icon ? "file://" + appCol.a.icon : ""; sourceSize: Qt.size(144, 144); fillMode: Image.PreserveAspectFit }
+                    Image { width: Theme.px(72); height: Theme.px(72); source: appCol.a.icon ? "file://" + appCol.a.icon : ""; sourceSize: Qt.size(144, 144); fillMode: Image.PreserveAspectFit }
                     ColumnLayout {
-                        Layout.fillWidth: true
+                        width: Math.max(Theme.px(140), Math.min(Theme.px(320), parent.width - Theme.px(160)))
                         spacing: 0
                         Text { text: appCol.a.name || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(18) * Theme.fontScale; font.weight: Font.DemiBold }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: appCol.a.summary || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }

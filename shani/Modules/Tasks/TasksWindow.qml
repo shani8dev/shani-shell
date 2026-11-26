@@ -257,7 +257,7 @@ AppWindow {
                 Text { text: Tr.t("Notes:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 TextArea {
                     id: noteField
-                    width: Theme.px(260)
+                    width: Math.min(Theme.px(260), parent.width - Theme.px(16))
                     height: Theme.px(48)
                     wrapMode: TextArea.Wrap
                     placeholderText: Tr.t("Notes for this task…")
@@ -421,21 +421,23 @@ AppWindow {
                     readonly property bool late: !modelData.done && modelData.due > 0 && modelData.due * 1000 < Date.now()
                     readonly property int prio: modelData.priority || 0
                     width: list.width
-                    height: Theme.px(44)
+                    // the action buttons wrap below the title on a phone
+                    height: Math.max(Theme.px(44), rowFlow.implicitHeight + Theme.px(8))
                     radius: Theme.radiusSmall
                     color: win.selected.indexOf(modelData.uid) !== -1 ? Theme.hover : rowArea.containsMouse ? Theme.hover : "transparent"
                     Accessible.role: Accessible.ListItem
                     Accessible.name: row.modelData.summary + (row.prio > 0 ? ", P" + row.prio : "") + (row.late ? ", " + Tr.t("overdue") : "")
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
-                    RowLayout {
+                    Flow {
+                        id: rowFlow
                         anchors { fill: parent; leftMargin: Theme.px(6); rightMargin: Theme.px(6) }
                         spacing: Theme.px(10)
                         // multi-select checkbox: uids, never row indexes
                         Rectangle {
                             visible: win.selectMode
-                            Layout.preferredWidth: Theme.px(22)
-                            Layout.preferredHeight: Theme.px(22)
-                            radius: Theme.px(11)
+                            width: Math.max(Theme.px(22), Theme.touchTarget)
+                            height: width
+                            radius: width / 2
                             color: win.selected.indexOf(row.modelData.uid) !== -1 ? Theme.accent : "transparent"
                             border.width: 2
                             border.color: Theme.dim
@@ -448,9 +450,9 @@ AppWindow {
                         }
                         // the tick: done or not
                         Rectangle {
-                            Layout.preferredWidth: Theme.px(22)
-                            Layout.preferredHeight: Theme.px(22)
-                            radius: Theme.px(11)
+                            width: Math.max(Theme.px(22), Theme.touchTarget)
+                            height: width
+                            radius: width / 2
                             color: row.modelData.done ? Theme.accent : "transparent"
                             border.width: 2
                             border.color: row.modelData.done ? Theme.accent : row.late ? Theme.danger : Theme.dim
@@ -464,9 +466,10 @@ AppWindow {
                             KeyFocus { name: row.modelData.summary; onActivated: Tasks.setDone(row.modelData, !row.modelData.done) }
                         }
                         ColumnLayout {
-                            Layout.fillWidth: true
+                            width: Math.max(Theme.px(120), Math.min(Theme.px(260), rowFlow.width - Theme.px(260)))
                             spacing: 0
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.activate(row.modelData) }
+                            KeyFocus { name: row.modelData.summary; onActivated: win.activate(row.modelData) }
                             Text {
                                 Layout.fillWidth: true
                                 text: row.modelData.summary

@@ -206,12 +206,13 @@ AppWindow {
         spacing: Theme.px(8)
 
         // ---- header: title, search + by-fs filter, unit scale, loop devices, actions ----
-        RowLayout {
+        // the filters and actions wrap on a phone instead of running off the edge
+        Flow {
             Layout.fillWidth: true
+            spacing: Theme.px(6)
             // the title is the window's own (AppWindow's header), not repeated here
-            Item { Layout.fillWidth: true }
             TextField {
-                Layout.preferredWidth: Theme.px(180)
+                width: Math.min(Theme.px(180), parent.width)
                 placeholder: Tr.t("Search disks…")
                 text: win.filterText
                 onTextChanged: win.filterText = text
@@ -609,6 +610,9 @@ AppWindow {
                                         color: Theme.accent
                                         font.family: Theme.font
                                         font.pixelSize: Theme.px(9) * Theme.fontScale
+                                        // a tap target as big as any other button
+                                        Layout.preferredHeight: Math.max(Theme.px(24), Theme.touchTarget)
+                                        verticalAlignment: Text.AlignVCenter
                                         Accessible.role: Accessible.Button
                                         Accessible.name: toggleText.text
                                         Accessible.onPressAction: toggleText.toggle()
@@ -617,6 +621,7 @@ AppWindow {
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: toggleText.toggle()
                                         }
+                                        KeyFocus { onActivated: toggleText.toggle() }
                                         function toggle() {
                                             const p = win.partPath(modelData);
                                             if (!p || Disks.busy) return;

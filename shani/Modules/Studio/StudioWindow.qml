@@ -99,7 +99,7 @@ AppWindow {
             }
 
             // ---- template pickers: four starting points ----
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Text {
@@ -107,6 +107,8 @@ AppWindow {
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
+                    height: Math.max(Theme.px(28), Theme.touchTarget)
+                    verticalAlignment: Text.AlignVCenter
                 }
                 Repeater {
                     model: Studio.templates
@@ -162,19 +164,21 @@ AppWindow {
             delegate: Rectangle {
                 required property var modelData
                 width: appList.width
-                height: Theme.px(52)
+                // the actions wrap below the name on a phone instead of shrinking it
+                height: Math.max(Theme.px(52), rowFlow.implicitHeight + Theme.px(20))
                 radius: Theme.radiusSmall
                 // the row says it is waiting for the second click, not only its tooltip
                 color: win.confirmDelete === modelData.name ? Theme.alpha(Theme.danger, 0.14)
                      : rowArea.containsMouse ? Theme.hover : "transparent"
                 Accessible.role: Accessible.ListItem
                 Accessible.name: modelData.name + (win.confirmDelete === modelData.name ? ", " + Tr.t("Click again to delete") : "")
-                RowLayout {
+                Flow {
+                    id: rowFlow
                     anchors { fill: parent; margins: Theme.px(10) }
-                    spacing: Theme.px(10)
+                    spacing: Theme.px(8)
                     Icon { name: AppIconPath.nameFor(modelData, "application-x-executable"); size: Theme.px(22); color: Theme.dim }
                     ColumnLayout {
-                        Layout.fillWidth: true
+                        width: Math.min(Theme.px(260), rowFlow.width - Theme.px(40))
                         spacing: 0
                         Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
                         Text {
@@ -319,7 +323,8 @@ AppWindow {
             font.weight: Font.DemiBold
             visible: appList.count > 0
         }
-        RowLayout {
+        Flow {
+            Layout.fillWidth: true
             spacing: Theme.px(6)
             visible: appList.count > 0
             Repeater {
