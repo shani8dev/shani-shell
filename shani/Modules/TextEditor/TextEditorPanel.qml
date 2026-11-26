@@ -25,15 +25,20 @@ AppWindow {
     doc: TextDocs.current ? (TextDocs.current.modified ? "● " : "") + TextDocs.current.name : ""
     visible: Ui.textEditor
     onGone: Ui.textEditor = false
+    // the project files: a column beside the text, the header's drawer on a phone
+    sidePane: filesPane
+    // opening a file leaves one pane on screen: close the drawer (and a phone
+    // never shows a second, split pane)
+    Connections { target: TextDocs; function onActiveChanged() { if (filesPane.open) filesPane.open = false; } }
     tools: [
         IconButton { size: Theme.px(30); icon: "document-new"; tip: Tr.t("New") + " (Ctrl+N)"; onClicked: TextDocs.newDoc() },
         IconButton { size: Theme.px(30); icon: "edit-undo"; tip: Tr.t("Undo") + " (Ctrl+Z)"; enabled: TextDocs.canUndo; onClicked: win.undo() },
         IconButton { size: Theme.px(30); icon: "edit-redo"; tip: Tr.t("Redo") + " (Ctrl+Shift+Z)"; enabled: TextDocs.canRedo; onClicked: win.redo() },
         IconButton { size: Theme.px(30); icon: "document-open"; tip: Tr.t("Open") + " (Ctrl+O)"; onClicked: win.pick() },
         IconButton { size: Theme.px(30); icon: "document-open-recent"; tip: "Open recent (Ctrl+Shift+R)"; onClicked: recentDialog.open() },
-        IconButton { size: Theme.px(30); icon: "folder-open"; tip: "Project folder (Ctrl+K, O)"; on: win.sidebarOpen; onClicked: { if (TextDocs.folder === "") win.pickFolder(); else win.sidebarOpen = !win.sidebarOpen; } },
+        IconButton { size: Theme.px(30); icon: "folder-open"; tip: "Project folder (Ctrl+K, O)"; on: filesPane.open; onClicked: { if (TextDocs.folder === "") win.pickFolder(); else filesPane.open = !filesPane.open; } },
         IconButton { size: Theme.px(30); icon: "edit-find-in"; tip: "Find in files (Ctrl+Shift+F)"; on: win.findFilesOpen; onClicked: win.openFindFiles() },
-        IconButton { size: Theme.px(30); icon: "view-split-left-right"; tip: "Split view (Ctrl+K, D)"; on: win.splitView; onClicked: win.splitView = !win.splitView },
+        IconButton { size: Theme.px(30); icon: "view-split-left-right"; tip: "Split view (Ctrl+K, D)"; on: win.splitView; visible: !win.compact; onClicked: win.splitView = !win.splitView },
         IconButton { size: Theme.px(30); icon: "applications-graphics"; tip: "Syntax language"; onClicked: syntaxDialog.open() },
         Button { text: Tr.t("Save"); kind: TextDocs.current && TextDocs.current.modified ? "primary" : "plain"; enabled: TextDocs.current !== null && !TextDocs.saving; onClicked: win.save() },
         Button { text: Tr.t("Save as…"); flat: true; onClicked: win.saveAs() },
@@ -102,7 +107,6 @@ AppWindow {
     property var lastClosed: null         // { index, doc } of the last tab closed — Ctrl+Shift+T puts it back
     property bool loading: false          // the editor is being filled, not typed in
     // ---- IDE-style additions: project, MRU, groups, split, chords ---------------
-    property bool sidebarOpen: false
     property bool splitView: false
     property bool findFilesOpen: false
     property string findFilesQuery: ""
@@ -479,7 +483,7 @@ AppWindow {
     function pick() {
         FilePicker.open({ mode: "open", title: Tr.t("Open a text file"),
                           startPath: TextDocs.current && TextDocs.current.path ? TextDocs.current.path.substring(0, TextDocs.current.path.lastIndexOf("/")) : "",
-                          onPicked: paths => { if (paths.length) TextDocs.open(paths[0]); } });
+                          onPicked: paths => { if (paths.length) { filesPane.open = false; TextDocs.open(paths[0]); } } });
     }
     function saveAs() {
         const d = TextDocs.current;
@@ -697,11 +701,12 @@ AppWindow {
                           startPath: TextDocs.folder || "",
                           onPicked: paths => { if (paths.length) win.openFolder(paths[0]); } });
     }
-    function openFolder(path) { TextDocs.folder = path; win.sidebarOpen = true; }
+    function openFolder(path) { TextDocs.folder = path; filesPane.open = true; }
     function openSidebarEntry(e) {
         if (!e) return;
         if (e.isDir) TextDocs.folder = e.path;
         else TextDocs.open(e.path);
+        if (!e.isDir) filesPane.open = false;   // one pane on screen after a file opens
     }
 
     // ---- find in files ----------------------------------------------------------
@@ -786,7 +791,7 @@ AppWindow {
         chordTimer.stop();
         if (e.key === Qt.Key_O) win.pickFolder();
         else if (e.key === Qt.Key_F) win.openFindFiles();
-        else if (e.key === Qt.Key_B) win.sidebarOpen = !win.sidebarOpen;
+        else if (e.key === Qt.Key_B) filesPane.open = !filesPane.open;
         else if (e.key === Qt.Key_D) win.splitView = !win.splitView;
         else if (e.key === Qt.Key_L) syntaxDialog.open();
         else return false;
@@ -797,6 +802,16 @@ AppWindow {
 
     function retryOpen() { if (TextDocs.lastPath !== "") TextDocs.open(TextDocs.lastPath); }
     function dismissError() { TextDocs.error = ""; }
+    // a field in a Flow takes the space the buttons beside it leave; on a
+    // phone the buttons wrap below instead of squeezing the field away
+    function spareWidth(row, field) {
+        let used = 0;
+        for (let i = 0; i < row.children.length; i++) {
+            const c = row.children[i];
+            if (c !== field && c.visible) used += c.width + row.spacing;
+        }
+        return Math.max(Theme.px(140), row.width - used);
+    }
 
     Item {
         id: card
@@ -811,7 +826,7 @@ AppWindow {
             // ---- the open documents ----
             Flickable {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Theme.px(32)
+                Layout.preferredHeight: win.compact ? Math.max(Theme.px(32), Theme.touchTarget) : Theme.px(32)
                 contentWidth: tabRow.implicitWidth
                 clip: true
                 flickableDirection: Flickable.HorizontalFlick
@@ -828,7 +843,7 @@ AppWindow {
                             readonly property bool asking: win.confirmClose === index
                             visible: win.activeGroup === "" || TextDocs.groupOf(tab.modelData) === win.activeGroup
                             width: tabText.implicitWidth + 50
-                            height: Theme.px(32)
+                            height: win.compact ? Math.max(Theme.px(32), Theme.touchTarget) : Theme.px(32)
                             radius: Theme.radiusSmall
                             color: front ? Theme.accentSoft : tabArea.containsMouse ? Theme.hover : "transparent"
                             border.width: front ? 1 : 0
@@ -852,6 +867,7 @@ AppWindow {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: e => { if (e.button === Qt.MiddleButton) win.closeTab(tab.index); else TextDocs.show(tab.index); }
                             }
+                            KeyFocus { onActivated: TextDocs.show(tab.index) }
                             IconButton {
                                 anchors { right: parent.right; rightMargin: Theme.px(4); verticalCenter: parent.verticalCenter }
                                 icon: "window-close"
@@ -865,7 +881,7 @@ AppWindow {
             }
 
             // ---- tab groups: one chip per folder, filtering the tab strip ----
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: TextDocs.groups().length > 1
                 spacing: Theme.px(6)
@@ -905,13 +921,14 @@ AppWindow {
             }
 
             // ---- find and replace ----
-            RowLayout {
+            Flow {
+                id: findRow
                 Layout.fillWidth: true
                 visible: win.finding && TextDocs.docs.length > 0
                 spacing: Theme.px(6)
                 TextField {
                     id: findField
-                    Layout.fillWidth: true
+                    width: win.spareWidth(findRow, findField)
                     placeholder: Tr.t("Find")
                     onAccepted: win.find(true)
                     onTextChanged: win.matchIndex = -1
@@ -928,6 +945,7 @@ AppWindow {
                 CheckBox { text: "W"; checked: win.wholeWord; onCheckedChanged: win.wholeWord = checked; ToolTip.text: "Whole word"; Accessible.name: "Whole word" }
                 CheckBox { text: ".*"; checked: win.useRegex; onCheckedChanged: win.useRegex = checked; ToolTip.text: "Regular expression"; Accessible.name: "Regular expression" }
                 Text {
+                    width: implicitWidth
                     text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : (win.matchIndex >= 0 ? (win.matchIndex + 1) + "/" : "") + win.matches + " " + Tr.t("found")
                     color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
                     font.family: Theme.font
@@ -937,13 +955,14 @@ AppWindow {
                 IconButton { icon: "go-down"; tip: Tr.t("Next match"); onClicked: win.find(true) }
                 Button { text: Tr.t("Replace…"); flat: true; checked: win.replacing; onClicked: win.replacing = !win.replacing }
             }
-            RowLayout {
+            Flow {
+                id: replaceRow
                 Layout.fillWidth: true
                 visible: win.finding && win.replacing
                 spacing: Theme.px(6)
                 TextField {
                     id: replaceField
-                    Layout.fillWidth: true
+                    width: win.spareWidth(replaceRow, replaceField)
                     placeholder: Tr.t("Replace with")
                     onAccepted: win.replaceOne()
                     input.Keys.onEscapePressed: win.leave()
@@ -951,13 +970,14 @@ AppWindow {
                 Button { text: Tr.t("Replace"); onClicked: win.replaceOne() }
                 Button { text: Tr.t("Replace all"); onClicked: replaceAllConfirm.open() }
             }
-            RowLayout {
+            Flow {
+                id: gotoRow
                 Layout.fillWidth: true
                 visible: win.gotoOpen
                 spacing: Theme.px(6)
                 TextField {
                     id: gotoField
-                    Layout.fillWidth: true
+                    width: win.spareWidth(gotoRow, gotoField)
                     placeholder: "Line number"
                     input.validator: IntValidator { bottom: 1; top: 1000000 }
                     onAccepted: win.submitGoto()
@@ -971,7 +991,7 @@ AppWindow {
             Dialog {
                 id: replaceAllConfirm
                 anchors.centerIn: parent
-                width: Math.min(win.width * 0.8, Theme.px(400))
+                width: Math.min(win.width - Theme.px(24), Theme.px(400))
                 title: Tr.t("Replace all?")
                 modal: true
                 standardButtons: Dialog.No | Dialog.Yes
@@ -990,26 +1010,25 @@ AppWindow {
             }
 
             // ---- the text ----
-            Rectangle {
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: Theme.radiusSmall
-                color: Theme.surface1
-                border.width: 1
-                border.color: Theme.border
-                clip: true
+                spacing: 0
 
                 // ---- project sidebar: the folder's files, watched live ----------
-                Rectangle {
-                    id: sidebar
-                    visible: win.sidebarOpen
-                    width: visible ? Theme.px(220) : 0
-                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                    z: 3
-                    color: Theme.surface1
-                    border.width: 1
-                    border.color: Theme.border
-                    clip: true
+                // a column beside the text, the header's drawer on a phone
+                SidePane {
+                    id: filesPane
+                    compact: win.compact
+                    paneWidth: Theme.px(220)
+                    label: Tr.t("Files")
+                    Rectangle {
+                        anchors.fill: parent
+                        color: Theme.surface1
+                        border.width: 1
+                        border.color: Theme.border
+                        clip: true
+                    }
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: Theme.px(6)
@@ -1025,7 +1044,7 @@ AppWindow {
                                 font.pixelSize: Theme.px(11) * Theme.fontScale
                             }
                             IconButton { size: Theme.px(24); icon: "folder-open"; tip: "Open another folder"; onClicked: win.pickFolder() }
-                            IconButton { size: Theme.px(24); icon: "window-close"; tip: "Hide sidebar"; onClicked: win.sidebarOpen = false }
+                            IconButton { size: Theme.px(24); icon: "window-close"; tip: "Hide sidebar"; onClicked: filesPane.open = false }
                         }
                         TextField {
                             id: sidebarFilter
@@ -1052,7 +1071,7 @@ AppWindow {
                             delegate: Item {
                                 required property var modelData
                                 width: ListView.view.width
-                                height: Theme.px(26)
+                                height: win.compact ? Math.max(Theme.px(26), Theme.touchTarget) : Theme.px(26)
                                 Accessible.role: Accessible.ListItem
                                 Accessible.name: modelData.name + (modelData.isDir ? ", folder" : ", file")
                                 Accessible.onPressAction: win.openSidebarEntry(modelData)
@@ -1072,6 +1091,7 @@ AppWindow {
                                     hoverEnabled: true
                                     onClicked: win.openSidebarEntry(modelData)
                                 }
+                                KeyFocus { onActivated: win.openSidebarEntry(modelData) }
                             }
                         }
                         EmptyState {
@@ -1094,338 +1114,350 @@ AppWindow {
                     }
                 }
 
-                // line numbers: beside unwrapped text, where a line is a row
-                Item {
-                    id: gutter
-                    visible: win.lineNumbers && !win.markdownPreview
-                    width: visible ? numbers.implicitWidth + 16 : 0
-                    anchors { left: sidebar.right; top: parent.top; bottom: parent.bottom }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    border.width: 1
+                    border.color: Theme.border
                     clip: true
-                    Text {
-                        id: numbers
-                        x: 8
-                        y: 8 - flick.contentY
-                        text: Array.from({ length: edit.lineCount }, (_, i) => i + 1).join("\n")
-                        color: Theme.faint
-                        horizontalAlignment: Text.AlignRight
-                        font: edit.font
-                    }
-                    Repeater {
-                        model: TextDocs.bookmarks()
-                        Rectangle {
-                            x: 2
-                            y: 8 + modelData * (edit.font.pixelSize * 1.6) - flick.contentY
-                            width: 4; height: 4; radius: 2
-                            color: Theme.accent
-                            visible: y > 0 && y < gutter.height
+
+                    // line numbers: beside unwrapped text, where a line is a row
+                    Item {
+                        id: gutter
+                        visible: win.lineNumbers && !win.markdownPreview
+                        width: visible ? numbers.implicitWidth + 16 : 0
+                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                        clip: true
+                        Text {
+                            id: numbers
+                            x: 8
+                            y: 8 - flick.contentY
+                            text: Array.from({ length: edit.lineCount }, (_, i) => i + 1).join("\n")
+                            color: Theme.faint
+                            horizontalAlignment: Text.AlignRight
+                            font: edit.font
+                        }
+                        Repeater {
+                            model: TextDocs.bookmarks()
+                            Rectangle {
+                                x: 2
+                                y: 8 + modelData * (edit.font.pixelSize * 1.6) - flick.contentY
+                                width: 4; height: 4; radius: 2
+                                color: Theme.accent
+                                visible: y > 0 && y < gutter.height
+                            }
                         }
                     }
-                }
-                Flickable {
-                    id: flick
-                    visible: TextDocs.docs.length > 0 && !win.markdownPreview
-                    anchors {
-                        left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
-                        margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
-                        rightMargin: rightAnchor.width + Theme.px(8)
-                    }
-                    contentWidth: edit.width
-                    contentHeight: edit.height
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    function follow(r) {
-                        if (contentY > r.y) contentY = r.y;
-                        else if (contentY + height < r.y + r.height) contentY = r.y + r.height - height;
-                        if (contentX > r.x) contentX = r.x;
-                        else if (contentX + width < r.x + r.width + 8) contentX = r.x + r.width + 8 - width;
-                    }
-                    // current line, matching bracket and every live search hit,
-                    // drawn beneath the (see-through) editor text
-                    Rectangle {
-                        visible: TextDocs.docs.length > 0 && edit.activeFocus
-                        x: 0; y: edit.cursorRectangle.y
-                        width: edit.width; height: Math.max(edit.cursorRectangle.height, Theme.px(16))
-                        color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
-                        z: 0
-                    }
-                    Rectangle {
-                        property int bracePos: win.matchBrace(edit.cursorPosition)
-                        property rect r: bracePos >= 0 ? win.rectAt(bracePos) : Qt.rect(0, 0, 0, 0)
-                        x: r.x; y: r.y; width: r.width; height: r.height
-                        radius: 2
-                        border.width: 1
-                        border.color: Theme.accent
-                        color: "transparent"
-                        visible: bracePos >= 0 && r.width > 0
-                        z: 1
-                    }
-                    Repeater {
-                        model: win.matchOffsets.slice(0, 200)
+                    Flickable {
+                        id: flick
+                        visible: TextDocs.docs.length > 0 && !win.markdownPreview
+                        anchors {
+                            left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
+                            margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
+                            rightMargin: rightAnchor.width + Theme.px(8)
+                        }
+                        contentWidth: edit.width
+                        contentHeight: edit.height
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        function follow(r) {
+                            if (contentY > r.y) contentY = r.y;
+                            else if (contentY + height < r.y + r.height) contentY = r.y + r.height - height;
+                            if (contentX > r.x) contentX = r.x;
+                            else if (contentX + width < r.x + r.width + 8) contentX = r.x + r.width + 8 - width;
+                        }
+                        // current line, matching bracket and every live search hit,
+                        // drawn beneath the (see-through) editor text
                         Rectangle {
-                            property rect r: win.rectAt(modelData)
+                            visible: TextDocs.docs.length > 0 && edit.activeFocus
+                            x: 0; y: edit.cursorRectangle.y
+                            width: edit.width; height: Math.max(edit.cursorRectangle.height, Theme.px(16))
+                            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
+                            z: 0
+                        }
+                        Rectangle {
+                            property int bracePos: win.matchBrace(edit.cursorPosition)
+                            property rect r: bracePos >= 0 ? win.rectAt(bracePos) : Qt.rect(0, 0, 0, 0)
                             x: r.x; y: r.y; width: r.width; height: r.height
                             radius: 2
-                            color: Qt.rgba(1, 0.75, 0.15, 0.32)
-                            visible: win.finding && r.width > 0
+                            border.width: 1
+                            border.color: Theme.accent
+                            color: "transparent"
+                            visible: bracePos >= 0 && r.width > 0
                             z: 1
                         }
-                    }
-                    // the colours: the same text, drawn underneath with its comments,
-                    // strings, numbers and keywords tinted (Common/Highlight.js), while
-                    // the editor above it draws its own letters see-through. Same font,
-                    // width and wrapping, so the two lie exactly on each other.
-                    TextEdit {
-                        id: paint
-                        visible: win.coloured
-                        width: edit.width
-                        height: edit.height
-                        readOnly: true
-                        activeFocusOnPress: false
-                        selectByMouse: false
-                        enabled: false
-                        wrapMode: edit.wrapMode
-                        textFormat: TextEdit.RichText
-                        color: Theme.text
-                        font: edit.font
-                        tabStopDistance: edit.tabStopDistance
-                    }
-                    TextEdit {
-                        id: edit
-                        activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
-                        width: win.wordWrap ? flick.width : Math.max(flick.width, implicitWidth + 8)
-                        height: Math.max(flick.height, implicitHeight)
-                        wrapMode: win.wordWrap ? TextEdit.Wrap : TextEdit.NoWrap
-                        textFormat: TextEdit.PlainText
-                        readOnly: TextDocs.current !== null && TextDocs.current.readOnly
-                        color: win.coloured ? "transparent" : Theme.text
-                        // the cursor takes the text's colour, which may be see-through
-                        cursorDelegate: Rectangle {
-                            width: 2
-                            color: Theme.text
-                            visible: edit.cursorVisible
-                        }
-                        selectionColor: Theme.accent
-                        selectedTextColor: Theme.accentInk
-                        selectByMouse: true
-                        persistentSelection: true
-                        font.family: win.fontFamily
-                        font.pixelSize: win.fontSize * Theme.fontScale
-                        tabStopDistance: 4 * font.pixelSize * 0.6
-                        Accessible.role: Accessible.EditableText
-                        Accessible.name: Tr.t("Text") + ": " + (TextDocs.current ? TextDocs.current.name : "")
-                        onTextChanged: { if (!win.loading) TextDocs.setText(text); repaint.restart(); }
-                        onCursorRectangleChanged: { if (!win.computingRects) flick.follow(cursorRectangle); }
-                        Keys.onPressed: e => {
-                            // multiple cursors / column selection
-                            if ((e.modifiers & Qt.ShiftModifier) && (e.modifiers & Qt.AltModifier)) {
-                                if (e.key === Qt.Key_Down) { win.addCursorVertical(1); e.accepted = true; return; }
-                                if (e.key === Qt.Key_Up)   { win.addCursorVertical(-1); e.accepted = true; return; }
+                        Repeater {
+                            model: win.matchOffsets.slice(0, 200)
+                            Rectangle {
+                                property rect r: win.rectAt(modelData)
+                                x: r.x; y: r.y; width: r.width; height: r.height
+                                radius: 2
+                                color: Qt.rgba(1, 0.75, 0.15, 0.32)
+                                visible: win.finding && r.width > 0
+                                z: 1
                             }
-                            if (win.multiCursor) {
-                                if (e.key === Qt.Key_Escape) { win.clearExtraCursors(); e.accepted = true; return; }
-                                if (e.key === Qt.Key_Backspace) { if (win.backspaceAtCursors()) { e.accepted = true; return; } }
-                                if (e.text !== "" && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier)) {
-                                    if (win.insertAtCursors(e.text)) { e.accepted = true; return; }
+                        }
+                        // the colours: the same text, drawn underneath with its comments,
+                        // strings, numbers and keywords tinted (Common/Highlight.js), while
+                        // the editor above it draws its own letters see-through. Same font,
+                        // width and wrapping, so the two lie exactly on each other.
+                        TextEdit {
+                            id: paint
+                            visible: win.coloured
+                            width: edit.width
+                            height: edit.height
+                            readOnly: true
+                            activeFocusOnPress: false
+                            selectByMouse: false
+                            enabled: false
+                            wrapMode: edit.wrapMode
+                            textFormat: TextEdit.RichText
+                            color: Theme.text
+                            font: edit.font
+                            tabStopDistance: edit.tabStopDistance
+                        }
+                        TextEdit {
+                            id: edit
+                            activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
+                            width: win.wordWrap ? flick.width : Math.max(flick.width, implicitWidth + 8)
+                            height: Math.max(flick.height, implicitHeight)
+                            wrapMode: win.wordWrap ? TextEdit.Wrap : TextEdit.NoWrap
+                            textFormat: TextEdit.PlainText
+                            readOnly: TextDocs.current !== null && TextDocs.current.readOnly
+                            color: win.coloured ? "transparent" : Theme.text
+                            // the cursor takes the text's colour, which may be see-through
+                            cursorDelegate: Rectangle {
+                                width: 2
+                                color: Theme.text
+                                visible: edit.cursorVisible
+                            }
+                            selectionColor: Theme.accent
+                            selectedTextColor: Theme.accentInk
+                            selectByMouse: true
+                            persistentSelection: true
+                            font.family: win.fontFamily
+                            font.pixelSize: win.fontSize * Theme.fontScale
+                            tabStopDistance: 4 * font.pixelSize * 0.6
+                            Accessible.role: Accessible.EditableText
+                            Accessible.name: Tr.t("Text") + ": " + (TextDocs.current ? TextDocs.current.name : "")
+                            onTextChanged: { if (!win.loading) TextDocs.setText(text); repaint.restart(); }
+                            onCursorRectangleChanged: { if (!win.computingRects) flick.follow(cursorRectangle); }
+                            Keys.onPressed: e => {
+                                // multiple cursors / column selection
+                                if ((e.modifiers & Qt.ShiftModifier) && (e.modifiers & Qt.AltModifier)) {
+                                    if (e.key === Qt.Key_Down) { win.addCursorVertical(1); e.accepted = true; return; }
+                                    if (e.key === Qt.Key_Up)   { win.addCursorVertical(-1); e.accepted = true; return; }
+                                }
+                                if (win.multiCursor) {
+                                    if (e.key === Qt.Key_Escape) { win.clearExtraCursors(); e.accepted = true; return; }
+                                    if (e.key === Qt.Key_Backspace) { if (win.backspaceAtCursors()) { e.accepted = true; return; } }
+                                    if (e.text !== "" && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier)) {
+                                        if (win.insertAtCursors(e.text)) { e.accepted = true; return; }
+                                    }
+                                }
+                                if (!win.multiCursor && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier)
+                                        && win.handleAutoclose(e)) return;
+                                if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ControlModifier) && edit.selectionEnd > edit.selectionStart) {
+                                    if (win.indentSelection(!!(e.modifiers & Qt.ShiftModifier))) { e.accepted = true; return; }
+                                }
+                                if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ShiftModifier) && !(e.modifiers & Qt.ControlModifier)) {
+                                    if (win.trySnippet()) { e.accepted = true; return; }
+                                }
+                                if (win.shortcut(e)) e.accepted = true;
+                            }
+                            Keys.onEscapePressed: win.leave()
+                            onCursorPositionChanged: {
+                                if (win.loading || win.computingRects) return;
+                                win.saveCaret();
+                                if (win.multiCursor) win.clearExtraCursors();
+                            }
+                            onSelectedTextChanged: { if (!win.loading && !win.computingRects) win.saveCaret(); win.canDefine = edit.selectedText.trim() !== ""; }
+                        }
+                        // draw the extra cursors (column selection) as thin overlays
+                        Repeater {
+                            model: win.extraCursors
+                            delegate: Rectangle {
+                                property rect r: win.rectAt(modelData)
+                                x: r.x; y: r.y; width: Math.max(2, r.width); height: r.height
+                                color: Theme.accent
+                                visible: edit.activeFocus
+                                z: 5
+                            }
+                        }
+
+                        // ---- right dock: split reading pane + line overview ---------
+                        Item {
+                            id: rightAnchor
+                            anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                            // one pane on a phone: no split view and no line overview
+                            visible: !win.compact
+                            width: win.compact ? 0 : (splitPane.visible ? splitPane.width : 0) + (minimap.visible ? minimap.width : 0)
+                            z: 3
+
+                            // a mirrored reading pane of the same document; a click
+                            // moves the primary caret, so one file can be read ahead
+                            Rectangle {
+                                id: splitPane
+                                visible: win.splitView && TextDocs.docs.length > 0
+                                width: visible ? Math.min(Theme.px(420), win.width * 0.4) : 0
+                                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                                color: Theme.surface1
+                                border.width: 1
+                                border.color: Theme.border
+                                clip: true
+                                Accessible.role: Accessible.EditableText
+                                Accessible.name: "Split view"
+                                Accessible.description: "A mirrored reading pane of this document"
+                                Flickable {
+                                    id: mirrorFlick
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.px(8)
+                                    contentWidth: mirror.width
+                                    contentHeight: mirror.height
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    contentY: flick.contentY
+                                    Text {
+                                        id: mirror
+                                        width: mirrorFlick.width
+                                        text: win.coloured ? paint.text : edit.text
+                                        textFormat: win.coloured ? Text.RichText : Text.PlainText
+                                        color: Theme.text
+                                        font: edit.font
+                                        wrapMode: win.wordWrap ? Text.Wrap : Text.NoWrap
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            const y = mouseY + mirrorFlick.contentY - Theme.px(8);
+                                            const line = Math.max(1, Math.min(edit.lineCount,
+                                                Math.floor(y / Math.max(1, edit.font.pixelSize * 1.6)) + 1));
+                                            win.goToLine(line);
+                                            edit.forceActiveFocus();
+                                        }
+                                    }
                                 }
                             }
-                            if (!win.multiCursor && !(e.modifiers & Qt.ControlModifier) && !(e.modifiers & Qt.AltModifier)
-                                    && win.handleAutoclose(e)) return;
-                            if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ControlModifier) && edit.selectionEnd > edit.selectionStart) {
-                                if (win.indentSelection(!!(e.modifiers & Qt.ShiftModifier))) { e.accepted = true; return; }
-                            }
-                            if (e.key === Qt.Key_Tab && !(e.modifiers & Qt.ShiftModifier) && !(e.modifiers & Qt.ControlModifier)) {
-                                if (win.trySnippet()) { e.accepted = true; return; }
-                            }
-                            if (win.shortcut(e)) e.accepted = true;
-                        }
-                        Keys.onEscapePressed: win.leave()
-                        onCursorPositionChanged: {
-                            if (win.loading || win.computingRects) return;
-                            win.saveCaret();
-                            if (win.multiCursor) win.clearExtraCursors();
-                        }
-                        onSelectedTextChanged: { if (!win.loading && !win.computingRects) win.saveCaret(); win.canDefine = edit.selectedText.trim() !== ""; }
-                    }
-                    // draw the extra cursors (column selection) as thin overlays
-                    Repeater {
-                        model: win.extraCursors
-                        delegate: Rectangle {
-                            property rect r: win.rectAt(modelData)
-                            x: r.x; y: r.y; width: Math.max(2, r.width); height: r.height
-                            color: Theme.accent
-                            visible: edit.activeFocus
-                            z: 5
-                        }
-                    }
 
-                    // ---- right dock: split reading pane + line overview ---------
-                    Item {
-                        id: rightAnchor
-                        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-                        width: (splitPane.visible ? splitPane.width : 0) + (minimap.visible ? minimap.width : 0)
-                        z: 3
-
-                        // a mirrored reading pane of the same document; a click
-                        // moves the primary caret, so one file can be read ahead
-                        Rectangle {
-                            id: splitPane
-                            visible: win.splitView && TextDocs.docs.length > 0
-                            width: visible ? Math.min(Theme.px(420), win.width * 0.4) : 0
-                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                            color: Theme.surface1
-                            border.width: 1
-                            border.color: Theme.border
-                            clip: true
-                            Accessible.role: Accessible.EditableText
-                            Accessible.name: "Split view"
-                            Accessible.description: "A mirrored reading pane of this document"
-                            Flickable {
-                                id: mirrorFlick
-                                anchors.fill: parent
-                                anchors.margins: Theme.px(8)
-                                contentWidth: mirror.width
-                                contentHeight: mirror.height
-                                clip: true
-                                boundsBehavior: Flickable.StopAtBounds
-                                contentY: flick.contentY
-                                Text {
-                                    id: mirror
-                                    width: mirrorFlick.width
-                                    text: win.coloured ? paint.text : edit.text
-                                    textFormat: win.coloured ? Text.RichText : Text.PlainText
-                                    color: Theme.text
-                                    font: edit.font
-                                    wrapMode: win.wordWrap ? Text.Wrap : Text.NoWrap
+                            // line overview: one tick per line (sampled on long files)
+                            Item {
+                                id: minimap
+                                visible: win.lineNumbers && TextDocs.docs.length > 0
+                                width: visible ? Theme.px(48) : 0
+                                anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                                Accessible.role: Accessible.List
+                                Accessible.name: "Line overview"
+                                Accessible.description: "Click a line to jump there"
+                                Rectangle { anchors.fill: parent; color: Theme.surface1; border.width: 1; border.color: Theme.border }
+                                Repeater {
+                                    model: Math.min(edit.lineCount, 120)
+                                    Rectangle {
+                                        readonly property real frac: index / Math.max(1, edit.lineCount)
+                                        readonly property int sample: Math.min(edit.lineCount - 1, Math.round(frac * edit.lineCount))
+                                        x: 2
+                                        y: frac * minimap.height
+                                        width: Math.max(2, Math.min(minimap.width - 6, String(edit.text.split("\n")[sample] || "").length * 0.55))
+                                        height: Math.max(1, minimap.height / Math.max(1, edit.lineCount) - 1)
+                                        color: Theme.alpha(Theme.accent, 0.5)
+                                    }
+                                }
+                                Rectangle {
+                                    y: flick.contentHeight > 0 ? flick.contentY / flick.contentHeight * minimap.height : 0
+                                    width: minimap.width
+                                    height: flick.contentHeight > 0 ? Math.max(6, flick.height / flick.contentHeight * minimap.height) : minimap.height
+                                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
+                                    border.width: 1
+                                    border.color: Theme.accentLine
                                 }
                                 MouseArea {
                                     anchors.fill: parent
                                     onClicked: {
-                                        const y = mouseY + mirrorFlick.contentY - Theme.px(8);
                                         const line = Math.max(1, Math.min(edit.lineCount,
-                                            Math.floor(y / Math.max(1, edit.font.pixelSize * 1.6)) + 1));
+                                            Math.round(mouseY / Math.max(1, minimap.height) * edit.lineCount)));
                                         win.goToLine(line);
-                                        edit.forceActiveFocus();
                                     }
                                 }
                             }
                         }
-
-                        // line overview: one tick per line (sampled on long files)
-                        Item {
-                            id: minimap
-                            visible: win.lineNumbers && TextDocs.docs.length > 0
-                            width: visible ? Theme.px(48) : 0
-                            anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-                            Accessible.role: Accessible.List
-                            Accessible.name: "Line overview"
-                            Accessible.description: "Click a line to jump there"
-                            Rectangle { anchors.fill: parent; color: Theme.surface1; border.width: 1; border.color: Theme.border }
+                    }
+                    // ---- rendered Markdown: a mode switch over the same area -----
+                    Flickable {
+                        id: mdFlick
+                        visible: win.markdownPreview && TextDocs.docs.length > 0
+                        focus: win.markdownPreview
+                        activeFocusOnTab: true
+                        anchors {
+                            left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
+                            margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
+                            rightMargin: rightAnchor.width + Theme.px(8)
+                        }
+                        contentWidth: mdColumn.width
+                        contentHeight: mdColumn.height
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        Accessible.role: Accessible.Document
+                        Accessible.name: Tr.t("Markdown preview")
+                        Accessible.description: Tr.t("Rendered view of the current document; Page Up and Page Down scroll")
+                        Keys.onPressed: e => {
+                            let dy = 0;
+                            if (e.key === Qt.Key_PageDown) dy = height * 0.8;
+                            else if (e.key === Qt.Key_PageUp) dy = -height * 0.8;
+                            else if (e.key === Qt.Key_Down) dy = Theme.px(40);
+                            else if (e.key === Qt.Key_Up) dy = -Theme.px(40);
+                            else return;
+                            contentY = Math.max(0, Math.min(contentHeight - height, contentY + dy));
+                            e.accepted = true;
+                        }
+                        Column {
+                            id: mdColumn
+                            width: mdFlick.width
+                            spacing: Theme.px(4)
                             Repeater {
-                                model: Math.min(edit.lineCount, 120)
-                                Rectangle {
-                                    readonly property real frac: index / Math.max(1, edit.lineCount)
-                                    readonly property int sample: Math.min(edit.lineCount - 1, Math.round(frac * edit.lineCount))
-                                    x: 2
-                                    y: frac * minimap.height
-                                    width: Math.max(2, Math.min(minimap.width - 6, String(edit.text.split("\n")[sample] || "").length * 0.55))
-                                    height: Math.max(1, minimap.height / Math.max(1, edit.lineCount) - 1)
-                                    color: Theme.alpha(Theme.accent, 0.5)
-                                }
-                            }
-                            Rectangle {
-                                y: flick.contentHeight > 0 ? flick.contentY / flick.contentHeight * minimap.height : 0
-                                width: minimap.width
-                                height: flick.contentHeight > 0 ? Math.max(6, flick.height / flick.contentHeight * minimap.height) : minimap.height
-                                color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
-                                border.width: 1
-                                border.color: Theme.accentLine
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: {
-                                    const line = Math.max(1, Math.min(edit.lineCount,
-                                        Math.round(mouseY / Math.max(1, minimap.height) * edit.lineCount)));
-                                    win.goToLine(line);
-                                }
-                            }
-                        }
-                    }
-                }
-                // ---- rendered Markdown: a mode switch over the same area -----
-                Flickable {
-                    id: mdFlick
-                    visible: win.markdownPreview && TextDocs.docs.length > 0
-                    focus: win.markdownPreview
-                    activeFocusOnTab: true
-                    anchors {
-                        left: gutter.right; right: parent.right; top: parent.top; bottom: parent.bottom
-                        margins: Theme.px(8); leftMargin: gutter.visible ? 0 : 8
-                        rightMargin: rightAnchor.width + Theme.px(8)
-                    }
-                    contentWidth: mdColumn.width
-                    contentHeight: mdColumn.height
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    Accessible.role: Accessible.Document
-                    Accessible.name: Tr.t("Markdown preview")
-                    Accessible.description: Tr.t("Rendered view of the current document; Page Up and Page Down scroll")
-                    Keys.onPressed: e => {
-                        let dy = 0;
-                        if (e.key === Qt.Key_PageDown) dy = height * 0.8;
-                        else if (e.key === Qt.Key_PageUp) dy = -height * 0.8;
-                        else if (e.key === Qt.Key_Down) dy = Theme.px(40);
-                        else if (e.key === Qt.Key_Up) dy = -Theme.px(40);
-                        else return;
-                        contentY = Math.max(0, Math.min(contentHeight - height, contentY + dy));
-                        e.accepted = true;
-                    }
-                    Column {
-                        id: mdColumn
-                        width: mdFlick.width
-                        spacing: Theme.px(4)
-                        Repeater {
-                            model: win.previewRows
-                            Item {
-                                required property var modelData
-                                width: mdColumn.width
-                                readonly property int indent: modelData.depth * Theme.px(16)
-                                height: modelData.kind === "blank" ? Theme.px(8)
-                                      : modelData.kind === "rule" ? Theme.px(12)
-                                      : rowText.implicitHeight + (modelData.kind === "code" || modelData.kind === "quote" ? Theme.px(12) : 0)
-                                Rectangle {
-                                    anchors.fill: parent
-                                    visible: modelData.kind === "code" || modelData.kind === "quote"
-                                    color: Theme.hover
-                                    radius: Theme.radiusSmall
-                                }
-                                Rectangle {
-                                    visible: modelData.kind === "quote"
-                                    x: indent; y: Theme.px(4); width: 2; height: parent.height - Theme.px(8)
-                                    color: Theme.accent
-                                }
-                                Rectangle {
-                                    visible: modelData.kind === "rule"
-                                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                                    height: 1
-                                    color: Theme.border
-                                }
-                                Text {
-                                    id: rowText
-                                    anchors {
-                                        left: parent.left; leftMargin: Theme.px(4) + indent
-                                        right: parent.right; rightMargin: Theme.px(4)
-                                        verticalCenter: parent.verticalCenter
+                                model: win.previewRows
+                                Item {
+                                    required property var modelData
+                                    width: mdColumn.width
+                                    readonly property int indent: modelData.depth * Theme.px(16)
+                                    height: modelData.kind === "blank" ? Theme.px(8)
+                                          : modelData.kind === "rule" ? Theme.px(12)
+                                          : rowText.implicitHeight + (modelData.kind === "code" || modelData.kind === "quote" ? Theme.px(12) : 0)
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        visible: modelData.kind === "code" || modelData.kind === "quote"
+                                        color: Theme.hover
+                                        radius: Theme.radiusSmall
                                     }
-                                    text: modelData.html
-                                    textFormat: Text.RichText
-                                    wrapMode: Text.Wrap
-                                    color: modelData.kind === "quote" ? Theme.dim : Theme.text
-                                    font.family: modelData.mono ? Theme.mono : Theme.font
-                                    font.pixelSize: win.fontSize * Theme.fontScale * modelData.size
-                                    font.bold: !!modelData.bold
-                                    Accessible.role: modelData.kind === "heading" ? Accessible.Heading : Accessible.StaticText
-                                    Accessible.name: modelData.html.replace(/<[^>]*>/g, "")
-                                    onLinkActivated: url => win.openMarkdownLink(url)
+                                    Rectangle {
+                                        visible: modelData.kind === "quote"
+                                        x: indent; y: Theme.px(4); width: 2; height: parent.height - Theme.px(8)
+                                        color: Theme.accent
+                                    }
+                                    Rectangle {
+                                        visible: modelData.kind === "rule"
+                                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                                        height: 1
+                                        color: Theme.border
+                                    }
+                                    Text {
+                                        id: rowText
+                                        anchors {
+                                            left: parent.left; leftMargin: Theme.px(4) + indent
+                                            right: parent.right; rightMargin: Theme.px(4)
+                                            verticalCenter: parent.verticalCenter
+                                        }
+                                        text: modelData.html
+                                        textFormat: Text.RichText
+                                        wrapMode: Text.Wrap
+                                        color: modelData.kind === "quote" ? Theme.dim : Theme.text
+                                        font.family: modelData.mono ? Theme.mono : Theme.font
+                                        font.pixelSize: win.fontSize * Theme.fontScale * modelData.size
+                                        font.bold: !!modelData.bold
+                                        Accessible.role: modelData.kind === "heading" ? Accessible.Heading : Accessible.StaticText
+                                        Accessible.name: modelData.html.replace(/<[^>]*>/g, "")
+                                        onLinkActivated: url => win.openMarkdownLink(url)
+                                    }
                                 }
                             }
                         }
@@ -1453,11 +1485,16 @@ AppWindow {
                         const line = before.split("\n").length;
                         return [line, before.length - before.lastIndexOf("\n")];
                     }
-                    text: Tr.t("Line") + " " + at[0] + ", " + Tr.t("column") + " " + at[1] + "  ·  " + edit.lineCount + " " + Tr.t("lines")
-                          + "  ·  " + edit.text.split(/\s+/).filter(w => w.length > 0).length + " " + Tr.t("words")
-                          + "  ·  " + edit.text.length + " " + Tr.t("characters")
-                        + (win.lang !== "text" ? "  ·  " + win.lang : "")
-                        + (win.multiCursor ? "  ·  " + (win.extraCursors.length + 1) + " " + Tr.t("cursors") : "")
+                    // a phone keeps line and column; the longer counts would
+                    // push this row off the side of the window
+                    text: Tr.t("Line") + " " + at[0] + ", " + Tr.t("column") + " " + at[1]
+                          + (win.compact
+                             ? "  ·  " + edit.text.split(/\s+/).filter(w => w.length > 0).length + " " + Tr.t("words")
+                             : "  ·  " + edit.lineCount + " " + Tr.t("lines")
+                               + "  ·  " + edit.text.split(/\s+/).filter(w => w.length > 0).length + " " + Tr.t("words")
+                               + "  ·  " + edit.text.length + " " + Tr.t("characters")
+                               + (win.lang !== "text" ? "  ·  " + win.lang : "")
+                               + (win.multiCursor ? "  ·  " + (win.extraCursors.length + 1) + " " + Tr.t("cursors") : ""))
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
@@ -1471,7 +1508,7 @@ AppWindow {
     Dialog {
         id: recentDialog
         anchors.centerIn: parent
-        width: Math.min(win.width * 0.7, Theme.px(460))
+        width: Math.min(win.width - Theme.px(24), Theme.px(460))
         height: Math.min(win.height * 0.7, Theme.px(420))
         title: "Open recent"
         modal: false
@@ -1493,7 +1530,7 @@ AppWindow {
                 delegate: Item {
                     required property var modelData
                     width: ListView.view.width
-                    height: Theme.px(30)
+                    height: win.compact ? Math.max(Theme.px(30), Theme.touchTarget) : Theme.px(30)
                     Accessible.role: Accessible.ListItem
                     Accessible.name: modelData
                     Accessible.onPressAction: win.openRecent(modelData)
@@ -1510,6 +1547,7 @@ AppWindow {
                         anchors.fill: parent
                         onClicked: { win.openRecent(modelData); recentDialog.close(); }
                     }
+                    KeyFocus { onActivated: { win.openRecent(modelData); recentDialog.close(); } }
                 }
             }
             EmptyState {
@@ -1526,7 +1564,7 @@ AppWindow {
     Dialog {
         id: findFilesDialog
         anchors.centerIn: parent
-        width: Math.min(win.width * 0.8, Theme.px(560))
+        width: Math.min(win.width - Theme.px(24), Theme.px(560))
         height: Math.min(win.height * 0.75, Theme.px(460))
         title: "Find in files"
         modal: false
@@ -1572,7 +1610,7 @@ AppWindow {
                 delegate: Item {
                     required property var modelData
                     width: ListView.view.width
-                    height: Theme.px(40)
+                    height: win.compact ? Math.max(Theme.px(40), Theme.touchTarget) : Theme.px(40)
                     Accessible.role: Accessible.ListItem
                     Accessible.name: modelData.text + ", " + modelData.path + ", line " + modelData.line
                     Accessible.onPressAction: win.openResult(modelData)
@@ -1595,6 +1633,7 @@ AppWindow {
                         anchors.fill: parent
                         onClicked: { win.openResult(modelData); findFilesDialog.close(); }
                     }
+                    KeyFocus { onActivated: { win.openResult(modelData); findFilesDialog.close(); } }
                 }
             }
             EmptyState {
@@ -1611,7 +1650,7 @@ AppWindow {
     Dialog {
         id: syntaxDialog
         anchors.centerIn: parent
-        width: Math.min(win.width * 0.5, Theme.px(340))
+        width: Math.min(win.width - Theme.px(24), Theme.px(340))
         title: "Syntax language"
         modal: true
         standardButtons: Dialog.Close
@@ -1645,7 +1684,7 @@ AppWindow {
     Dialog {
         id: fontDialog
         anchors.centerIn: parent
-        width: Math.min(win.width * 0.6, Theme.px(380))
+        width: Math.min(win.width - Theme.px(24), Theme.px(380))
         title: Tr.t("Editor font")
         modal: true
         standardButtons: Dialog.Close
@@ -1681,7 +1720,7 @@ AppWindow {
     Dialog {
         id: themeDialog
         anchors.centerIn: parent
-        width: Math.min(win.width * 0.7, Theme.px(420))
+        width: Math.min(win.width - Theme.px(24), Theme.px(420))
         title: "TextMate theme"
         modal: true
         standardButtons: Dialog.Close
