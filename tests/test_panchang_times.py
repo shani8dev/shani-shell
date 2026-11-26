@@ -1,9 +1,11 @@
-"""Panchang times: rise/set, limbs, muhurtas, choghadiya, months.
+"""Panchang times: rise/set, limbs, muhurtas, varjyam, choghadiya, months.
 
 Published references: sunrise-sunset.org (Pune 2026-10-19, Delhi equinox,
 Stockholm solstice) and phasesmoon.com (Pune moonrise 2026-10-19). The
 prompt's "about 06:37 / 18:17 / 13:01" for Pune are rough; the published
-figures for those coordinates are 06:29 / 18:09 / 13:40 IST.
+figures for those coordinates are 06:29 / 18:09 / 13:40 IST. Varjyam is
+checked against Drik Panchang's Mumbai day pages for 2026-10-19 and
+2026-10-30 and against the Muhurta Chintamani visha-ghati table.
 """
 
 from __future__ import annotations
@@ -180,6 +182,49 @@ def test_abhijit_and_brahma_muhurta_follow_their_rules():
 
 
 @pytest.mark.parametrize(
+    "d,published",
+    [
+        ("2026-10-19", ("20:02", "21:48")),
+        ("2026-10-30", ("16:49", "18:17")),
+    ],
+    ids=["mumbai-2026-10-19", "mumbai-2026-10-30"],
+)
+def test_varjyam_matches_drik_panchang(d, published):
+    result = compute(d, 19.07283, 72.88261, "Asia/Kolkata")
+    windows = result["varjyam"]
+    assert len(windows) == 1
+    window = windows[0]
+    assert window["name"] == "Varjyam"
+    assert window["auspicious"] is False
+    assert delta(window["start"], published[0]) <= 3
+    assert delta(window["end"], published[1]) <= 3
+
+
+def test_varjyam_begins_and_ends_at_the_tabled_longitudes():
+    """The window spans ghatis 10-14 of Shravana, from its visha table row."""
+    zone = "Asia/Kolkata"
+    result = compute("2026-10-19", 19.07283, 72.88261, zone)
+    window = result["varjyam"][0]
+    offset = pt._VARJYAM_GHATIS[pt._NAKSHATRAS.index("Shravana")]
+    size = 360.0 / 27.0
+
+    def longitude(moment):
+        jd = pt._jd(moment)
+        sidereal = pt.astronomy._moon_longitude(jd) - pt.astronomy.ayanamsa_lahiri(jd)
+        return pt._norm(sidereal) % size
+
+    for text, ghatis in ((window["start"], offset), (window["end"], offset + 4)):
+        actual = longitude(instant("2026-10-19", text, zone))
+        expected = ghatis * size / 60.0
+        assert abs(actual - expected) < 0.05
+
+
+def test_varjyam_is_empty_without_sunrise():
+    result = compute("2026-06-21", 69.6492, 18.9553, "Europe/Oslo")
+    assert result["varjyam"] == []
+
+
+@pytest.mark.parametrize(
     "offset", range(7), ids=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 )
 def test_choghadiya_and_hora_sequences_follow_the_weekday_orders(offset):
@@ -261,6 +306,7 @@ def test_cli_prints_one_json_object_and_errors_without_traceback():
         "moon",
         "limbs",
         "muhurtas",
+        "varjyam",
         "choghadiya",
         "horas",
         "month",
