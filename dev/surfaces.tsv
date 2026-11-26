@@ -17,6 +17,8 @@ Calculator	app-calculator
 CalendarPanel	app-calendar	
 CalibrateOverlay	calibrate-touch	
 CallsWindow	app-calls calls-app	
+DevicesWindow	app-devices devices-window devices-android-info devices-screen devices-fm devices-gadgets	native devices window
+IncomingCall	96-call-ringing modem-call calls-incoming	shell-drawn call card
 CameraPanel	87-photo-countdown app-camera	
 CaptionBar	61-captions captions	
 CharactersPanel	app-characters	

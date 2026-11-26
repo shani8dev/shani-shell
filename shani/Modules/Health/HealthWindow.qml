@@ -180,6 +180,80 @@ AppWindow {
                         }
                     }
                 }
+                Rectangle {
+                    visible: Health.battery >= 0
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.px(66)
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    border.width: 1
+                    border.color: Theme.border
+                    ColumnLayout {
+                        anchors { fill: parent; margins: Theme.px(8) }
+                        spacing: 2
+                        Text {
+                            text: Tr.t("Watch battery")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
+                        Text {
+                            text: Tr.t("%1 percent", Health.battery)
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.weight: Font.DemiBold
+                            Accessible.name: Tr.t("Watch battery %1 percent", Health.battery)
+                        }
+                        Text {
+                            text: Health.device || Tr.t("Paired watch")
+                            color: Theme.faint
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+            }
+
+            // ---- stress -------------------------------------------------------
+            Rectangle {
+                objectName: "health-stress"
+                Layout.fillWidth: true
+                implicitHeight: Theme.px(72)
+                radius: Theme.radiusSmall
+                color: Theme.surface1
+                border.width: 1
+                border.color: Theme.border
+                RowLayout {
+                    anchors { fill: parent; margins: Theme.px(8) }
+                    spacing: Theme.px(8)
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Text {
+                            text: Tr.t("Stress today")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                        }
+                        Text {
+                            text: Health.stress.length ? String(Health.stress[Health.stress.length - 1].value) : "—"
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.weight: Font.DemiBold
+                            Accessible.name: Health.stress.length ? Tr.t("Latest stress reading %1", Health.stress[Health.stress.length - 1].value) : Tr.t("No stress reading yet")
+                        }
+                    }
+                    Text {
+                        visible: Health.stress.length > 0
+                        text: Tr.t("%1 readings", Health.stress.length)
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                    }
+                }
             }
 
             // ---- a week of steps ---------------------------------------------
@@ -222,6 +296,7 @@ AppWindow {
                 model: [
                     [Tr.t("Deep"), Health.sleep.deep, Theme.blue],
                     [Tr.t("Light"), Health.sleep.light, Theme.accent],
+                    [Tr.t("REM"), Health.sleep.rem, Theme.blue],
                     [Tr.t("Awake"), Health.sleep.awake, Theme.amber]
                 ]
                 RowLayout {
@@ -241,7 +316,7 @@ AppWindow {
                         radius: Theme.px(4)
                         color: Theme.surface2
                         Rectangle {
-                            width: Math.min(parent.width, parent.width * Math.min(1, modelData[1] / Math.max(1, Health.sleep.asleep + Health.sleep.awake)))
+                            width: Math.min(parent.width, parent.width * Math.min(1, modelData[1] / Math.max(1, Health.sleep.asleep + Health.sleep.awake + (Health.sleep.rem || 0))))
                             height: parent.height
                             radius: parent.radius
                             color: modelData[2]
@@ -369,19 +444,19 @@ AppWindow {
             }
 
             // ---- spot checks --------------------------------------------------
-            RowLayout {
+            Text {
                 Layout.fillWidth: true
-                spacing: Theme.px(8)
-                Text {
-                    Layout.fillWidth: true
-                    text: Health.measures.length ? Tr.t("Last: %1", Health.reading(Health.measures[0]))
-                        : Tr.t("Spot checks need a worn watch")
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                    Accessible.role: Accessible.StatusBar
-                    Accessible.name: text
-                }
+                text: Health.measures.length ? Tr.t("Last: %1", Health.reading(Health.measures[0]))
+                    : Tr.t("Spot checks need a worn watch")
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.role: Accessible.StatusBar
+                Accessible.name: text
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
                 Button {
                     text: Tr.t("Heart rate")
                     flat: true
@@ -394,6 +469,32 @@ AppWindow {
                     Accessible.name: Tr.t("Measure blood oxygen now")
                     onClicked: Health.spot("spo2")
                 }
+                Button {
+                    text: Tr.t("Blood pressure")
+                    flat: true
+                    Accessible.name: Tr.t("Measure blood pressure now")
+                    onClicked: Health.spot("bp")
+                }
+            }
+
+            // ---- find my watch ------------------------------------------------
+            // The phone backends already know how to ring a paired watch.
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Make a paired watch ring so you can find it")
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                wrapMode: Text.Wrap
+                Accessible.role: Accessible.StatusBar
+                Accessible.name: text
+            }
+            Button {
+                text: Tr.t("Find my watch")
+                flat: true
+                Accessible.name: Tr.t("Ring the paired watch")
+                enabled: !Health.busy
+                onClicked: Health.findWatch()
             }
 
             // ---- manual log ---------------------------------------------------

@@ -2,7 +2,7 @@ pragma Singleton
 // Link: the phone on this computer — the paired devices, the call history, the
 // address book, and the texts, in a window of the shell's own.
 //
-// bridge/link.py owns every read and every action: it speaks to shani_link
+// bridge/link.py owns every read and every action: it speaks to phone
 // itself (GSConnect, KDE Connect, plain Bluetooth, the landline, the modem), so
 // the window cannot disagree with the daemon about what a device is called or
 // what was said. The window is a view, nothing else.
@@ -15,14 +15,18 @@ import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_LINK_TOOL"), "link.py")
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_PHONE_TOOL"), "link.py")
 
     property string backend: ""          // kdeconnect | gsconnect | bluetooth | ""
+    property string state: ""            // "ready" when a link or a line can carry a call
     property bool placesCalls: false     // the phone's link can carry a call
     property var lines: []               // the landline and the modem's own lines
     property var devices: []             // [{ id, name, paired, reachable, battery, charging }]
     property var calls: []               // [{ id, line, number, name, direction, missed, when, seconds }]
     property var contacts: []            // [{ name, numbers, emails }]
+    property var matches: []             // the last "match" answer: contacts for the dial pad
+    property var incoming: ({})          // { id, name, number, line, when } or {} when no call
+    property string incomingId: ""       // the id to answer or decline
     property var messages: []            // [{ thread, name, number, text, when, unread }]
     property bool messagesLoaded: false  // the latest "messages" answer has arrived
     property var thread: []              // [{ text, when, incoming }]
@@ -41,7 +45,7 @@ Singleton {
     readonly property var phone: devices.find(d => d.paired && d.reachable) || null
     readonly property string phoneName: phone ? phone.name : ""
 
-    function refresh() { run("state", []); run("devices", []); run("calls", []) }
+    function refresh() { run("state", []); run("devices", []); run("calls", []); run("contacts", []) }
     function openDevice(id) {
         if (root.openThread !== "") root.drafts[root.openThread] = root.draft;
         root.openThread = "";
@@ -127,6 +131,8 @@ Singleton {
         run("dial", n);
     }
     function hangup() { run("hangup", []) }
+    function match(query) { run("match", [String(query || "")]) }
+    function callAction(id, action) { run("call-action", [String(id || ""), String(action || "")]) }
     function ring() { run("ring", []) }
     function share(path) { run("share", [root.phone ? root.phone.id : "", String(path || "")]) }
 
@@ -168,12 +174,22 @@ Singleton {
             root.backend = (data && data.backend) || "";
             root.placesCalls = !!(data && data.placesCalls);
             root.lines = Array.isArray(data && data.lines) ? data.lines : [];
+            root.state = root.backend || root.lines.length ? "ready" : "";
         } else if (what === "devices") {
             root.devices = Array.isArray(data) ? data : [];
         } else if (what === "calls") {
             root.calls = Array.isArray(data) ? data : [];
         } else if (what === "contacts") {
             root.contacts = Array.isArray(data) ? data : [];
+        } else if (what === "match") {
+            root.matches = Array.isArray(data) ? data : [];
+        } else if (what === "incoming") {
+            // an empty answer still carries an id, so a card that is not there
+            // cannot be read as one that is ("undefined !== ''" was true)
+            root.incoming = data && typeof data === "object" && !Array.isArray(data) && data.id ? data : ({ id: "" });
+            root.incomingId = root.incoming.id || "";
+        } else if (what === "call-action") {
+            root.note = data && data.error ? data.error : "";
         } else if (what === "messages") {
             root.messages = Array.isArray(data) ? data : [];
             if (root.messages.length) root.showThread(root.messages[0].thread, root.messages[0].name || root.messages[0].number);
@@ -207,6 +223,15 @@ Singleton {
                 root.start(next.what, next.args);
             }
         }
+    }
+
+    // a call can arrive on any line at any time; poll the bridge when it is idle.
+    // A queued job owns the one Process, so never pile another poll onto it.
+    Timer {
+        interval: 1500
+        running: true
+        repeat: true
+        onTriggered: if (!job.running && root.pending.length === 0) run("incoming", [])
     }
 
     Component.onCompleted: refresh()

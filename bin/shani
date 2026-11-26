@@ -337,6 +337,10 @@ GROUPS: dict[str, list[tuple[str, list[str], str]]] = {
         ("open", [], "open Messages"),
         ("compose", ["NUMBER"], "open Messages addressed to a number"),
     ],
+    "devices": [
+        ("open", [], "open Devices (phones, gadgets and this screen)"),
+        ("close", [], "close Devices"),
+    ],
     "characters": [
         ("open", [], "open the Characters panel"),
         ("toggle", [], "toggle the Characters panel"),
@@ -520,6 +524,8 @@ APPS: dict[str, tuple] = {
               [], ["callsAppOpen"], "callsAppOpen", "callsShown"),
     "messages": ("dev.shani.Messages", "Messages", "The phone's texts, read and answered here", "mail-unread", "Utility;",
                    [], ["messagesAppOpen"], "messagesAppOpen", "messagesShown"),
+    "devices": ("dev.shani.Devices", "Devices", "Phones, gadgets and your screen on a phone", "smartphone", "Utility;System;",
+                [], ["devicesOpen"], "devicesOpen", "devicesShown"),
     "contacts": ("dev.shani.Contacts", "Contacts", "Your address book, as vCard files", "x-office-address-book", "Office;Utility;",
                  ["text/vcard", "text/directory"], ["contactsOpen"], None, "contactsShown"),
     "health": ("dev.shani.Health", "Health", "Steps, sleep and workouts, kept on this computer", "heart-filled", "Utility;",
@@ -1287,6 +1293,8 @@ def _register() -> None:
         ("phone", "recent"): "recentCalls",
         ("messages", "open"): "messagesAppOpen",
         ("messages", "compose"): "messagesAppOpen",
+        ("devices", "open"): "devicesOpen",
+        ("devices", "close"): "devicesClose",
         ("characters", "open"): "toggleCharacters",
         ("characters", "toggle"): "toggleCharacters",
         ("pdf-signer", "open"): "pdfSignerOpen",

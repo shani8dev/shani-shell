@@ -1,6 +1,6 @@
 """Three pass-20 Messages fixes: read state, new conversations, drafts.
 
-The bridge test uses the repo's fake-phone style (no shani_link, no devices);
+The bridge test uses the repo's fake-phone style (no phone, no devices);
 the two QML tests are static so a file no runtime opens is still checked.
 """
 

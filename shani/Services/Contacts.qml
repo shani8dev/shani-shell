@@ -1,7 +1,7 @@
 pragma Singleton
 // Contacts: the address book, as vCard 4.0 files in
-// ~/.local/share/shani-link/contacts/ (one .vcf per contact, named by UID).
-// bridge/contacts.py reads and writes them — the same files Shani Link
+// ~/.local/share/shani-shell/contacts/ (one .vcf per contact, named by UID).
+// bridge/contacts.py reads and writes them — the same files Phone
 // (the phone app) uses, so a contact added here is there too. No Evolution
 // Data Server, no CardDAV: just files on disk, synced by whatever the person
 // already uses (Nextcloud, iCloud via vdirsyncer, Dropbox, …).

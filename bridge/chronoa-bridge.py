@@ -45,7 +45,8 @@ from turn_filter import TurnFilter  # noqa: E402
 
 SOCK = os.environ.get("SHANI_CHRONOA_SOCK") or os.path.join(
     os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}",
-    "shani-chronoa.sock")
+    "shani-chronoa.sock",
+)
 
 MASCOT_NAME = "org.shani.Chronoa.Mascot"
 MASCOT_PATH = "/org/shani/Chronoa/Mascot"
@@ -138,13 +139,18 @@ class Handler(socketserver.StreamRequestHandler):
     def handle(self):
         with clients_lock:
             clients.add(self.wfile)
-        broadcast({"type": "hello", "state": state_holder.get("state", "idle"),
-                   "title": state_holder.get("title", "Ready when you are"),
-                   "detail": state_holder.get("detail", ""),
-                   "visible": state_holder.get("visible", True),
-                   "art": state_holder.get("art", ""),
-                   "scale": state_holder.get("scale", 1)})
-        screensaver.announce()      # what keeps the screen awake, for a shell (re)connecting
+        broadcast(
+            {
+                "type": "hello",
+                "state": state_holder.get("state", "idle"),
+                "title": state_holder.get("title", "Ready when you are"),
+                "detail": state_holder.get("detail", ""),
+                "visible": state_holder.get("visible", True),
+                "art": state_holder.get("art", ""),
+                "scale": state_holder.get("scale", 1),
+            }
+        )
+        screensaver.announce()  # what keeps the screen awake, for a shell (re)connecting
         try:
             for raw in self.rfile:
                 raw = raw.strip()
@@ -154,7 +160,9 @@ class Handler(socketserver.StreamRequestHandler):
                     msg = json.loads(raw)
                 except Exception:
                     continue
-                threading.Thread(target=handle_request, args=(msg,), daemon=True).start()
+                threading.Thread(
+                    target=handle_request, args=(msg,), daemon=True
+                ).start()
         except Exception:
             pass
         finally:
@@ -171,22 +179,39 @@ def bus():
 
 
 def call(bus_name, path, iface, method, params, timeout=8000):
-    return bus().call_sync(bus_name, path, iface, method, params, None,
-                           Gio.DBusCallFlags.NO_AUTO_START, timeout, None)
+    return bus().call_sync(
+        bus_name,
+        path,
+        iface,
+        method,
+        params,
+        None,
+        Gio.DBusCallFlags.NO_AUTO_START,
+        timeout,
+        None,
+    )
 
 
 def has_owner(name: str) -> bool:
     try:
-        r = bus().call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                            "org.freedesktop.DBus", "NameHasOwner",
-                            GLib.Variant("(s)", (name,)), None,
-                            Gio.DBusCallFlags.NONE, 1000, None)
+        r = bus().call_sync(
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "NameHasOwner",
+            GLib.Variant("(s)", (name,)),
+            None,
+            Gio.DBusCallFlags.NONE,
+            1000,
+            None,
+        )
         return bool(r.unpack()[0])
     except Exception:
         return False
 
 
 # ---- shell -> Chronoa ----------------------------------------------------
+
 
 def handle_request(msg: dict) -> None:
     op = msg.get("op")
@@ -211,12 +236,19 @@ def handle_request(msg: dict) -> None:
         screensaver.locked(bool(msg.get("locked")))
     elif op == "findfiles":
         # the person's files by meaning (Agent.FindFiles, Chronoa's file index)
-        threading.Thread(target=find_files, args=(msg.get("id", ""), msg.get("query", "")), daemon=True).start()
+        threading.Thread(
+            target=find_files,
+            args=(msg.get("id", ""), msg.get("query", "")),
+            daemon=True,
+        ).start()
     elif op == "write":
         # text in, text out (Agent.Write): on its own thread, as the model may
         # take a while and the bridge must keep answering meanwhile
-        threading.Thread(target=write, args=(msg.get("id", ""), msg.get("instruction", ""), msg.get("text", "")),
-                         daemon=True).start()
+        threading.Thread(
+            target=write,
+            args=(msg.get("id", ""), msg.get("instruction", ""), msg.get("text", "")),
+            daemon=True,
+        ).start()
     elif op == "release-sleep":
         # "lock before suspend" is off: let sleep go without a lock
         logind.release_sleep()
@@ -229,8 +261,14 @@ def ask(text: str) -> None:
     broadcast({"type": "event", "event": "thinking", "text": ""})
     if has_owner(AGENT_NAME):
         try:
-            r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, "Turn",
-                     GLib.Variant("(s)", (text,)), timeout=30000)
+            r = call(
+                AGENT_NAME,
+                AGENT_PATH,
+                AGENT_IFACE,
+                "Turn",
+                GLib.Variant("(s)", (text,)),
+                timeout=30000,
+            )
             turn_id = r.unpack()[0]
             broadcast({"type": "turn", "id": turn_id})
             # Events that raced ahead of the Turn reply are ours too.
@@ -242,16 +280,30 @@ def ask(text: str) -> None:
             return
     if has_owner(GATEWAY_NAME):
         try:
-            call(GATEWAY_NAME, GATEWAY_PATH, GATEWAY_IFACE, "Submit",
-                 GLib.Variant("(ss)", ("shell", text)), timeout=120000)
-            broadcast({"type": "notice",
-                       "text": "Handed to Chronoa's own window (gateway reply lands there)."})
+            call(
+                GATEWAY_NAME,
+                GATEWAY_PATH,
+                GATEWAY_IFACE,
+                "Submit",
+                GLib.Variant("(ss)", ("shell", text)),
+                timeout=120000,
+            )
+            broadcast(
+                {
+                    "type": "notice",
+                    "text": "Handed to Chronoa's own window (gateway reply lands there).",
+                }
+            )
             broadcast({"type": "event", "event": "done", "text": ""})
         except Exception as exc:
             broadcast({"type": "error", "text": f"Submit refused: {exc}"})
         return
-    broadcast({"type": "error",
-               "text": "Chronoa is not running (no Agent and no Gateways on the bus)."})
+    broadcast(
+        {
+            "type": "error",
+            "text": "Chronoa is not running (no Agent and no Gateways on the bus).",
+        }
+    )
 
 
 def write(req_id: str, instruction: str, text: str) -> None:
@@ -261,28 +313,53 @@ def write(req_id: str, instruction: str, text: str) -> None:
         broadcast({"type": "written", "id": req_id, "error": "Chronoa is not running"})
         return
     try:
-        r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, "Write",
-                 GLib.Variant("(ss)", (instruction, text)), timeout=200000)
+        r = call(
+            AGENT_NAME,
+            AGENT_PATH,
+            AGENT_IFACE,
+            "Write",
+            GLib.Variant("(ss)", (instruction, text)),
+            timeout=200000,
+        )
         broadcast({"type": "written", "id": req_id, "text": r.unpack()[0]})
     except Exception as exc:
         msg = str(exc)
         # GLib's "GDBus.Error:name: message" - the message is what a person reads
         if "GDBus.Error" in msg:
-            msg = re.sub(r"\s*\(\d+\)$", "", msg.split(": ", 1)[-1])     # GLib's "... (36)" code
+            msg = re.sub(
+                r"\s*\(\d+\)$", "", msg.split(": ", 1)[-1]
+            )  # GLib's "... (36)" code
         broadcast({"type": "written", "id": req_id, "error": msg})
 
 
 def find_files(req_id: str, query: str) -> None:
     """Agent.FindFiles for the launcher; {"type": "found", "id", "hits", "how", "indexing"}."""
     if not has_owner(AGENT_NAME):
-        broadcast({"type": "found", "id": req_id, "hits": [], "how": "", "error": "Chronoa is not running"})
+        broadcast(
+            {
+                "type": "found",
+                "id": req_id,
+                "hits": [],
+                "how": "",
+                "error": "Chronoa is not running",
+            }
+        )
         return
     try:
-        r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, "FindFiles", GLib.Variant("(si)", (query, 8)), timeout=20000)
+        r = call(
+            AGENT_NAME,
+            AGENT_PATH,
+            AGENT_IFACE,
+            "FindFiles",
+            GLib.Variant("(si)", (query, 8)),
+            timeout=20000,
+        )
         data = json.loads(r.unpack()[0])
         broadcast(dict(data, type="found", id=req_id))
     except Exception as exc:
-        broadcast({"type": "found", "id": req_id, "hits": [], "how": "", "error": str(exc)})
+        broadcast(
+            {"type": "found", "id": req_id, "hits": [], "how": "", "error": str(exc)}
+        )
 
 
 def action(name: str) -> None:
@@ -290,15 +367,30 @@ def action(name: str) -> None:
         return
     try:
         if name.startswith("page:"):
-            call(APP_NAME, APP_PATH, "dev.shani.chronoa", "show-page",
-                 GLib.Variant("(s)", (name[5:],)), timeout=4000)
+            call(
+                APP_NAME,
+                APP_PATH,
+                "dev.shani.chronoa",
+                "show-page",
+                GLib.Variant("(s)", (name[5:],)),
+                timeout=4000,
+            )
         else:
             # org.freedesktop.Application.ActivateAction
-            bus().call_sync(APP_NAME, APP_PATH, "org.freedesktop.Application",
-                            "ActivateAction",
-                            GLib.Variant("(sava{sv})", (name, [], {})), None,
-                            Gio.DBusCallFlags.NO_AUTO_START, 4000, None)
-        broadcast({"type": "notice", "text": f"asked Chronoa to {name.replace('-', ' ')}"})
+            bus().call_sync(
+                APP_NAME,
+                APP_PATH,
+                "org.freedesktop.Application",
+                "ActivateAction",
+                GLib.Variant("(sava{sv})", (name, [], {})),
+                None,
+                Gio.DBusCallFlags.NO_AUTO_START,
+                4000,
+                None,
+            )
+        broadcast(
+            {"type": "notice", "text": f"asked Chronoa to {name.replace('-', ' ')}"}
+        )
     except Exception as exc:
         broadcast({"type": "error", "text": f"action {name} failed: {exc}"})
 
@@ -308,21 +400,32 @@ def approve(turn_id: str, decision: str) -> None:
         broadcast({"type": "error", "text": "approval had no turn id"})
         return
     try:
-        r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, "Approve",
-                 GLib.Variant("(ss)", (turn_id, decision)), timeout=4000)
+        r = call(
+            AGENT_NAME,
+            AGENT_PATH,
+            AGENT_IFACE,
+            "Approve",
+            GLib.Variant("(ss)", (turn_id, decision)),
+            timeout=4000,
+        )
         accepted = bool(r.unpack()[0]) if r is not None else False
         if not accepted:
             # The card was answered after its wait had already ended (timeout,
             # or a newer question for the same turn). Saying so is better than
             # letting the panel show a decision that reached nothing.
             broadcast({"type": "event", "event": "approval_closed", "id": turn_id})
-            broadcast({"type": "notice",
-                       "text": "That approval had already expired, so nothing changed."})
+            broadcast(
+                {
+                    "type": "notice",
+                    "text": "That approval had already expired, so nothing changed.",
+                }
+            )
     except Exception as exc:
         broadcast({"type": "error", "text": f"approval failed: {exc}"})
 
 
 # ---- Chronoa -> shell ----------------------------------------------------
+
 
 def on_mascot_call(connection, sender, path, iface, method, params, invocation):
     if method == "Status":
@@ -403,8 +506,15 @@ def forward_event(ev: dict) -> None:
     if ev.get("event") == "reply":
         # Replies arrive in chunks and are appended to one bubble; say so
         # instead of making the panel guess from an empty previous chunk.
-        broadcast({"type": "event", "event": "reply", "turn": ev.get("turn"),
-                   "text": ev.get("text", ""), "append": True})
+        broadcast(
+            {
+                "type": "event",
+                "event": "reply",
+                "turn": ev.get("turn"),
+                "text": ev.get("text", ""),
+                "append": True,
+            }
+        )
     else:
         ev = dict(ev)
         ev["type"] = "event"
@@ -412,11 +522,15 @@ def forward_event(ev: dict) -> None:
 
 
 def own(name, on_acquired):
-    Gio.bus_own_name(Gio.BusType.SESSION, name, Gio.BusNameOwnerFlags.NONE,
-                     on_acquired, None, None)
+    Gio.bus_own_name(
+        Gio.BusType.SESSION, name, Gio.BusNameOwnerFlags.NONE, on_acquired, None, None
+    )
 
 
 def main() -> int:
+    from phone.paths import migrate_old_state
+
+    migrate_old_state()  # one-time, quiet move of earlier phone data
     for path in (SOCK,):
         try:
             os.unlink(path)
@@ -432,19 +546,38 @@ def main() -> int:
     connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
     conn_holder["conn"] = connection
 
-    connection.register_object(MASCOT_PATH, Gio.DBusNodeInfo.new_for_xml(MASCOT_XML).interfaces[0],
-                               on_mascot_call, None, None)
-    connection.register_object(WINDOWS_PATH, Gio.DBusNodeInfo.new_for_xml(WINDOWS_XML).interfaces[0],
-                               on_windows_call, None, None)
-    connection.signal_subscribe(AGENT_NAME, AGENT_IFACE, "Event", AGENT_PATH,
-                                None, Gio.DBusSignalFlags.NONE, on_agent_event)
+    connection.register_object(
+        MASCOT_PATH,
+        Gio.DBusNodeInfo.new_for_xml(MASCOT_XML).interfaces[0],
+        on_mascot_call,
+        None,
+        None,
+    )
+    connection.register_object(
+        WINDOWS_PATH,
+        Gio.DBusNodeInfo.new_for_xml(WINDOWS_XML).interfaces[0],
+        on_windows_call,
+        None,
+        None,
+    )
+    connection.signal_subscribe(
+        AGENT_NAME,
+        AGENT_IFACE,
+        "Event",
+        AGENT_PATH,
+        None,
+        Gio.DBusSignalFlags.NONE,
+        on_agent_event,
+    )
 
     # One connection owns both names: a client calling Windows must land on the
     # same connection the object is registered on.
-    Gio.bus_own_name_on_connection(connection, MASCOT_NAME, Gio.BusNameOwnerFlags.NONE,
-                                   None, None)
-    Gio.bus_own_name_on_connection(connection, WINDOWS_NAME, Gio.BusNameOwnerFlags.NONE,
-                                   None, None)
+    Gio.bus_own_name_on_connection(
+        connection, MASCOT_NAME, Gio.BusNameOwnerFlags.NONE, None, None
+    )
+    Gio.bus_own_name_on_connection(
+        connection, WINDOWS_NAME, Gio.BusNameOwnerFlags.NONE, None, None
+    )
     logind.start()
     screensaver.start(connection)
     print(f"bridge up: {SOCK}", flush=True)

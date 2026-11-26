@@ -3,7 +3,7 @@
 No QML runtime exists in this container, so the shipped bindings and branches
 are pinned as static assertions, as the other app-window suites do. The bridge
 is driven for real: a log/import/history round trip on a temporary
-XDG_DATA_HOME proves the journal survives on disk, and a fake shani_link proves
+XDG_DATA_HOME proves the journal survives on disk, and a fake phone proves
 both the watch read and the no-watch degradation path.
 """
 
@@ -52,7 +52,7 @@ def answer(args, tmp_path):
 
 
 class FakeWatch:
-    """Enough of shani_link for one summary and one measurement."""
+    """Enough of phone for one summary and one measurement."""
 
     @staticmethod
     def health_summary(mac):
@@ -104,7 +104,7 @@ class FakePhones:
 # ---- 1. graceful degradation is a real answer, not a crash ------------------
 
 
-def test_no_shani_link_still_answers_with_the_local_journal(tmp_path, monkeypatch):
+def test_no_phone_still_answers_with_the_local_journal(tmp_path, monkeypatch):
     h = bridge_module()
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     h.watch = h.moyoung = h.gatt = h.phone_bluez = None
@@ -223,7 +223,7 @@ def test_import_reports_bad_files_without_losing_data(tmp_path):
     assert answer(["import"], tmp_path)["ok"] is False
 
 
-# ---- 4. watch reads, when shani-link is there -------------------------------
+# ---- 4. watch reads, when shani-shell is there -------------------------------
 
 
 def test_watch_summary_overrides_steps_and_merges_workouts(tmp_path, monkeypatch):

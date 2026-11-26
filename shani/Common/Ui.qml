@@ -110,6 +110,7 @@ Singleton {
     property bool servicesApp: false         // the Services app (Modules/Services): user units + cron
     property bool calls: false               // the Calls app (Modules/Calls): dial pad + history
     property bool messages: false            // the Messages app (Modules/Messages): the phone's texts
+    property bool devices: false             // the Devices app (Modules/Devices): phones, gadgets, this screen
     property bool irc: false                 // the IRC app (Modules/Irc): channels, chat and nick list
     property bool cloudSync: false           // the Cloud sync app (Modules/Cloud)
     property string callsNumber: ""          // the Calls app: the number the dial pad opens with
@@ -256,9 +257,8 @@ Singleton {
     property int trashCount: 0                     // the dock's trash tile reports it (for the tests)                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
     property string smsTo: ""                      // the number a reply goes to
-    // Shani Link Phone / Messages (opened via Services/Phone; the external
-    // shani-link-app window, not a shell panel): which page the shell last
-    // opened and the number its dialer/messages composer was prefilled with.
+    // Calls and Messages are shell windows (Services/Phone opens them). This
+    // is the number their dial pad or composer was prefilled with.
     property string phoneNumber: ""   // the number the dial pad / Messages composer opened with
     // the web search chosen in Settings > Search (the launcher, Lens)
     readonly property var webSearches: ({
@@ -332,6 +332,7 @@ Singleton {
     function openNotes() { closeAll(); notes = true; }
     function openContacts() { closeAll(); Contacts.refresh(); contacts = true; }
     function openCalls() { closeAll(); calls = true; }
+    function openDevices() { closeAll(); devices = true; }
     function openMessages() { closeAll(); messages = true; }
     function closeApps() {
         converter = false;
@@ -369,6 +370,7 @@ Singleton {
         feeds = false;
         calls = false;
         messages = false;
+        devices = false;
         backup = false;
         // newer apps and views added after the first closeApps() pass — without
         // these, "empty desktop" and Back leave them on screen

@@ -86,10 +86,10 @@ corners, shadow and frosted glass picked in Settings › Windows.
 <tr>
 <td valign="top">
 
-**Your phone, built in** (Shani Link): calls from the phone, a landline or the modem ring once, on the
-Island; texts, one address book, your phone's screen in a window.
+**Your phone, built in**: calls from the phone, a landline or the modem ring on a card the
+shell draws; texts, one address book, your phone's screen in a window.
 
-<img src="docs/shots/call.jpg" alt="A call ringing on the Island">
+<img src="docs/shots/call.jpg" alt="A call ringing on the desktop">
 </td>
 <td valign="top">
 

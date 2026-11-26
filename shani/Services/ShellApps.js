@@ -13,6 +13,7 @@ var ids = {
     "Paste history": "dev.shani.PasteHistory",
     "Services": "dev.shani.Services",
     "Calls": "dev.shani.Calls",
+    "Devices": "dev.shani.Devices",
     "Messages": "dev.shani.Messages",
     "Text Editor": "dev.shani.TextEditor",
     "Files": "dev.shani.Files",

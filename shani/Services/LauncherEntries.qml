@@ -43,6 +43,8 @@ Singleton {
         { id: "chronoa", label: "Chronoa", words: "chronoa assistant ai island model voice wake word", icon: "face-smile-big" },
         { id: "storage", label: "Storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", icon: "drive-harddisk" },
         { id: "screentime", label: "Screen time", words: "screen time wellbeing digital break reminder limit usage apps today week focus", icon: "preferences-desktop-screensaver" },
+        { id: "phone", label: "Phone", words: "phone calls dial pad sim mobile modem landline sip account line", icon: "call-start" },
+        { id: "devices", label: "Devices", words: "devices phone gadget android bluetooth pair nfc infrared remote radio fm screen", icon: "smartphone" },
         { id: "modules", label: "Kernel modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", icon: "application-x-addon" },
         { id: "firmware", label: "Firmware updates", words: "firmware updates devices lvfs capsule bios apply check install", icon: "computer" },
         { id: "health", label: "System health", words: "health checks verify diagnose problems report machine", icon: "dialog-ok" },

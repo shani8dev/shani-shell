@@ -83,6 +83,7 @@ AppWindow {
     }
     tools: [
         Choice { text: Tr.t("Library"); selected: win.page === "library"; onClicked: win.page = "library" },
+        // FM radio is a source inside RadioView, not a separate tool here
         Choice { text: Tr.t("Radio"); selected: win.page === "radio"; onClicked: { win.page = "radio"; if (Radio.showing === "") Radio.show(Radio.favourites.length ? "favourites" : "featured"); } },
         Choice { text: Tr.t("Live TV"); selected: win.page === "live"; onClicked: { win.page = "live"; if (LiveTv.channels.length === 0) { if (LiveTv.source) LiveTv.load(LiveTv.source); else LiveTv.loadDefaults(); } } },
         Choice { text: Tr.t("Now playing"); selected: win.page === "playing"; enabled: PlayQueue.current !== ""; onClicked: win.page = "playing" },
