@@ -3,7 +3,7 @@
 # dev/fake-* stand-ins the pages' bridge commands already support, and fixture
 # files under /tmp/fake-system. Nothing here writes to the real machine.
 FS=/tmp/fake-system
-mkdir -p "$FS/bin-net" "$FS/bin-access" "$FS/bin-bg" "$FS/access" "$FS/virt" "$FS/bg" "$FS/cron/cron.d" "$FS/cron/cron.hourly" "$FS/cron/cron.daily" "$FS/pam" "$FS/polkit" "$FS/reports"
+mkdir -p "$FS/bin-net" "$FS/bin-access" "$FS/bin-bg" "$FS/bin-boot" "$FS/bin-misc" "$FS/audit" "$FS/nut" "$FS/access" "$FS/virt" "$FS/bg" "$FS/cron/cron.d" "$FS/cron/cron.hourly" "$FS/cron/cron.daily" "$FS/pam" "$FS/polkit" "$FS/reports"
 : > "$FS/kvm"
 
 # One stand-in file, several tool names (the bridges pass the path directly).
@@ -48,7 +48,10 @@ printf '25 0 0:24 / / rw,relatime - overlay overlay rw,lowerdir=/data/lower\n36 
 export SHANI_MOUNTINFO="$FS/mountinfo" SHANI_DATA_DIR="$FS/data" SHANI_DATA_SIZE=
 
 # Disks and filesystems.
-export SHANI_MDSTAT="$FS/mdstat" FAKE_SYSTEM_DISKS="$FS/disks"
+export SHANI_MDSTAT="$FS/mdstat" FAKE_SYSTEM_DISKS="$FS/disks" \
+       SHANI_MDADM="$FS/bin-net/mdadm" SHANI_PVS="$FS/bin-net/pvs" SHANI_VGS="$FS/bin-net/vgs" \
+       SHANI_LVS="$FS/bin-net/lvs" SHANI_BTRFS="$FS/bin-net/btrfs" \
+       SHANI_COMPSIZE="$FS/bin-net/compsize" SHANI_SMARTCTL="$FS/bin-net/smartctl"
 printf 'Personalities : [raid1]\nmd127 : active raid1 sda1[0] sdb1[1]\n      976630336 blocks super 1.2 [2/2] [UU]\n' > "$FS/mdstat"
 
 # Network services. One systemctl stand-in answers units for all three pages.
@@ -57,12 +60,17 @@ cat > "$FS/systemctl" <<'SH'
 import os, sys
 args = sys.argv[1:]
 unit = args[-1] if args else ""
-which = "access" if any(x in unit for x in ("sssd", "slapd")) else "bg" if "ananicy" in unit else "net"
-target = "/tmp/fake-system/bin-%s/systemctl" % which
+if "smartd" in unit:
+    target = "/tmp/fake-system/bin-misc/systemctl"
+elif "auditd" in unit:
+    target = "/tmp/fake-system/audit/systemctl"
+else:
+    which = "access" if any(x in unit for x in ("sssd", "slapd")) else "bg" if "ananicy" in unit else "net"
+    target = "/tmp/fake-system/bin-%s/systemctl" % which
 os.execv(target, ["systemctl"] + args)
 SH
 chmod +x "$FS/systemctl"
-export SHANI_SYSTEM_SYSTEMCTL="$FS/systemctl"
+export SHANI_SYSTEM_SYSTEMCTL="$FS/systemctl" SHANI_SYSTEMCTL="$FS/systemctl"
 export FAKE_SYSTEM_NET="$FS/net" SHANI_RESOLV_CONF="$FS/net/resolv.conf" \
        SHANI_CADDYFILE="$FS/net/Caddyfile" SHANI_CLOUDFLARED_DIR="$FS/net/cloudflared-config" \
        SHANI_EXIM_CONF="$FS/net/exim.conf" SHANI_SYSCTL_FILE="$FS/net/ip_forward"
@@ -103,3 +111,23 @@ export FAKE_SYSTEM_BG="$FS/bg" SHANI_CRONTAB_ROOT="$FS/cron" \
 printf '# system crontab\n17 * * * * root cd / && echo tick\n' > "$FS/crontab"
 printf '0 3 * * * root /usr/local/bin/shani-clean\n' > "$FS/cron/cron.d/clean"
 printf '         CPU0       CPU1\n  0:         10          4   IO-APIC   2-edge      timer\n  1:          0         42   IO-APIC   1-edge      i8042\n  8:        100          0   IO-APIC   8-edge      rtc0\n' > "$FS/interrupts"
+
+# ---- Boot checks, storage analysis, audit events, UPS policy, banned IPs ----
+# One stand-in file per tool name, reached by symlink through its own basename.
+for t in shani-deploy sbctl mokutil; do ln -sf /work/dev/fake-boot-tools.py "$FS/bin-boot/$t"; done
+for t in ausearch systemctl; do ln -sf /work/dev/fake-audit.py "$FS/audit/$t"; done
+ln -sf /work/dev/fake-upsmon.py "$FS/nut/shani-cassini-save"
+ln -sf /work/dev/fake-unit-state.py "$FS/bin-misc/systemctl"
+ln -sf /work/dev/fake-system-net.py "$FS/bin-net/fail2ban-client"
+export SHANI_DEPLOY=/work/dev/fake-system-deploy.sh SHANI_SBCTL="$FS/bin-boot/sbctl" \
+       SHANI_MOKUTIL="$FS/bin-boot/mokutil" FAKE_BOOT_TOOLS_DIR="$FS/boot"
+export SHANI_SYSTEM_PKEXEC=/work/dev/fake-pkexec.sh FAKE_PKEXEC_LOG="$FS/pkexec-calls"
+export SHANI_AUSEARCH="$FS/audit/ausearch" SHANI_AUDIT_LOG="$FS/audit/audit.log" FAKE_AUDIT="$FS/audit"
+export SHANI_CASSINI_SAVE="$FS/nut/shani-cassini-save" SHANI_UPSMON_CONF="$FS/nut/upsmon.conf" \
+       FAKE_UPMON="$FS/nut"
+export SHANI_FAIL2BAN_CLIENT="$FS/bin-net/fail2ban-client"
+export SHANI_SMARTD_CONF="$FS/smartd.conf" FAKE_UNIT_SMARTD=active
+printf 'DEVICESCAN -d removable -n standby -m root -M exec /usr/share/smartmontools/smartd-runner\n' > "$SHANI_SMARTD_CONF"
+printf '# managed by the desktop\nMINSUPPLIES 1\nSHUTDOWNCMD "/sbin/shutdown -h +0"\nPOWERDOWNFLAG /etc/killpower\nDEADTIME 15\nFINALDELAY 0\nPOLLFREQ 5\nPOLLFREQALERT 5\nMONITOR myups@localhost 1 monitor pass primary\n' > "$SHANI_UPSMON_CONF"
+printf "%s\n" "type=USER_LOGIN msg=audit(1710000000.100:42): pid=100 uid=0 auid=1000 msg='op=login id=\"alice\"'" > "$SHANI_AUDIT_LOG"
+mkdir -p "$FS/boot" "$FS/root"
