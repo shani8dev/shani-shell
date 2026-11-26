@@ -82,6 +82,62 @@ grep -q '^start 98.5$' "$FM_LOG" 2>/dev/null \
 shot radio-fm-playing 0.4
 shot radio-fm 0.4
 
+# ---- the radio's other abilities: volume, a recording, a scan and the bands ---
+# The stand-in's call log is the evidence that a click reached the engine; the
+# accessible banner is the evidence that the engine's own answer was shown.
+waitlog() {
+    pattern=$1; i=0
+    until grep -q "$pattern" "$FM_LOG" 2>/dev/null || [ "$i" -ge 20 ]; do
+        sleep 0.25; i=$((i + 1))
+    done
+    grep -q "$pattern" "$FM_LOG" 2>/dev/null
+}
+
+press "radio button:^75%$" \
+    && result radio-fm-volume-click PASS || result radio-fm-volume-click FAIL "no 75% chip"
+waitlog '^volume 75$' \
+    && result radio-fm-volume-reaches-tuner PASS \
+    || result radio-fm-volume-reaches-tuner FAIL "$(tail -5 "$FM_LOG" 2>&1)"
+timeout 12 python3 "$A11Y" find "Radio volume 75%." >/dev/null 2>&1 \
+    && result radio-fm-volume-shown PASS || result radio-fm-volume-shown FAIL "the volume answer was not shown"
+
+# a tiny stereo IQ capture, made here so the check needs no recorded file
+CAP=/tmp/radio-fm-capture.wav
+python3 - "$CAP" <<'PY'
+import sys, wave
+with wave.open(sys.argv[1], 'wb') as h:
+    h.setnchannels(2); h.setsampwidth(2); h.setframerate(200000)
+    h.writeframes(b'\x00' * 40000 * 2 * 2)
+PY
+press "button:^Play a recording$" \
+    && result radio-fm-decode-button PASS || result radio-fm-decode-button FAIL "no Play a recording button"
+waitfor "d['pickerShown']" 6 || echo "  (picker not shown: $(q "['pickerShown']"))"
+ipc filePickerSelect "$CAP"; ipc filePickerAccept
+waitlog "^decode $CAP$" \
+    && result radio-fm-decode-reaches-tuner PASS \
+    || result radio-fm-decode-reaches-tuner FAIL "$(tail -5 "$FM_LOG" 2>&1)"
+timeout 12 python3 "$A11Y" find "Demodulated" >/dev/null 2>&1 \
+    && result radio-fm-decode-shown PASS || result radio-fm-decode-shown FAIL "the recording answer was not shown"
+
+press "button:^Find stations$" \
+    && result radio-fm-scan-button PASS || result radio-fm-scan-button FAIL "no Find stations button"
+waitfor "d['pickerShown']" 6 || echo "  (picker not shown: $(q "['pickerShown']"))"
+ipc filePickerSelect "$CAP"; ipc filePickerAccept
+waitlog "^scan $CAP$" \
+    && result radio-fm-scan-reaches-tuner PASS \
+    || result radio-fm-scan-reaches-tuner FAIL "$(tail -5 "$FM_LOG" 2>&1)"
+timeout 12 python3 "$A11Y" find "Searched" >/dev/null 2>&1 \
+    && result radio-fm-scan-shown PASS || result radio-fm-scan-shown FAIL "the scan answer was not shown"
+
+press "button:^Bands$" \
+    && result radio-fm-bands-button PASS || result radio-fm-bands-button FAIL "no Bands button"
+waitlog '^bands$' \
+    && result radio-fm-bands-reaches-tuner PASS \
+    || result radio-fm-bands-reaches-tuner FAIL "$(tail -5 "$FM_LOG" 2>&1)"
+timeout 12 python3 "$A11Y" find "What bands this can cover" >/dev/null 2>&1 \
+    && result radio-fm-bands-shown PASS || result radio-fm-bands-shown FAIL "the band report was not shown"
+shot radio-fm-reports 0.4
+
 # every clickable in the Media Player has a keyboard path (Ui.navAuditAll)
 audit > /tmp/radio-fm-audit-now.json
 new=$(python3 - <<'PY' 2>/dev/null || echo '[]'
