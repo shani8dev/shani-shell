@@ -2037,7 +2037,7 @@ else
     result printers-listed SKIP "no cupsd in this image"
 fi
 
-# ---- Settings > Backup: what Shani Backup says, and Open stays in the shell -------------
+# ---- Settings > Backup: what the backup tool says, and Open stays in the shell -------------
 ipc settingsCategory backup
 waitfor "'2 snapshots on this disk · latest today' in d['backupSummary'] and 'every day at 21:15' in d['backupSummary']" 5 \
     && result settings-backup-summary PASS "$(q "['backupSummary']")" || result settings-backup-summary FAIL "$(q "['backupSummary']")"

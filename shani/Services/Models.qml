@@ -20,7 +20,7 @@ Singleton {
         { name: "qwen2.5:7b",      size: "4.7 GB",  description: Tr.t("Good multilingual model"), source: "ollama" },
         { name: "qwen2.5:3b",      size: "1.9 GB",  description: Tr.t("Fast multilingual model"), source: "ollama" },
         { name: "mistral:7b",      size: "4.1 GB",  description: Tr.t("Strong reasoning, 7B"), source: "ollama" },
-        { name: "phi3:3.8b",       size: "2.2 GB",  description: Tr.t("Microsoft's small model"), source: "ollama" },
+        { name: "phi3:3.8b",       size: "2.2 GB",  description: Tr.t("Small model, good at reasoning"), source: "ollama" },
         { name: "gemma2:2b",       size: "1.6 GB",  description: Tr.t("Google's lightweight model"), source: "ollama" },
     ]
 

@@ -1,4 +1,4 @@
-// Settings > Backup: what Shani Backup says through the shell's service, and
+// Settings > Backup: what the backup tool says through the shell's service, and
 // the daily switch and time. The work is done by the same bridge the Backup
 // window uses; no other app is started.
 import Quickshell
@@ -33,7 +33,7 @@ ColumnLayout {
             visible: !page.installed
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: Tr.t("Shani Backup is not installed.")
+            text: Tr.t("The backup tool is not installed.")
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.px(12) * Theme.fontScale

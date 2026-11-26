@@ -85,7 +85,7 @@ def test_backup_panel_says_when_the_backup_tool_is_missing():
     p = read(PANEL)
     start = p.index("visible: !Backup.available")
     block = p[start - 80 : start + 400]
-    assert "Shani Backup is not installed" in block
+    assert "The backup tool is not installed" in block
     assert (
         "visible: !Backup.loading && Backup.snapshots.length === 0 && Backup.available"
         in p

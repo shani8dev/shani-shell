@@ -1,5 +1,5 @@
 pragma Singleton
-// Shani Backup, as the shell shows it. Every answer and every action goes
+// The backup tool (shani-backup), as the shell shows it. Every answer and every action goes
 // through bridge/backup.py, which runs shani-backup's own commands:
 //   list / home-list / snapshot-list  - what is there
 //   backup / restore                 - the copy on the other drive
@@ -145,7 +145,7 @@ Singleton {
                 root.drive = !root.repository ? Tr.t("No backup drive chosen yet")
                     : !root.reachable ? Tr.t("The backup drive is not connected")
                     : !root.driveSetUp ? Tr.t("This folder is not set up for backups yet")
-                    : !d.ok ? (d.error || Tr.t("Shani Backup did not answer"))
+                    : !d.ok ? (d.error || Tr.t("The backup tool did not answer"))
                     : Tr.t("Last %1", root.backups.length ? root.day(root.backups[0].time) + " " + String(root.backups[0].time).slice(11, 16) : Tr.t("never"))
                       + " · " + (root.scheduleOn ? Tr.t("every day at %1", root.scheduleTime) : Tr.t("by hand"));
             }
@@ -167,7 +167,7 @@ Singleton {
                     subtitle: String(s.name || "").startsWith("manual-") ? Tr.t("Taken by hand")
                         : String(s.name || "").startsWith("predeploy-") ? Tr.t("Before an update") : Tr.t("Daily")
                 }));
-                root.versions = d.ok === false ? (d.error || Tr.t("Shani Backup did not answer"))
+                root.versions = d.ok === false ? (d.error || Tr.t("The backup tool did not answer"))
                     : items.length === 0 ? Tr.t("No snapshots yet — your home is snapshotted once a day")
                     : Tr.t("%1 on this disk · latest %2",
                            items.length === 1 ? Tr.t("1 snapshot") : Tr.t("%1 snapshots", items.length),

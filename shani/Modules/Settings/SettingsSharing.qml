@@ -887,7 +887,7 @@ ColumnLayout {
             visible: Cast.available
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: Cast.active ? Tr.t("Casting — GNOME Network Displays is sharing this screen")
+            text: Cast.active ? Tr.t("Casting — this screen is being shared")
                               : Tr.t("Off — share this screen with a TV or Chromecast")
             color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
         }

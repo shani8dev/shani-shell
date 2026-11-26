@@ -63,7 +63,7 @@ var ids = {
     "Studio": "dev.shani.Studio",
     "Disks": "dev.shani.Disks",
     "Remote Hosts": "dev.shani.TerminalApp",
-    "Shani Backup": "dev.shani.Backup",
+    "Backup": "dev.shani.Backup",
     "Feeds": "dev.shani.Feeds",
     "Mail": "dev.shani.Mail",
     "IRC": "dev.shani.Irc",

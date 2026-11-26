@@ -1,4 +1,4 @@
-// Backup: everything Shani Backup can do, in the shell. The service (Backup.qml)
+// Backup: everything the backup tool (shani-backup) can do, in the shell. The service (Backup.qml)
 // runs shani-backup's own commands through bridge/backup.py; this panel only
 // shows what came back and asks for a choice before anything changes.
 import Quickshell
@@ -9,7 +9,7 @@ import qs.Services
 
 AppWindow {
     id: win
-    appName: "Shani Backup"
+    appName: "Backup"
     visible: Ui.backup
     onGone: Ui.backup = false
     implicitWidth: Theme.px(780)
@@ -117,7 +117,7 @@ AppWindow {
                 visible: !Backup.available
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: Tr.t("Shani Backup is not installed here. Snapshots and backups cannot be made or restored.")
+                text: Tr.t("The backup tool is not installed here. Snapshots and backups cannot be made or restored.")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
