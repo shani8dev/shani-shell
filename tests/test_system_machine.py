@@ -58,7 +58,7 @@ def run(tmp_path, *args, env_extra=None, **kw):
         "SHANI_LSPCI",
         "SHANI_GLXINFO",
         "SHANI_ETC_CHANGES",
-        "SHANI_DRI_DIR",
+        "SHANI_SYSTEM_DRI_DIR",
         "SHANI_MOUNTINFO",
         "SHANI_DATA_DIR",
         "SHANI_DATA_SIZE",
@@ -78,7 +78,7 @@ def run(tmp_path, *args, env_extra=None, **kw):
         if "shani-etc-changes" in kw.get("tools", TOOLS)
         else MISSING
     )
-    env["SHANI_DRI_DIR"] = str(dri_dir)
+    env["SHANI_SYSTEM_DRI_DIR"] = str(dri_dir)
     env["SHANI_MOUNTINFO"] = str(mountinfo)
     env["SHANI_DATA_DIR"] = str(data_dir)
     if env_extra:

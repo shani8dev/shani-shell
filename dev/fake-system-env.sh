@@ -36,10 +36,10 @@ export SHANI_REPORT_DIR="$FS/reports" FAKE_SYSTEM_ROOT="$FS/root"
 mkdir -p "$FS/firmware" "$FS/health" "$FS/root"
 
 # Versions, graphics, /etc changes and persistence.
-export SHANI_FLATPAK="$FS/bin-net/flatpak" SHANI_SNAP="$FS/bin-net/snap"
+export SHANI_SYSTEM_FLATPAK="$FS/bin-net/flatpak" SHANI_SYSTEM_SNAP="$FS/bin-net/snap"
 export SHANI_OSTREE="$FS/bin-net/ostree" SHANI_OS_RELEASE=/work/data/os-release.fixture
 export SHANI_LSPCI="$FS/bin-net/lspci" SHANI_GLXINFO="$FS/bin-net/glxinfo"
-export SHANI_DRI_DIR="$FS/dri" FAKE_SYSTEM_INFO="$FS/info"
+export SHANI_SYSTEM_DRI_DIR="$FS/dri" FAKE_SYSTEM_INFO="$FS/info"
 export SHANI_ETC_CHANGES="python3 $FS/bin-net/shani-etc-changes"
 printf 'ID=shani\nPRETTY_NAME="ShaniOS (test)"\nVERSION_ID=2026.10.28\n' > "$FS/os-release"
 export SHANI_OS_RELEASE="$FS/os-release"
@@ -70,11 +70,11 @@ python3 /work/dev/fake-system-net.py fixtures
 
 # Sign-in and access fixtures: none of these hold a real secret.
 export FAKE_SYSTEM_ACCESS="$FS/access" SHANI_NSSWITCH="$FS/nsswitch" \
-       SHANI_KRB5_CONF="$FS/krb5.conf" SHANI_PAM_DIR="$FS/pam" \
+       SHANI_KRB5_CONF="$FS/krb5.conf" SHANI_SYSTEM_PAM_DIR="$FS/pam" \
        SHANI_PKCS11_CONF="$FS/pkcs11.conf" SHANI_PKCS11_MAP="$FS/subject_mapping" \
        SHANI_POLKIT_DIR="$FS/polkit" SHANI_SUDOERS="$FS/sudoers" \
        SHANI_SSHD_CONF="$FS/sshd.conf" SHANI_LSM_FILE="$FS/lsm" \
-       SHANI_SSH_KEYGEN="$FS/bin-access/ssh-keygen" SHANI_AUTHORIZED_KEYS="$FS/authorized_keys" \
+       SHANI_SYSTEM_SSH_KEYGEN="$FS/bin-access/ssh-keygen" SHANI_AUTHORIZED_KEYS="$FS/authorized_keys" \
        SHANI_OATH_FILE="$FS/users.oath"
 printf 'passwd: files sss\ngroup: files sss\nshadow: files sss\n' > "$FS/nsswitch"
 printf '[libdefaults]\n default_realm = EXAMPLE.LAN\n[domain_realm]\n .example.lan = EXAMPLE.LAN\n' > "$FS/krb5.conf"

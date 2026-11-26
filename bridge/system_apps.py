@@ -10,7 +10,7 @@ Flatpak and snap report their own applications; the OS reports its deployment
 through ostree, falling back to the machine's os-release file. These are three
 different ways of numbering versions, so there is deliberately no total across
 them. A tool that is not installed is reported in "have": false, not as an
-empty list of healthy apps. SHANI_FLATPAK, SHANI_SNAP, SHANI_OSTREE and
+empty list of healthy apps. SHANI_SYSTEM_FLATPAK, SHANI_SYSTEM_SNAP, SHANI_OSTREE and
 SHANI_OS_RELEASE point at stand-ins in the tests. Every command has a 30-second
 limit.
 """
@@ -26,8 +26,8 @@ import subprocess
 import sys
 
 TIMEOUT = 30
-FLATPAK = shlex.split(os.environ.get("SHANI_FLATPAK", "flatpak"))
-SNAP = shlex.split(os.environ.get("SHANI_SNAP", "snap"))
+FLATPAK = shlex.split(os.environ.get("SHANI_SYSTEM_FLATPAK", "flatpak"))
+SNAP = shlex.split(os.environ.get("SHANI_SYSTEM_SNAP", "snap"))
 OSTREE = shlex.split(os.environ.get("SHANI_OSTREE", "ostree"))
 OS_RELEASE = os.environ.get("SHANI_OS_RELEASE", "/etc/os-release")
 

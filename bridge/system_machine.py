@@ -16,7 +16,7 @@ Graphics, etc changes and persistence are read as the user; a missing tool or a
 helper that fails is reported honestly, never as invented rows. Restoring or
 cancelling a system change only queues it through the machine's own privileged
 helper, and only after the path passes strict validation. Persistence never
-writes anything. SHANI_LSPCI, SHANI_GLXINFO, SHANI_DRI_DIR, SHANI_ETC_CHANGES,
+writes anything. SHANI_LSPCI, SHANI_GLXINFO, SHANI_SYSTEM_DRI_DIR, SHANI_ETC_CHANGES,
 SHANI_MOUNTINFO, SHANI_DATA_DIR and SHANI_DATA_SIZE are stand-ins in the tests.
 Every command has a 30-second limit.
 """
@@ -38,7 +38,7 @@ GLXINFO = shlex.split(os.environ.get("SHANI_GLXINFO", "glxinfo"))
 ETC = shlex.split(
     os.environ.get("SHANI_ETC_CHANGES", "pkexec /usr/local/bin/shani-etc-changes")
 )
-DRI_DIR = os.environ.get("SHANI_DRI_DIR", "/dev/dri")
+DRI_DIR = os.environ.get("SHANI_SYSTEM_DRI_DIR", "/dev/dri")
 MOUNTINFO = os.environ.get("SHANI_MOUNTINFO", "/proc/self/mountinfo")
 DATA_DIR = os.environ.get("SHANI_DATA_DIR", "/data")
 DATA_SIZE = os.environ.get("SHANI_DATA_SIZE", "") == "1"

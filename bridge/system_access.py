@@ -19,9 +19,9 @@ first "domain = realm" line; cache is the credential cache file's path when one
 exists; available LSM names are the known names named by the kernel.
 
 Test overrides: SHANI_SYSTEMCTL, SHANI_NSSWITCH, SHANI_KRB5_CONF,
-SHANI_KRB5_CCACHE, SHANI_PAM_DIR, SHANI_PKCS11_CONF, SHANI_PKCS11_MAP,
+SHANI_KRB5_CCACHE, SHANI_SYSTEM_PAM_DIR, SHANI_PKCS11_CONF, SHANI_PKCS11_MAP,
 SHANI_POLKIT_DIR, SHANI_SUDOERS, SHANI_SSHD_CONF, SHANI_LSM_FILE,
-SHANI_SSH_KEYGEN, SHANI_AUTHORIZED_KEYS, SHANI_OATH_FILE.
+SHANI_SYSTEM_SSH_KEYGEN, SHANI_AUTHORIZED_KEYS, SHANI_OATH_FILE.
 """
 
 from __future__ import annotations
@@ -148,7 +148,7 @@ def kerberos() -> dict:
     pattern = os.environ.get("SHANI_KRB5_CCACHE", "/tmp/krb5cc_*")
     found = sorted(glob.glob(pattern))
     out["cache"] = found[0] if found else ""
-    pam_dir = os.environ.get("SHANI_PAM_DIR", "/etc/pam.d")
+    pam_dir = os.environ.get("SHANI_SYSTEM_PAM_DIR", "/etc/pam.d")
     if not os.path.isdir(pam_dir):
         out["error"] = out["error"] or "PAM directory is not readable"
     else:
@@ -306,7 +306,7 @@ def sshkeys() -> dict:
     out = {"path": path, "keys": [], "error": ""}
     if not os.path.exists(path):
         return out
-    keygen = _cmd("SHANI_SSH_KEYGEN", "ssh-keygen")
+    keygen = _cmd("SHANI_SYSTEM_SSH_KEYGEN", "ssh-keygen")
     if not keygen or not shutil.which(keygen[0]):
         out["error"] = "ssh-keygen is not available"
         return out

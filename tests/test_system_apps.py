@@ -28,15 +28,15 @@ def run(tmp_path, *args, tools=TOOLS, os_release=True, env_extra=None):
         PATH="%s:%s" % (tmp_path, os.environ["PATH"]),
     )
     for k in (
-        "SHANI_FLATPAK",
-        "SHANI_SNAP",
+        "SHANI_SYSTEM_FLATPAK",
+        "SHANI_SYSTEM_SNAP",
         "SHANI_OSTREE",
         "SHANI_OS_RELEASE",
         "FAKE_SYSTEM_INFO_FAIL",
     ):
         env.pop(k, None)
-    env["SHANI_FLATPAK"] = str(tmp_path / "flatpak") if "flatpak" in tools else MISSING
-    env["SHANI_SNAP"] = str(tmp_path / "snap") if "snap" in tools else MISSING
+    env["SHANI_SYSTEM_FLATPAK"] = str(tmp_path / "flatpak") if "flatpak" in tools else MISSING
+    env["SHANI_SYSTEM_SNAP"] = str(tmp_path / "snap") if "snap" in tools else MISSING
     env["SHANI_OSTREE"] = str(tmp_path / "ostree") if "ostree" in tools else MISSING
     release = tmp_path / "os-release"
     if os_release:
