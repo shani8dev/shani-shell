@@ -80,3 +80,25 @@ def test_recents_have_search_and_a_missed_only_filter():
     model = win.split("model: Link.calls.filter(", 1)[1].split("delegate:", 1)[0]
     assert "win.missedOnly" in model and "c.missed" in model
     assert "win.callSearch" in model and "c.name || c.number" in model
+
+
+def test_history_actions_are_confirmed_and_delegated_to_the_bridge():
+    """Delete one and Clear all are two-tap; ids go to the bridge, not into logs."""
+    win = source("shani/Modules/Calls/CallsWindow.qml")
+    bridge = source("bridge/link.py")
+    engine = source("bridge/phone/calls_log.py")
+
+    assert "id: deleteCall" in win and "value: modelData.id" in win
+    assert "onConfirmed: id => Link.deleteCall(id)" in win
+    assert "id: clearHistory" in win
+    assert 'armedText: Tr.t("Tap again to clear")' in win
+    assert "onConfirmed: Link.clearCalls()" in win
+    assert "visible: Link.callUndo" in win
+    assert 'Accessible.name: Tr.t("Clear all call history")' in win
+    assert 'Accessible.name: Tr.t("Delete call")' in win
+
+    assert "def cmd_call_delete(row_id: str) -> dict:" in bridge
+    assert "def cmd_call_clear() -> dict:" in bridge
+    assert "def cmd_call_restore(token: str) -> dict:" in bridge
+    assert "def clear_for_undo() -> List[dict]:" in engine
+    assert "calls_log.restore(rows)" in bridge  # Undo reuses the engine

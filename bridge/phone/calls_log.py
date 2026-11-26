@@ -15,6 +15,7 @@ each other's row.
 A missed call also tells whoever registered with `on_missed` (the service's
 missed-call notification), at the moment it is logged.
 """
+
 from __future__ import annotations
 
 import fcntl
@@ -49,6 +50,7 @@ def path() -> Path:
 def _old_landline_file() -> Path:
     # through `migrated`, so a list still in Chronoa's folder is found as well
     from phone.landline import provision
+
     return provision.migrated(paths.data_home() / "shani-shell" / "landline-calls.json")
 
 
@@ -67,7 +69,9 @@ def _locked():
 def _read() -> List[dict]:
     try:
         rows = json.loads(path().read_text())
-        return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
+        return (
+            [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
+        )
     except FileNotFoundError:
         return _carry_over()
     except (OSError, ValueError):
@@ -85,10 +89,18 @@ def _carry_over() -> List[dict]:
         if not isinstance(r, dict):
             continue
         kind = r.get("kind", "placed")
-        rows.append({"id": uuid.uuid4().hex, "line": "landline", "number": str(r.get("number", "")),
-                     "name": str(r.get("name", "")), "direction": "out" if kind == "placed" else "in",
-                     "missed": kind == "missed", "when": int(r.get("when", 0) or 0),
-                     "seconds": int(r.get("seconds", 0) or 0)})
+        rows.append(
+            {
+                "id": uuid.uuid4().hex,
+                "line": "landline",
+                "number": str(r.get("number", "")),
+                "name": str(r.get("name", "")),
+                "direction": "out" if kind == "placed" else "in",
+                "missed": kind == "missed",
+                "when": int(r.get("when", 0) or 0),
+                "seconds": int(r.get("seconds", 0) or 0),
+            }
+        )
     return rows
 
 
@@ -100,7 +112,7 @@ def _write(rows: List[dict]) -> None:
             json.dump(rows[:MAX_ROWS], fh)
             fh.flush()
             os.fsync(fh.fileno())
-        os.chmod(tmp, 0o600)                 # who called whom is private
+        os.chmod(tmp, 0o600)  # who called whom is private
         os.replace(tmp, target)
     except BaseException:
         try:
@@ -119,14 +131,26 @@ def rows(limit: int = 0, line: str = "") -> List[dict]:
     return got[:limit] if limit > 0 else got
 
 
-def add(line: str, number: str, direction: str, answered: bool, seconds: int = 0,
-        name: str = "", when: Optional[float] = None) -> dict:
+def add(
+    line: str,
+    number: str,
+    direction: str,
+    answered: bool,
+    seconds: int = 0,
+    name: str = "",
+    when: Optional[float] = None,
+) -> dict:
     """Log one finished call. An incoming call nobody answered is a missed call."""
-    row = {"id": uuid.uuid4().hex, "line": line, "number": str(number or ""), "name": str(name or ""),
-           "direction": "in" if direction == "in" else "out",
-           "missed": direction == "in" and not answered,
-           "when": int(when if when is not None else time.time() - max(0, int(seconds))),
-           "seconds": max(0, int(seconds)) if answered else 0}
+    row = {
+        "id": uuid.uuid4().hex,
+        "line": line,
+        "number": str(number or ""),
+        "name": str(name or ""),
+        "direction": "in" if direction == "in" else "out",
+        "missed": direction == "in" and not answered,
+        "when": int(when if when is not None else time.time() - max(0, int(seconds))),
+        "seconds": max(0, int(seconds)) if answered else 0,
+    }
     try:
         with _locked():
             current = _read()
@@ -157,6 +181,18 @@ def clear() -> None:
         _write([])
 
 
+def clear_for_undo() -> List[dict]:
+    """Clear the history and hand back the rows removed, so a client can Undo.
+
+    The snapshot and the clear share one lock: a call logged at the same moment
+    is either in the returned list or in the now-empty file, never lost.
+    """
+    with _locked():
+        old = _read()
+        _write([])
+    return old
+
+
 def restore(old: List[dict]) -> None:
     """Put rows back (Undo after Clear all), keeping any logged since."""
     with _locked():
@@ -181,12 +217,16 @@ def on_missed(callback: Callable[[dict], None]) -> Callable[[], None]:
 
 # --- how a row reads ----------------------------------------------------------------
 
+
 def day_label(when: float, now: Optional[float] = None) -> str:
-    """"Today", "Yesterday", a weekday within the week, else the date."""
+    """ "Today", "Yesterday", a weekday within the week, else the date."""
     now = time.time() if now is None else now
     day = time.localtime(when)
     today = time.localtime(now)
-    days = (time.mktime(today[:3] + (0, 0, 0, 0, 0, -1)) - time.mktime(day[:3] + (0, 0, 0, 0, 0, -1))) / 86400
+    days = (
+        time.mktime(today[:3] + (0, 0, 0, 0, 0, -1))
+        - time.mktime(day[:3] + (0, 0, 0, 0, 0, -1))
+    ) / 86400
     days = round(days)
     if days <= 0:
         return "Today"
@@ -200,7 +240,7 @@ def day_label(when: float, now: Optional[float] = None) -> str:
 
 
 def duration(seconds: int) -> str:
-    """"45 s", "3 min 05 s", "1 h 02 min"."""
+    """ "45 s", "3 min 05 s", "1 h 02 min"."""
     seconds = max(0, int(seconds))
     if seconds < 60:
         return f"{seconds} s"
@@ -216,14 +256,18 @@ def describe(row: dict) -> str:
     else:
         what = "Incoming" if row.get("direction") == "in" else "Outgoing"
     line = row.get("line", "")
-    if str(line).startswith("sip-"):        # a SIP account's name, not its id ("sip-3f2a1b")
+    if str(line).startswith("sip-"):  # a SIP account's name, not its id ("sip-3f2a1b")
         try:
             from phone import sip_accounts
+
             line = sip_accounts.name_for_line(line) or "SIP"
         except Exception:  # noqa: BLE001 - a row outlives the account it was logged on
             line = "SIP"
-    bits = [what, LINE_NAMES.get(line, line),
-            time.strftime("%H:%M", time.localtime(row.get("when", 0)))]
+    bits = [
+        what,
+        LINE_NAMES.get(line, line),
+        time.strftime("%H:%M", time.localtime(row.get("when", 0))),
+    ]
     if not row.get("missed") and row.get("seconds"):
         bits.append(duration(row["seconds"]))
     return " · ".join(b for b in bits if b)

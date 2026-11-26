@@ -39,6 +39,7 @@ Singleton {
     property string search: ""           // conversation filter, owned by the Messages window
     property string sendState: ""        // "" | "sending" | "sent" | "error" — the composer's delivery line
     property var lastSend: null          // { thread, text } of the last attempted send
+    property string callUndo: ""         // one-use token from Clear all, for Undo
 
     // the first paired, reachable device: "the phone" of the tile, the Shelf and
     // the dial pad when nothing is named
@@ -133,6 +134,22 @@ Singleton {
     function hangup() { run("hangup", []) }
     function match(query) { run("match", [String(query || "")]) }
     function callAction(id, action) { run("call-action", [String(id || ""), String(action || "")]) }
+    // history actions: the bridge owns the data, this window only renders it
+    function deleteCall(id) { run("call-delete", [String(id || "")]) }
+    function clearCalls() { run("call-clear", []) }
+    function undoClear() { if (root.callUndo) run("call-restore", [root.callUndo]) }
+    function saveCall(name, number) { run("call-save", [String(name || ""), String(number || "")]) }
+    // a call row's "Send a message": open the existing composer on that number,
+    // or start a new conversation when no thread matches yet
+    function message(number) {
+        const n = String(number || "").trim();
+        if (!n) return;
+        root.note = "";  // a call action's note must not follow us into Messages
+        Ui.calls = false;
+        Ui.messagesNumber = n;
+        Ui.messages = true;
+    }
+    function clearNote() { root.note = ""; }
     function ring() { run("ring", []) }
     function share(path) { run("share", [root.phone ? root.phone.id : "", String(path || "")]) }
 
@@ -190,6 +207,19 @@ Singleton {
             root.incomingId = root.incoming.id || "";
         } else if (what === "call-action") {
             root.note = data && data.error ? data.error : "";
+        } else if (what === "call-delete") {
+            root.note = data && data.error ? data.error : Tr.t("Call removed");
+            if (!data || !data.error) run("calls", []);
+        } else if (what === "call-clear") {
+            root.callUndo = data && data.undo ? data.undo : "";
+            root.note = data && data.error ? data.error : Tr.t("History cleared");
+            if (!data || !data.error) run("calls", []);
+        } else if (what === "call-restore") {
+            root.note = data && data.error ? data.error : Tr.t("History restored");
+            if (!data || !data.error) { root.callUndo = ""; run("calls", []); }
+        } else if (what === "call-save") {
+            root.note = data && data.error ? data.error
+                : (data && data.saved ? Tr.t("Contact saved") : Tr.t("Already in contacts"));
         } else if (what === "messages") {
             root.messages = Array.isArray(data) ? data : [];
             if (root.messages.length) root.showThread(root.messages[0].thread, root.messages[0].name || root.messages[0].number);
