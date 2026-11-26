@@ -428,14 +428,14 @@ AppWindow {
                 anchors.fill: parent
                 anchors.margins: Theme.px(6)
                 spacing: Theme.px(6)
-                Text { text: "⚠"; color: Theme.amber; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: "⚠"; color: Theme.amber; font.pixelSize: Theme.type("body") }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: !Net.online
                         ? Tr.t("Offline — showing the catalogue saved on this device. Installing and updating need internet.")
                         : Tr.t("The app catalogue is %1 days old — refresh it for the latest apps.", win.catalogue.ageDays)
-                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
             }
         }
@@ -443,19 +443,19 @@ AppWindow {
             visible: !!win.catalogue.refreshed
             Layout.fillWidth: true
             text: Tr.t("Catalogue refreshed %1", win.catalogue.refreshed)
-            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption")
         }
         // a job under way: how far, flatpak's own words
         ColumnLayout {
             visible: jobProc.running || win.jobQueue.length > 0
             Layout.fillWidth: true
             spacing: 2
-            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: win.jobLine || Tr.t("Working…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: win.jobLine || Tr.t("Working…"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Text {
                 visible: win.jobQueue.length > 0
                 Layout.fillWidth: true
                 text: Tr.t("%1 queued", win.jobQueue.length)
-                color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                 Accessible.name: text
             }
             Rectangle {
@@ -482,7 +482,7 @@ AppWindow {
             wrapMode: Text.WordWrap
             // bridge stderr is not user-facing copy: friendlyError maps the common failures
             text: win.friendlyError()
-            color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
             Accessible.name: text
         }
         Button {
@@ -514,7 +514,7 @@ AppWindow {
             visible: win.tab === "explore" && !win.app && q.text.trim().length > 0 && q.text.trim().length < 3
             Layout.fillWidth: true
             text: Tr.t("Type at least 3 characters to search.")
-            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption")
             Accessible.name: text
         }
         RowLayout {
@@ -527,7 +527,7 @@ AppWindow {
             Text {
                 visible: win.results.length > 0
                 text: Tr.t("%1 apps", win.filteredResults().length)
-                color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                 Accessible.name: text
             }
         }
@@ -554,7 +554,7 @@ AppWindow {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: Tr.t("Nothing here yet. If this is the first time, fetch Flathub's list with the refresh button.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         EmptyState {
             Layout.fillWidth: true
@@ -567,7 +567,7 @@ AppWindow {
             Layout.fillWidth: true
             visible: win.tab === "explore" && !win.app && win.results.length === 0 && !asker.running && win.showing.startsWith("search:")
             text: Tr.t("No matches for %1", win.showing.slice(7))
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         GridView {
             id: grid
@@ -599,9 +599,9 @@ AppWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: card.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap; text: card.modelData.summary; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                        Text { visible: card.isSnap; Layout.fillWidth: true; elide: Text.ElideRight; text: Tr.t("Snap") + (card.modelData.publisher ? "  ·  " + card.modelData.publisher : "") + (card.modelData.classic ? "  ·  " + Tr.t("not sandboxed") : ""); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: card.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap; text: card.modelData.summary; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                        Text { visible: card.isSnap; Layout.fillWidth: true; elide: Text.ElideRight; text: Tr.t("Snap") + (card.modelData.publisher ? "  ·  " + card.modelData.publisher : "") + (card.modelData.classic ? "  ·  " + Tr.t("not sandboxed") : ""); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     }
                     Text { visible: card.modelData.installed && !card.isSnap; text: "✓"; color: Theme.accent; font.pixelSize: Theme.px(14) }
                     // a snap has no page here: install or remove from its card
@@ -626,7 +626,7 @@ AppWindow {
             visible: win.tab === "explore" && !win.app && win.results.length > 0 && win.filteredResults().length === 0
             Layout.fillWidth: true
             text: Tr.t("No installed apps in these results. Turn off Installed only.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
             Accessible.name: text
         }
         // an app's page
@@ -649,9 +649,9 @@ AppWindow {
                     ColumnLayout {
                         width: Math.max(Theme.px(140), Math.min(Theme.px(320), parent.width - Theme.px(160)))
                         spacing: 0
-                        Text { text: appCol.a.name || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(18) * Theme.fontScale; font.weight: Font.DemiBold }
-                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: appCol.a.summary || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                        Text { text: [appCol.a.developer, appCol.a.license].filter(x => x).join("  ·  "); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: appCol.a.name || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: appCol.a.summary || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                        Text { text: [appCol.a.developer, appCol.a.license].filter(x => x).join("  ·  "); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     }
                     Button { visible: !!appCol.a.installed; text: Tr.t("Open"); onClicked: Quickshell.execDetached(["flatpak", "run", appCol.a.id]) }
                     ConfirmButton {
@@ -689,28 +689,28 @@ AppWindow {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: appCol.a.description || ""
-                    color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
                 }
                 // ODRS community rating, shown only where the service has reviews
                 Text {
                     Layout.fillWidth: true
                     visible: (appCol.a.ratingCount || 0) > 0
                     text: "★ " + (appCol.a.rating || 0).toFixed(1) + " · " + Tr.t("%1 ratings", appCol.a.ratingCount)
-                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     Accessible.name: text
                 }
                 Text {
                     Layout.fillWidth: true
                     visible: (appCol.a.ratingCount || 0) > 0
                     text: "★".repeat(Math.min(5, Math.max(0, Math.round(appCol.a.rating || 0)))) + "☆".repeat(5 - Math.min(5, Math.max(0, Math.round(appCol.a.rating || 0))))
-                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     Accessible.name: Tr.t("%1 out of 5 stars", appCol.a.rating || 0)
                 }
                 Text {
                     Layout.fillWidth: true
                     visible: (appCol.a.ratingCount || 0) === 0
                     text: Tr.t("No ratings yet — community reviews come from ODRS.")
-                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Repeater {
@@ -719,22 +719,22 @@ AppWindow {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; text: "★".repeat(Math.max(1, Math.round(modelData.rating || 3))) + "  " + (modelData.summary || ""); Accessible.name: modelData.summary || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; elide: Text.ElideRight }
-                        Text { Layout.fillWidth: true; text: modelData.review || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: "★".repeat(Math.max(1, Math.round(modelData.rating || 3))) + "  " + (modelData.summary || ""); Accessible.name: modelData.summary || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: modelData.review || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
                     }
                 }
                 Text {
                     Layout.fillWidth: true
                     visible: appCol.a.ageDays > 730
                     text: Tr.t("No new release in %1 days — this app may no longer be maintained.", appCol.a.ageDays)
-                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap
+                    color: Theme.amber; font.family: Theme.font; font.pixelSize: Theme.type("small"); wrapMode: Text.Wrap
                 }
                 // version history / per-release changelog
                 Text {
                     Layout.fillWidth: true
                     visible: (appCol.a.releases || []).length > 0
                     text: Tr.t("Version history")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold
                 }
                 Repeater {
                     model: win.showAllReleases ? (appCol.a.releases || []) : (appCol.a.releases || []).slice(0, 5)
@@ -742,8 +742,8 @@ AppWindow {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; text: (modelData.version || "?") + (modelData.timestamp ? "  ·  " + modelData.timestamp.slice(0, 10) : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
-                        Text { Layout.fillWidth: true; visible: !!modelData.notes; text: modelData.notes || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WordWrap; maximumLineCount: 5; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: (modelData.version || "?") + (modelData.timestamp ? "  ·  " + modelData.timestamp.slice(0, 10) : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; visible: !!modelData.notes; text: modelData.notes || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); wrapMode: Text.WordWrap; maximumLineCount: 5; elide: Text.ElideRight }
                     }
                 }
                 Button {
@@ -758,7 +758,7 @@ AppWindow {
                     Layout.fillWidth: true
                     visible: (appCol.a.addons || []).length > 0
                     text: Tr.t("Add-ons")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -772,7 +772,7 @@ AppWindow {
                 Text {
                     visible: !!appCol.a.homepage
                     text: Tr.t("Website: %1", appCol.a.homepage || "")
-                    color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Quickshell.execDetached(["xdg-open", appCol.a.homepage]) }
                 }
                 // ---- permissions (Flatpak apps) ----
@@ -781,7 +781,7 @@ AppWindow {
                     text: Tr.t("Permissions")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Repeater {
@@ -790,14 +790,14 @@ AppWindow {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: Theme.px(8)
-                        Text { text: modelData.key; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
-                        Text { text: modelData.value; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: modelData.key; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small"); Layout.preferredWidth: Theme.px(120) }
+                        Text { text: modelData.value; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); elide: Text.ElideRight; Layout.fillWidth: true }
                     }
                 }
                 Text {
                     visible: !win.permsLoading && win.appPermissions !== null && win.appPermissions.length === 0
                     text: Tr.t("This app declares no special permissions.")
-                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 BusyNote {
@@ -827,7 +827,7 @@ AppWindow {
         RowLayout {
             visible: win.tab === "installed"
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: win.updates ? Tr.t("%1 apps can be updated", win.updates) : Tr.t("Everything is up to date"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { Layout.fillWidth: true; text: win.updates ? Tr.t("%1 apps can be updated", win.updates) : Tr.t("Everything is up to date"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             ConfirmButton {
                 id: updateAllConfirm
                 implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
@@ -873,9 +873,9 @@ AppWindow {
                 anchors.fill: parent
                 anchors.margins: Theme.px(8)
                 spacing: 2
-                Text { Layout.fillWidth: true; text: Tr.t("Update %1 apps:", win.updates); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: installedApps.concat(win.snaps).filter(a => a.update).map(a => a.name).join(", "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                Text { Layout.fillWidth: true; visible: win.updateSize() !== ""; text: Tr.t("Total size: %1", win.updateSize()); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: Tr.t("Update %1 apps:", win.updates); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: installedApps.concat(win.snaps).filter(a => a.update).map(a => a.name).join(", "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                Text { Layout.fillWidth: true; visible: win.updateSize() !== ""; text: Tr.t("Total size: %1", win.updateSize()); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             }
         }
         ListView {
@@ -907,9 +907,9 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: irow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: irow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: (irow.isSnap ? [irow.modelData.version, Tr.t("Snap"), irow.modelData.publisher]
-                        : [irow.modelData.version, irow.modelData.size, irow.modelData.installation === "user" ? Tr.t("just for you") : Tr.t("for everyone")]).filter(x => x).join("  ·  "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        : [irow.modelData.version, irow.modelData.size, irow.modelData.installation === "user" ? Tr.t("just for you") : Tr.t("for everyone")]).filter(x => x).join("  ·  "); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 }
                 Button { visible: irow.modelData.update; text: Tr.t("Update"); enabled: !jobProc.running; onClicked: irow.isSnap ? win.snapJob("refresh", irow.modelData) : win.runJob(["update", irow.modelData.id], irow.modelData.id) }
                 Button {
@@ -944,7 +944,7 @@ AppWindow {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: win.leftovers.length ? Tr.t("What apps you removed left behind in your home folder (their settings and data):") : Tr.t("Removed apps left nothing behind.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         ListView {
             reuseItems: true
@@ -959,7 +959,7 @@ AppWindow {
                 id: lrow
                 required property var modelData
                 width: llist.width
-                Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: lrow.modelData.id + "  ·  " + win.human(lrow.modelData.size); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: lrow.modelData.id + "  ·  " + win.human(lrow.modelData.size); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Button {
                     text: win.removingLeftover === lrow.modelData.id ? Tr.t("Click again to remove") : Tr.t("Move to the trash")
                     enabled: !jobProc.running
@@ -972,7 +972,7 @@ AppWindow {
         RowLayout {
             visible: win.tab === "appimages"
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: Tr.t("AppImages in ~/Applications; added ones are in the launcher."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: Tr.t("AppImages in ~/Applications; added ones are in the launcher."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             Button { text: Tr.t("Add an AppImage…"); onClicked: FilePicker.open({ mode: "open", title: Tr.t("An AppImage"), onPicked: paths => { if (paths.length) win.ask(["appimage-add", paths[0]], () => win.loadAppImages()); } }) }
         }
         ListView {
@@ -988,7 +988,7 @@ AppWindow {
                 id: arow
                 required property var modelData
                 width: alist.width
-                Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: arow.modelData.name + (arow.modelData.added ? "  ·  " + Tr.t("in the launcher") : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: arow.modelData.name + (arow.modelData.added ? "  ·  " + Tr.t("in the launcher") : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Button { visible: !arow.modelData.added; text: Tr.t("Add to the launcher"); onClicked: win.ask(["appimage-add", arow.modelData.path], () => win.loadAppImages()) }
                 Button {
                     kind: "danger"
@@ -1002,7 +1002,7 @@ AppWindow {
         RowLayout {
             visible: win.tab === "history"
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: Tr.t("Apps installed, updated or removed in this session."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: Tr.t("Apps installed, updated or removed in this session."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             Button { flat: true; text: Tr.t("Clear history"); enabled: win.jobHistory.length > 0; Accessible.name: Tr.t("Clear the session history"); onClicked: win.jobHistory = [] }
         }
         ListView {
@@ -1019,9 +1019,9 @@ AppWindow {
                 Accessible.role: Accessible.ListItem
                 Accessible.name: modelData.action + " " + modelData.name + " " + modelData.when
                 Text { text: modelData.ok ? "✓" : "✗"; color: modelData.ok ? Theme.accent : Theme.danger; font.pixelSize: Theme.px(13) }
-                Text { Layout.preferredWidth: Theme.px(110); elide: Text.ElideRight; text: modelData.action; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                Text { text: modelData.when; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(110); elide: Text.ElideRight; text: modelData.action; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                Text { text: modelData.when; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             }
             EmptyState {
                 anchors.centerIn: parent
@@ -1038,7 +1038,7 @@ AppWindow {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: Tr.t("A disabled repository is kept but its apps are not offered or updated.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         ListView {
             id: remoteList
@@ -1054,8 +1054,8 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                    Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData.url; color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData.url; color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
                 }
                 Button { text: modelData.disabled ? Tr.t("Enable") : Tr.t("Disable"); flat: true; onClicked: win.toggleRemote(modelData.name, modelData.disabled) }
             }

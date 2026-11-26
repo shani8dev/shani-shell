@@ -761,7 +761,7 @@ AppWindow {
                             text: String(win.activeFilterCount)
                             color: Theme.accentInk
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             font.weight: Font.DemiBold
                         }
                     }
@@ -783,7 +783,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.fontTitle * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 IconButton {
@@ -828,7 +828,7 @@ AppWindow {
                         text: Tr.t("Places")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                     Repeater {
                         // a drive the Devices list below shows is not listed twice
@@ -852,7 +852,7 @@ AppWindow {
                                     color: Theme.text
                                     elide: Text.ElideRight
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                 }
                             }
                             FileDropArea {
@@ -882,7 +882,7 @@ AppWindow {
                             text: Tr.t("Special")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             Layout.topMargin: Theme.px(10)
                         }
                         ListRow {
@@ -930,7 +930,7 @@ AppWindow {
                             text: Tr.t("Devices")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             Layout.topMargin: Theme.px(10)
                         }
                         Repeater {
@@ -969,7 +969,7 @@ AppWindow {
                                         color: Theme.text
                                         elide: Text.ElideRight
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        font.pixelSize: Theme.type("body")
                                     }
                                     IconButton {
                                         visible: devRow.modelData.mounted && (devRow.modelData.canEject || devRow.modelData.canUnmount)
@@ -999,7 +999,7 @@ AppWindow {
                         text: Tr.t("Cloud")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         Layout.topMargin: Theme.px(10)
                         visible: Files.clouds.length > 0
                     }
@@ -1128,7 +1128,7 @@ AppWindow {
                                             elide: Text.ElideMiddle
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                            font.pixelSize: Theme.type("body")
                                         }
                                         IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("Close this tab"); onClicked: Files.closeTab(tabChip.index) }
                                     }
@@ -1180,7 +1180,7 @@ AppWindow {
                                             verticalAlignment: Text.AlignVCenter
                                             color: index === win.crumbsModel.length - 1 ? Theme.text : Theme.dim
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                            font.pixelSize: Theme.type("body")
                                             font.weight: index === win.crumbsModel.length - 1 ? Font.DemiBold : Font.Normal
                                             MouseArea {
                                                 anchors.fill: parent
@@ -1204,7 +1204,7 @@ AppWindow {
                                             verticalAlignment: Text.AlignVCenter
                                             color: Theme.dim
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                                            font.pixelSize: Theme.type("caption")
                                             anchors.verticalCenter: parent.verticalCenter
                                             Accessible.role: Accessible.Button
                                             Accessible.name: Tr.t("Folders next to %1").arg(modelData.name)
@@ -1222,7 +1222,7 @@ AppWindow {
                                             text: "›"
                                             color: Theme.faint
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                            font.pixelSize: Theme.type("body")
                                         }
                                     }
                                 }
@@ -1340,7 +1340,7 @@ AppWindow {
                                         maximumLineCount: 2
                                         wrapMode: Text.Wrap
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                     // Finder's View Options: a tile can carry its size or its date
                                     Text {
@@ -1351,7 +1351,7 @@ AppWindow {
                                         horizontalAlignment: Text.AlignHCenter
                                         elide: Text.ElideRight
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                                        font.pixelSize: Theme.type("caption")
                                     }
                                 }
                                 // dragged: the file (or the selection it is part of) as text/uri-list,
@@ -1457,7 +1457,7 @@ AppWindow {
                                         color: Theme.text
                                         elide: Text.ElideMiddle
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        font.pixelSize: Theme.type("body")
                                     }
                                     Text {
                                         Layout.preferredWidth: Theme.px(78)
@@ -1465,7 +1465,7 @@ AppWindow {
                                         text: row.modelData.isDir ? "" : Files.humanSize(row.modelData.size)
                                         color: Theme.faint
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                     Text {
                                         Layout.preferredWidth: Theme.px(92)
@@ -1473,7 +1473,7 @@ AppWindow {
                                         text: Files.formatTime(row.modelData.mtime)
                                         color: Theme.faint
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                 }
                                 // dragged: the file (or the selection it is part of) as text/uri-list,
@@ -1588,7 +1588,7 @@ AppWindow {
                         color: Files.error !== "" ? Theme.red : Theme.faint
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
 
@@ -1624,7 +1624,7 @@ AppWindow {
                                         text: modelData.name
                                         color: index === win.splitCrumbsModel.length - 1 ? Theme.text : Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                         font.weight: index === win.splitCrumbsModel.length - 1 ? Font.DemiBold : Font.Normal
                                         MouseArea {
                                             anchors.fill: parent
@@ -1647,7 +1647,7 @@ AppWindow {
                                         verticalAlignment: Text.AlignVCenter
                                         color: Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                                        font.pixelSize: Theme.type("caption")
                                         anchors.verticalCenter: parent.verticalCenter
                                         Accessible.role: Accessible.Button
                                         Accessible.name: Tr.t("Folders next to %1").arg(modelData.name)
@@ -1667,7 +1667,7 @@ AppWindow {
                                         text: "›"
                                         color: Theme.faint
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                 }
                             }
@@ -1727,7 +1727,7 @@ AppWindow {
                                             maximumLineCount: 2
                                             wrapMode: Text.Wrap
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                                            font.pixelSize: Theme.type("caption")
                                         }
                                     }
                                     Item {
@@ -1795,7 +1795,7 @@ AppWindow {
                             color: Theme.faint
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                 }
@@ -1837,7 +1837,7 @@ AppWindow {
                             maximumLineCount: 3
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -1846,7 +1846,7 @@ AppWindow {
                             text: preview.entry && !preview.entry.isDir ? Files.humanSize(preview.entry.size) : ""
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         // what the camera recorded, for a picture
                         Text {
@@ -1857,7 +1857,7 @@ AppWindow {
                             color: Theme.dim
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Text {
                             Layout.fillWidth: true
@@ -1865,7 +1865,7 @@ AppWindow {
                             text: preview.entry ? Files.formatTime(preview.entry.mtime) : ""
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Item { Layout.fillHeight: true }
                         Button {
@@ -1926,7 +1926,7 @@ AppWindow {
                             text: modelData.label
                             color: modelData.danger ? Theme.danger : Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                     }
                     MouseArea {
@@ -1990,7 +1990,7 @@ AppWindow {
                                 text: modelData.name
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 elide: Text.ElideMiddle
                             }
                         }
@@ -2032,7 +2032,7 @@ AppWindow {
                 text: Tr.t("Select Items Matching…")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(14) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
             }
             Text {
@@ -2040,7 +2040,7 @@ AppWindow {
                 text: Tr.t("A name, or a pattern with * and ?")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             TextField {
                 id: matchField
@@ -2082,7 +2082,7 @@ AppWindow {
                 text: Tr.t("Create Link")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(14) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
             }
             Text {
@@ -2090,7 +2090,7 @@ AppWindow {
                 text: Tr.t("To %1", win.symlinkTarget.split("/").pop())
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 elide: Text.ElideMiddle
             }
             TextField {
@@ -2133,7 +2133,7 @@ AppWindow {
                 text: Tr.t("Rename")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             RowLayout {
@@ -2155,7 +2155,7 @@ AppWindow {
                 color: Tidy.namingError !== "" ? Theme.danger : Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
     }
@@ -2195,7 +2195,7 @@ AppWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             Repeater {
@@ -2204,8 +2204,8 @@ AppWindow {
                     required property var modelData
                     Layout.fillWidth: true
                     Icon { name: "folder"; size: Theme.px(16); color: Theme.accent }
-                    Text { Layout.fillWidth: true; text: modelData.group; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { text: Tr.t("%1 files", modelData.count); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: modelData.group; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { text: Tr.t("%1 files", modelData.count); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 }
             }
             Text {
@@ -2215,7 +2215,7 @@ AppWindow {
                 color: Theme.faint
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -2248,7 +2248,7 @@ AppWindow {
                 text: Tr.t("New folder")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             RowLayout {
@@ -2287,7 +2287,7 @@ AppWindow {
                 text: Tr.t("Rename %1 files", win.batchPaths.length)
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             Text {
@@ -2296,7 +2296,7 @@ AppWindow {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -2316,7 +2316,7 @@ AppWindow {
                     text: Tr.t("Case:")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Choice { text: Tr.t("As typed"); selected: win.batchCase === ""; onClicked: win.batchCase = "" }
                 Choice { text: Tr.t("lower"); selected: win.batchCase === "lower"; onClicked: win.batchCase = "lower" }
@@ -2350,7 +2350,7 @@ AppWindow {
                 text: Tr.t("That regular expression is not valid")
                 color: Theme.red
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Repeater {
                 model: win.batchPreview(batchField.text)
@@ -2359,7 +2359,7 @@ AppWindow {
                     text: "→ " + modelData
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
         }
@@ -2418,7 +2418,7 @@ AppWindow {
                     elide: Text.ElideMiddle
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "go-up"; size: Theme.px(26); tip: Tr.t("Previous change"); visible: compareBox.starts.length > 0; onClicked: compareBox.jump(-1) }
@@ -2436,7 +2436,7 @@ AppWindow {
                     text: Tr.t("Sync:")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Button {
                     id: syncModeBtn
@@ -2486,7 +2486,7 @@ AppWindow {
                               : modelData.state === "only-right" ? Tr.t("only in %1", FilePaths.baseName(compareBox.c.b || "")) : Tr.t("differs"))
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         verticalAlignment: Text.AlignVCenter
                     }
                     // a change's first line: its lines copied to the other side (Meld's arrows)
@@ -2509,7 +2509,7 @@ AppWindow {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         Text {
                             id: rt
@@ -2519,7 +2519,7 @@ AppWindow {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                     }
                 }
@@ -2552,7 +2552,7 @@ AppWindow {
                     : Tr.t("Update %1 into %2? Only newer files are copied, nothing is deleted.", FilePaths.baseName(syncBox.a.left || ""), FilePaths.baseName(syncBox.a.right || ""))
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
                 wrapMode: Text.Wrap
             }
@@ -2561,7 +2561,7 @@ AppWindow {
                 text: Tr.t("Dry run — what rsync would do:")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
             Flickable {
                 Layout.fillWidth: true
@@ -2574,7 +2574,7 @@ AppWindow {
                     text: Files.syncPreview
                     color: Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     wrapMode: Text.Wrap
                 }
             }
@@ -2660,7 +2660,7 @@ AppWindow {
                     elide: Text.ElideMiddle
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); onClicked: Files.props = null }
@@ -2686,8 +2686,8 @@ AppWindow {
                     required property var modelData
                     Layout.fillWidth: true
                     spacing: Theme.px(10)
-                    Text { text: modelData[0]; Layout.preferredWidth: Theme.px(96); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: modelData[0] === Tr.t("Permissions") ? Theme.mono : Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: modelData[0]; Layout.preferredWidth: Theme.px(96); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: modelData[0] === Tr.t("Permissions") ? Theme.mono : Theme.font; font.pixelSize: Theme.type("body") }
                 }
             }
             // who else may open it, and whether it runs as a program: the rights, changed
@@ -2742,12 +2742,12 @@ AppWindow {
             anchors.fill: parent
             anchors.margins: Theme.px(14)
             spacing: Theme.px(8)
-            Text { text: Tr.t("Connect to server"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+            Text { text: Tr.t("Connect to server"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
             // what the network announces: a click connects (Nautilus's "Networks")
             Text {
                 visible: Files.servers.length > 0
                 text: Tr.t("On this network")
-                color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Flow {
                 Layout.fillWidth: true
@@ -2785,7 +2785,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: Files.connectError !== ""
                 text: Files.connectNeedsLogin ? Tr.t("This server asks who you are: %1", Files.connectError) : Files.connectError
-                color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -2824,7 +2824,7 @@ AppWindow {
                 wrapMode: Text.WordWrap
                 text: Files.deleteAsk.length === 1 ? Tr.t("Delete %1 for good? It does not go to the trash, so it cannot be put back.", FilePaths.baseName(Files.deleteAsk[0] || ""))
                                                    : Tr.t("Delete these %1 for good? They do not go to the trash, so they cannot be put back.", Files.deleteAsk.length)
-                color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
+                color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -2861,7 +2861,7 @@ AppWindow {
                     : Tr.t("%1 of these are already in %2 (%3). What should happen to them?", conflictBox.c.names.length, FilePaths.baseName(conflictBox.c.dest || ""), conflictBox.c.names.slice(0, 3).join(", ") + (conflictBox.c.names.length > 3 ? "…" : ""))
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Repeater {
                 model: [["rename", Tr.t("Keep both"), Tr.t("the new one is named \"name (2)\"")],
@@ -2909,7 +2909,7 @@ AppWindow {
                 wrapMode: Text.WordWrap
                 text: (copyToBox.c.mode === "move" ? Tr.t("Move %1 to…", copyToBox.c.paths.length === 1 ? FilePaths.baseName(copyToBox.c.paths[0]) : Tr.t("%1 items", copyToBox.c.paths.length))
                                                   : Tr.t("Copy %1 to…", copyToBox.c.paths.length === 1 ? FilePaths.baseName(copyToBox.c.paths[0]) : Tr.t("%1 items", copyToBox.c.paths.length)))
-                color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold
+                color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold
             }
             Repeater {
                 // the ones used lately, the other pane, the sidebar's places and drives
@@ -2963,7 +2963,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("%1 could not be copied - the rest were", Files.jobFailed.length)
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold
             }
             Repeater {
                 model: Files.jobFailed.slice(0, 8)
@@ -2972,7 +2972,7 @@ AppWindow {
                     Layout.fillWidth: true
                     elide: Text.ElideMiddle
                     text: FilePaths.baseName(modelData.path) + " - " + modelData.error
-                    color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
             }
             RowLayout {
@@ -3002,10 +3002,10 @@ AppWindow {
             spacing: Theme.px(6)
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: Tr.t("Copy history"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; text: Tr.t("Copy history"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
                 IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); onClicked: Files.historyShown = false }
             }
-            Text { visible: !Files.copyHistory.length; text: Tr.t("No copies yet"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { visible: !Files.copyHistory.length; text: Tr.t("No copies yet"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             ListView {
                 reuseItems: true
                 cacheBuffer: 400
@@ -3024,7 +3024,7 @@ AppWindow {
                         text: (modelData.mode === "move" ? Tr.t("Moved") : modelData.mode === "hash" ? Tr.t("Checksums") : modelData.mode === "check" ? Tr.t("Tested") : Tr.t("Copied"))
                               + " " + (modelData.names || []).join(", ") + ((modelData.items || 0) > (modelData.names || []).length ? "…" : "")
                               + (modelData.dest && modelData.dest !== "-" ? " → " + modelData.dest.replace(Files.home, "~") : "")
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     }
                     Text {
                         Layout.fillWidth: true
@@ -3033,7 +3033,7 @@ AppWindow {
                               + (modelData.failed ? " · " + Tr.t("%1 failed", modelData.failed) : "")
                               + (modelData.skipped ? " · " + Tr.t("%1 skipped", modelData.skipped) : "")
                               + (modelData.cancelled ? " · " + Tr.t("stopped") : "")
-                        color: modelData.failed ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        color: modelData.failed ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                     }
                 }
             }
@@ -3062,7 +3062,7 @@ AppWindow {
             anchors.fill: parent
             anchors.margins: Theme.px(14)
             spacing: Theme.px(8)
-            Text { text: Tr.t("Add a cloud drive"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+            Text { text: Tr.t("Add a cloud drive"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -3081,14 +3081,14 @@ AppWindow {
                 visible: cloudBox.kind !== "webdav" || Files.cloudAdding
                 text: Files.cloudAdding && cloudBox.kind !== "webdav" ? Tr.t("Sign in on the page that opened in your browser, then come back here.")
                     : Tr.t("Its sign-in page opens in your browser; this computer keeps only the permission it gives.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Text {
                 visible: Files.cloudError !== ""
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: Files.cloudError
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -3136,7 +3136,7 @@ AppWindow {
                     : Tr.t("Open %1 to phones and computers on this network, through their web browser, until you stop it?", FilePaths.baseName(win.serveAsk))
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Choice { visible: Files.servedPath === ""; text: Tr.t("They can add files too"); selected: serveBox.upload; onClicked: serveBox.upload = !serveBox.upload }
             RowLayout {
@@ -3192,7 +3192,7 @@ AppWindow {
                          : Tr.t("%1 is an encrypted folder. Its password opens it.", n); }
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             TextField { id: vaultName; visible: lockBox.l.mode === "vault-new"; Layout.fillWidth: true; placeholderText: Tr.t("Name, e.g. Private"); onAccepted: lockPass.input.forceActiveFocus() }
             TextField { id: lockPass; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("Password"); onAccepted: lockBox.twice ? lockPass2.input.forceActiveFocus() : lockBox.go() }
@@ -3200,7 +3200,7 @@ AppWindow {
             Text {
                 visible: lockBox.twice && lockPass2.text !== "" && lockPass.text !== lockPass2.text
                 text: Tr.t("The two are not the same")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Flow {
                 visible: lockBox.l.mode === "lock" && !/\.pdf$/i.test(lockBox.l.path || "")
@@ -3215,14 +3215,14 @@ AppWindow {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: Tr.t("There is no way back in without the password: keep it somewhere safe.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Text {
                 visible: Files.lockError !== ""
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: Files.lockError
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -3263,7 +3263,7 @@ AppWindow {
                 text: Tr.t("%1 is locked. Its password opens it.", (Files.unlockFor || {}).name || "")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             TextField { id: unlockPass; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("Password"); onAccepted: Files.unlockDevice(text) }
             Text {
@@ -3273,7 +3273,7 @@ AppWindow {
                 text: Files.unlockError
                 color: Theme.danger
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -3326,7 +3326,7 @@ AppWindow {
                         : usbBox.u.mode === "passphrase" ? Tr.t("Change a locked drive's password") : Tr.t("Format a USB drive")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); enabled: !Files.usbBusy; onClicked: Files.usb = null }
@@ -3352,7 +3352,7 @@ AppWindow {
                     : Tr.t("The drive keeps everything on it; only the password that opens it changes.")
                 color: (usbBox.u.drives || []).length && erases ? Theme.danger : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Flow {
                 Layout.fillWidth: true
@@ -3420,7 +3420,7 @@ AppWindow {
                 text: Files.usbError
                 color: Theme.danger
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -3478,7 +3478,7 @@ AppWindow {
                                                                                    : Files.jobSecondsLeft >= 60 ? Tr.t("%1 min left", Math.round(Files.jobSecondsLeft / 60)) : Tr.t("%1 s left", Math.ceil(Files.jobSecondsLeft))) : "")
                           + (Files.jobsWaiting > 0 ? " · " + Tr.t("%1 more waiting", Files.jobsWaiting) : "")
                           + (Files.jobFile ? " · " + Files.jobFile : "")
-                    color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -3519,7 +3519,7 @@ AppWindow {
             id: noteRow
             anchors.centerIn: parent
             spacing: Theme.px(12)
-            Text { text: Files.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { text: Files.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             Button { visible: Files.undoLabel !== "" && Files.note === Files.undoLabel; flat: true; text: Tr.t("Undo"); onClicked: Files.undo() }
         }
         Timer { id: noteTimer; running: noteBar.visible; interval: 7000; onTriggered: Files.note = "" }
@@ -3594,7 +3594,7 @@ AppWindow {
                     text: win.activeFilterCount ? Tr.t("Filters · %1 active").arg(win.activeFilterCount) : Tr.t("Filters")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close filters"); onClicked: win.toggleFilters() }
@@ -3604,7 +3604,7 @@ AppWindow {
                 text: Tr.t("Type · choose with the chips above")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
             Flow {
                 Layout.fillWidth: true
@@ -3623,7 +3623,7 @@ AppWindow {
                 text: Tr.t("Date modified")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 Layout.topMargin: Theme.px(4)
             }
             Flow {
@@ -3643,7 +3643,7 @@ AppWindow {
                 text: Tr.t("Size")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 Layout.topMargin: Theme.px(4)
             }
             Flow {
@@ -3663,7 +3663,7 @@ AppWindow {
                 text: Tr.t("Content contains")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 Layout.topMargin: Theme.px(4)
             }
             TextField {
@@ -3689,7 +3689,7 @@ AppWindow {
                 text: Tr.t("Looks through this folder and the ones inside it, matching file names and text inside files.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -3735,7 +3735,7 @@ AppWindow {
                 text: Tr.t("Keyboard shortcuts")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.fontTitle * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
             }
             Flickable {
@@ -3754,8 +3754,8 @@ AppWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(8)
-                            Text { text: modelData.key; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; Layout.minimumWidth: Theme.px(90) }
-                            Text { Layout.fillWidth: true; text: modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
+                            Text { text: modelData.key; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold; Layout.minimumWidth: Theme.px(90) }
+                            Text { Layout.fillWidth: true; text: modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small"); wrapMode: Text.Wrap }
                         }
                     }
                 }

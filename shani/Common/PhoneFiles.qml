@@ -44,7 +44,7 @@ ColumnLayout {
         text: Tr.t("Received files")
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(13) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
         font.weight: Font.DemiBold
     }
     ListView {
@@ -95,7 +95,7 @@ ColumnLayout {
         text: PhoneTools.note
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         wrapMode: Text.Wrap
     }
     Item { Layout.fillHeight: true }

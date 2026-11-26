@@ -911,14 +911,14 @@ AppWindow {
                         Accessible.name: text
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Text {
                         text: modelData[1] ? Tr.t("Available") : Tr.t("Not available")
                         Accessible.name: text
                         color: modelData[1] ? Theme.accent : Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
             }

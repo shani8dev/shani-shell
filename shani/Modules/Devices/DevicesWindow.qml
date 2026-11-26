@@ -330,7 +330,7 @@ AppWindow {
             text: Devices.note !== "" ? Devices.note : Lines.note
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         BusyNote {
             visible: Devices.busy || Lines.busy
@@ -603,7 +603,7 @@ AppWindow {
                             text: String(win.androidBackup.summary || "")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -646,7 +646,7 @@ AppWindow {
                             text: String(win.androidRestore.note || "")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -688,7 +688,7 @@ AppWindow {
                             text: String(win.androidPhotos.note || "")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -736,7 +736,7 @@ AppWindow {
                             text: Tr.t("Two-way sync needs a shared account. Add a CardDAV account in Calendar > Accounts to keep both in step.")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -753,7 +753,7 @@ AppWindow {
                             text: win.chosenFile !== "" ? win.chosenFile.split("/").pop() : Tr.t("No file chosen")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         Picks {
                             label: Tr.t("Folder on the phone")
@@ -784,7 +784,7 @@ AppWindow {
                             text: String(win.androidCopy.note || "")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -805,7 +805,7 @@ AppWindow {
                             text: String(win.androidInstall.result || "")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -837,7 +837,7 @@ AppWindow {
                             text: String(win.androidTether.note || "")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -853,7 +853,7 @@ AppWindow {
                             text: Tr.t("Add the same Google or CalDAV account in Calendar > Accounts. The phone's calendar is not copied directly.")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -924,7 +924,7 @@ AppWindow {
                                 text: win.stateText(Devices.screenState)
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                         }
                     }
@@ -1082,7 +1082,7 @@ AppWindow {
                                 text: win.linkStatusText()
                                 color: win.linkReady() ? Theme.success : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 Accessible.name: text
                             }
                         }
@@ -1106,7 +1106,7 @@ AppWindow {
                             text: win.androidNote
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -1132,7 +1132,7 @@ AppWindow {
                             text: Tr.t("On the phone, turn on Bluetooth and make it visible. Its address is shown there.")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -1143,7 +1143,7 @@ AppWindow {
                             text: Tr.t("On the phone, turn on Wi-Fi debugging. It shows an address and a pairing code or QR to enter here.")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             Accessible.role: Accessible.StatusBar
                             Accessible.name: text
                         }
@@ -1349,7 +1349,7 @@ AppWindow {
                             text: win.landlineText()
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         TextField {
                             Layout.fillWidth: true

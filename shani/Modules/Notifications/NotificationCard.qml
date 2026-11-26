@@ -350,7 +350,7 @@ Glass {
                     elide: Text.ElideRight
                     lineHeight: 1.1
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12.5) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
         }
