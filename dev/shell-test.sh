@@ -49,7 +49,10 @@ bad=$(qml_bad)
 if ! retry 30 st >/dev/null 2>&1 || [ -z "$(st)" ]; then
     echo "the shell is not running — stopping here"; tail -20 /work/out/logs/qs.log; exit 1
 fi
-[ "$(q "['settingsLoaded']")" = True ] && result settings-loaded PASS || result settings-loaded FAIL
+# under load the shell can answer IPC a moment after the retry above saw it:
+# wait for the state itself rather than failing the whole run on one empty read
+waitfor "d.get('settingsLoaded') == True" 15 \
+    && result settings-loaded PASS || result settings-loaded FAIL
 # SHELL_TEST_ONLY=part:<name> (`sh dev/check.sh shell=<name>`): just dev/shell-parts/<name>.sh,
 # on a fresh session - for working on one feature without the half hour. The whole
 # suite runs every part too, at the end.

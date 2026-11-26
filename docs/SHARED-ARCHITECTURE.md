@@ -156,3 +156,7 @@ Add a line when you finish a piece (date, repo, what, commit).
   `shani-deploy --yes` fix (e5a8d23).
 - 2026-11-26 shani-chronoa-extras: split from `apps/shani-sysadmin` with
   history (rule 7); public.
+- 2026-11-26 shani-shell (phase 5): the shell consumes the headless Chronoa
+  engine: contract-matched Agent.Inventory, a bounded bridge read, ten
+  read-only Settings pages, and a `systemctl --user` switch with no GTK app
+  (2ee10b3, fa245c4).
