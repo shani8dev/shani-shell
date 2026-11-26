@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""contacts — Shani Link's address book for the shell, as JSON.
+"""contacts — Phone's address book for the shell, as JSON.
 
     contacts.py list [QUERY]        [{uid, name, phone, email, ...}] sorted by name
     contacts.py search QUERY        same as list QUERY (live search)
@@ -15,18 +15,17 @@
 List prints a JSON array; writes print {"ok": true, "uid": "…"} (import prints
 {"ok": true, "count": N}). Exit 3 is bad input (malformed JSON, no name, no uid,
 unknown command). There is no "no service" state: an absent folder is an empty
-book, and the first write creates it. The book lives in Shani Link's vCard
-folder — `$XDG_DATA_HOME/shani-link/contacts/` (see shani-link
-`shani_link/contacts.py`: `folder()` and `paths.data_home()`) — one `.vcf` per
-contact, named by its UID. `SHANI_CONTACTS_DIR` overrides that folder for tests.
+book, and the first write creates it. The book lives in the shell's vCard folder —
+`$XDG_DATA_HOME/shani-shell/contacts/` (see `phone/contacts.py`: `folder()` and
+`paths.data_home()`) — one `.vcf` per contact, named by its UID.
+`SHANI_CONTACTS_DIR` overrides that folder for tests.
 
-When `shani_link.contacts` is importable (Shani Link installed, or
-`~/Documents/shani/shani-link` on `sys.path`), its `folder()` is the folder
-and its `parse`/`serialize` rules are the format's source of truth — the
-subset re-implemented here below writes the same vCard 4.0 and reads the same
-files, so the two never disagree about a contact. Standard library only.
+When `phone.contacts` is importable (the shell ships it in `bridge/`), its
+`folder()` is the folder and its `parse`/`serialize` rules are the format's
+source of truth — the subset re-implemented here writes the same vCard 4.0
+and reads the same files. Standard library only.
 
-No Evolution Data Server, no EDS/EBook bindings: Shani Link keeps its own
+No Evolution Data Server, no EDS/EBook bindings: the shell keeps its own
 vCard files, and this tool reads exactly those.
 """
 
@@ -41,21 +40,13 @@ import unicodedata
 import uuid
 from pathlib import Path
 
-# Let a checkout of shani-link serve the import (the dev machine keeps it at
-# ~/Documents/shani/shani-link); an installed package needs no path help.
-for _candidate in (Path.home() / "Documents/shani/shani-link",):
-    if (_candidate / "shani_link" / "contacts.py").is_file() and str(
-        _candidate
-    ) not in sys.path:
-        sys.path.insert(0, str(_candidate))
-
 
 def folder() -> Path:
     override = os.environ.get("SHANI_CONTACTS_DIR", "")
     if override:
         return Path(override)
     try:
-        from shani_link import contacts as _link  # type: ignore
+        from phone import contacts as _link  # type: ignore
 
         return Path(_link.folder())
     except Exception:  # noqa: BLE001 - no package: the XDG rule below is the API's
@@ -66,7 +57,7 @@ def folder() -> Path:
         if configured and Path(configured).is_absolute()
         else Path.home() / ".local" / "share"
     )
-    return base / "shani-link" / "contacts"
+    return base / "shani-shell" / "contacts"
 
 
 # --- searching and sorting (the documented rules of contacts.py) -----------------
@@ -279,7 +270,7 @@ def parse(text: str) -> list[dict]:
     return found
 
 
-# --- vCard: writing (4.0, as Shani Link's serialize writes) ------------------------
+# --- vCard: writing (4.0, as Phone's serialize writes) ------------------------
 
 
 def _escape(value: str) -> str:
@@ -556,7 +547,9 @@ def main(argv: list[str]) -> int:
         query = argv[2] if len(argv) > 2 else ""
         sort_by = argv[3] if len(argv) > 3 else "name"
         if sort_by not in ("name", "given", "family"):
-            print("Invalid argument: sort must be name, given or family", file=sys.stderr)
+            print(
+                "Invalid argument: sort must be name, given or family", file=sys.stderr
+            )
             return 3
         print(json.dumps(list_contacts(query, sort_by), ensure_ascii=False))
         return 0

@@ -1,7 +1,7 @@
 pragma Singleton
 // Health: a local-first fitness journal. bridge/health.py keeps the sqlite
 // store under XDG_DATA_HOME and is the only reader of the watch, so the window
-// cannot disagree with what is on disk. shani-link is optional: the bridge
+// cannot disagree with what is on disk. shani-shell is optional: the bridge
 // still answers with the local journal when there is no watch to read.
 import Quickshell
 import Quickshell.Io
@@ -63,6 +63,10 @@ Singleton {
     function spot(kind) {
         root.say(Tr.t("Measuring…"));
         root.run("spot", [String(kind || "hr")]);
+    }
+    function findWatch() {
+        root.say(Tr.t("Ringing the watch…"));
+        root.run("find-watch", []);
     }
     function say(message) { root.note = message || ""; }
 
@@ -141,6 +145,9 @@ Singleton {
                 root.note = label + ": " + root.reading(data);
                 root.refresh();
             }
+        } else if (what === "find-watch") {
+            root.note = data && data.error ? data.error
+                : (data && data.note ? data.note : Tr.t("The watch was told to ring"));
         }
     }
 

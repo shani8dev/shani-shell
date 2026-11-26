@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""link — the phone, the landline and the watch, for the shell's Link app.
+"""phone — calls, messages and devices for the shell's own windows.
 
-Shani Link's own window is GTK. This is the same information for a QML view:
-each command prints one JSON answer, as every other bridge in this directory
-does. Everything it reads comes from `shani_link` itself, so the window and the
-daemon can never disagree about what a device is called or what was said.
+Each command prints one JSON answer, as every other bridge here does. Reads
+come from the same vendored backends the daemon uses, so a window and the
+service never disagree about what a device is called or what was said.
 
     link.py state                     {backend, placesCalls, lines, devices}
     link.py devices                   [{id, name, paired, reachable, battery}]
     link.py calls                     [{id, line, number, name, direction, missed, when, seconds}]
     link.py contacts [query]          [{name, numbers, emails}]
+    link.py match <query>             [{name, numbers, emails}] (name or number)
+    link.py incoming                  {id, name, number, line, when} (or {})
+    link.py call-action <id> <answer|decline>   {ok, error}; logged to SHANI_PHONE_CALL_LOG
     link.py messages [device]         [{thread, name, number, text, when, unread}]
     link.py thread <thread> [device]  [{text, when, incoming}]
     link.py read <thread>            {ok}
@@ -19,33 +21,36 @@ daemon can never disagree about what a device is called or what was said.
     link.py ring [device]             {ok, error}
     link.py share <device> <path>     {ok, error}
 
-`shani-link` is an optional package: every command that needs it answers
-{"error": "…not installed"} rather than failing, so the app can say so.
+The phone backends are optional: every command that needs them answers
+{"error": "…not installed"} rather than failing, so the window can say so.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-NOT_INSTALLED = "shani-link is not installed"
+NOT_INSTALLED = "the phone backends are not installed"
 
 
 def _module(name: str):
-    """Import one piece of shani_link, or None when the package is not there."""
+    """Import one piece of phone, or None when the package is not there."""
     try:
         return __import__(name, fromlist=["*"])
     except Exception:  # noqa: BLE001 - any import failure means "no link here"
         return None
 
 
-phone = _module("shani_link.phone")
-calls_log = _module("shani_link.calls_log")
-contacts_mod = _module("shani_link.contacts")
-lines = _module("shani_link.lines")
+phone = _module("phone.phone")
+calls_log = _module("phone.calls_log")
+contacts_mod = _module("phone.contacts")
+lines = _module("phone.lines")
+call_state = _module("phone.call_state")
 
 
 def _ok(error: str | None = None) -> dict:
@@ -154,6 +159,30 @@ def _book() -> list:
         return []
 
 
+def _contact_row(contact) -> dict:
+    """One contact as the window sees it, whatever shape the engine uses.
+
+    phone.contacts.Contact has display_name() and numbers() methods and keeps
+    emails as (kind, address) pairs; older stand-ins used plain attributes.
+    """
+    name = getattr(contact, "display_name", None)
+    name = (
+        str(name() or "") if callable(name) else str(getattr(contact, "name", "") or "")
+    )
+    numbers = getattr(contact, "numbers", None) or []
+    if callable(numbers):
+        try:
+            numbers = numbers()
+        except Exception:  # noqa: BLE001 - an unreadable number is no number
+            numbers = []
+    emails = []
+    for row in getattr(contact, "emails", None) or []:
+        value = row[-1] if isinstance(row, (tuple, list)) and row else row
+        if str(value or "").strip():
+            emails.append(str(value))
+    return {"name": name, "numbers": [str(n) for n in numbers or []], "emails": emails}
+
+
 def cmd_contacts(query: str = "") -> list[dict]:
     if contacts_mod is not None:
         try:
@@ -162,14 +191,7 @@ def cmd_contacts(query: str = "") -> list[dict]:
             )
         except Exception:  # noqa: BLE001
             found = []
-        return [
-            {
-                "name": c.name,
-                "numbers": list(getattr(c, "numbers", []) or []),
-                "emails": list(getattr(c, "emails", []) or []),
-            }
-            for c in found
-        ]
+        return [_contact_row(c) for c in found]
     # no address book module: fall back to what the phone last told us
     if phone is None:
         return []
@@ -183,6 +205,97 @@ def cmd_contacts(query: str = "") -> list[dict]:
         ]
     except Exception:  # noqa: BLE001
         return []
+
+
+def _digits(text: str) -> str:
+    return "".join(ch for ch in str(text or "") if ch.isdigit())
+
+
+def cmd_match(query: str = "") -> list[dict]:
+    """Contacts for the call card: a name word or any part of a number."""
+    text = str(query or "").strip()
+    if not text:
+        return []
+    found = cmd_contacts(text)  # the address book's own search when it has one
+    if found:
+        return found
+    needle, wanted = text.casefold(), _digits(text)
+    out = []
+    for contact in cmd_contacts():
+        name = str(contact.get("name") or "")
+        numbers = contact.get("numbers") or []
+        if needle in name.casefold() or (
+            wanted and any(wanted in _digits(number) for number in numbers)
+        ):
+            out.append(contact)
+    return out
+
+
+def cmd_incoming() -> dict:
+    """The call the shell may still answer, or {} when there is none."""
+    if call_state is None:
+        return {}
+    try:
+        return call_state.current()
+    except Exception:  # noqa: BLE001 - a broken state file is no call
+        return {}
+
+
+def _log_call_action(call_id: str, action: str) -> None:
+    """Leave the action where a live check can read it, even with no service."""
+    target = Path(os.environ.get("SHANI_PHONE_CALL_LOG") or "/tmp/phone-call-actions")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "a", encoding="utf-8") as log:
+            log.write(f"{call_id} {action}\n")
+    except OSError:
+        pass
+
+
+def cmd_call_action(call_id: str, action: str) -> dict:
+    """Answer or decline: drop the card first, then tell the phone service.
+
+    A service that is not there must not bring the card back: the action is a
+    success once the state is cleared. An error is recorded only when gdbus ran
+    and the service refused.
+    """
+    action = str(action or "").strip().lower()
+    if action not in ("answer", "decline"):
+        return _ok("call-action needs answer or decline")
+    row = cmd_incoming()
+    if call_state is not None:
+        try:
+            call_state.clear(call_id or row.get("id"))
+        except Exception:  # noqa: BLE001 - the card goes away either way
+            pass
+    _log_call_action(call_id, action)
+    binary = shlex.split(os.environ.get("SHANI_DBUS") or "gdbus")
+    if not binary:
+        return _ok()
+    method = "Answer" if action == "answer" else "Hangup"
+    argv = binary + [
+        "call",
+        "--session",
+        "--dest",
+        "dev.shani.Shell.Phone",
+        "--object-path",
+        "/dev/shani/Shell/Phone/Calls",
+        "--method",
+        "dev.shani.Shell.Phone.Calls." + method,
+        str(row.get("line") or ""),
+    ]
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=10)
+    except FileNotFoundError:
+        return {"ok": True, "error": ""}  # no gdbus: nothing can be said
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": True, "error": str(exc)[:160]}
+    if proc.returncode != 0:
+        said = (proc.stderr or proc.stdout or "").strip().splitlines() or [
+            "the phone service did not answer"
+        ]
+        return {"ok": True, "error": said[-1][:160]}
+    return {"ok": True, "error": ""}
 
 
 def _read_state_path() -> Path:
@@ -350,6 +463,15 @@ def main() -> int:
         print(json.dumps(cmd_calls(), ensure_ascii=False))
     elif cmd == "contacts":
         print(json.dumps(cmd_contacts(args[0] if args else ""), ensure_ascii=False))
+    elif cmd == "match":
+        print(json.dumps(cmd_match(args[0] if args else ""), ensure_ascii=False))
+    elif cmd == "incoming":
+        print(json.dumps(cmd_incoming(), ensure_ascii=False))
+    elif cmd == "call-action":
+        if len(args) < 2:
+            print(json.dumps(_ok("call-action needs an id and answer or decline")))
+            return 2
+        print(json.dumps(cmd_call_action(args[0], args[1]), ensure_ascii=False))
     elif cmd == "messages":
         print(json.dumps(cmd_messages(args[0] if args else ""), ensure_ascii=False))
     elif cmd == "thread":

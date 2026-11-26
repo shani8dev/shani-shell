@@ -84,10 +84,8 @@ def test_quick_actions_inspect():
         in s
     )
     assert "function inspect(name)" in s
-    assert (
-        'inspectProc.command = [Quickshell.env("SHANI_PODMAN") || "podman", "inspect", name]'
-        in s
-    )
+    # inspect now goes through the bridge, which returns a readable summary
+    assert 'win.run(["container-inspect", name], r => { win.inspectData = [r]; })' in s
     assert "function inspectRows(name)" in s
     # start / stop / restart were there before and stay
     assert 'tip: crow.up ? Tr.t("Stop") : Tr.t("Start")' in s
@@ -138,7 +136,9 @@ def test_empty_and_error_states():
     assert "if (r.error) win.error = r.error;" in s
     assert 'text: !win.hasPodman ? Tr.t("Podman is not installed")' in s
     assert 'Tr.t("No toolboxes yet - pick a Linux above")' in s
+    # logs now filter a snapshot or a followed stream through one helper
     assert (
-        'text: win.logsOf === crow.modelData.name ? (win.logsText || Tr.t("Nothing logged")) : ""'
+        'text: win.logsOf === crow.modelData.name ? win.logText(crow.modelData.name) : ""'
         in s
     )
+    assert "function logText(name)" in s and 'Tr.t("Nothing logged")' in s

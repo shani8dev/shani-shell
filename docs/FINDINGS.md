@@ -320,7 +320,7 @@ the fake greetd.
 | "clear clipboard history" left the secret in it | the text was still on the clipboard; wl-clip-persist offers it again and cliphist stores it straight back | clearing also empties the clipboard and the primary selection |
 | noise suppression off: default source not restored | "Cannot change default source to a node that is not a source" — the previous default can be a monitor, which Quickshell refuses as a source | restored at once when it is a real source; by name (`pactl set-default-source`) when it is a monitor |
 | "channelVolumes and channelMap are not the same size" | the mono RNNoise node reports two volumes for one channel | run it stereo, as PipeWire's own example does; the mic slider acts on the real microphone |
-| Update button did nothing | it opened Cassini, which the niri desktop may not install (Cassini is shipped on the niri image today; the fallback covers hosts without it) | Cassini where present, else `pkexec shani-deploy` in a terminal |
+| Update button did nothing | it opened the old system manager, which the niri desktop may not install (the old system manager is shipped on the niri image today; the fallback covers hosts without it) | the old system manager where present, else `pkexec shani-deploy` in a terminal |
 | initials instead of pictures on the login screen | the greeter reads AccountsService, which the desktop did not install | `accountsservice` in shani-desktop-niri |
 | fonts ignored | the Chronoa panel and the greeter hard-coded Noto Sans / DejaVu (23 places) | Theme.font / Theme.mono |
 | proxy applied by the Settings page | it worked only because the page happens to be built at startup | a Proxy service |
@@ -1183,7 +1183,7 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
 - **Twelve features, Nov 2026, each checked live** (dev/shell-parts/): Quick
   Look, writing tools, Archive Manager (create, one item, passwords), Media
   Player (tracks, subtitles, resume, tags, mini player), battery health,
-  clipboard with the phone (shani-link), smart replies, tidy and name, search by
+  clipboard with the phone (shani-shell), smart replies, tidy and name, search by
   meaning, Document Viewer (EPUB, comics, DjVu, forms), Maps (pan, zoom,
   directions), live wallpaper. The AI ones go through Chronoa's own interface:
   `Agent.Write` (text in, text out; no tools, no conversation) and
@@ -1221,7 +1221,7 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
 - `shani-pkgbuilds/tools/check-deps.py` runs the PKGBUILD's own `package()`,
   reads every program the packaged files start, and looks its package up in a
   map built from pacman's file database. `tests/test_declared_deps.py` here (and
-  in Cassini, Link and Chronoa) fails when a program's package is neither
+  in the old system manager, Link and Chronoa) fails when a program's package is neither
   declared, on every image, nor marked `# check-deps: unlisted PROG - why`.
 - What it found the first time: `pw-record` (voice typing, the recorder) is in
   `pipewire-audio`, not the `pipewire` that was declared; Fonts runs fc-list /
@@ -1281,8 +1281,8 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
 - Peripherals the image ships and the shell never used (audit of shani-peripherals):
   InputPlumber (added - controllers lent to the desktop over a game), NUT (a UPS
   said on a power cut), yubikey-manager (a key's OATH codes in the Authenticator).
-  Left to other apps by design: lirc, libnfc, rtl-sdr (Shani Link), ykman's admin
-  (Cassini); not used: libdvdcss (the Media Player has no DVD menus), linuxconsole.
+  Left to other apps by design: lirc, libnfc, rtl-sdr (Phone), ykman's admin
+  (the old system manager); not used: libdvdcss (the Media Player has no DVD menus), linuxconsole.
 - Files gained copy / cut / paste, undo, the trash's put back and empty, search
   through folders, Properties, batch rename and bookmarks (bridge/files.py; 12 unit
   tests, 17 checks in dev/shell-parts/files-ops.sh; with the undo of a move not

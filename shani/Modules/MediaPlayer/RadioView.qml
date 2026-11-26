@@ -13,11 +13,30 @@ ColumnLayout {
     // stations you have played lately, newest first (the Shortwave-ish history):
     // the close thing to double-tapping a station again
     property var recent: []
+    property string radioSource: "internet"      // internet | fm: FM is a source on this page, not another tab
+
+    // FM radio is a source beside the internet stations
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.margins: Theme.px(10)
+        spacing: Theme.px(6)
+        Choice {
+            text: Tr.t("Internet stations")
+            selected: view.radioSource === "internet"
+            onClicked: view.radioSource = "internet"
+        }
+        Choice {
+            text: Tr.t("FM radio")
+            selected: view.radioSource === "fm"
+            onClicked: view.radioSource = "fm"
+        }
+    }
 
     RowLayout {
         Layout.fillWidth: true
         Layout.margins: Theme.px(10)
         spacing: Theme.px(8)
+        visible: view.radioSource === "internet"
         TextField {
             id: find
             Layout.fillWidth: true
@@ -45,7 +64,7 @@ ColumnLayout {
     function played(s) { return !!s && !!s.url && PlayQueue.current === s.url; }
 
     Flow {
-        visible: recent.length > 0
+        visible: recent.length > 0 && view.radioSource === "internet"
         Layout.fillWidth: true
         Layout.leftMargin: Theme.px(10)
         Layout.rightMargin: Theme.px(10)
@@ -57,6 +76,7 @@ ColumnLayout {
         }
     }
     Flow {
+        visible: view.radioSource === "internet"
         Layout.fillWidth: true
         Layout.maximumWidth: Math.max(Theme.px(120), view.width - Theme.px(20))
         Layout.leftMargin: Theme.px(10)
@@ -74,7 +94,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true
         Layout.leftMargin: Theme.px(10)
-        visible: Radio.loading || Radio.error !== "" || (!Radio.loading && Radio.stations.length === 0)
+        visible: view.radioSource === "internet" && (Radio.loading || Radio.error !== "" || (!Radio.loading && Radio.stations.length === 0))
         wrapMode: Text.WordWrap
         text: Radio.loading ? Tr.t("Looking…") : Radio.error !== "" ? Radio.error
             : Radio.showing.startsWith("search:") ? Tr.t("No matches")
@@ -87,6 +107,7 @@ ColumnLayout {
         reuseItems: true
         cacheBuffer: 400
         id: list
+        visible: view.radioSource === "internet"
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
@@ -143,5 +164,11 @@ ColumnLayout {
             Accessible.name: row.modelData.name
             Accessible.onPressAction: Radio.play(row.modelData)
         }
+    }
+
+    FmView {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        visible: view.radioSource === "fm"
     }
 }

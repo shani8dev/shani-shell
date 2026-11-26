@@ -87,6 +87,22 @@ Singleton {
     property string containersDone: ""       // ...the last long job's "<what>:ok",
     property string containersEntered: ""    // ...the toolbox opened in a terminal last,
     property string containersExported: ""   // ...the app put in the menu last
+    property var containersPods: []          // ...the pods and volumes listed,
+    property var containersVolumes: []
+    property var containersMachines: []      // ...the nspawn machines and images,
+    property var containersMachineImages: []
+    property var containersSearch: []         // ...images found in the registry search
+    property string containersTerminal: ""   // ...the last terminal command opened,
+    property string containersStarted: ""    // ...the container started last,
+    property string containersFollow: ""     // ...the followed log text,
+    property string containersStats: ""      // ...the last CPU and memory reading shown
+    property var containersLxd: []           // ...LXD, Apptainer, VM and Android state,
+    property var containersSif: []
+    property var containersDomains: []
+    property var containersAndroid: []
+    property var containersCompose: []
+    property string containersService: ""    // ...the last service status shown
+    property string containersDetails: ""    // ...the last readable details shown
     property bool software: false            // Software (Modules/Software: GNOME Software, Warehouse, Gear Lever)
     property var softwareResults: []         // for the tests: the ids listed,
     property var softwareInstalled: []       // ...installed,
@@ -110,9 +126,12 @@ Singleton {
     property bool servicesApp: false         // the Services app (Modules/Services): user units + cron
     property bool calls: false               // the Calls app (Modules/Calls): dial pad + history
     property bool messages: false            // the Messages app (Modules/Messages): the phone's texts
+    property bool devices: false             // the Devices app (Modules/Devices): phones, gadgets, this screen
     property bool irc: false                 // the IRC app (Modules/Irc): channels, chat and nick list
     property bool cloudSync: false           // the Cloud sync app (Modules/Cloud)
-    property string callsNumber: ""          // the Calls app: the number the dial pad opens with
+    property string callsNumber: ""          // the Calls app: the number the dial pad opens with (it takes it)
+    property string callsPad: ""             // ...what its dial pad shows now (the tests)
+    property string messagesPending: ""      // the Messages app: the number it was opened for (the tests)
     property string messagesNumber: ""       // the Messages app: the conversation to open
     property string calculatorTab: "standard" // the Calculator tab (Modules/Calculator): standard | scientific | financial | programming | converter
     property string notesNotebook: ""         // the notes notebook filter (SidebarNotes): "" = all notebooks, else a notebook name
@@ -128,6 +147,9 @@ Singleton {
     property string settingsCat: ""                // the settings category open
     property string settingsSection: ""            // a part of it to scroll to, once (openSettings)
     property bool settingsOpen: false              // the Settings window (Modules/Settings)
+    // System pages publish their read state here so a live check can see what
+    // the person sees, without reaching into a Loader's private item.
+    property var systemState: ({})
     // flash the control for a just-searched setting: the longest significant
     // word of its label is matched against every control's accessible name;
     // the page the search led to pulses its rings for a moment
@@ -253,9 +275,8 @@ Singleton {
     property int trashCount: 0                     // the dock's trash tile reports it (for the tests)                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
     property string smsTo: ""                      // the number a reply goes to
-    // Shani Link Phone / Messages (opened via Services/Phone; the external
-    // shani-link-app window, not a shell panel): which page the shell last
-    // opened and the number its dialer/messages composer was prefilled with.
+    // Calls and Messages are shell windows (Services/Phone opens them). This
+    // is the number their dial pad or composer was prefilled with.
     property string phoneNumber: ""   // the number the dial pad / Messages composer opened with
     // the web search chosen in Settings > Search (the launcher, Lens)
     readonly property var webSearches: ({
@@ -329,6 +350,7 @@ Singleton {
     function openNotes() { closeAll(); notes = true; }
     function openContacts() { closeAll(); Contacts.refresh(); contacts = true; }
     function openCalls() { closeAll(); calls = true; }
+    function openDevices() { closeAll(); devices = true; }
     function openMessages() { closeAll(); messages = true; }
     function closeApps() {
         converter = false;
@@ -366,6 +388,7 @@ Singleton {
         feeds = false;
         calls = false;
         messages = false;
+        devices = false;
         backup = false;
         // newer apps and views added after the first closeApps() pass — without
         // these, "empty desktop" and Back leave them on screen

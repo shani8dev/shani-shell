@@ -1,13 +1,12 @@
 pragma Singleton
 // The SIM modem (bridge/modem.py over ModemManager): unlock the SIM, texts in
-// and out, and calls where the modem has voice. A text that carries a one-time
-// code offers to copy it. Call audio is the hardware's — on most laptop modems
-// only a phone over Bluetooth (Chronoa) carries sound, so "Call" goes there
-// when this modem has no voice.
+// and out, and calls where the modem has voice. Call audio is the hardware's;
+// the shell draws the dial pad and the live call itself, on any line.
 import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import qs.Services
 import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
@@ -36,22 +35,12 @@ Singleton {
     function callctl(action, on) { send({ callctl: { action: action, on: on !== false } }); }
     function setMute(on) { root.muted = !!on; callctl("mute", root.muted); }
     function setSpeaker(on) { root.speaker = !!on; callctl("speaker", root.speaker); }
-    // a number to call: the modem when it can, otherwise Chronoa (a phone over Bluetooth)
-    // a number to call: shani-link's dial pad, filled in (it picks the line - landline,
-    // phone or this modem - and nothing is dialled until Call is pressed)
-    // Contacts / "Call" landing: the dial pad is the first action when a phone
-    // link is available (Services/Phone tries shani-link-app directly); else
-    // the tel: handler (dev.shani.Link.Dial.desktop, also shani-link --dial).
+    // A number to call opens the shell's own dial pad, filled in. It picks the
+    // line (landline, phone or this modem); nothing is dialled until Call.
     function callNumber(number) {
         const n = (number || "").replace(/[\s-]/g, "");
-        if (Phone.available || Phone.reachable)
-            Phone.openDial(n);
-        else
-            Qt.openUrlExternally("tel:" + n);
+        Phone.openDial(n);
     }
-    // "Your code is 482913" → 482913
-    function codeIn(t) { const m = /(?:^|\D)(\d{4,8})(?:\D|$)/.exec(t || ""); return m ? m[1] : ""; }
-
     Process {
         id: bridge
         running: true
@@ -65,10 +54,12 @@ Singleton {
                     const wasLocked = root.modem && root.modem.locked;
                     root.modem = m.modem;
                     if (m.modem && m.modem.locked && !wasLocked)
-                        pinAsk.running = true;
+                        Ui.modemDialog = "pin";
                 } else if (m.sms) {
                     root.lastSms = m.sms;
-                    smsComp.createObject(root, { sms: m.sms });
+                    // the shell's own card asks for a reply, prefilled with this number
+                    Ui.smsTo = m.sms.from;
+                    Ui.modemDialog = "sms";
                 } else if (m.call) {
                     const c = m.call;
                     if (c.state === "terminated") {
@@ -94,8 +85,6 @@ Singleton {
                     const fresh = !root.call || root.call.path !== c.path;
                     if (root.waitingCall && root.waitingCall.path === c.path) root.waitingCall = null;
                     root.call = c;
-                    // ringing is shani-link's notification (it owns calls on every line):
-                    // ringing here as well put two on screen for one call
                     if (fresh)
                         root.callSeconds = 0;
                 } else if (m.callctl) {
@@ -103,40 +92,8 @@ Singleton {
                     else if (m.callctl.action === "speaker") root.speaker = m.callctl.on;
                 } else if (m.error)
                     root.error = m.error;
-                else if (m.sent)
-                    Quickshell.execDetached(["notify-send", "-a", "Messages", "-i", "mail-send", "Text sent", "to " + m.sent.to]);
             }
         }
     }
     Timer { running: root.call !== null && root.call.state === "active"; interval: 1000; repeat: true; onTriggered: root.callSeconds++ }
-
-    // the SIM wants its PIN
-    Process {
-        id: pinAsk
-        command: ["notify-send", "-a", "Mobile", "-i", "network-cellular-offline", "-u", "critical", "-A", "unlock=Unlock", "The SIM card is locked", "Enter its PIN to use mobile data, texts and calls"]
-        stdout: StdioCollector { onStreamFinished: if (text.trim() === "unlock") Ui.modemDialog = "pin" }
-    }
-    // a text: Reply, and Copy code when it carries one
-    Component {
-        id: smsComp
-        Process {
-            id: n
-            property var sms
-            readonly property string code: root.codeIn(sms.text)
-            running: true
-            command: ["notify-send", "-a", "Messages", "-i", "mail-unread", "-A", "reply=Reply"].concat(code ? ["-A", "code=Copy " + code] : [])
-                .concat([sms.from, sms.text])
-            stdout: StdioCollector {
-                onStreamFinished: {
-                    const a = text.trim();
-                    if (a === "reply") { Ui.smsTo = n.sms.from; Ui.modemDialog = "sms"; }
-                    else if (a === "code") Quickshell.clipboardText = n.code;
-                    n.destroy();
-                }
-            }
-        }
-    }
-    // incoming-call Answer/Decline UI is shani-link's notification path
-    // (shani_link/missed_call.py + incoming_call.py); this shell never
-    // duplicated it. See shani-link/AGENTS.md "desktop-neutral plumbing".
 }

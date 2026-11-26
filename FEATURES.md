@@ -124,7 +124,7 @@ in that nested session - not yet on an installed image - is listed in
   **Write to a USB drive** puts an .iso or .img (packed .xz/.gz/.zst too) on a stick,
   with progress and Stop; **Format a USB drive** as exFAT, FAT32, NTFS, ext4, Btrfs,
   F2FS, XFS or UDF, optionally **locked with a password**; **back a drive up** into an
-  image file; **change a locked drive's password**; its health in Cassini. Only removable drives are
+  image file; **change a locked drive's password**; its health in Settings > System > Disks & filesystems. Only removable drives are
   offered, and the drive's name is typed before anything is erased.
 - **Cloud drives** — Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk or a
   Nextcloud, added with the provider's own sign-in and opened from the sidebar like a
@@ -426,7 +426,7 @@ in that nested session - not yet on an installed image - is listed in
   lists the ones the network announces, or takes an address, and sets it up without
   a driver to pick (IPP Everywhere); your **paper, two-sided and colour** defaults per
   printer; **share a printer** on the network.
-- **Your phone (Shani Link)** — calls on your phone, your landline or the laptop's
+- **Your phone** — calls on your phone, your landline or the laptop's
   own modem; texts; **one address book**; one call history; a dial pad that finds
   contacts as you type; phone links anywhere open the dial pad; use the phone's
   internet over Bluetooth or over a USB cable. Watches and fitness bands too.

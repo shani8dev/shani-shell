@@ -86,10 +86,10 @@ corners, shadow and frosted glass picked in Settings › Windows.
 <tr>
 <td valign="top">
 
-**Your phone, built in** (Shani Link): calls from the phone, a landline or the modem ring once, on the
-Island; texts, one address book, your phone's screen in a window.
+**Your phone, built in**: calls from the phone, a landline or the modem ring on a card the
+shell draws; texts, one address book, your phone's screen in a window.
 
-<img src="docs/shots/call.jpg" alt="A call ringing on the Island">
+<img src="docs/shots/call.jpg" alt="A call ringing on the desktop">
 </td>
 <td valign="top">
 
@@ -328,13 +328,14 @@ Settings: `~/.config/shani-shell/settings.json` — any subset of the keys in
 tools every tile uses). Development: link the checkout over the packaged config:
 `ln -s ~/Documents/shani/shani-shell/shani ~/.config/quickshell/shani`
 
-### Settings and Cassini: one place for each thing
-The shell's Settings has what a desktop's settings app has; Cassini (the system
-manager) has what goes beyond it, and neither repeats the other. The list is in
-shani-cassini's AGENTS.md ("Cassini and shani-shell"). The shell opens Cassini on
-a page with `shani-cassini --section=<id>` (update badge, firmware, a failing
-disk, Settings > About's "More in Cassini"); inside the shell Cassini's Chronoa,
-Printers and fingerprint enrolment point back here
+### Settings: one place for each thing
+The shell's Settings holds both the things a desktop settings app has and the
+system's own pages, grouped into Personal, Connections, Apps & AI,
+Privacy & security and System. The old separate system manager is gone; the
+hand-over for every one of its pages is in [docs/SYSTEM-PAGES.md](docs/SYSTEM-PAGES.md).
+A notification about firmware opens Settings > System > Firmware updates;
+Settings > System > About links to the other pages. Every page has a search
+entry and a sidebar category, so a script can land on one with
 (`qs -c shani ipc call shani settingsCategory <id>`).
 
 ### From a script, or a phone over SSH

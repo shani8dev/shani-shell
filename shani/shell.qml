@@ -84,6 +84,7 @@ import qs.Modules.VideoTrimmer
 // registers the folder as a module for the Media Player window, which a `source:`
 // loader reads (an import loads nothing by itself)
 import qs.Modules.MediaPlayer
+import qs.Modules.Devices
 import qs.Modules.Passwords
 import qs.Modules.Software
 import qs.Modules.TvHome
@@ -167,7 +168,10 @@ ShellRoot {
     LazyLoader { active: Ui.mail; source: "Modules/Mail/MailWindow.qml" }
     LazyLoader { active: Ui.servicesApp; source: "Modules/Services/ServicesWindow.qml" }
     LazyLoader { active: Ui.calls; source: "Modules/Calls/CallsWindow.qml" }
+    // the shell's own incoming-call card; the phone service no longer posts one
+    LazyLoader { active: Link.incoming && Link.incoming.id !== ""; source: "Modules/Calls/IncomingCall.qml" }
     LazyLoader { active: Ui.messages; source: "Modules/Messages/MessagesWindow.qml" }
+    LazyLoader { active: Ui.devices; source: "Modules/Devices/DevicesWindow.qml" }
     LazyLoader { active: Ui.textEditor; source: "Modules/TextEditor/TextEditorPanel.qml" }
     LazyLoader { active: PlayQueue.shown; source: "Modules/MediaPlayer/MediaPlayerWindow.qml" }
     LazyLoader { active: Ui.clocks; source: "Modules/Clocks/ClocksWindow.qml" }
@@ -247,7 +251,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Irc, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, Sessions, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Devices, Lines, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Irc, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, Sessions, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -428,12 +432,15 @@ ShellRoot {
         // `number` prefills the pad. Typed on purpose: Quickshell's IPC
         // reflection skips a function whose parameter has no type, and `shani app
         // calls` passes "" - see bin/shani's APPS.
+        // a number, or a tel:/callto: link (a desktop entry's %u)
         function callsOpen(number: string) {
             Ui.closeAll();
-            Ui.callsNumber = (number || "").trim();
-            Ui.calls = true;
+            Phone.openDial(number);
         }
         function callsClose() { Ui.calls = false; }
+        function devicesOpen() { Ui.closeAll(); Ui.devices = true; }
+        function devicesClose() { Ui.devices = false; }
+        function callAction(id: string, action: string) { Link.callAction(id, action); }
         function servicesOpen() { Ui.closeAll(); Ui.servicesApp = true; }
         function servicesClose() { Ui.servicesApp = false; }
         function servicesUnit(name: string, action: string) { SysServices.unit(name, action); }
@@ -447,7 +454,8 @@ ShellRoot {
         // the Messages app, on the conversation with `number` when one is given
         function messagesOpen(number: string) {
             Ui.closeAll();
-            Ui.messagesNumber = (number || "").trim();
+            // a number, or an sms:/smsto: link (sms:+91987?body=hi -> +91987)
+            Ui.messagesNumber = decodeURIComponent(String(number || "").trim().replace(/^(sms|smsto):(\/\/)?/i, "").split(/[?;]/)[0]);
             Ui.messages = true;
         }
         function messagesClose() { Ui.messages = false; }
@@ -1264,16 +1272,25 @@ ShellRoot {
                 servicesShown: Ui.servicesApp, servicesTab: SysServices.tab,
                 servicesCount: SysServices.services.length, timersCount: SysServices.timers.length,
                 cronCount: SysServices.cron.length, servicesNote: SysServices.note,
-                callsShown: Ui.calls, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
+                callsShown: Ui.calls, callsPad: Ui.callsPad, messagesPending: Ui.messagesPending, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
+                incoming: Link.incoming.name || Link.incoming.number || "", incomingId: Link.incoming.id || "", incomingLine: Link.incoming.line || "",
+                devicesShown: Ui.devices, devicesCount: new Set(Link.devices.map(d => d.id)
+                    .concat(Devices.devices.map(d => d.id || d.serial || d.name),
+                            Devices.androidInfo && Devices.androidInfo.serial ? [Devices.androidInfo.serial] : [])).size,
+                devicesNote: Devices.note,
+                screenState: Devices.screenState, fmState: Devices.fmState, fmFrequency: Devices.fmFrequency,
+                nfcText: Devices.nfcText, irCodes: Array.isArray(Devices.irCodes) ? Devices.irCodes.join(',') : "",
+                lines: Lines.lines.map(l => l.id + ":" + (l.ready ? "ready" : "not ready")), sipAccounts: Lines.accounts.map(a => a.name || a.username || a.id),
                 messagesShown: Ui.messages, messagesCount: Link.messages.length,
                 healthShown: Ui.health, healthSteps: Health.stepsToday, healthDevice: Health.device, healthError: Health.error,
+                systemCat: Ui.settingsCat, systemOpen: Ui.settingsOpen, systemState: Ui.systemState,
                 linkPhone: Link.phoneName, linkBackend: Link.backend,
                 mailKind: Mail.kind, mailFolders: Mail.folders.length, mailCount: Mail.messages.length,
                 mailSubject: Mail.subject, mailFrom: Mail.from, mailBody: Mail.body.slice(0, 80),
                 mailHtml: Mail.html.length, mailAttachments: Mail.attachments.map(a => a.name),
                 mailShowHtml: Mail.showHtml, mailQuery: Mail.query,
                 textEditorFile: TextDocs.current ? TextDocs.current.path : "", textEditorDocs: TextDocs.docs.length, textEditorUnsaved: TextDocs.unsaved, textEditorChars: TextDocs.current ? TextDocs.current.text.length : 0, textEditorSaved: TextDocs.lastSaved, textEditorError: TextDocs.error, textEditorReadOnly: TextDocs.current ? TextDocs.current.readOnly : false,
-                calendarAccounts: Agenda.accounts.map(a => a.name + ':' + a.calendars.join('|')), calendarAccountError: Agenda.accountError, calendarImported: Agenda.imported, calendarNames: Agenda.calendarNames, tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, contactsShown: Ui.contacts, contactsCount: Contacts.contacts.length, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, passwordsShown: Ui.passwords, softwareShown: Ui.software, containersShown: Ui.containers, containersList: Ui.containersList, containersImages: Ui.containersImages, containersApps: Ui.containersApps, containersDone: Ui.containersDone, containersEntered: Ui.containersEntered, containersExported: Ui.containersExported, softwareResults: Ui.softwareResults, softwareInstalled: Ui.softwareInstalled, softwareApp: Ui.softwareApp, softwareDone: Ui.softwareDone, softwareLeftovers: Ui.softwareLeftovers, softwareAppImages: Ui.softwareAppImages, softwareSnaps: Ui.softwareSnaps, softwareTools: Ui.softwareTools, passwordsItems: Ui.passwordsItems, passwordsKeys: Ui.passwordsKeys, passwordsRevealed: Ui.passwordsRevealed, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
+                calendarAccounts: Agenda.accounts.map(a => a.name + ':' + a.calendars.join('|')), calendarAccountError: Agenda.accountError, calendarImported: Agenda.imported, calendarNames: Agenda.calendarNames, tasksShown: Ui.tasks, tasksOpen: Tasks.open.map(t => t.summary), tasksDone: Tasks.done.map(t => t.summary), tasksAvailable: Tasks.available, contactsShown: Ui.contacts, contactsCount: Contacts.contacts.length, photosShown: Ui.photos, translateShown: Ui.translate, weatherShown: Ui.weather, cleanUpShown: Ui.settingsOpen && Ui.settingsCat === "storage", authenticatorShown: Ui.authenticator, passwordsShown: Ui.passwords, softwareShown: Ui.software, containersShown: Ui.containers, containersList: Ui.containersList, containersImages: Ui.containersImages, containersApps: Ui.containersApps, containersDone: Ui.containersDone, containersEntered: Ui.containersEntered, containersExported: Ui.containersExported, containersPods: Ui.containersPods, containersVolumes: Ui.containersVolumes, containersMachines: Ui.containersMachines, containersMachineImages: Ui.containersMachineImages, containersSearch: Ui.containersSearch, containersTerminal: Ui.containersTerminal, containersStarted: Ui.containersStarted, containersFollow: Ui.containersFollow, containersStats: Ui.containersStats, containersLxd: Ui.containersLxd, containersSif: Ui.containersSif, containersDomains: Ui.containersDomains, containersAndroid: Ui.containersAndroid, containersCompose: Ui.containersCompose, containersService: Ui.containersService, containersDetails: Ui.containersDetails, softwareResults: Ui.softwareResults, softwareInstalled: Ui.softwareInstalled, softwareApp: Ui.softwareApp, softwareDone: Ui.softwareDone, softwareLeftovers: Ui.softwareLeftovers, softwareAppImages: Ui.softwareAppImages, softwareSnaps: Ui.softwareSnaps, softwareTools: Ui.softwareTools, passwordsItems: Ui.passwordsItems, passwordsKeys: Ui.passwordsKeys, passwordsRevealed: Ui.passwordsRevealed, converterShown: Ui.converter, nearbyShown: Ui.nearby, nearbyVisible: Nearby.visible_, nearbyDevices: Nearby.devices.map(d => d.alias), nearbyOffers: Nearby.offers.length, nearbyTransfers: Object.values(Nearby.transfers).map(t => t.direction + ":" + t.state), nearbyNote: Nearby.note, screenTimeShown: Ui.settingsOpen && Ui.settingsCat === "screentime", clocksShown: Ui.clocks, clocksTab: Ui.clocksTab,
                 archiveShown: Archive.shown, archiveFile: Archive.file, archiveEntries: Archive.entries.length, archiveSize: Archive.totalSize, archiveExtractedTo: Archive.extractedTo, archiveError: Archive.error, archiveReading: Archive.reading, archiveExtracting: Archive.extracting, archivePassword: Archive.needsPassword, archiveMade: Archive.made, archiveCreating: Archive.creating,
                 archiveCanAppend: Archive.canAppend, archiveAppending: Archive.appending, archiveNames: Archive.entries.map(e => e.path),
                 librarySongs: MusicLibrary.songs.length, libraryVideos: MusicLibrary.videos.length, libraryAlbums: MusicLibrary.albums.map(a => a.title), libraryScanning: MusicLibrary.scanning, mediaPage: PlayQueue.page, mediaShown: PlayQueue.shown, radioStations: Radio.stations.map(s => s.name), radioShowing: Radio.showing, radioFavourites: Radio.favourites.map(s => s.name), liveTvChannels: LiveTv.channels.map(c => c.name), liveTvShown: LiveTv.shown.length, liveTvGroups: LiveTv.groups, liveTvSource: LiveTv.source, liveTvLoading: LiveTv.loading, liveTvError: LiveTv.error, mediaName: PlayQueue.name, mediaFrameSaved: Ui.mediaFrameSaved, mediaFile: PlayQueue.current, mediaPlayerPlaying: PlayQueue.playing, mediaMini: PlayQueue.mini, mediaResumedFrom: PlayQueue.resumedFrom, mediaSubtitleFile: PlayQueue.subtitleFile, mediaSubShift: PlayQueue.subtitleShift, mediaCue: PlayQueue.cue, mediaAudioTracks: PlayQueue.audioTrackCount, mediaTagLine: PlayQueue.tagLine, mediaCover: PlayQueue.coverShown, mediaPinned: Niri.pinned.length, mediaPosition: Math.round(PlayQueue.position * 10) / 10, mediaDuration: Math.round(PlayQueue.duration * 10) / 10, mediaHasVideo: PlayQueue.hasVideo, mediaQueue: PlayQueue.queue.length, mediaIndex: PlayQueue.index, mediaError: PlayQueue.error, mediaVolume: PlayQueue.volume, mediaRate: PlayQueue.rate, mediaChapters: PlayQueue.chapters.length, mediaPlaylists: PlayQueue.playlists.map(p => p.name + ":" + p.paths.length),

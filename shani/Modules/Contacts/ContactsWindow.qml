@@ -1,7 +1,7 @@
 // Contacts: the address book — vCard 4.0 files in
-// ~/.local/share/shani-link/contacts/, one .vcf per contact. Add, edit,
+// ~/.local/share/shani-shell/contacts/, one .vcf per contact. Add, edit,
 // delete, search, import .vcf files, merge duplicates. The same files
-// Shani Link (the phone app) reads, so a contact added here is there too.
+// Phone (the phone app) reads, so a contact added here is there too.
 // No CardDAV sync in the shell itself — sync is handled by whatever the
 // person already uses (vdirsyncer, Nextcloud, iCloud, Dropbox).
 import Quickshell

@@ -543,7 +543,7 @@ our code and the upstream source/docs.
 - **[fixed]** Search Flathub as you type (was Enter / Find only).
 - **[built — mass pass]** Ratings / reviews (ODRS) and popularity.
 - **[built — mass pass]** Featured / editorial discovery (Explore starts at a plain category grid).
-- **[open]** apt / dpkg / Snap apps alongside Flatpak (OS updates deliberately go to Cassini).
+- **[open]** apt / dpkg / Snap apps alongside Flatpak (OS updates deliberately go to the old system manager).
 - **[open]** Version history / per-update changelog.
 - **[built — mass pass]** Screenshot gallery and age / content rating (first screenshot only).
 - **[open]** Repository / remote management.
@@ -569,7 +569,7 @@ our code and the upstream source/docs.
 - **[open]** Removable-media defaults (what opens on inserting a disc or USB).
 - **[open]** Per-device Wacom detail — button remap, pressure curve, tablet area, monitor mapping.
 - **[open]** Per-monitor wallpaper / scale assignment.
-- **[open]** Hardware-driver / firmware section inside Settings (currently a Cassini handoff).
+- **[open]** Hardware-driver / firmware section inside Settings (currently a the old system manager handoff).
 
 ### Media Player → VLC
 
@@ -687,7 +687,7 @@ still missing; **[bug]** a real defect found while verifying.
   a table and one partition; create/delete/resize/move/flags are still absent.
 - **[was wrong] Terminal remote shell integration** — kitty's ssh-kitten is an
   emulator feature; our Terminal is an SSH manager that delegates to foot.
-- **[was wrong] Software apt/dpkg/Snap** — OS updates deliberately go to Cassini.
+- **[was wrong] Software apt/dpkg/Snap** — OS updates deliberately go to the old system manager.
 - **[was wrong] Online accounts / ICC profiles / Wacom button remap / firmware
   in Settings** — GOA daemon, niri colour management and niri input-stack work;
   out of scope or blocked by the compositor, not by our UI.
@@ -1084,7 +1084,7 @@ sections below and into "Corrections" where they overturned an earlier claim.
 
 ### Messages, Calls, Phone — Android / iOS / macOS / Windows
 
-The GTK4 app `shani-link` owns Messages and Calls; the QML shell has only
+The GTK4 app `shani-shell` owns Messages and Calls; the QML shell has only
 entry points (`Services/Phone.qml:41-59`) and the modem dialog
 (`Services/Modem.qml`). Most gaps are therefore GTK4 work, not QML.
 
@@ -1128,7 +1128,7 @@ Codes: **Q** = QML + existing bridge; **D** = small daemon; **S** = server;
   settings (`Modules/Teleprompter.qml`, `teleprompterShown`).
 - **[fixed]** Network tools (LAN scan, ping, DNS, whois) — wraps
   `nmcli`/`iw`/`dig`/`ping` (`Modules/NetTools.qml`, `netToolsShown`).
-- **[fixed]** Local-first health/fitness — shani-link watches/bands; steps,
+- **[fixed]** Local-first health/fitness — shani-shell watches/bands; steps,
   sleep and workouts logged locally (`Modules/Health/HealthWindow.qml`,
   `healthShown`).
 - **[fixed]** Startup/login-items manager — XDG `autostart/*.desktop`
@@ -1347,7 +1347,7 @@ windows was possible in this container.
 - **[bug→fixed] Three Settings quick-op chips were fake** — "Backup now" and
   "Update check" only `echo`ed to `/tmp/quick-op.log`, and "System info" showed
   hardcoded `Memory: 477 MB · CPU: 54 ms/s`. They now call the real Backup and
-  Cassini services and read `SysStats`.
+  the old system manager services and read `SysStats`.
 - **[open, i18n]** The greeter and setup wizard have no translation path —
   two disconnected catalog systems (`setup/strings.js` vs `shani/i18n/`), and
   `tools/i18n.py` scans only `shani/**/*.qml`. English plural suffixes are
@@ -1561,7 +1561,7 @@ network blackhole tests). Lines are from the tree at commit `4772748`.
   a generic error); Feeds retry has no backoff; multi-GB model/pull and Flatpak
   installs run on metered connections; Flathub streams have no timeout.
 - **[daemon-level]** Landline SIP TLS disables verification and read timeouts
-  (`shani-link/.../ua.py:186-193`); deploy retries use fixed delays and honour
+  (`shani-shell/.../ua.py:186-193`); deploy retries use fixed delays and honour
   no proxy.
 
 **Already good:** Chronoa cloud LLM has exponential backoff with jitter and

@@ -54,10 +54,10 @@ PanelWindow {
             return { icon: "camera-video", text: "Recording video · " + Camera.elapsed, color: Theme.red, run: () => Camera.video() };
         if (Modem.call && Modem.call.state !== "ringing-in")
             return { icon: "call-start", text: (Modem.call.state === "active" ? "On a call · " + Modem.callTime : "Calling " + Modem.call.number + "…") + " — tap for the call",
-                     color: Theme.red, run: () => Quickshell.execDetached(["shani-link-app", "--page", "phone"]) };
-        // ringing, on any line: shani-link's notification (category call.incoming)
-        if (Notifs.incomingCall)
-            return { icon: "call-start", text: Tr.t("%1 — tap to answer", Notifs.incomingCall.summary || Tr.t("A call")), color: Theme.accent, run: () => Notifs.answerCall() };
+                     color: Theme.red, run: () => Ui.openCalls() };
+        // a ringing line opens the shell's own call card; no notification path
+        if (Link.incoming && Link.incoming.id)
+            return { icon: "call-start", text: Tr.t("%1 — tap to answer", Link.incoming.name || Link.incoming.number || Tr.t("A call")), color: Theme.accent, run: () => Ui.openCalls() };
         if (Printing.jobs > 0)
             return { icon: "printer", text: "Printing " + Printing.jobs + (Printing.jobs === 1 ? " document" : " documents"), color: Theme.accent, run: () => Printing.openQueue() };
         if (CallRecorder.recording)

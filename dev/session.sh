@@ -42,17 +42,20 @@ export SHANI_TRANSLATE_TOOL=/work/dev/fake-translate.py
 # sets it to 1.5 s in its base settings, so the phone-leaves test runs the real path
 export SHANI_AGENDA_TOOL=/work/bridge/agenda.py SHANI_MODEM_TOOL=/work/dev/fake-modem.py
 export XDG_CONFIG_HOME=/root/.config SHANI_SHELL_SETTINGS=/tmp/shani-settings.json
-export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh SHANI_LAUNCH_TOOL=/work/bridge/launch-app.py SHANI_APPMENU_TOOL=/work/bridge/appmenu.py SHANI_INPUTPLUMBER_TOOL=/work/bridge/inputplumber.py SHANI_UPS_TOOL=/work/bridge/ups.py SHANI_UPSC=/work/dev/fake-upsc.sh SHANI_YKMAN=/work/dev/fake-ykman.sh
+export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb-full.py SHANI_NFC=/work/dev/fake-nfc.py SHANI_IR=/work/dev/fake-ir.py SHANI_FM=/work/dev/fake-fm.py SHANI_LAUNCHER_ENTRY_TOOL=/work/bridge/launcher-entry.py SHANI_APPFILTER_TOOL=/work/dev/fake-appfilter.sh SHANI_LAUNCH_TOOL=/work/bridge/launch-app.py SHANI_APPMENU_TOOL=/work/bridge/appmenu.py SHANI_INPUTPLUMBER_TOOL=/work/bridge/inputplumber.py SHANI_UPS_TOOL=/work/bridge/ups.py SHANI_UPSC=/work/dev/fake-upsc.sh SHANI_YKMAN=/work/dev/fake-ykman.sh
 # the shell's own apps, as the package installs them: their desktop entries
 # (the launcher's app list, the dock's and the switcher's icon for an app window)
 python3 /work/bin/shani app --write-desktop /root/.local/share/applications
-export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_LINK_TOOL=/work/bridge/link.py SHANI_SERVICES_TOOL=/work/bridge/services.py SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
+export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_PHONE_TOOL=/work/bridge/link.py SHANI_DEVICES_TOOL=/work/bridge/devices.py SHANI_SERVICES_TOOL=/work/bridge/services.py SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
 export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/tidy.py SHANI_BATTERY_TOOL=/work/bridge/battery.py SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
 # no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
 export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh
 # the file manager's backend: the listing, the watch and the trash
 export SHANI_FILES_TOOL=/work/bridge/files.py SHANI_FILES_JOB_DELAY_FILE=/tmp/files-job-delay
 export SHANI_REPORT_TOOL=/work/bridge/system-report.py SHANI_HEALTH_TOOL=/work/bridge/health-check.py
+# Settings > System: stand-ins for fwupd, shani-health, mdadm, lvs, resolvectl…
+# and the bridge tools that read them (dev/fake-system-env.sh is a harness part).
+. /work/dev/fake-system-env.sh
 # Settings > Power > what can wake this computer: the bridge reads a stand-in
 # /sys (dev/shell-parts/wake-sources.sh makes it), and the administrator
 # actions are recorded, not run (dev/fake-admin.sh; the real one: dev/admin-test.sh)
@@ -181,12 +184,32 @@ if [ "${SHANI_ONLINE:-}" != 1 ]; then
 fi
 # Live TV: the shell's M3U reader, used by the Media Player > Live TV page
 export SHANI_LIVETV_TOOL=/work/bridge/live-tv.py
-# Podman and Distrobox stood in for (dev/fake-podman.py, by the name it is run as):
-# the Containers window's listing and actions, with nothing pulled or started
+# Podman, Distrobox and the systemd tools stood in for (by the name each is run
+# as): the Containers window's listing and actions, with nothing pulled or booted
 mkdir -p /tmp/fake-podman/bin
-ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/podman
-ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/distrobox
+for t in podman distrobox; do ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/$t; done
+for t in machinectl importctl systemd-vmspawn; do ln -sf /work/dev/fake-machinectl.py /tmp/fake-podman/bin/$t; done
 export FAKE_PODMAN=/tmp/fake-podman SHANI_PODMAN=/tmp/fake-podman/bin/podman SHANI_DISTROBOX=/tmp/fake-podman/bin/distrobox
+export SHANI_MACHINECTL=/tmp/fake-podman/bin/machinectl SHANI_IMPORTCTL=/tmp/fake-podman/bin/importctl SHANI_VMSPAWN=/tmp/fake-podman/bin/systemd-vmspawn
+# LXD, Apptainer, libvirt, Waydroid, compose and user services stood in for too:
+for spec in "lxc:/tmp/fake-lxc:dev/fake-lxc.py" "lxd:/tmp/fake-lxc:dev/fake-lxc.py" \
+            "apptainer:/tmp/fake-apptainer:dev/fake-apptainer.py" \
+            "virsh:/tmp/fake-virsh:dev/fake-virsh.py" "virt-viewer:/tmp/fake-virsh:dev/fake-virsh.py" \
+            "waydroid:/tmp/fake-waydroid:dev/fake-waydroid.py" "waydroid-helper:/tmp/fake-waydroid:dev/fake-waydroid.py" \
+            "podman-compose:/tmp/fake-compose:dev/fake-compose.py" "systemctl:/tmp/fake-compose:dev/fake-systemctl-user.py"; do
+    tool=${spec%%:*}; rest=${spec#*:}; dir=${rest%%:*}; fake=${rest#*:}
+    mkdir -p "$dir/bin"
+    ln -sf "/work/$fake" "$dir/bin/$tool"
+done
+export FAKE_LXC=/tmp/fake-lxc FAKE_APPTAINER=/tmp/fake-apptainer FAKE_VIRSH=/tmp/fake-virsh
+export FAKE_WAYDROID=/tmp/fake-waydroid FAKE_COMPOSE=/tmp/fake-compose
+export SHANI_LXC=/tmp/fake-lxc/bin/lxc SHANI_LXD=/tmp/fake-lxc/bin/lxd
+export SHANI_APPTAINER=/tmp/fake-apptainer/bin/apptainer SHANI_APPTAINER_FOLDER=/tmp/fake-apptainer/images
+FAKE_APPTAINER=/tmp/fake-apptainer python3 /work/dev/fake-apptainer.py --version >/dev/null 2>&1 || true   # seed its images
+export SHANI_VIRSH=/tmp/fake-virsh/bin/virsh SHANI_VIRT_VIEWER=/tmp/fake-virsh/bin/virt-viewer SHANI_KVM=1
+export SHANI_WAYDROID=/tmp/fake-waydroid/bin/waydroid SHANI_WAYDROID_HELPER=/tmp/fake-waydroid/bin/waydroid-helper SHANI_PKEXEC=
+export SHANI_COMPOSE=/tmp/fake-compose/bin/podman-compose SHANI_SYSTEMCTL=/tmp/fake-compose/bin/systemctl
+export SHANI_QUADLET_DIR=/tmp/fake-quadlet
 # udisks2 stood in for on the session bus (tests/fixtures/fake_udisks.py): a USB
 # stick and the computer's own disk; a write lands in /tmp/fake-udisks/sdb.img
 mkdir -p /tmp/fake-udisks
@@ -210,8 +233,8 @@ export WAYLAND_DISPLAY=wayland-1
 export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
 
 if [ "${CHRONOA:-mock}" = real ] && [ -x /chronoa/usr/bin/shani-chronoa ]; then
-    # its schema from the source tree, shani-link (its phone skills) beside it
-    GSETTINGS_SCHEMA_DIR=/chronoa/usr/share/glib-2.0/schemas PYTHONPATH=/link \
+    # its schema from the source tree; the shell owns the phone backends now
+    GSETTINGS_SCHEMA_DIR=/chronoa/usr/share/glib-2.0/schemas \
         python3 /chronoa/usr/bin/shani-chronoa >$L/chronoa.log 2>&1 &
     i=0; until gdbus introspect --session --dest dev.shani.chronoa.Agent --object-path /dev/shani/chronoa/Agent >/dev/null 2>&1 || [ $i -ge 120 ]; do sleep 0.25; i=$((i+1)); done
     echo "  real Chronoa: $(grep -o 'Using the local llama.cpp server at [^ ]*' $L/chronoa.log | head -1 || echo 'no model found')"
@@ -227,7 +250,7 @@ mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/as
 mkdir -p /usr/share/shani && cp /work/data/whats-new.md /usr/share/shani/ && printf '0.0.0-test\n' > /etc/shani-version
 # idle off from the start (the tests drive the shell over IPC, which is not input).
 # More for this run: SHANI_SETTINGS_EXTRA, JSON merged over it (python3, when here).
-printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true, "dockPinned": ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]}' > "$SHANI_SHELL_SETTINGS"
+printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true, "dockPinned": ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "shani-chronoa", "org.gnome.TextEditor"]}' > "$SHANI_SHELL_SETTINGS"
 if [ -n "${SHANI_SETTINGS_EXTRA:-}" ] && command -v python3 >/dev/null 2>&1; then
     python3 -c 'import json, sys; d = json.loads(sys.argv[1]); d.update(json.loads(sys.argv[2])); print(json.dumps(d))' \
         "$(cat "$SHANI_SHELL_SETTINGS")" "$SHANI_SETTINGS_EXTRA" > "$SHANI_SHELL_SETTINGS"
