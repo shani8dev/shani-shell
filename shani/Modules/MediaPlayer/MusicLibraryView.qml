@@ -76,7 +76,7 @@ Rectangle {
                 text: MusicLibrary.scanning ? Tr.t("Looking…") : lib.tab === "videos" ? MusicLibrary.videos.length + " " + Tr.t("videos") : MusicLibrary.songs.length + " " + Tr.t("songs")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: lib.tab === "videos" ? MusicLibrary.scanVideos() : MusicLibrary.scan() }
             IconButton {
@@ -125,8 +125,8 @@ Rectangle {
                     Image { id: cover; anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize: Qt.size(320, 320); source: lib.fileUrl(cell.modelData.cover) }
                     Rectangle { anchors.fill: parent; color: "transparent"; radius: parent.radius; border.width: cellArea.containsMouse ? 2 : 0; border.color: Theme.accent }
                 }
-                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: Theme.px(6) } text: cell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: Theme.px(24) } text: cell.modelData.artist; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: Theme.px(6) } text: cell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                Text { anchors { left: art.left; right: art.right; top: art.bottom; topMargin: Theme.px(24) } text: cell.modelData.artist; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Accessible.role: Accessible.Button
                 Accessible.name: cell.modelData.title + ", " + cell.modelData.artist
                 Accessible.onPressAction: lib.album = cell.modelData
@@ -174,8 +174,8 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { Layout.fillWidth: true; text: lib.album ? lib.album.title : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(20) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { text: lib.album ? lib.album.artist + (lib.album.year ? "  ·  " + lib.album.year : "") + "  ·  " + lib.album.songs.length + " " + Tr.t("songs") : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: lib.album ? lib.album.title : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
+                Text { text: lib.album ? lib.album.artist + (lib.album.year ? "  ·  " + lib.album.year : "") + "  ·  " + lib.album.songs.length + " " + Tr.t("songs") : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 RowLayout {
                     spacing: Theme.px(8)
                     Button { kind: "primary"; text: Tr.t("Play"); onClicked: MusicLibrary.play(lib.album.songs, 0) }
@@ -209,15 +209,15 @@ Rectangle {
                 RowLayout {
                     anchors { fill: parent; leftMargin: Theme.px(10); rightMargin: Theme.px(10) }
                     spacing: Theme.px(12)
-                    Text { Layout.preferredWidth: Theme.px(26); horizontalAlignment: Text.AlignCenter; text: songRow.isSelected ? "✓" : ""; visible: lib.selectMode; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(16) * Theme.fontScale; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: lib.toggleSelected(songRow.modelData.path) } }
-                    Text { Layout.preferredWidth: Theme.px(26); horizontalAlignment: Text.AlignRight; text: songRow.now ? "▶" : (lib.album !== null && songRow.modelData.track ? songRow.modelData.track : ""); color: songRow.now ? Theme.accent : Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
+                    Text { Layout.preferredWidth: Theme.px(26); horizontalAlignment: Text.AlignCenter; text: songRow.isSelected ? "✓" : ""; visible: lib.selectMode; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("heading"); MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: lib.toggleSelected(songRow.modelData.path) } }
+                    Text { Layout.preferredWidth: Theme.px(26); horizontalAlignment: Text.AlignRight; text: songRow.now ? "▶" : (lib.album !== null && songRow.modelData.track ? songRow.modelData.track : ""); color: songRow.now ? Theme.accent : Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.features: { "tnum": 1 } }
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; text: songRow.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                        Text { Layout.fillWidth: true; visible: lib.album === null; text: songRow.modelData.artist + "  ·  " + songRow.modelData.album; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; text: songRow.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                        Text { Layout.fillWidth: true; visible: lib.album === null; text: songRow.modelData.artist + "  ·  " + songRow.modelData.album; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     }
-                    Text { text: PlayQueue.clock(songRow.modelData.duration); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
+                    Text { text: PlayQueue.clock(songRow.modelData.duration); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.features: { "tnum": 1 } }
                 }
                 Accessible.role: Accessible.ListItem
                 Accessible.name: songRow.modelData.title + ", " + songRow.modelData.artist
@@ -251,7 +251,7 @@ Rectangle {
                     text: folderCol.modelData.name + "  ·  " + folderCol.modelData.videos.length
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 Grid {
@@ -278,11 +278,11 @@ Rectangle {
                                     anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(6) }
                                     width: dur.implicitWidth + 10; height: Theme.px(20); radius: Theme.px(4)
                                     color: "#b0000000"
-                                    Text { id: dur; anchors.centerIn: parent; text: PlayQueue.clock(vcell.modelData.duration); color: "white"; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.features: { "tnum": 1 } }
+                                    Text { id: dur; anchors.centerIn: parent; text: PlayQueue.clock(vcell.modelData.duration); color: "white"; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.features: { "tnum": 1 } }
                                 }
                                 Rectangle { anchors.fill: parent; color: "transparent"; radius: parent.radius; border.width: vArea.containsMouse ? 2 : 0; border.color: Theme.accent }
                             }
-                            Text { anchors { left: frame.left; right: frame.right; top: frame.bottom; topMargin: Theme.px(6) } text: vcell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Text { anchors { left: frame.left; right: frame.right; top: frame.bottom; topMargin: Theme.px(6) } text: vcell.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                             Accessible.role: Accessible.Button
                             Accessible.name: vcell.modelData.title
                             Accessible.onPressAction: vcell.play()
@@ -350,8 +350,8 @@ Rectangle {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { Layout.fillWidth: true; text: plRow.modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
-                            Text { Layout.fillWidth: true; text: plRow.modelData.paths.length + " " + (plRow.modelData.paths.length === 1 ? Tr.t("item") : Tr.t("items")); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: plRow.modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                            Text { Layout.fillWidth: true; text: plRow.modelData.paths.length + " " + (plRow.modelData.paths.length === 1 ? Tr.t("item") : Tr.t("items")); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         }
                         IconButton { icon: "media-playback-start"; tip: Tr.t("Play this playlist"); size: Theme.px(28); onClicked: PlayQueue.openPlaylist(plRow.modelData.name) }
                         IconButton { icon: "list-add"; tip: Tr.t("Add the playing file"); size: Theme.px(28); enabled: PlayQueue.current !== ""; onClicked: PlayQueue.addPlayingTo(plRow.modelData.name) }

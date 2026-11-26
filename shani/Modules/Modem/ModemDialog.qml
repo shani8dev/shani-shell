@@ -46,7 +46,7 @@ PanelWindow {
                     text: win.mode === "pin" ? "Unlock the SIM card" : "New text message"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
             }
@@ -83,7 +83,7 @@ PanelWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Text {
                 Layout.fillWidth: true
@@ -92,7 +92,7 @@ PanelWindow {
                 color: Theme.amber
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight

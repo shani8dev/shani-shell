@@ -173,7 +173,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 text: Tr.t("Type the phrase exactly, then tap twice. Nothing happens until the second tap.")
                 color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
     }

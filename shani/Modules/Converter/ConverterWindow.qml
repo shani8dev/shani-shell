@@ -120,7 +120,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Button { kind: win.jobs.length ? "plain" : "primary"; text: Tr.t("Add files…"); onClicked: win.pick() }
-                Text { text: Tr.t("Quality"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Quality"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: [["small", Tr.t("Small")], ["balanced", Tr.t("Balanced")], ["best", Tr.t("Best")]]
                     Choice { required property var modelData; text: modelData[1]; selected: win.quality === modelData[0]; onClicked: win.quality = modelData[0] }
@@ -131,24 +131,24 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: win.jobs.length > 0
                 spacing: Theme.px(6)
-                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: fromField; width: Theme.px(64); placeholderText: "0"; Accessible.name: Tr.t("Start, in seconds") }
-                Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: toField; width: Theme.px(64); placeholderText: Tr.t("end"); Accessible.name: Tr.t("End, in seconds") }
-                Text { text: Tr.t("Volume"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Volume"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: volField; width: Theme.px(56); placeholderText: "100"; Accessible.name: Tr.t("Volume, percent") }
-                Text { text: Tr.t("Title"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Title"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: titleField; width: Theme.px(160); placeholderText: Tr.t("What the file says about itself"); Accessible.name: Tr.t("Title") }
             }
             Flow {
                 Layout.fillWidth: true
                 visible: win.jobs.length > 0
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Artist"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Artist"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: artistField; width: Theme.px(110); placeholderText: Tr.t("Performer"); Accessible.name: Tr.t("Artist") }
-                Text { text: Tr.t("Fade"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Fade"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: fadeField; width: Theme.px(70); placeholderText: "0:0"; Accessible.name: Tr.t("Fade in and out, seconds") }
-                Text { text: Tr.t("Speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: speedField; width: Theme.px(60); placeholderText: "1.0"; Accessible.name: Tr.t("Playback speed") }
             }
 
@@ -177,7 +177,7 @@ AppWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             Icon { name: row.modelData.kind === "video" ? "video-x-generic" : row.modelData.kind === "audio" ? "audio-x-generic" : "image-x-generic"; size: Theme.px(18); color: Theme.dim }
-                            Text { Layout.fillWidth: true; text: row.modelData.path.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: row.modelData.path.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                             IconButton { size: Theme.px(26); visible: row.modelData.state !== "working"; icon: "window-close"; tip: Tr.t("Remove from the list"); onClicked: { if (row.index < win.running) win.running--; const l = win.jobs.slice(); l.splice(row.index, 1); win.jobs = l; } }
                             Button { flat: true; visible: row.modelData.state === "working"; text: Tr.t("Cancel"); onClicked: win.stop() }
                         }
@@ -213,7 +213,7 @@ AppWindow {
                                 color: row.modelData.state === "done" ? Theme.dim : Theme.danger
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             Button {
                                 visible: row.modelData.state === "failed"
@@ -245,7 +245,7 @@ AppWindow {
                     text: Tr.t("New files go beside the originals; nothing is written over.")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Button {
                     kind: "primary"

@@ -37,7 +37,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -57,7 +57,7 @@ ColumnLayout {
                     text: ScreenTime.label(modelData.seconds)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
         }

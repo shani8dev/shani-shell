@@ -127,7 +127,7 @@ Item {
                         text: tile.modelData.name
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.DemiBold
                         wrapMode: Text.Wrap
                         maximumLineCount: 2
@@ -140,7 +140,7 @@ Item {
                         text: root.tagsOf(tile.modelData).join(", ")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
                 MouseArea {

@@ -345,7 +345,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: (win.page + 1) + " / " + win.pages.length
                     color: Theme.text
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                 }
                 IconButton { icon: "go-next"; size: Theme.px(40); anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("Next page"); enabled: win.page < win.pages.length - 1; onClicked: win.go(1) }
                 IconButton { icon: "document-new"; size: Theme.px(40); anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("New page"); onClicked: win.newPage() }
@@ -366,7 +366,7 @@ PanelWindow {
                 anchors.centerIn: parent
                 text: win.note
                 color: Theme.text
-                font.pixelSize: Theme.px(15) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
             }
         }
     }

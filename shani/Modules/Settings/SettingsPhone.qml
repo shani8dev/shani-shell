@@ -254,7 +254,7 @@ ColumnLayout {
             text: page.landlineState()
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         TextField {
             id: hostField

@@ -813,7 +813,7 @@ AppWindow {
                 text: Tr.t("Times shown in %1").arg(win.zoneLabel)
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
 
             RowLayout {
@@ -826,7 +826,7 @@ AppWindow {
                     text: win.viewLabel()
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                     Accessible.role: Accessible.Button
                     Accessible.name: Tr.t("Back to today")
@@ -852,7 +852,7 @@ AppWindow {
                     text: Agenda.loadError
                     color: Theme.danger
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -868,7 +868,7 @@ AppWindow {
                     color: Theme.faint
                     horizontalAlignment: Text.AlignHCenter
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Repeater {
                     model: win.weekNames
@@ -879,7 +879,7 @@ AppWindow {
                         text: modelData
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
                 Repeater {
@@ -944,7 +944,7 @@ AppWindow {
                 text: "● " + Tr.t("Reminders") + "    ◆ " + Tr.t("Holidays") + "    +n " + Tr.t("more")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
 
             // ---- week timetable: 7-day grid with hour rows -------------------
@@ -965,7 +965,7 @@ AppWindow {
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                     Repeater {
                         model: win.weekDays
@@ -997,7 +997,7 @@ AppWindow {
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         verticalAlignment: Text.AlignVCenter
                     }
                     Repeater {
@@ -1053,7 +1053,7 @@ AppWindow {
                                             elide: Text.ElideRight
                                             verticalAlignment: Text.AlignVCenter
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                                            font.pixelSize: Theme.type("caption")
                                         }
                                         MouseArea {
                                             id: chipDrag
@@ -1098,7 +1098,7 @@ AppWindow {
                                     color: Theme.faint
                                     horizontalAlignment: Text.AlignHCenter
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                     verticalAlignment: Text.AlignVCenter
                                 }
                                 Repeater {
@@ -1164,7 +1164,7 @@ AppWindow {
                                                         elide: Text.ElideRight
                                                         verticalAlignment: Text.AlignVCenter
                                                         font.family: Theme.font
-                                                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                                                        font.pixelSize: Theme.type("caption")
                                                     }
                                                     MouseArea {
                                                         id: hourDrag
@@ -1182,12 +1182,12 @@ AppWindow {
                                             Text {
                                                 visible: hourCell._evs.length > 2
                                                 Layout.fillWidth: true
-                                                implicitHeight: Math.max(Theme.touchTarget, 14)
+                                                Layout.preferredHeight: Math.max(Theme.touchTarget, 14)
                                                 verticalAlignment: Text.AlignVCenter
                                                 text: Tr.t("+%1 more").arg(hourCell._evs.length - 2)
                                                 color: Theme.accent
                                                 font.family: Theme.font
-                                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                                font.pixelSize: Theme.type("caption")
                                                 Accessible.role: Accessible.Button
                                                 Accessible.name: text
                                                 MouseArea {
@@ -1210,7 +1210,7 @@ AppWindow {
                     text: Tr.t("%1 in this week").arg(win.weekEvents.length)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -1241,7 +1241,7 @@ AppWindow {
                                 color: Theme.faint
                                 horizontalAlignment: Text.AlignHCenter
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 verticalAlignment: Text.AlignVCenter
                             }
                             Rectangle {
@@ -1289,7 +1289,7 @@ AppWindow {
                                                 elide: Text.ElideRight
                                                 verticalAlignment: Text.AlignVCenter
                                                 font.family: Theme.font
-                                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                                font.pixelSize: Theme.type("caption")
                                             }
                                             MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.viewEvent(modelData) }
                                             KeyFocus { onActivated: win.viewEvent(modelData) }
@@ -1330,7 +1330,7 @@ AppWindow {
                                 text: Qt.formatDate(new Date(yy, mm, 1), "MMMM")
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 font.weight: Font.DemiBold
                             }
                             Row {
@@ -1368,7 +1368,7 @@ AppWindow {
                                             text: parent.modelData
                                             color: parent.todayCell ? Theme.accent : Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                                            font.pixelSize: Theme.type("caption")
                                             font.weight: parent.todayCell ? Font.DemiBold : Font.Normal
                                         }
                                         MouseArea {
@@ -1399,7 +1399,7 @@ AppWindow {
                     text: Tr.t("Upcoming (%1)").arg(win.agendaUpcoming.length)
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Repeater {
@@ -1453,7 +1453,7 @@ AppWindow {
                     text: Qt.formatDate(win.selectedDate, "dddd d MMMM yyyy")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -1461,14 +1461,14 @@ AppWindow {
                     text: Tr.t("%1 in this month").arg(win.monthEvents.length)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Text {
                     visible: win.view === "week" && win.weekEvents.length > 0
                     text: Tr.t("%1 in this week").arg(win.weekEvents.length)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -1496,7 +1496,7 @@ AppWindow {
                 Text {
                     Layout.fillWidth: true
                     text: Tr.t("Online accounts")
-                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                     Component.onCompleted: Agenda.loadAccounts()
                 }
                 IconButton { icon: "view-refresh"; size: Theme.px(22); tip: Tr.t("Read the accounts again"); onClicked: Agenda.loadAccounts() }
@@ -1512,7 +1512,7 @@ AppWindow {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: accRow.modelData.name + (accRow.modelData.calendars.length ? "  ·  " + accRow.modelData.calendars.join(", ") : "  ·  " + Tr.t("finding its calendars…"))
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     }
                     IconButton {
                         icon: accRow.confirm ? "edit-delete" : "window-close"
@@ -1552,7 +1552,7 @@ AppWindow {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: Agenda.accountError
-                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Button {
                     kind: "primary"
@@ -1592,7 +1592,7 @@ AppWindow {
                 text: Tr.t("%1 matches across all calendars").arg(win.searchResults.length)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             // ---- the day's events, all-calendar matches, or the editor ------
@@ -1643,7 +1643,7 @@ AppWindow {
                     text: win.editingEvent ? Tr.t("Edit event") : Tr.t("New event")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Rectangle {
@@ -1661,7 +1661,7 @@ AppWindow {
                         text: "This calendar is read-only — this event cannot be changed here."
                         color: Theme.danger
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 TextField {
@@ -1696,10 +1696,10 @@ AppWindow {
                     text: Tr.t("Guests get an invitation through your mail app or calendar server. They can accept, decline or reply maybe.")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     wrapMode: Text.Wrap
                 }
-                Text { text: Tr.t("Repeat"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Repeat"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
@@ -1731,7 +1731,7 @@ AppWindow {
                         text: Tr.t("On") + " " + (win.fByDay === "" ? Tr.t("the event's day") : win.fByDay)
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 Flow {
@@ -1756,7 +1756,7 @@ AppWindow {
                     text: Tr.t("This event has a repeat rule the form cannot fully edit. Changing the controls replaces it.")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -1778,7 +1778,7 @@ AppWindow {
                         onTextChanged: { const n = parseInt(text, 10); win.fAlarm = isNaN(n) ? 0 : n; }
                     }
                 }
-                Text { text: Tr.t("Time zone"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Time zone"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
@@ -1815,7 +1815,7 @@ AppWindow {
                     text: Tr.t("Calendar: %1").arg(win.editingEvent ? win.editingEvent.calendar : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -1841,7 +1841,7 @@ AppWindow {
                     text: win.formError
                     color: Theme.danger
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Text {
                     visible: Agenda.writeError !== ""
@@ -1850,7 +1850,7 @@ AppWindow {
                     text: Agenda.writeError
                     color: Theme.accent
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -1873,7 +1873,7 @@ AppWindow {
                 text: win.editor ? Tr.t("Esc closes the form") : Tr.t("Esc closes · arrows move · Home today · PageUp/Down change period · drag an event to reschedule")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
 
@@ -1908,7 +1908,7 @@ AppWindow {
                         text: (win.viewingEvent || {}).summary || ""
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                         wrapMode: Text.Wrap
                     }
@@ -1917,7 +1917,7 @@ AppWindow {
                         text: win.detailWhen(win.viewingEvent)
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Text {
                         Layout.fillWidth: true
@@ -1925,7 +1925,7 @@ AppWindow {
                         text: (win.viewingEvent || {}).location || ""
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         wrapMode: Text.Wrap
                     }
                     Text {
@@ -1934,7 +1934,7 @@ AppWindow {
                         text: Tr.t("Calendar: %1").arg((win.viewingEvent || {}).calendar || "")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Rectangle {
                         visible: win.readOnlyEvent
@@ -1951,7 +1951,7 @@ AppWindow {
                             text: "This calendar is read-only."
                             color: Theme.danger
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                     Text {
@@ -1961,7 +1961,7 @@ AppWindow {
                         Accessible.name: Tr.t("Description: %1", text)
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         wrapMode: Text.Wrap
                     }
                     RowLayout {

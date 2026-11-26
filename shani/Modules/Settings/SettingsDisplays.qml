@@ -78,7 +78,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 MouseArea {
                     id: drag
@@ -115,7 +115,7 @@ ColumnLayout {
         text: Tr.t("Drag a screen to where it stands on your desk.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 
     // ---- the chosen screen ---------------------------------------------------------------
@@ -245,7 +245,7 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { text: "Brightness — " + ddcRow.modelData.model; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: "Brightness — " + ddcRow.modelData.model; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 SliderRow {
                     Layout.fillWidth: true
                     icon: "display-brightness"
@@ -295,7 +295,7 @@ ColumnLayout {
                 height: Theme.px(26)
                 radius: Theme.px(13)
                 color: Theme.surface1
-                Text { id: presetLabel; anchors.centerIn: parent; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { id: presetLabel; anchors.centerIn: parent; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 IconButton {
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                     size: Theme.px(20)
@@ -341,7 +341,7 @@ ColumnLayout {
         text: Tr.t("Which graphics card Niri uses. On a laptop, the integrated card saves battery; a game can still be opened on the other card with the launcher's “Run on other GPU”.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     Repeater {
         model: Gpu.renderDevices

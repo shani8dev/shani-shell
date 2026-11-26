@@ -52,7 +52,7 @@ ColumnLayout {
         text: Tr.t("You're all caught up")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     Text {
         visible: filter !== "" && Notifs.count + Notifs.earlier.length > 5
@@ -63,7 +63,7 @@ ColumnLayout {
         text: Tr.t("No notifications match %1", filter)
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     // grouped by app, newest group first; the app is named once
     Repeater {
@@ -96,7 +96,7 @@ ColumnLayout {
                     text: group.modelData.app + " · " + group.modelData.items.length
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     font.weight: Font.DemiBold
                 }
                 Button {
@@ -129,7 +129,7 @@ ColumnLayout {
             text: Tr.t("Earlier") + " · " + Notifs.earlier.filter(e => filter === "" || (e.app + " " + e.summary + " " + (e.body || "")).toLowerCase().indexOf(filter.toLowerCase()) >= 0).length
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             font.weight: Font.DemiBold
         }
         Button {

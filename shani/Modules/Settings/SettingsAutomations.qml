@@ -69,7 +69,7 @@ ColumnLayout {
             text: Tr.t("No automations yet. A rule acts once, when its moment comes — joining the office Wi-Fi can turn on Work focus; plugging in headphones can set the volume.")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: page.d.automations
@@ -149,7 +149,7 @@ ColumnLayout {
             text: Tr.t("Nothing has fired yet")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Repeater {
             model: Automations.fired
@@ -158,9 +158,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Text { text: Qt.formatDateTime(modelData.at, "hh:mm"); color: Theme.dim
-                       font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                       font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Text { Layout.fillWidth: true; text: modelData.rule; elide: Text.ElideRight; color: Theme.text
-                       font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                       font.family: Theme.font; font.pixelSize: Theme.type("small") }
             }
         }
     }
@@ -188,7 +188,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: !!(Settings.data.hooks && Settings.data.hooks.enabled)
                 spacing: Theme.px(8)
-                Text { text: hookRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(170) }
+                Text { text: hookRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(170) }
                 TextField {
                     Layout.fillWidth: true
                     placeholder: (Settings.data.hooks && Settings.data.hooks[hookRow.modelData.key]) || Tr.t("a command, e.g. notify-send Locked")
@@ -345,7 +345,7 @@ ColumnLayout {
         value: page.is || "09:00"
         onPicked: t => page.is = t
     }
-    Text { text: Tr.t("then"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+    Text { text: Tr.t("then"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)
@@ -422,7 +422,7 @@ ColumnLayout {
         text: Tr.t("Choose a condition, then a result — most results need a value")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     Text {
         Layout.fillWidth: true
@@ -430,7 +430,7 @@ ColumnLayout {
         text: page.formNote
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         wrapMode: Text.WordWrap
         Accessible.role: Accessible.StaticText
         Accessible.name: page.formNote

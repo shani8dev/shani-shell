@@ -138,7 +138,7 @@ ColumnLayout {
             text: Tr.t("No Flatpak apps installed.")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
     Repeater {
         model: page.apps
@@ -167,7 +167,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: page.error
-                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Repeater {
                     model: arow.isOpen ? page.sections : []
@@ -176,7 +176,7 @@ ColumnLayout {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { text: sec.modelData[0]; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
+                        Text { text: sec.modelData[0]; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.topMargin: Theme.px(8) }
                         Repeater {
                             model: sec.modelData[1]
                             SwitchRow {
@@ -191,7 +191,7 @@ ColumnLayout {
                     }
                 }
                 // other folders: each with its access, removed with a click; another added from a picker
-                Text { visible: arow.isOpen; text: Tr.t("Other folders"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
+                Text { visible: arow.isOpen; text: Tr.t("Other folders"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.topMargin: Theme.px(8) }
                 Repeater {
                     model: arow.isOpen ? page.otherFs : []
                     RowLayout {
@@ -201,7 +201,7 @@ ColumnLayout {
                             Layout.fillWidth: true
                             elide: Text.ElideMiddle
                             text: modelData.replace(/:ro$/, "  ·  " + Tr.t("read only")).replace(/:(rw|create)$/, "")
-                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
                         }
                         IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("No longer"); onClicked: page.call(["set", page.open, "--nofilesystem=" + modelData.replace(/:(ro|rw|create)$/, "")]) }
                     }
@@ -218,7 +218,7 @@ ColumnLayout {
                     }
                 }
                 // what the portals answer for it
-                Text { visible: arow.isOpen; text: Tr.t("Asks through the desktop"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
+                Text { visible: arow.isOpen; text: Tr.t("Asks through the desktop"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.topMargin: Theme.px(8) }
                 Repeater {
                     model: arow.isOpen ? [["notifications", Tr.t("Notifications")], ["background", Tr.t("Running in the background")],
                                           ["camera", Tr.t("Camera")], ["microphone", Tr.t("Microphone")],
@@ -228,7 +228,7 @@ ColumnLayout {
                         required property var modelData
                         Layout.fillWidth: true
                         readonly property string now: (page.perms && page.perms.portals || {})[modelData[0]] || ""
-                        Text { Layout.fillWidth: true; text: prow.modelData[1]; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; text: prow.modelData[1]; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                         Repeater {
                             model: [["", Tr.t("Ask")], ["yes", Tr.t("Allowed")], ["no", Tr.t("Not allowed")]]
                             Choice {
@@ -241,33 +241,33 @@ ColumnLayout {
                     }
                 }
                 // environment and D-Bus names: listed (yours marked); typed only to add one
-                Text { visible: arow.isOpen && page.perms && Object.keys(page.perms.env || {}).length > 0; text: Tr.t("Environment"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
+                Text { visible: arow.isOpen && page.perms && Object.keys(page.perms.env || {}).length > 0; text: Tr.t("Environment"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.topMargin: Theme.px(8) }
                 Repeater {
                     model: arow.isOpen && page.perms ? Object.keys(page.perms.env || {}) : []
                     RowLayout {
                         required property string modelData
                         Layout.fillWidth: true
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData + "=" + page.perms.env[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData + "=" + page.perms.env[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                         IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("Unset it"); onClicked: page.call(["set", page.open, "--unset-env=" + modelData]) }
                     }
                 }
-                Text { visible: arow.isOpen && page.perms && Object.keys(page.perms.session || {}).length > 0; text: Tr.t("Session bus names"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
+                Text { visible: arow.isOpen && page.perms && Object.keys(page.perms.session || {}).length > 0; text: Tr.t("Session bus names"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.topMargin: Theme.px(8) }
                 Repeater {
                     model: arow.isOpen && page.perms ? Object.keys(page.perms.session || {}) : []
                     RowLayout {
                         required property string modelData
                         Layout.fillWidth: true
-                        Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData + "  ·  " + page.perms.session[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData + "  ·  " + page.perms.session[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                         IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("No longer"); onClicked: page.call(["set", page.open, page.busNoFlag(false, page.perms.session[modelData]) + "=" + modelData]) }
                     }
                 }
-                Text { visible: arow.isOpen && page.perms && Object.keys(page.perms.system || {}).length > 0; text: Tr.t("System bus names"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.topMargin: Theme.px(8) }
+                Text { visible: arow.isOpen && page.perms && Object.keys(page.perms.system || {}).length > 0; text: Tr.t("System bus names"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.topMargin: Theme.px(8) }
                 Repeater {
                     model: arow.isOpen && page.perms ? Object.keys(page.perms.system || {}) : []
                     RowLayout {
                         required property string modelData
                         Layout.fillWidth: true
-                        Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData + "  ·  " + page.perms.system[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData + "  ·  " + page.perms.system[modelData]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                         IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("No longer"); onClicked: page.call(["set", page.open, page.busNoFlag(true, page.perms.system[modelData]) + "=" + modelData]) }
                     }
                 }

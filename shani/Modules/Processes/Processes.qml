@@ -255,7 +255,7 @@ AppWindow {
                             text: modelData.label
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -263,7 +263,7 @@ AppWindow {
                             text: modelData.value
                             color: modelData.tint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             font.features: { "tnum": 1 }
                             elide: Text.ElideRight
                             Layout.fillWidth: true
@@ -294,34 +294,34 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
-                    Text { text: Tr.t("CPU"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { text: Tr.t("CPU"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Sparkline { Layout.fillWidth: true; values: SysStats.cpuHistory; color: Theme.accent }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
-                    Text { text: Tr.t("Memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { text: Tr.t("Memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Sparkline { Layout.fillWidth: true; values: SysStats.memHistory; color: Theme.blue }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
-                    Text { text: Tr.t("Network"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { text: Tr.t("Network"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Sparkline { Layout.fillWidth: true; values: SysStats.netHistory.map(x => x.rx + x.tx); color: Theme.amber }
                 }
                 // whole-disk rates from the same 3 s sample, no extra poller
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
-                    Text { text: Tr.t("Disk I/O"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { text: Tr.t("Disk I/O"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Text {
                         text: "↓ " + SysStats.rate(SysStats.diskReadRate)
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }; elide: Text.ElideRight; Layout.fillWidth: true
                     }
                     Text {
                         text: "↑ " + SysStats.rate(SysStats.diskWriteRate)
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }; elide: Text.ElideRight; Layout.fillWidth: true
                     }
                 }
@@ -344,7 +344,7 @@ AppWindow {
                         text: Tr.t("System — up %1 · threads %2 · %3 · handles %4").arg(SysStats.uptimeStr).arg(SysStats.threads).arg(SysStats.clockSpeed || "clock unknown").arg(SysStats.fileHandles)
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         wrapMode: Text.Wrap
                     }
                     Text {
@@ -354,7 +354,7 @@ AppWindow {
                             + (Gpu.stats ? (Gpu.stats.name + " " + Math.round(Gpu.stats.util) + "% · " + Math.round(Gpu.stats.memUsed / Math.max(1, Gpu.stats.memTotal) * 100) + "% mem") : "no GPU")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         wrapMode: Text.Wrap
                     }
                     // root / home capacity from df, once a minute; home is
@@ -375,7 +375,7 @@ AppWindow {
                                 color: Theme.dim
                                 width: Theme.px(34)
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Rectangle {
@@ -394,7 +394,7 @@ AppWindow {
                                 text: Math.round((modelData.total > 0 ? modelData.used / modelData.total : 0) * 100) + "%"
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -429,7 +429,7 @@ AppWindow {
                             text: "↓ " + SysStats.rate(modelData.rx) + "  ↑ " + SysStats.rate(modelData.tx) + "  (" + modelData.name + ")"
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             font.features: { "tnum": 1 }
                         }
                     }
@@ -438,7 +438,7 @@ AppWindow {
                         text: Tr.t("Per-process network: needs nethogs (root) — %1").arg(TopProcesses.nethogsAvailable ? "available" : "not installed, omitted")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         wrapMode: Text.Wrap
                     }
                 }
@@ -464,7 +464,7 @@ AppWindow {
                         text: Tr.t("Load 1/5/15") + "  " + SysStats.load1.toFixed(2) + " / " + SysStats.load5.toFixed(2) + " / " + SysStats.load15.toFixed(2)
                         color: win.pressureColor(win.loadLevel(SysStats.load1, SysStats.perCore.length))
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -491,7 +491,7 @@ AppWindow {
                         text: Tr.t("Swap") + "  " + Math.round(SysStats.swapUsedMb) + " / " + Math.round(SysStats.swapTotalMb) + " MB"
                         color: win.pressureColor(win.swapLevel(SysStats.swapUsedMb, SysStats.swapTotalMb))
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -518,7 +518,7 @@ AppWindow {
                         text: Tr.t("PSI stalls") + "  " + SysStats.psiCpu.toFixed(1) + " / " + SysStats.psiMem.toFixed(1) + " / " + SysStats.psiIo.toFixed(1) + " %"
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -591,7 +591,7 @@ AppWindow {
                                     text: modelData.label || modelData.name || Tr.t("Sensor")
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
                                     Accessible.name: Tr.t("Sensor %1", text)
@@ -615,7 +615,7 @@ AppWindow {
                                     text: (typeof modelData.value === "number" ? modelData.value : 0) + " " + (modelData.unit || "")
                                     color: modelData.level >= 2 ? Theme.red : modelData.level >= 1 ? Theme.amber : Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                     font.features: { "tnum": 1 }
                                     Layout.rightMargin: Theme.px(2)
                                     Accessible.name: Tr.t("%1 %2, %3", modelData.label || modelData.name || "", text, col.sensorSeverity(modelData.level || 0))
@@ -628,7 +628,7 @@ AppWindow {
                             text: Tr.t("No hardware sensors found.")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Text {
                             Layout.fillWidth: true
@@ -636,7 +636,7 @@ AppWindow {
                             text: Sensors.error
                             color: Theme.amber
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             wrapMode: Text.Wrap
                         }
                         BusyNote {
@@ -652,7 +652,7 @@ AppWindow {
                     text: Tr.t("Temperatures in °C · voltages in V · fans in RPM · amber at maximum, red at critical")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(9) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     wrapMode: Text.Wrap
                 }
             }
@@ -685,7 +685,7 @@ AppWindow {
                     text: Tr.t("This month %1 · last 7 days %2").arg(Theme.bytes(NetUsage.monthTotal)).arg(Theme.bytes(NetUsage.weekTotal))
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     font.features: { "tnum": 1 }
                     Accessible.name: text
                 }
@@ -696,13 +696,13 @@ AppWindow {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     visible: NetUsage.interfaces.length > 1
                     spacing: Theme.px(6)
-                    Text { text: Tr.t("Interface:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { text: Tr.t("Interface:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Repeater {
                         model: NetUsage.interfaces
                         Choice {
@@ -745,7 +745,7 @@ AppWindow {
                                 color: Theme.dim
                                 horizontalAlignment: Text.AlignHCenter
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 elide: Text.ElideRight
                             }
                             Text {
@@ -754,7 +754,7 @@ AppWindow {
                                 color: Theme.faint
                                 horizontalAlignment: Text.AlignHCenter
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 font.features: { "tnum": 1 }
                                 elide: Text.ElideRight
                             }
@@ -776,14 +776,14 @@ AppWindow {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("View:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; height: Math.max(Theme.px(24), Theme.touchTarget); verticalAlignment: Text.AlignVCenter }
+                Text { text: Tr.t("View:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); height: Math.max(Theme.px(24), Theme.touchTarget); verticalAlignment: Text.AlignVCenter }
                 Choice { text: Tr.t("Processes"); selected: !win.byUser; onClicked: win.byUser = false }
                 Choice { text: Tr.t("Users"); selected: win.byUser; onClicked: win.byUser = true }
             }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("End with signal:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; height: Math.max(Theme.px(24), Theme.touchTarget); verticalAlignment: Text.AlignVCenter }
+                Text { text: Tr.t("End with signal:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); height: Math.max(Theme.px(24), Theme.touchTarget); verticalAlignment: Text.AlignVCenter }
                 Repeater {
                     model: ["TERM", "KILL", "INT", "HUP", "STOP", "CONT"]
                     Choice {
@@ -813,7 +813,7 @@ AppWindow {
                         text: modelData.label + (win.sortKey === modelData.key ? (win.sortDesc ? " ↓" : " ↑") : "")
                         color: win.sortKey === modelData.key ? Theme.accent : Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.weight: win.sortKey === modelData.key ? Font.DemiBold : Font.Normal
                         Layout.fillWidth: modelData.width < 0
                         Layout.preferredWidth: modelData.width < 0 ? 0 : modelData.width
@@ -852,7 +852,7 @@ AppWindow {
                     Text {
                         text: procRow.p.name
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         color: procRow.indent === 0 ? Theme.text : Theme.dim
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -860,14 +860,14 @@ AppWindow {
                     Text {
                         text: procRow.p.pid
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }
                         color: Theme.faint
                     }
                     Text {
                         text: procRow.p.cpu.toFixed(0) + " %  ·  " + procRow.p.mem.toFixed(1) + " %"
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }
                         color: procRow.p.cpu >= 50 ? Theme.danger : Theme.dim
                         horizontalAlignment: Text.AlignRight
@@ -876,7 +876,7 @@ AppWindow {
                     Text {
                         text: win.diskText(TopProcesses.diskIo[procRow.p.pid] || 0)
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }
                         color: Theme.faint
                         horizontalAlignment: Text.AlignRight
@@ -890,7 +890,7 @@ AppWindow {
                         visible: !win.compact
                         text: Math.round(procRow.p.cpu * 0.065) + " W"
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.features: { "tnum": 1 }
                         color: Theme.faint
                         horizontalAlignment: Text.AlignRight
@@ -944,7 +944,7 @@ AppWindow {
                 text: Tr.t("No process matches \"%1\"", win.procQuery)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             // Users view: per-user totals from the same samples, read-only
             ListView {
@@ -960,11 +960,11 @@ AppWindow {
                     required property var modelData
                     width: userList.width
                     spacing: Theme.px(8)
-                    Text { text: modelData.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight }
-                    Text { text: modelData.count + " " + Tr.t("processes"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
-                    Text { text: modelData.cpu.toFixed(0) + "% CPU"; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(70) }
-                    Text { text: modelData.mem.toFixed(1) + "% mem"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(70) }
-                    Text { text: win.diskText(modelData.disk); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.preferredWidth: Theme.px(70) }
+                    Text { text: modelData.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.fillWidth: true; elide: Text.ElideRight }
+                    Text { text: modelData.count + " " + Tr.t("processes"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(90) }
+                    Text { text: modelData.cpu.toFixed(0) + "% CPU"; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(70) }
+                    Text { text: modelData.mem.toFixed(1) + "% mem"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(70) }
+                    Text { text: win.diskText(modelData.disk); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(70) }
                 }
             }
             Text {
@@ -973,7 +973,7 @@ AppWindow {
                 text: Tr.t("CPU is % since the last sample (/proc/stat deltas) · updates every 2s")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 wrapMode: Text.Wrap
             }
             Text {
@@ -982,7 +982,7 @@ AppWindow {
                 text: Tr.t("Energy is estimated from CPU use, not measured · Disk is total read + write from /proc/<pid>/io")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(9) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 wrapMode: Text.Wrap
             }
         }
@@ -1003,14 +1003,14 @@ AppWindow {
                 // a child of a Dialog's contentItem cannot see a property
                 // declared on it, so every use below is qualified by the id
                 readonly property var det: TopProcesses.details || ({})
-                Text { Layout.fillWidth: true; text: detailCol.det.cmdline || Tr.t("(no command line)"); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
-                Text { Layout.fillWidth: true; text: Tr.t("User %1 · state %2 · %3 threads · %4 open files").arg(detailCol.det.user || "?").arg(detailCol.det.state || "?").arg(detailCol.det.threads || 0).arg(detailCol.det.files || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: Text.Wrap }
-                Text { Layout.fillWidth: true; text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                Text { Layout.fillWidth: true; text: (detailCol.det.env || []).join("\n"); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale; wrapMode: Text.Wrap; maximumLineCount: 8; elide: Text.ElideRight }
+                Text { Layout.fillWidth: true; text: detailCol.det.cmdline || Tr.t("(no command line)"); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small"); wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: Tr.t("User %1 · state %2 · %3 threads · %4 open files").arg(detailCol.det.user || "?").arg(detailCol.det.state || "?").arg(detailCol.det.threads || 0).arg(detailCol.det.files || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); wrapMode: Text.Wrap }
+                Text { Layout.fillWidth: true; text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
+                Text { Layout.fillWidth: true; text: (detailCol.det.env || []).join("\n"); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.type("caption"); wrapMode: Text.Wrap; maximumLineCount: 8; elide: Text.ElideRight }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
-                    Text { text: Tr.t("Nice value (−20 = first, 19 = last)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { text: Tr.t("Nice value (−20 = first, 19 = last)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     TextField { id: niceField; Layout.preferredWidth: Theme.px(60); placeholder: "-20…19" }
                     Button { text: Tr.t("Apply nice"); enabled: /^-?\d+$/.test(niceField.text); onClicked: { TopProcesses.renice(win.detailPid, parseInt(niceField.text, 10)); niceField.text = ""; } }
                 }

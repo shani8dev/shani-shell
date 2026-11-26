@@ -86,7 +86,7 @@ ColumnLayout {
             color: Theme.faint
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Picks {
             label: Tr.t("Speed")
@@ -142,7 +142,7 @@ ColumnLayout {
             color: Theme.faint
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     Repeater {
         model: Array.from(page.d.windowRules || [])
@@ -185,7 +185,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Text { text: Tr.t("Opens on workspace"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Opens on workspace"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -204,7 +204,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 visible: Displays.outputs.length > 1
-                Text { text: Tr.t("Opens on screen"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Opens on screen"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -229,7 +229,7 @@ ColumnLayout {
                 spacing: Theme.px(8)
                 visible: (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "tiled"
                     || (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "floating"
-                Text { text: Tr.t("Width"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Width"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -255,7 +255,7 @@ ColumnLayout {
                 spacing: Theme.px(8)
                 visible: (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "tiled"
                     || (rule.modelData.mode || (rule.modelData.float ? "floating" : "tiled")) === "floating"
-                Text { text: Tr.t("Height"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Height"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -387,7 +387,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     }
 }

@@ -171,7 +171,7 @@ AppWindow {
                     : VoiceRecorder.available ? Tr.t("Ready") : Tr.t("pw-record is not installed")
                 color: VoiceRecorder.recording ? Theme.red : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
 
             // codec and channels, chosen before the next take
@@ -179,10 +179,10 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 spacing: Theme.px(8)
-                Text { text: Tr.t("Format"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Format"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Choice { text: "Opus"; selected: VoiceRecorder.format === "opus"; onClicked: VoiceRecorder.format = "opus" }
                 Choice { text: "FLAC"; selected: VoiceRecorder.format === "flac"; onClicked: VoiceRecorder.format = "flac" }
-                Text { text: Tr.t("Channels"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Channels"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Choice { text: Tr.t("Mono"); selected: VoiceRecorder.channels === 1; onClicked: VoiceRecorder.channels = 1 }
                 Choice { text: Tr.t("Stereo"); selected: VoiceRecorder.channels === 2; onClicked: VoiceRecorder.channels = 2 }
             }
@@ -258,7 +258,7 @@ AppWindow {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideMiddle
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             RowLayout {
@@ -270,7 +270,7 @@ AppWindow {
                     text: Tr.t("%1 files", VoiceRecorder.recordings.length)
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Button {
                     text: win.sortMode === 0 ? Tr.t("Sort: Newest") : win.sortMode === 1 ? Tr.t("Sort: Oldest") : Tr.t("Sort: Name")
@@ -341,7 +341,7 @@ AppWindow {
                                 color: Theme.text
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -349,7 +349,7 @@ AppWindow {
                                 color: Theme.dim
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                         }
                         TextField {
@@ -438,7 +438,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Button { text: Tr.t("Cancel"); flat: true; onClicked: win.confirmingDelete = "" }
                 Button { text: Tr.t("Trash"); kind: "danger"; onClicked: win.trashTake(win.confirmingDelete) }
@@ -458,7 +458,7 @@ AppWindow {
                     color: Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 SliderRow {
                     Layout.fillWidth: true
@@ -479,7 +479,7 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
-                    Text { text: Tr.t("In"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { text: Tr.t("In"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     TextField {
                         Layout.fillWidth: true
                         text: VoiceRecorder.trimStart.toFixed(1)
@@ -492,7 +492,7 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
-                    Text { text: Tr.t("Out"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { text: Tr.t("Out"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     TextField {
                         Layout.fillWidth: true
                         text: (VoiceRecorder.trimEnd > 0 ? VoiceRecorder.trimEnd : VoiceRecorder.trimDuration).toFixed(1)
@@ -510,7 +510,7 @@ AppWindow {
                         : Tr.t("Duration unknown — drag the sliders")
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
@@ -538,7 +538,7 @@ AppWindow {
                     color: Theme.red
                     horizontalAlignment: Text.AlignHCenter
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Text {
                     Layout.fillWidth: true
@@ -547,7 +547,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
 
@@ -640,7 +640,7 @@ AppWindow {
                     size: Theme.px(28)
                     onClicked: win.playInline(win.inlinePlay)
                 }
-                Text { Layout.fillWidth: true; text: win.inlinePlay.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: win.inlinePlay.split("/").pop(); color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 SliderRow {
                     Layout.fillWidth: true
                     label: Tr.t("Seek in recording")
@@ -652,12 +652,12 @@ AppWindow {
                     text: VideoTrimmer.fmt(playback.position / 1000) + " / " + VideoTrimmer.fmt(playback.duration / 1000)
                     color: Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Button { text: Tr.t("Stop"); flat: true; onClicked: { playback.stop(); win.inlinePlay = ""; } }
             }
-            Text { Layout.fillWidth: true; visible: VoiceRecorder.exported !== ""; text: Tr.t("Exported") + " " + VoiceRecorder.exported; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
-            Text { Layout.fillWidth: true; visible: VoiceRecorder.exportError !== ""; text: VoiceRecorder.exportError; color: Theme.red; horizontalAlignment: Text.AlignHCenter; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { Layout.fillWidth: true; visible: VoiceRecorder.exported !== ""; text: Tr.t("Exported") + " " + VoiceRecorder.exported; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
+            Text { Layout.fillWidth: true; visible: VoiceRecorder.exportError !== ""; text: VoiceRecorder.exportError; color: Theme.red; horizontalAlignment: Text.AlignHCenter; font.family: Theme.font; font.pixelSize: Theme.type("small") }
 
             Text {
                 Layout.fillWidth: true
@@ -665,7 +665,7 @@ AppWindow {
                 text: Tr.t("Esc closes")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
             } // ColumnLayout
         } // Flickable

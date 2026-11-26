@@ -111,7 +111,7 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
-                    Text { text: Tr.t("Latitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { text: Tr.t("Latitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     TextField {
                         Layout.fillWidth: true
                         placeholderText: "28.6139"
@@ -124,7 +124,7 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(2)
-                    Text { text: Tr.t("Longitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { text: Tr.t("Longitude"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     TextField {
                         Layout.fillWidth: true
                         placeholderText: "77.2090"
@@ -185,7 +185,7 @@ AppWindow {
                         color: win.error ? Theme.danger : Theme.text
                         selectionColor: Theme.accent
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         Accessible.role: Accessible.StaticText
                         Accessible.name: win.error ? Tr.t("Calculation error") : Tr.t("Kundali")
                     }
@@ -205,7 +205,7 @@ AppWindow {
                     text: Tr.t("Enter a date, then Calculate — tithi or the birth chart appears here")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
         }

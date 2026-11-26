@@ -210,7 +210,7 @@ AppWindow {
                         color: Theme.dim
                         elide: Text.ElideLeft
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                 }
             }
@@ -231,7 +231,7 @@ AppWindow {
                     text: "M = " + Services.Calculator.memory
                     color: Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -269,7 +269,7 @@ AppWindow {
                 visible: win.tab === "scientific"
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Angle"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Angle"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: ["deg", "rad", "grad"]
                     Choice {
@@ -319,10 +319,10 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
-                    Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Button { text: win.fromUnit + " ▸"; Layout.fillWidth: true; onClicked: win.cycleUnit("from") }
                     Button { text: "⇄"; onClicked: { const t = win.fromUnit; win.fromUnit = win.toUnit; win.toUnit = t; win.doConvert(); } }
-                    Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Button { text: win.toUnit + " ▸"; Layout.fillWidth: true; onClicked: win.cycleUnit("to") }
                 }
                 Rectangle {
@@ -335,7 +335,7 @@ AppWindow {
                         text: win.converted
                         color: win.converted === "—" ? Theme.dim : Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(17) * Theme.fontScale
+                        font.pixelSize: Theme.type("subtitle")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -351,7 +351,7 @@ AppWindow {
                     text: Tr.t("Length, mass, volume, data, time, speed, area and °C/°F/K")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
 
@@ -398,7 +398,7 @@ AppWindow {
                         text: Services.Calculator.finResult
                         color: Services.Calculator.finResult === "—" ? Theme.dim : Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(17) * Theme.fontScale
+                        font.pixelSize: Theme.type("subtitle")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -431,7 +431,7 @@ AppWindow {
                         : Tr.t("ddb(cost, salvage, life, period) — double-declining balance")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     wrapMode: Text.WordWrap
                 }
             }
@@ -454,9 +454,9 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
-                    Text { text: Tr.t("Base"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: Tr.t("Base"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Button { text: Services.Calculator.base + " ▸"; Layout.fillWidth: true; onClicked: win.cycleBase() }
-                    Text { text: Tr.t("Width"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: Tr.t("Width"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Button { text: Services.Calculator.width + " ▸"; Layout.fillWidth: true; onClicked: win.cycleWidth() }
                 }
                 Rectangle {
@@ -474,7 +474,7 @@ AppWindow {
                             text: Services.Calculator.progBin === "" ? "—" : ("bin " + Services.Calculator.progBin + " · oct " + Services.Calculator.progOct + " · dec " + Services.Calculator.progDec + " · hex " + Services.Calculator.progHex)
                             color: Services.Calculator.progBin === "" ? Theme.dim : Theme.text
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             elide: Text.ElideLeft
                             wrapMode: Text.WordWrap
                         }
@@ -484,7 +484,7 @@ AppWindow {
                             text: Tr.t("two's complement") + " (" + Services.Calculator.width + "): " + Services.Calculator.twosResult
                             color: Theme.dim
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             elide: Text.ElideLeft
                         }
                     }
@@ -510,7 +510,7 @@ AppWindow {
                         text: Services.Calculator.progResult
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -526,7 +526,7 @@ AppWindow {
                         text: Services.Calculator.charResult
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -555,7 +555,7 @@ AppWindow {
                     text: Tr.t("64-bit two's complement is a double approximation")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
 
@@ -571,7 +571,7 @@ AppWindow {
                         text: Tr.t("History")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         font.weight: Font.DemiBold
                     }
                     Button { text: Tr.t("Clear"); kind: "plain"; onClicked: Services.Calculator.clearHistory() }
@@ -622,7 +622,7 @@ AppWindow {
                     : Tr.t("Type to calculate · Esc closes · Enter = · Ctrl+C copies")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
     }

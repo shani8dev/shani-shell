@@ -30,12 +30,15 @@ def source(path):
 
 def test_settingssection_contract():
     s = source(SECTION)
-    assert "ColumnLayout" in s
-    assert "property string title" in s
+    # a Card since the redesign (docs/DESIGN.md): the title is the card's, the
+    # hint its subtitle, the rows its content
+    assert "Card {" in s
     assert "property string hint" in s
-    assert "SectionTitle" in s  # the title it wraps
-    assert "Theme.px(12)" in s  # default spacing
-    assert "Layout.fillWidth: true" in s
+    assert "subtitle: hintVisible ? hint" in s
+    card = source(SECTION.parent / "Card.qml")
+    assert "property string title" in card and "property string subtitle" in card
+    assert "default property alias content: body.data" in card
+    assert "Theme.space(3)" in card  # the rows' default spacing
 
 
 def test_settingrow_contract():

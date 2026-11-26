@@ -102,7 +102,7 @@ PanelWindow {
                         : win.ask ? (win.ask.ask === "authorize" ? win.ask.device + " wants to connect" : "Pair with " + win.ask.device + "?") : ""
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                     wrapMode: Text.Wrap
                 }
@@ -115,7 +115,7 @@ PanelWindow {
                     : win.typed ? "Type the " + (win.ask.ask === "pin" ? "PIN" : "code") + " it shows (often 0000 or 1234):" : ""
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 wrapMode: Text.Wrap
             }
             Text {
@@ -134,7 +134,7 @@ PanelWindow {
                 text: Tr.t("Expires in %1s").arg(win.showSecsLeft)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             TextField {
                 id: code

@@ -23,7 +23,7 @@ ColumnLayout {
         text: label
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.fontSmall * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
     }
 
     // Current value display
@@ -45,7 +45,7 @@ ColumnLayout {
                 text: root.value || (root.placeholder || Tr.t("Not set — pick a folder below"))
                 color: root.value ? Theme.text : Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 elide: Text.ElideMiddle
             }
         }
@@ -81,7 +81,7 @@ ColumnLayout {
 
     // Quick-pick common folders
     // a label above the chips, not among them: a child as wide as its Flow makes the Flow re-lay out itself forever
-    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)

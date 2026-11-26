@@ -819,7 +819,7 @@ PanelWindow {
                     color: Theme.text
                     selectionColor: Theme.accent
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(20) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     clip: true
                     onActiveFocusChanged: Ui.trackTextInput(search, activeFocus)
                     Component.onDestruction: Ui.trackTextInput(search, false)
@@ -899,7 +899,7 @@ PanelWindow {
                         elide: Text.ElideRight
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(17) * Theme.fontScale
+                        font.pixelSize: Theme.type("subtitle")
                     }
                 }
                 Text {
@@ -907,7 +907,7 @@ PanelWindow {
                     text: Tr.t("Ctrl+Enter  Chronoa")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
         }
@@ -949,7 +949,7 @@ PanelWindow {
                                     text: section.modelData.title
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                     font.weight: Font.DemiBold
                                     font.capitalization: Font.AllUppercase
                                     font.letterSpacing: 1
@@ -1017,7 +1017,7 @@ PanelWindow {
                                                 maximumLineCount: 2
                                                 elide: Text.ElideRight
                                                 font.family: Theme.font
-                                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                                font.pixelSize: Theme.type("body")
                                             }
                                         }
                                         MouseArea {
@@ -1093,7 +1093,7 @@ PanelWindow {
                                             color: Theme.text
                                             elide: Text.ElideRight
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                                            font.pixelSize: Theme.type("heading")
                                         }
                                         Text {
                                             Layout.maximumWidth: list.width * 0.55
@@ -1101,7 +1101,7 @@ PanelWindow {
                                             color: Theme.dim
                                             elide: Text.ElideRight
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                                            font.pixelSize: Theme.type("small")
                                         }
                                     }
                                     MouseArea {
@@ -1139,10 +1139,10 @@ PanelWindow {
                             text: Tr.t("Chronoa")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(15) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             font.weight: Font.DemiBold
                         }
-                        Text { text: "· " + Chronoa.label; color: Chronoa.color; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                        Text { text: "· " + Chronoa.label; color: Chronoa.color; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     }
                     Rectangle {
                         Layout.fillWidth: true
@@ -1158,7 +1158,7 @@ PanelWindow {
                             textFormat: Text.PlainText
                             color: Theme.dim
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             wrapMode: Text.NoWrap
                         }
                     }
@@ -1199,7 +1199,7 @@ PanelWindow {
                             : "“" + win.q.trim() + "”"
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                     }
                     Button {
                         text: Tr.t("Ask Chronoa")
@@ -1213,7 +1213,7 @@ PanelWindow {
                         text: Tr.t("Start with  =  to calculate,  :  for emoji,  c  for the clipboard,  >  to run a command")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
             }

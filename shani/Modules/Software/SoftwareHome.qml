@@ -105,10 +105,10 @@ Flickable {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
-                    Text { text: Tr.t("Featured"); color: Theme.text; opacity: 0.75; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold; font.capitalization: Font.AllUppercase }
+                    Text { text: Tr.t("Featured"); color: Theme.text; opacity: 0.75; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold; font.capitalization: Font.AllUppercase }
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap; text: banner.a.name || ""; color: Theme.text; font.family: Theme.font
                            font.pixelSize: Theme.px((banner.a.name || "").length > 22 ? 22 : 28) * Theme.fontScale; font.weight: Font.Bold }
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap; text: banner.a.summary || ""; color: Theme.text; opacity: 0.85; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap; text: banner.a.summary || ""; color: Theme.text; opacity: 0.85; font.family: Theme.font; font.pixelSize: Theme.type("heading") }
                     Item { Layout.preferredHeight: Theme.px(6) }
                     Button { text: banner.a.installed ? Tr.t("Open") : Tr.t("Get it"); kind: "primary"; onClicked: home.open(banner.a) }
                 }
@@ -158,7 +158,7 @@ Flickable {
         spacing: Theme.px(8)
         RowLayout {
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: shelf.title; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold; Accessible.role: Accessible.Heading; Accessible.name: text }
+            Text { Layout.fillWidth: true; text: shelf.title; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold; Accessible.role: Accessible.Heading; Accessible.name: text }
             Button { visible: shelf.seeAllVisible; flat: true; text: Tr.t("See all ›"); onClicked: shelf.seeAll() }
         }
         ListView {
@@ -195,10 +195,10 @@ Flickable {
                     }
                 }
                 Text { id: tName; anchors { top: art.bottom; topMargin: Theme.px(8); left: parent.left; right: parent.right }
-                       text: tile.modelData.name; elide: Text.ElideRight; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+                       text: tile.modelData.name; elide: Text.ElideRight; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
                 Text { anchors { top: tName.bottom; topMargin: Theme.px(2); left: parent.left; right: parent.right }
                        text: tile.isSnap ? Tr.t("Snap") + (tile.modelData.publisher ? " · " + tile.modelData.publisher : "") : (tile.modelData.summary || "")
-                       elide: Text.ElideRight; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                       elide: Text.ElideRight; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 MouseArea { id: tileArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: home.open(tile.modelData) }
                 KeyFocus { onActivated: home.open(tile.modelData) }
                 Accessible.role: Accessible.Button

@@ -360,7 +360,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 // a running step reads as words, like everything else on the Island
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: win.mode === "rest" && win.activity ? Qt.PointingHandCursor : Qt.IBeamCursor
@@ -396,7 +396,7 @@ PanelWindow {
                 color: Theme.text
                 selectionColor: Theme.accent
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 clip: true
                 Keys.onEscapePressed: win.closeAsk()
                 onAccepted: {
@@ -419,7 +419,7 @@ PanelWindow {
                 text: Chronoa.label
                 color: Chronoa.color
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
 
@@ -440,7 +440,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             Text {
@@ -452,7 +452,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(14) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
             }
             Flow {
                 Layout.fillWidth: true

@@ -175,7 +175,7 @@ AppWindow {
                                             text: Modem.call ? (Modem.call.name || Modem.call.number || Tr.t("Unknown")) : ""
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                                            font.pixelSize: Theme.type("body")
                                             font.weight: Font.DemiBold
                                             elide: Text.ElideRight
                                         }
@@ -183,7 +183,7 @@ AppWindow {
                                             text: Modem.callTime
                                             color: Theme.accent
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                                            font.pixelSize: Theme.type("body")
                                         }
                                     }
                                     Picks {
@@ -253,7 +253,7 @@ AppWindow {
                                         text: win.dtmfDigits
                                         color: Theme.accent
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        font.pixelSize: Theme.type("body")
                                     }
                                     Loader {
                                         visible: win.showDtmf
@@ -281,7 +281,7 @@ AppWindow {
                                         text: Tr.t("Call waiting") + ": " + (Modem.waitingCall ? (Modem.waitingCall.name || Modem.waitingCall.number || Tr.t("Unknown")) : "")
                                         color: Theme.text
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        font.pixelSize: Theme.type("body")
                                         font.weight: Font.DemiBold
                                         elide: Text.ElideRight
                                     }
@@ -315,7 +315,7 @@ AppWindow {
                                 color: Theme.dim
                                 wrapMode: Text.Wrap
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
 
                             TextField {
@@ -366,7 +366,7 @@ AppWindow {
                                     text: Tr.t("Line") + ": " + (win.line || Tr.t("None"))
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                             }
 
@@ -424,7 +424,7 @@ AppWindow {
                                     color: Theme.dim
                                     wrapMode: Text.Wrap
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -449,7 +449,7 @@ AppWindow {
                                 color: Theme.text
                                 wrapMode: Text.Wrap
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                         }
 
@@ -557,7 +557,7 @@ AppWindow {
                                     text: win.callSearch !== "" || win.missedOnly ? Tr.t("No calls match") : Tr.t("No calls yet")
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                 }
                             }
                         }

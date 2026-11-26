@@ -255,7 +255,7 @@ Scope {
                     visible: Settings.data.lockScreenDate
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(18) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                 }
                 // (the battery is shown once, with its icon, under the password field)
                 // at a glance (a phone's lock screen): the weather, and the next event
@@ -268,7 +268,7 @@ Scope {
                     visible: text !== ""
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                 }
             }
 
@@ -331,7 +331,7 @@ Scope {
                                 text: powerKey.modelData.name + "?"
                                 color: Theme.danger
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                         }
                         Accessible.role: Accessible.Button
@@ -431,7 +431,7 @@ Scope {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -440,7 +440,7 @@ Scope {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                     IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous"); size: Theme.px(30); enabled: nowPlaying.player && nowPlaying.player.canGoPrevious; onClicked: nowPlaying.player.previous() }
@@ -469,7 +469,7 @@ Scope {
                         text: Quickshell.env("USER") || ""
                         color: Theme.accent
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                     RowLayout {
@@ -509,7 +509,7 @@ Scope {
                         color: Theme.amber
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Text {
                         Layout.fillWidth: true
@@ -519,7 +519,7 @@ Scope {
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Text {
                         Layout.fillWidth: true
@@ -528,7 +528,7 @@ Scope {
                         color: root.error ? Theme.danger : Theme.dim
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     // the newest few, by title — only if the person chose that (Privacy)
                     Repeater {
@@ -542,7 +542,7 @@ Scope {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                     }
                     // what is waiting, at a glance: how many, not what (the content
@@ -561,7 +561,7 @@ Scope {
                                 text: Tr.t("DND on") + (Notifs.dndUntilText ? "  " + Notifs.dndUntilText : "")
                                 color: Theme.amber
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 Accessible.name: Tr.t("Do Not Disturb is on") + (Notifs.dndUntilText ? " " + Notifs.dndUntilText : "")
                             }
                         }
@@ -573,7 +573,7 @@ Scope {
                                 text: Notifs.count
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 Accessible.name: Notifs.count + (Notifs.count === 1 ? " notification" : " notifications")
                             }
                         }
@@ -585,7 +585,7 @@ Scope {
                                 text: Math.round(Power.percent * 100) + "%"
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                         }
                     }

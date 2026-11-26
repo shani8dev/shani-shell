@@ -47,7 +47,7 @@ Item {
                     id: label
                     anchors.centerIn: parent
                     spacing: Theme.px(8)
-                    Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { text: root.text; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Rectangle {
                         visible: root.keys !== ""
                         anchors.verticalCenter: parent.verticalCenter
@@ -55,7 +55,7 @@ Item {
                         height: Theme.px(18)
                         radius: Theme.px(5)
                         color: Theme.alpha(Theme.text, 0.1)
-                        Text { id: keyText; anchors.centerIn: parent; text: root.keys; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10.5) * Theme.fontScale }
+                        Text { id: keyText; anchors.centerIn: parent; text: root.keys; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     }
                 }
             }

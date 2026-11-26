@@ -103,7 +103,7 @@ ColumnLayout {
             : Radio.showing === "favourites" ? Tr.t("No favourites yet: the star on a station keeps it here.") : Tr.t("No stations found")
         color: Radio.error !== "" ? Theme.danger : Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     ListView {
         reuseItems: true
@@ -146,12 +146,12 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: row.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: row.playing ? Font.DemiBold : Font.Normal }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: row.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: row.playing ? Font.DemiBold : Font.Normal }
                     Text {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: [row.modelData.tags, row.modelData.country, row.modelData.bitrate ? row.modelData.bitrate + " kbps" : ""].filter(x => x).join("  ·  ")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                 }
                 IconButton {

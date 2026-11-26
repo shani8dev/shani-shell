@@ -137,7 +137,7 @@ PanelWindow {
                         Text {
                             text: Math.round(Power.percent * 100) + "%"
                             color: Theme.text
-                            font.pixelSize: Theme.px(16) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -179,7 +179,7 @@ PanelWindow {
                                 text: row.rowData.label
                                 color: Theme.text
                                 elide: Text.ElideRight
-                                font.pixelSize: Theme.px(15) * Theme.fontScale
+                                font.pixelSize: Theme.type("heading")
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -188,7 +188,7 @@ PanelWindow {
                             y: head.y + (head.height - height) / 2
                             text: row.rowData.text
                             color: Theme.dim
-                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                         }
                         // a level: a track to drag along, as well as Left / Right
                         Rectangle {
@@ -230,7 +230,7 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         text: Tr.t("More apps")
                         color: Theme.dim
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Repeater {
                         model: Tools.list.slice(0, 4).map(t => ({

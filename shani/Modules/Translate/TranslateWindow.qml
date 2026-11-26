@@ -174,7 +174,7 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Text { text: Tr.t("Model"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Model"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 TextField {
                     id: endpointField
                     Layout.fillWidth: true
@@ -190,7 +190,7 @@ AppWindow {
                     text: win.statusText
                     color: win.statusOk ? Theme.accent : Theme.danger
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
 
@@ -202,7 +202,7 @@ AppWindow {
                 Choice { text: Tr.t("Batch"); selected: win.mode === "batch"; onClicked: { win.cancel(); win.mode = "batch" } }
                 Choice { text: Tr.t("File / HTML"); selected: win.mode === "file"; onClicked: { win.cancel(); win.mode = "file" } }
                 Button { text: Tr.t("Open file…"); flat: true; onClicked: win.openFile() }
-                Text { Layout.fillWidth: true; text: win.filePath.split("/").pop(); color: Theme.faint; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: win.filePath.split("/").pop(); color: Theme.faint; elide: Text.ElideMiddle; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
             }
             Text {
                 Layout.fillWidth: true
@@ -210,14 +210,14 @@ AppWindow {
                 text: Tr.t("One string per line — cached translations are added to this computer")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
 
             // ---- source language and swap --------------------------------------
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -234,7 +234,7 @@ AppWindow {
                 IconButton { icon: "exchange-positions"; size: Theme.px(28); tip: Tr.t("Swap languages"); enabled: win.source !== "auto"; onClicked: win.swap() }
             }
 
-            Text { text: Tr.t("Into"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { text: Tr.t("Into"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -274,7 +274,7 @@ AppWindow {
                             color: Theme.text
                             selectionColor: Theme.accent
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(15) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             Accessible.role: Accessible.EditableText
                             Accessible.name: Tr.t("Text to translate")
                             Keys.onPressed: e => { if ((e.modifiers & Qt.ControlModifier) && (e.key === Qt.Key_Return || e.key === Qt.Key_Enter)) { win.go(); e.accepted = true; } }
@@ -312,7 +312,7 @@ AppWindow {
                             color: win.error !== "" ? Theme.danger : Theme.text
                             selectionColor: Theme.accent
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(15) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             Accessible.role: Accessible.StaticText
                             Accessible.name: Tr.t("Translation") + ": " + text
                         }
@@ -322,7 +322,7 @@ AppWindow {
                             text: Tr.t("Translation appears here")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                     }
                 }
@@ -335,7 +335,7 @@ AppWindow {
                 Text {
                     visible: !win.compact
                     text: Tr.t("On this computer — nothing is sent anywhere")
-                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Button { text: Tr.t("Read aloud"); enabled: win.result !== "" && win.error === ""; onClicked: Speak.speaking ? Speak.stop() : Speak.speak(win.result) }
                 Button { text: Tr.t("Prompter"); enabled: win.result !== "" && win.error === ""; onClicked: { Quickshell.clipboardText = win.result; Ui.teleprompter = true; } }
@@ -355,7 +355,7 @@ AppWindow {
                 text: Tr.t("On this computer — nothing is sent anywhere")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
     }

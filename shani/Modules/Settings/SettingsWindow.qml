@@ -113,7 +113,7 @@ AppWindow {
                             text: row.modelData.label.toUpperCase()
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             font.weight: Font.DemiBold
                             font.letterSpacing: 0.6
                             Accessible.role: Accessible.Heading
@@ -136,7 +136,7 @@ AppWindow {
                                 elide: Text.ElideRight
                                 color: row.current ? Theme.text : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 font.weight: row.current ? Font.DemiBold : Font.Normal
                             }
                             Rectangle {
@@ -178,7 +178,7 @@ AppWindow {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Button {
                             text: changed.keys.length > 1 ? Tr.t("Undo all") : Tr.t("Undo")
@@ -209,7 +209,7 @@ AppWindow {
                                 ToolTip.visible: changedLabel.truncated && changedHover.hovered
                                 ToolTip.delay: 400
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 color: Theme.dim
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
@@ -258,14 +258,14 @@ AppWindow {
                         text: Tr.t("Settings")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         Accessible.role: Accessible.Link
                         Accessible.name: text
                         Accessible.onPressAction: winRoot.crumbBack()
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: winRoot.crumbBack() }
                         KeyFocus { name: crumbSettings.text; onActivated: winRoot.crumbBack() }
                     }
-                    Text { text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Text {
                         text: page.catTitle
                         color: Theme.text
@@ -275,13 +275,13 @@ AppWindow {
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
-                    Text { visible: winRoot.crumbSubpage !== ""; text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { visible: winRoot.crumbSubpage !== ""; text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Text {
                         visible: winRoot.crumbSubpage !== ""
                         text: winRoot.crumbSubpage
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                 }
                 SettingsPage {

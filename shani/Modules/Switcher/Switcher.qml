@@ -189,7 +189,7 @@ PanelWindow {
             text: Tr.t("No windows open")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
 
         ListView {
@@ -244,7 +244,7 @@ PanelWindow {
                         maximumLineCount: 2
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Text {
                         Layout.fillWidth: true
@@ -253,7 +253,7 @@ PanelWindow {
                                            : Niri.workspaceLabel(cell.modelData.workspace_id)
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
                 // a stack carries a count badge, so it never silently hides windows
@@ -272,7 +272,7 @@ PanelWindow {
                         text: cell.windowCount
                         color: Theme.accentInk
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -299,7 +299,7 @@ PanelWindow {
             text: Tr.t("Tab move · Enter switch · Esc cancel · G group · Q close · Shift+Q close app")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 }

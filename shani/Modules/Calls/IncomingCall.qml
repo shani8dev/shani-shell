@@ -51,7 +51,7 @@ PanelWindow {
                         text: Link.incoming.name || Link.incoming.number || Tr.t("Unknown")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
@@ -60,7 +60,7 @@ PanelWindow {
                         text: Tr.t("Incoming call") + (Link.incoming.line ? " · " + Link.incoming.line : "")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         elide: Text.ElideRight
                     }
                 }

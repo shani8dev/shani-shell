@@ -91,7 +91,7 @@ Variants {
         component Label: Text {
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             elide: Text.ElideRight
         }
 
@@ -108,7 +108,7 @@ Variants {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(6)
-                Label { text: Tr.t(WidgetRegistry.labelFor("agenda")); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Label { text: Tr.t(WidgetRegistry.labelFor("agenda")); color: Theme.dim; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
                 Label { visible: Agenda.upcoming.length === 0; text: Agenda.available ? Tr.t("Nothing in the calendar") : Tr.t("Add a calendar in Settings > Your account"); color: Theme.dim }
                 Repeater {
                     model: Agenda.upcoming.slice(0, 4)
@@ -116,7 +116,7 @@ Variants {
                         required property var modelData
                         width: agendaCol.width
                         Label { width: agendaCol.width; text: modelData.summary; font.weight: Font.Medium }
-                        Label { width: agendaCol.width; text: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : ""); color: Theme.dim; font.pixelSize: Theme.px(10.5) * Theme.fontScale }
+                        Label { width: agendaCol.width; text: Agenda.when(modelData) + (modelData.location ? " · " + modelData.location : ""); color: Theme.dim; font.pixelSize: Theme.type("caption") }
                     }
                 }
             }
@@ -148,8 +148,8 @@ Variants {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Label { text: Power.charging ? Tr.t("Charging") : Power.full ? Tr.t("Full") : Tr.t("On battery"); font.weight: Font.Medium }
-                    Label { text: Power.timeLeft; color: Theme.dim; font.pixelSize: Theme.px(10.5) * Theme.fontScale; visible: text !== "" }
-                    Label { text: Power.profileName; color: Theme.faint; font.pixelSize: Theme.px(10.5) * Theme.fontScale }
+                    Label { text: Power.timeLeft; color: Theme.dim; font.pixelSize: Theme.type("caption"); visible: text !== "" }
+                    Label { text: Power.profileName; color: Theme.faint; font.pixelSize: Theme.type("caption") }
                 }
             }
         }
@@ -166,7 +166,7 @@ Variants {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(6)
-                Label { text: Tr.t(WidgetRegistry.labelFor("note")); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Label { text: Tr.t(WidgetRegistry.labelFor("note")); color: Theme.dim; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
                 Text {
                     id: noteText
                     width: parent.width
@@ -176,7 +176,7 @@ Variants {
                     maximumLineCount: 8
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
         }
@@ -194,7 +194,7 @@ Variants {
                 anchors.fill: parent
                 anchors.margins: Theme.px(14)
                 spacing: Theme.px(4)
-                Label { text: Tr.t(WidgetRegistry.labelFor("clocks")); color: Theme.dim; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Label { text: Tr.t(WidgetRegistry.labelFor("clocks")); color: Theme.dim; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
                 Label { visible: WorldClock.clocks.length === 0; text: Tr.t("Pick cities under the calendar"); color: Theme.dim }
                 Repeater {
                     model: WorldClock.clocks

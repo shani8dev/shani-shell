@@ -159,7 +159,7 @@ PanelWindow {
                     color: Theme.dim
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 IconButton {
                     icon: "edit-clear-all"
@@ -218,7 +218,7 @@ PanelWindow {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.DemiBold
                         }
                         Rectangle {
@@ -232,7 +232,7 @@ PanelWindow {
                                 text: stack.modelData.items.length
                                 color: Theme.accent
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -240,7 +240,7 @@ PanelWindow {
                             text: stack.open ? "▾" : "▸"
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                         }
                         IconButton {
                             icon: "window-close"

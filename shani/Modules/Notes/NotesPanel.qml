@@ -200,7 +200,7 @@ AppWindow {
                                           + modelData.name + (modelData.notebook ? "  ·  " + modelData.notebook : "")
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                     elide: Text.ElideRight
                                 }
                                 Text {
@@ -209,7 +209,7 @@ AppWindow {
                                     text: Services.QuickNotes.preview(modelData.name, modelData.notebook)
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                     elide: Text.ElideRight
                                     maximumLineCount: 1
                                 }
@@ -454,7 +454,7 @@ AppWindow {
                     text: Services.QuickNotes.lockError !== "" ? Services.QuickNotes.lockError : win.statusText
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     wrapMode: Text.Wrap
                     Accessible.role: Accessible.StatusBar
                 }
@@ -492,7 +492,7 @@ AppWindow {
                             color: Theme.text
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Button { text: Tr.t("Reload"); onClicked: Services.QuickNotes.reloadFromDisk() }
                         Button { text: Tr.t("Discard"); onClicked: Services.QuickNotes.discardExternalChange() }
@@ -566,7 +566,7 @@ AppWindow {
                         visible: win.note !== ""
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         wrapMode: Text.Wrap
                     }
 
@@ -654,7 +654,7 @@ AppWindow {
                         anchors { fill: parent; margins: Theme.px(4) }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: Tr.t("Earlier versions"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: Tr.t("Earlier versions"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                             Button { text: Tr.t("Previous"); enabled: win.historyIndex > 0; onClicked: win.stepVersion(-1) }
                             Button { text: Tr.t("Next"); enabled: win.historyIndex >= 0 && win.historyIndex < Services.QuickNotes.historyList.length - 1; onClicked: win.stepVersion(1) }
                             Button {
@@ -709,7 +709,7 @@ AppWindow {
                     color: Theme.surface1
                     ColumnLayout {
                         anchors { fill: parent; margins: Theme.px(4) }
-                        Text { text: Tr.t("Notes linking here"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: Tr.t("Notes linking here"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         ListView {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -797,7 +797,7 @@ AppWindow {
                         anchors { fill: parent; margins: Theme.px(4) }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: Tr.t("Trash"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: Tr.t("Trash"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                             Button {
                                 text: Tr.t("Empty the trash")
                                 flat: true

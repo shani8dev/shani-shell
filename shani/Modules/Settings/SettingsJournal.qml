@@ -78,7 +78,7 @@ ColumnLayout {
         title: Tr.t("Journal")
         hint: Tr.t("Journal storage is managed by a systemd drop-in. Vacuum removes old entries; it does not change the limit.")
 
-    Text { text: Tr.t("Storage"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Text { text: Tr.t("Storage"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Repeater {
@@ -102,13 +102,13 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { text: Tr.t("System max use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { text: Tr.t("System max use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         TextField {
             id: maxUseField; Layout.fillWidth: true; placeholder: "500M"
             error: maxUseField.text.trim() !== "" && !/^\d+(\.\d+)?\s*[KMGT]?$/i.test(maxUseField.text.trim()) ? Tr.t("Use a size like 500M or 2G") : ""
         }
     }
-    Text { text: Tr.t("Forward to syslog"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Text { text: Tr.t("Forward to syslog"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Repeater {
@@ -116,7 +116,7 @@ ColumnLayout {
             Choice { required property var modelData; text: modelData; selected: page.forwardToSyslog === modelData; onClicked: page.forwardToSyslog = modelData }
         }
     }
-    Text { text: Tr.t("Compress"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Text { text: Tr.t("Compress"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Repeater {
@@ -124,7 +124,7 @@ ColumnLayout {
             Choice { required property var modelData; text: modelData; selected: page.compress === modelData; onClicked: page.compress = modelData }
         }
     }
-    Text { text: Tr.t("Seal"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+    Text { text: Tr.t("Seal"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
         Repeater {
@@ -134,7 +134,7 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { text: Tr.t("Rate limit interval"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { text: Tr.t("Rate limit interval"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         TextField {
             id: rateLimitIntervalField; Layout.fillWidth: true; placeholder: "30s"
             error: rateLimitIntervalField.text.trim() !== "" && !/^\d+\s*(ms|min|s|m|h|d|w)?$/i.test(rateLimitIntervalField.text.trim()) ? Tr.t("Use a time like 30s or 5min") : ""
@@ -142,7 +142,7 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true; spacing: Theme.px(6)
-        Text { text: Tr.t("Rate limit burst"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { text: Tr.t("Rate limit burst"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         TextField {
             id: rateLimitBurstField; Layout.fillWidth: true; placeholder: "10000"
             error: rateLimitBurstField.text.trim() !== "" && !/^\d+$/.test(rateLimitBurstField.text.trim()) ? Tr.t("Use a whole number") : ""

@@ -43,7 +43,7 @@ PanelWindow {
                 elide: Text.ElideRight
                 maximumLineCount: 1
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
         Text {
@@ -61,7 +61,7 @@ PanelWindow {
             maximumLineCount: 2
             verticalAlignment: Text.AlignBottom
             font.family: Theme.font
-            font.pixelSize: Theme.px(17) * Theme.fontScale
+            font.pixelSize: Theme.type("subtitle")
         }
     }
 }

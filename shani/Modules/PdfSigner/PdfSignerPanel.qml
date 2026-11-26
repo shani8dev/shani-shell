@@ -71,7 +71,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevPage() }
@@ -144,7 +144,7 @@ AppWindow {
                         text: PdfSigner.error !== "" ? PdfSigner.error : Tr.t("Open a PDF to sign")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -179,7 +179,7 @@ AppWindow {
                                     text: Tr.t("Signature")
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                     font.weight: Font.DemiBold
                                 }
                             }
@@ -202,7 +202,7 @@ AppWindow {
                                 text: Tr.t("X  ·  Y  ·  SCALE")
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -237,7 +237,7 @@ AppWindow {
                                 text: Tr.t("x / y / scale place the signature on the page")
                                 color: Theme.faint
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
 
                             SectionTitle { Layout.fillWidth: true; text: Tr.t("Fill text") }
@@ -254,7 +254,7 @@ AppWindow {
                                 text: Tr.t("X  ·  Y")
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -334,7 +334,7 @@ AppWindow {
                                 text: PdfSigner.rangeError
                                 color: Theme.red
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
 
                             Item { Layout.fillHeight: true }
@@ -353,7 +353,7 @@ AppWindow {
                                 color: PdfSigner.error !== "" ? Theme.red : Theme.dim
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -361,7 +361,7 @@ AppWindow {
                                 color: Theme.faint
                                 horizontalAlignment: Text.AlignHCenter
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
 
                         }

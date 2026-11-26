@@ -82,7 +82,7 @@ Item {
                         text: WindowPreview.title || (root.win ? (root.win.title || root.win.app_id || "") : "")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         elide: Text.ElideRight
                     }
 
@@ -106,7 +106,7 @@ Item {
                         color: Theme.text
                         opacity: 0.8
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         wrapMode: Text.NoWrap
                         elide: Text.ElideRight
                         maximumLineCount: 8
@@ -125,7 +125,7 @@ Item {
                             text: root.path.split("/").pop()
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             elide: Text.ElideMiddle
                         }
                     }
@@ -135,7 +135,7 @@ Item {
                         text: Tr.t("Press Space in Files to look closer")
                         color: Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
                 Process {

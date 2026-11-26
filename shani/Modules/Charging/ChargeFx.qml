@@ -114,7 +114,7 @@ PanelWindow {
             text: Power.full ? Tr.t("Full") : (Power.charging && Power.timeLeft ? Power.timeLeft : Tr.t("Charging"))
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
     }
 }

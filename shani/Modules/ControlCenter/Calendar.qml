@@ -23,7 +23,7 @@ ColumnLayout {
             text: Qt.formatDate(root.month, "MMMM yyyy")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; onClicked: root.offset = 0 }
             KeyFocus { onActivated: root.offset = 0 }
@@ -43,7 +43,7 @@ ColumnLayout {
             color: Theme.faint
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
         Repeater {
             model: root.weekNames
@@ -54,7 +54,7 @@ ColumnLayout {
                 text: modelData
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
         Repeater {

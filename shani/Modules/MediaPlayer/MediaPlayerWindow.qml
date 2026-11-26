@@ -414,7 +414,7 @@ AppWindow {
                         color: Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -511,7 +511,7 @@ AppWindow {
                             color: PlayQueue.error !== "" ? Theme.danger : "white"
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(16) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -522,7 +522,7 @@ AppWindow {
                             color: "#c0ffffff"
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         Text {
                             Layout.fillWidth: true
@@ -532,7 +532,7 @@ AppWindow {
                             color: "#a0ffffff"
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             // the one-line header opens the whole answer
                             MouseArea {
                                 anchors.fill: parent
@@ -550,7 +550,7 @@ AppWindow {
                             color: "#b0ffffff"
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         Button {
                             Layout.alignment: Qt.AlignHCenter
@@ -607,7 +607,7 @@ AppWindow {
                             color: "white"
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(15) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             font.weight: Font.DemiBold
                         }
                     }
@@ -623,7 +623,7 @@ AppWindow {
                             id: resumeRow
                             anchors.centerIn: parent
                             spacing: Theme.px(10)
-                            Text { text: Tr.t("Resumed at %1", PlayQueue.clock(PlayQueue.resumedFrom)); color: "white"; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Text { text: Tr.t("Resumed at %1", PlayQueue.clock(PlayQueue.resumedFrom)); color: "white"; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                             Button { text: Tr.t("Start over"); flat: true; onClicked: { player.position = 0; PlayQueue.resumedFrom = 0; resumeNote.stop(); } }
                         }
                     }
@@ -641,8 +641,8 @@ AppWindow {
                             anchors.fill: parent
                             anchors.margins: Theme.px(10)
                             spacing: Theme.px(10)
-                            Text { Layout.fillWidth: true; text: Tr.t("Saved %1", win.frameSaved); color: "white"; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                            Text { text: Tr.t("Open"); color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: Tr.t("Saved %1", win.frameSaved); color: "white"; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                            Text { text: Tr.t("Open"); color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                         }
                         // the whole toast opens it: a Button with this handler here
                         // stopped the window from ever mapping
@@ -723,13 +723,13 @@ AppWindow {
                                 Layout.fillWidth: true
                                 visible: win.cues.length > 0 && win.subSource === "file"
                                 spacing: Theme.px(6)
-                                Text { text: Tr.t("Timing"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                Text { text: Tr.t("Timing"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                                 IconButton { icon: "media-seek-backward"; tip: Tr.t("Earlier"); size: Theme.px(24); onClicked: win.nudgeSubtitles(-1) }
                                 Text {
                                     text: (PlayQueue.subtitleShift > 0 ? "+" : "") + PlayQueue.subtitleShift.toFixed(1) + " s"
                                     color: Theme.text
                                     font.family: Theme.mono
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 IconButton { icon: "media-seek-forward"; tip: Tr.t("Later"); size: Theme.px(24); onClicked: win.nudgeSubtitles(1) }
                                 Item { Layout.fillWidth: true }
@@ -766,7 +766,7 @@ AppWindow {
                                             text: PlayQueue.clock(chapterRow.modelData.start)
                                             color: chapterRow.now ? Theme.accent : Theme.dim
                                             font.family: Theme.mono
-                                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                                            font.pixelSize: Theme.type("small")
                                             font.features: { "tnum": 1 }
                                         }
                                         Text {
@@ -775,7 +775,7 @@ AppWindow {
                                             color: Theme.text
                                             elide: Text.ElideRight
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                            font.pixelSize: Theme.type("body")
                                         }
                                     }
                                     Accessible.role: Accessible.ListItem
@@ -812,8 +812,8 @@ AppWindow {
                                 mode: "url"
                                 onAccepted: { win.streamError = !win.playStreamUrl(text); }
                             }
-                            Text { visible: win.streamError; text: Tr.t("Enter an http, rtsp or rtmp address"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                            Text { text: Tr.t("http(s), rtsp, rtmp, udp, tcp, srt, ftp or mms"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { visible: win.streamError; text: Tr.t("Enter an http, rtsp or rtmp address"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
+                            Text { text: Tr.t("http(s), rtsp, rtmp, udp, tcp, srt, ftp or mms"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                             RowLayout {
                                 Layout.fillWidth: true
                                 Item { Layout.fillWidth: true }
@@ -855,7 +855,7 @@ AppWindow {
                                         text: modelData.label
                                         color: Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                     Text {
                                         Layout.fillWidth: true
@@ -863,7 +863,7 @@ AppWindow {
                                         color: Theme.text
                                         wrapMode: Text.WrapAnywhere
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                 }
                             }
@@ -962,7 +962,7 @@ AppWindow {
                         text: PlayQueue.clock(seekArea.pressed ? seekArea.at / 1000 : PlayQueue.position) + " / " + PlayQueue.clock(PlayQueue.duration)
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.features: { "tnum": 1 }
                     }
                     TextField {
@@ -974,7 +974,7 @@ AppWindow {
                         onAccepted: if (!win.goToTime(text)) win.goError = true; else win.goError = false
                     }
                     Button { text: Tr.t("Go"); flat: true; enabled: PlayQueue.current !== ""; onClicked: { if (!win.goToTime(goField.text)) win.goError = true; else win.goError = false; } }
-                    Text { visible: win.goError; text: Tr.t("Bad time"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { visible: win.goError; text: Tr.t("Bad time"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Button { text: "A"; flat: true; checked: PlayQueue.loopA >= 0; onClicked: PlayQueue.setLoopA(PlayQueue.position); Accessible.name: Tr.t("Set loop start") }
                     Button { text: "B"; flat: true; checked: PlayQueue.loopB > PlayQueue.loopA; onClicked: PlayQueue.setLoopB(PlayQueue.position); Accessible.name: Tr.t("Set loop end") }
                     Button { text: Tr.t("Loop off"); flat: true; visible: PlayQueue.loopActive; onClicked: PlayQueue.clearLoop() }
@@ -984,7 +984,7 @@ AppWindow {
                         text: Tr.t("Speed")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Repeater {
                         model: [0.5, 1, 1.25, 1.5, 2]
@@ -1115,7 +1115,7 @@ AppWindow {
                         color: Theme.faint
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     ListView {
                         reuseItems: true
@@ -1144,7 +1144,7 @@ AppWindow {
                                 color: row.now ? Theme.text : Theme.dim
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PlayQueue.go(row.index) }
                             KeyFocus { onActivated: PlayQueue.go(row.index) }   // keys and a controller: play this one
@@ -1215,7 +1215,7 @@ AppWindow {
                             color: Theme.text
                             elide: Text.ElideMiddle
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         MouseArea {
                             id: recentArea
@@ -1227,7 +1227,7 @@ AppWindow {
                         KeyFocus { onActivated: { PlayQueue.playRecent(recentRow.modelData.path); win.recentShown = false; } }
                     }
                 }
-                Text { visible: PlayQueue.recent.length === 0; text: Tr.t("Nothing played yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { visible: PlayQueue.recent.length === 0; text: Tr.t("Nothing played yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             }
         }
     }
@@ -1300,7 +1300,7 @@ AppWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StaticText
             }
             // ---- pick up where the book was left ----
@@ -1325,8 +1325,8 @@ AppWindow {
                     RowLayout {
                         anchors { fill: parent; leftMargin: Theme.px(8); rightMargin: Theme.px(8) }
                         spacing: Theme.px(8)
-                        Text { Layout.fillWidth: true; text: contRow.modelData.title; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                        Text { text: PlayQueue.clock(contRow.modelData.at); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; text: contRow.modelData.title; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                        Text { text: PlayQueue.clock(contRow.modelData.at); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
                     }
                     MouseArea { id: contArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.openContinue(contRow.modelData.path) }
                     KeyFocus { onActivated: win.openContinue(contRow.modelData.path) }
@@ -1338,7 +1338,7 @@ AppWindow {
                 text: Tr.t("Nothing to continue yet")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             // ---- sleep timer: a number of minutes, or the chapter's end ----
             SectionTitle { Layout.fillWidth: true; text: Tr.t("Sleep timer") }
@@ -1375,7 +1375,7 @@ AppWindow {
                     : Tr.t("Pausing in %1 min", PlayQueue.sleepMinutesLeft.toFixed(1))
                 color: Theme.accent
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             // ---- 15-second skips and the full speed ladder ----
             RowLayout {
@@ -1393,7 +1393,7 @@ AppWindow {
                     onClicked: win.skip(15)
                     Accessible.name: Tr.t("Skip forward 15 seconds")
                 }
-                Text { text: Tr.t("Speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1451,9 +1451,9 @@ AppWindow {
                     RowLayout {
                         anchors { fill: parent; leftMargin: Theme.px(8); rightMargin: Theme.px(30) }
                         spacing: Theme.px(8)
-                        Text { text: tlRow.modelData.chapter ? "C" : "B"; color: Theme.accent; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                        Text { text: PlayQueue.clock(tlRow.modelData.at); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                        Text { Layout.fillWidth: true; text: tlRow.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: tlRow.modelData.chapter ? "C" : "B"; color: Theme.accent; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
+                        Text { text: PlayQueue.clock(tlRow.modelData.at); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
+                        Text { Layout.fillWidth: true; text: tlRow.modelData.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     }
                     MouseArea {
                         id: tlArea

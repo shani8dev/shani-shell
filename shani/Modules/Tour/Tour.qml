@@ -83,7 +83,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(20) * Theme.fontScale
+                font.pixelSize: Theme.type("subtitle")
                 font.weight: Font.DemiBold
             }
             Text {
@@ -94,7 +94,7 @@ PanelWindow {
                 wrapMode: Text.Wrap
                 lineHeight: 1.15
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Rectangle {
                 visible: win.cards[win.step].keys !== ""
@@ -104,7 +104,7 @@ PanelWindow {
                 radius: Theme.px(8)
                 color: Theme.hover
                 border.color: Theme.stroke
-                Text { id: keys; anchors.centerIn: parent; text: win.cards[win.step].keys; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { id: keys; anchors.centerIn: parent; text: win.cards[win.step].keys; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("body") }
             }
             // "Make it yours": each opens the place to do it, the tour stays done
             Flow {

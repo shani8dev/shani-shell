@@ -252,7 +252,7 @@ AppWindow {
                     : ""   // the list: its title is the window's own, not repeated
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(16) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
             }
             Item { Layout.fillWidth: true }
@@ -340,7 +340,7 @@ AppWindow {
                 text: win.editName
                 onTextChanged: win.editName = text
             }
-            Text { text: Tr.t("Phone numbers"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Phone numbers"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Repeater {
                 model: win.editPhones
                 RowLayout {
@@ -383,7 +383,7 @@ AppWindow {
                 Accessible.name: Tr.t("Add another phone number")
                 onClicked: win.editPhones = win.editPhones.concat([{ type: "mobile", number: "" }])
             }
-            Text { text: Tr.t("Email addresses"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Email addresses"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Repeater {
                 model: win.editEmails
                 RowLayout {
@@ -437,7 +437,7 @@ AppWindow {
                 text: "Photo: " + win.avatarPath
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 elide: Text.ElideMiddle
             }
             Button {
@@ -462,7 +462,7 @@ AppWindow {
                     ? Tr.t("Use year-month-day, or month-day") : ""
                 onTextChanged: win.editBirthday = text
             }
-            Text { text: Tr.t("Address"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Address"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Repeater {
                 model: win.editAddresses
                 RowLayout {
@@ -529,7 +529,7 @@ AppWindow {
                 text: Contacts.error
                 color: Theme.red
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             }
         }
@@ -547,7 +547,7 @@ AppWindow {
                 text: Tr.t("These contacts look like the same person. Click a row to merge them — one card keeps all their phone numbers and emails.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             ListView {
                 id: dupList
@@ -660,7 +660,7 @@ AppWindow {
                 text: Tr.t("%1 chosen", win.chosen.length)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }
@@ -757,7 +757,7 @@ AppWindow {
                             text: ((modelData.name || "?").charAt(0) || "?").toUpperCase()
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                     }
                     ColumnLayout {
@@ -767,7 +767,7 @@ AppWindow {
                             text: (modelData.name || Tr.t("Unnamed")) + (modelData.uid === Contacts.myUid ? "  ·  " + Tr.t("You") : "") + (modelData.favorite ? "  ★" : "")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -776,7 +776,7 @@ AppWindow {
                             text: [modelData.phone, modelData.email].filter(x => x).join("  ·  ")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -853,7 +853,7 @@ AppWindow {
             text: Contacts.notice
             color: Theme.accent
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             Accessible.role: Accessible.StatusBar
             Accessible.name: Contacts.notice
         }
@@ -864,7 +864,7 @@ AppWindow {
             text: Contacts.error
             color: Theme.red
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             Accessible.role: Accessible.StatusBar
             Accessible.name: Contacts.error
         }
@@ -877,7 +877,7 @@ AppWindow {
                 : Tr.t("%1 contact%2 · Esc closes", Contacts.contacts.length, Contacts.contacts.length === 1 ? "" : "s")
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
     }
 
@@ -929,7 +929,7 @@ AppWindow {
                         text: detailCol.c.name || ""
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                         wrapMode: Text.Wrap
                     }
@@ -945,7 +945,7 @@ AppWindow {
                             Layout.fillWidth: true
                             text: win.phoneType(modelData.type) + ": " + (modelData.number || "")
                             Accessible.name: win.phoneType(modelData.type) + " phone: " + (modelData.number || "")
-                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight
+                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight
                         }
                         IconButton {
                             size: Theme.px(24)
@@ -966,7 +966,7 @@ AppWindow {
                             Layout.fillWidth: true
                             text: win.emailType(modelData.type) + ": " + (modelData.address || "")
                             Accessible.name: win.emailType(modelData.type) + " email: " + (modelData.address || "")
-                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; elide: Text.ElideRight
+                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight
                         }
                         IconButton {
                             size: Theme.px(24)
@@ -994,7 +994,7 @@ AppWindow {
                     text: "★ Favourite"
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 RowLayout {
                     Layout.fillWidth: true

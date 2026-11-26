@@ -626,7 +626,7 @@ ShellRoot {
                                 anchors.fill: parent
                                 visible: root.pageId === "welcome"
                                 spacing: 8
-                                Text { text: root.t("popular"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                                Text { text: root.t("popular"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: 6
@@ -640,7 +640,7 @@ ShellRoot {
                                         }
                                     }
                                 }
-                                Text { text: root.t("allLanguages"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                                Text { text: root.t("allLanguages"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                                 TextField { id: langSearch; Layout.fillWidth: true; placeholder: root.t("searchLang") }
                                 ListView {
                                     id: langList
@@ -676,7 +676,7 @@ ShellRoot {
                                 anchors.fill: parent
                                 visible: root.pageId === "keyboard"
                                 spacing: 8
-                                Text { text: root.t("commonLayouts"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                                Text { text: root.t("commonLayouts"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: 6

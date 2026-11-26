@@ -48,9 +48,9 @@ PanelWindow {
         spacing: Theme.px(4)
         RowLayout {
             Layout.fillWidth: true
-            Text { text: m.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: m.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Item { Layout.fillWidth: true }
-            Text { text: m.value; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
+            Text { text: m.value; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.features: { "tnum": 1 } }
         }
         Rectangle {
             Layout.fillWidth: true
@@ -86,14 +86,14 @@ PanelWindow {
                 fraction: SysStats.mem
             }
             BusyNote { visible: TopProcesses.list.length === 0; note: Tr.t("Reading…") }
-            Text { visible: win.heavy.length > 0; text: Tr.t("Using the most memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { visible: win.heavy.length > 0; text: Tr.t("Using the most memory"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Repeater {
                 model: win.heavy
                 RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { text: modelData.mem.toFixed(1) + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { text: modelData.mem.toFixed(1) + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.features: { "tnum": 1 } }
                 }
             }
             ConfirmButton {
@@ -117,7 +117,7 @@ PanelWindow {
                 text: Tr.t("Closing what you no longer use is what frees memory; apps may ask to save first.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

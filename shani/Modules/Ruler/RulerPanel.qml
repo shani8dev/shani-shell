@@ -167,7 +167,7 @@ PanelWindow {
             text: Ruler.sizeLabel() + (Ruler.hasSecond ? "\n" + Ruler.lineLabel() : "")
             color: "#ffffff"
             font.family: Theme.font
-            font.pixelSize: Theme.px(15) * Theme.fontScale
+            font.pixelSize: Theme.type("heading")
             font.bold: true
         }
     }
@@ -180,7 +180,7 @@ PanelWindow {
         text: Tr.t("Drag to measure  ·  Shift: straight line  ·  Right-click: clear  ·  Esc: close  ·  Ctrl+C: copy")
         color: "#ffffff"
         font.family: Theme.font
-        font.pixelSize: Theme.px(13) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
         // dark shadow for readability over any background
         style: Text.Outline
         styleColor: Qt.rgba(0, 0, 0, 0.6)
@@ -197,7 +197,7 @@ PanelWindow {
             text: Tr.t("DPI calibration:")
             color: "#ffffff"
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             style: Text.Outline
             styleColor: Qt.rgba(0, 0, 0, 0.6)
         }
@@ -215,7 +215,7 @@ PanelWindow {
                 color: "#ffffff"
                 inputMethodHints: Qt.ImhDigitsOnly
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 Accessible.role: Accessible.EditableText
                 Accessible.name: Tr.t("DPI calibration")
                 onEditingFinished: {
@@ -229,7 +229,7 @@ PanelWindow {
             text: Ruler.dpi > 0 ? Tr.t("cm / in shown") : Tr.t("Set DPI for cm/in")
             color: "#ffffff"
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             style: Text.Outline
             styleColor: Qt.rgba(0, 0, 0, 0.6)
         }

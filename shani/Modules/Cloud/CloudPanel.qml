@@ -130,7 +130,7 @@ AppWindow {
                             text: Tr.t("New sync job")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.DemiBold
                         }
                         TextField {
@@ -144,7 +144,7 @@ AppWindow {
                             text: Tr.t("Remote — pick a cloud, then add a path")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Flow {
                             Layout.fillWidth: true
@@ -174,7 +174,7 @@ AppWindow {
                             text: Tr.t("Direction")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -193,7 +193,7 @@ AppWindow {
                             text: Tr.t("If a file exists there already")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Flow {
                             Layout.fillWidth: true
@@ -271,7 +271,7 @@ AppWindow {
                                         color: Theme.text
                                         elide: Text.ElideMiddle
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                                        font.pixelSize: Theme.type("body")
                                         font.weight: Font.DemiBold
                                     }
                                 }
@@ -317,7 +317,7 @@ AppWindow {
                                 color: Theme.dim
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 Accessible.name: row.modelData.remote + " to " + row.modelData.local
                             }
                             Rectangle {
@@ -346,7 +346,7 @@ AppWindow {
                                 color: Theme.dim
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             InfoBanner {
                                 objectName: "cloud-job-error"
@@ -373,14 +373,14 @@ AppWindow {
                                     text: Tr.t("Job details")
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                             }
                             GridLayout {
                                 Layout.fillWidth: true
                                 visible: win.selected === row.modelData.id
                                 columns: 2
-                                Text { text: Tr.t("Conflicts"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                Text { text: Tr.t("Conflicts"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: Theme.px(4)
@@ -395,7 +395,7 @@ AppWindow {
                                         }
                                     }
                                 }
-                                Text { text: Tr.t("Bandwidth"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                Text { text: Tr.t("Bandwidth"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                                 TextField {
                                     Layout.fillWidth: true
                                     text: row.modelData.bandwidth || ""
@@ -404,7 +404,7 @@ AppWindow {
                                     onAccepted: CloudSync.settings(row.modelData.id, row.modelData.conflict,
                                                                    text.trim(), row.modelData.interval || 0)
                                 }
-                                Text { text: Tr.t("Repeat every (seconds)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                Text { text: Tr.t("Repeat every (seconds)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                                 TextField {
                                     Layout.fillWidth: true
                                     text: String(row.modelData.interval || 0)
@@ -420,7 +420,7 @@ AppWindow {
                                 text: Tr.t("Last runs")
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             Repeater {
                                 model: win.selected === row.modelData.id ? (row.modelData.history || []).slice().reverse().slice(0, 8) : []
@@ -432,7 +432,7 @@ AppWindow {
                                     color: Theme.faint
                                     elide: Text.ElideMiddle
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                 }
                             }
                         }

@@ -177,7 +177,7 @@ AppWindow {
                 visible: win.note !== ""
                 text: win.note
                 color: Theme.accent; wrapMode: Text.WordWrap
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StaticText; Accessible.name: win.note
             }
             Text {
@@ -185,7 +185,7 @@ AppWindow {
                 visible: !Clipboard.available
                 text: Tr.t("Clipboard history is not available")
                 color: Theme.danger; wrapMode: Text.WordWrap
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StaticText; Accessible.name: text
             }
 
@@ -210,7 +210,7 @@ AppWindow {
                             Layout.preferredWidth: Theme.px(26); Layout.preferredHeight: Theme.px(26)
                             radius: Theme.px(6); color: Theme.accentSoft
                             Text { anchors.centerIn: parent; text: win.slotLabel(slotList.index); color: Theme.accentInk
-                                   font.family: Theme.mono; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                                   font.family: Theme.mono; font.pixelSize: Theme.type("body") }
                         }
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 0
@@ -218,13 +218,13 @@ AppWindow {
                                 Layout.fillWidth: true; text: row.modelData.image ? Tr.t("Image") : row.modelData.text
                                 color: Theme.text; elide: Text.ElideRight; maximumLineCount: 1
                                 font.family: row.modelData.image ? Theme.font : Theme.mono
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             Text {
                                 Layout.fillWidth: true; visible: row.modelData.image
                                 text: row.modelData.preview || Tr.t("No preview")
                                 color: Theme.faint; elide: Text.ElideMiddle
-                                font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.family: Theme.font; font.pixelSize: Theme.type("caption")
                             }
                         }
                         IconButton {
@@ -277,14 +277,14 @@ AppWindow {
                     visible: win.hasEntries && win.shown.length === 0
                     text: win.favouritesOnly ? Tr.t("No favourite entries") : Tr.t("No matching entries")
                     color: Theme.dim
-                    font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.family: Theme.font; font.pixelSize: Theme.type("body")
                 }
             }
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("Press 1-9 to paste a slot, Enter to paste the selected one")
                 color: Theme.faint; wrapMode: Text.WordWrap
-                font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("caption")
             }
         }
     }

@@ -102,9 +102,10 @@ def test_hint_uses_theme_tokens_and_scales_with_text():
         "Theme.text",
         "Theme.font",
         "Theme.px",
-        "Theme.fontScale",
     ):
         assert token in hints, token
+    # text scales with large text: Theme.type() multiplies by fontScale
+    assert "Theme.type(" in hints or "Theme.fontScale" in hints
     # no hard-coded colour makes an opaque card that ignores Reduce transparency
     assert not re.search(r'color:\s*"#|color:\s*"white"|color:\s*"black"', hints)
 

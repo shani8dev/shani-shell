@@ -140,7 +140,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         TextField {
             id: hiddenSsid
@@ -265,7 +265,7 @@ ColumnLayout {
             text: Tr.t("Exit node")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         ListRow {
             visible: Net.tailscaleUp && Net.exitNodes.length > 0
@@ -315,7 +315,7 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { text: out.modelData.label + "  ·  " + out.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: out.modelData.label + "  ·  " + out.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -535,7 +535,7 @@ ColumnLayout {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Repeater {
                     model: Bluetooth.devices.values.slice().sort((a, b) => (b.connected - a.connected) || (b.paired - a.paired))
@@ -569,7 +569,7 @@ ColumnLayout {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 ColumnLayout {
                     visible: phoneDetails.pairKind === "code"
@@ -631,7 +631,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Button { text: Tr.t("Mirror"); onClicked: Mirror.mirror(mRow.modelData.serial, false) }
                 Button { visible: !mRow.modelData.wifi; text: Tr.t("Over Wi-Fi"); onClicked: Mirror.mirror(mRow.modelData.serial, true) }
@@ -644,7 +644,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
     }
 

@@ -62,8 +62,9 @@ def test_shared_components_use_the_same_additive_tokens():
         assert "property int %s:" % token in EMPTY, token
         assert "property int %s:" % token in BANNER, token
     # every text in both components scales with the large-text setting
-    assert EMPTY.count("* Theme.fontScale") == 2
-    assert BANNER.count("* Theme.fontScale") == 2
+    # (Theme.type() applies fontScale: docs/DESIGN.md)
+    assert EMPTY.count("* Theme.fontScale") + EMPTY.count("Theme.type(") == 2
+    assert BANNER.count("* Theme.fontScale") + BANNER.count("Theme.type(") == 2
     # tokens are really used, not just declared
     assert "spacing: root.padding" in EMPTY
     assert "size: root.iconSize" in EMPTY

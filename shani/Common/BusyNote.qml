@@ -18,7 +18,7 @@ RowLayout {
         text: root.note
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         wrapMode: Text.Wrap
     }
 }

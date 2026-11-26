@@ -144,7 +144,7 @@ Item {
                             Layout.fillWidth: true
                             text: row.modelData.name
                             color: Theme.text; elide: Text.ElideRight
-                            font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.family: Theme.font; font.pixelSize: Theme.type("body")
                         }
                         StatusPill {
                             text: panel.stateText(row.modelData.state)
@@ -157,7 +157,7 @@ Item {
                         text: row.modelData.type + " · "
                             + (row.modelData.autoconnect ? Tr.t("Autoconnect on") : Tr.t("Autoconnect off"))
                         color: Theme.dim; elide: Text.ElideRight
-                        font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.family: Theme.font; font.pixelSize: Theme.type("caption")
                     }
                     Text {
                         objectName: "vpn-stats"
@@ -165,7 +165,7 @@ Item {
                         visible: panel.statsLine(row.modelData.name) !== ""
                         text: panel.statsLine(row.modelData.name)
                         color: Theme.dim; elide: Text.ElideRight
-                        font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.family: Theme.mono; font.pixelSize: Theme.type("caption")
                         Accessible.name: text
                     }
                     RowLayout {
@@ -224,7 +224,7 @@ Item {
                     text: Tr.t("Remove %1 from NetworkManager? The profile file stays on disk.")
                         .arg(panel.pendingDelete)
                     color: Theme.text; wrapMode: Text.Wrap
-                    font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.family: Theme.font; font.pixelSize: Theme.type("body")
                 }
             }
         }

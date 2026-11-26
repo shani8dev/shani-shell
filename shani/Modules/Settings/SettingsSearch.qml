@@ -21,7 +21,7 @@ ColumnLayout {
         SwitchRow { Layout.fillWidth: true; text: Tr.t("Results from apps"); hint: Tr.t("what Files, Characters, Calculator … find themselves"); checked: page.d.searchProviders; onToggled: on => page.d.searchProviders = on }
         SwitchRow { Layout.fillWidth: true; text: Tr.t("Sums and conversions"); hint: Tr.t("12*12, 5 km in miles, 100 USD in INR"); checked: page.d.searchCalc; onToggled: on => page.d.searchCalc = on }
 
-        Text { visible: page.d.searchFiles; text: Tr.t("Look for files in"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+        Text { visible: page.d.searchFiles; text: Tr.t("Look for files in"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
         EmptyState {
             Layout.fillWidth: true
             visible: page.d.searchFiles && page.d.searchFolders.length === 0
@@ -55,7 +55,7 @@ ColumnLayout {
             }
         }
 
-        Text { text: Tr.t("Search the web with"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+        Text { text: Tr.t("Search the web with"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
         Flow {
             Layout.fillWidth: true
             spacing: Theme.px(6)

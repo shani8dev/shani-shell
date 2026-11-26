@@ -26,7 +26,7 @@ ColumnLayout {
         text: label
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.fontSmall * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
     }
 
     RowLayout {
@@ -39,7 +39,7 @@ ColumnLayout {
             text: Qt.formatDate(root.month, "MMMM yyyy")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.current = new Date() }
             KeyFocus { onActivated: root.current = new Date() }
@@ -84,7 +84,7 @@ ColumnLayout {
                 text: modelData
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
 
@@ -112,13 +112,13 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(6)
-        Text { text: root.value; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
-        Text { text: Tr.t("· tap a day to change"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+        Text { text: root.value; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+        Text { text: Tr.t("· tap a day to change"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     }
 
     // Quick picks
     // a label above the chips, not among them: a child as wide as its Flow makes the Flow re-lay out itself forever
-    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+    Text { Layout.fillWidth: true; text: Tr.t("Quick picks:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)

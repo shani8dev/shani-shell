@@ -50,7 +50,7 @@ PanelWindow {
         text: Share.lastError
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
         Accessible.name: text
     }
     // ---- drop files onto the sheet -----------------------------------------
@@ -106,7 +106,7 @@ PanelWindow {
                 color: Theme.text
                 elide: Text.ElideMiddle
                 font.family: Theme.font
-                font.pixelSize: Theme.px(15) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
             }
             Item { implicitHeight: Theme.px(4) }

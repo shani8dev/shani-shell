@@ -56,7 +56,7 @@ Rectangle {
                 text: banner.title
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
                 wrapMode: Text.Wrap
             }
@@ -67,7 +67,7 @@ Rectangle {
                 // An error in a dim label is an error nobody reads.
                 color: banner.tone === "error" || banner.tone === "danger" || banner.tone === "warn" ? Theme.text : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 wrapMode: Text.Wrap
             }
             RowLayout {

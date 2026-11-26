@@ -6,7 +6,7 @@
 //   Card { icon: "drive-harddisk-symbolic"; title: Tr.t("Daily backup")
 //          subtitle: Tr.t("A copy of your home folder each day")
 //          actions: [ Button { text: Tr.t("Back up now"); kind: "primary" } ]
-//          SwitchRow { ... } }
+//          SwitchRow { text: Tr.t("Back up every day"); checked: … } }
 import QtQuick
 import QtQuick.Layouts
 import qs.Common

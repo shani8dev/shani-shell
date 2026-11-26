@@ -8,6 +8,31 @@ fix it there, not at the call site.
 Consumer counts are `grep -rl "<Name> {" shani/Modules | wc -l` at time of
 writing; treat them as a reach warning, not a target.
 
+## Layout and grouping (docs/DESIGN.md)
+
+### AppPage.qml — an app's page  ·  canonical for app pages
+- `title`, `subtitle`, `actions` (alias: buttons on the right), default content
+  in a centred column (`maxContentWidth` `Theme.px(1100)`) that scrolls;
+  `compact` under 600 px: title one step smaller, actions under it.
+
+### Card.qml — a group on its own surface  ·  canonical for groups
+- `icon` (on a tinted badge), `title`, `subtitle`, `tint`, `actions` (alias),
+  default content (rows), `spacing` (`Theme.space(3)`), `padding`.
+- Draws flat (no surface) inside another card by itself (`isCard` on an ancestor).
+- `SettingsSection` is a Card with `hint` as its subtitle.
+
+### StatTile.qml — one fact at a glance
+- `icon`, `label`, `value` (subtitle size), `detail`, `progress` (0..1 bar, <0
+  none), `tint`, `interactive` + `signal clicked()`.
+
+### StatusHero.qml — the answer first
+- `tone` (`ok | warn | error | info | busy`), `overline`, `headline`, `detail`,
+  `chips` (short facts, as StatusPills), `actions` (alias); stacks under 560 px.
+
+### TileGrid.qml — tiles that wrap to their width
+- `minTileWidth`, `maxColumns` (4); columns from its own width; every child fills
+  an equal share.
+
 ## Feedback
 
 ### InfoBanner.qml — inline status message  ·  canonical for banners  ·  17 surfaces

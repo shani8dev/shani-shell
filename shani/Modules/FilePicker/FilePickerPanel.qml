@@ -71,7 +71,7 @@ PanelWindow {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.fontTitle * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "window-close"; size: Theme.px(28); tip: Tr.t("Close (Esc)"); onClicked: FilePicker.cancel() }
@@ -102,7 +102,7 @@ PanelWindow {
                                 text: modelData.name
                                 color: index === win.crumbs.length - 1 ? Theme.text : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
@@ -114,7 +114,7 @@ PanelWindow {
                                 text: "›"
                                 color: Theme.faint
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                         }
                     }
@@ -152,7 +152,7 @@ PanelWindow {
                                     color: Theme.text
                                     elide: Text.ElideRight
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                 }
                             }
                             MouseArea {
@@ -209,7 +209,7 @@ PanelWindow {
                                     color: Theme.text
                                     elide: Text.ElideMiddle
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                 }
                                 Text {
                                     Layout.preferredWidth: Theme.px(78)
@@ -217,7 +217,7 @@ PanelWindow {
                                     text: row.modelData.isDir ? "" : Files.humanSize(row.modelData.size)
                                     color: Theme.faint
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                             }
                             MouseArea {
@@ -277,7 +277,7 @@ PanelWindow {
                     color: FilePicker.error !== "" ? Theme.red : Theme.faint
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Button { text: Tr.t("Cancel"); onClicked: FilePicker.cancel() }
                 Button {

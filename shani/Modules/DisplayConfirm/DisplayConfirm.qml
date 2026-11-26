@@ -50,7 +50,7 @@ Variants {
                 RowLayout {
                     spacing: Theme.px(10)
                     Icon { name: "video-display"; size: Theme.px(22); color: Theme.accent }
-                    Text { text: Tr.t("Keep these display settings?"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(15) * Theme.fontScale; font.weight: Font.DemiBold }
+                    Text { text: Tr.t("Keep these display settings?"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
                 }
                 Text {
                     Layout.fillWidth: true
@@ -58,7 +58,7 @@ Variants {
                     Accessible.name: text
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Rectangle {
                     Layout.fillWidth: true

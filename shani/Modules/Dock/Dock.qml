@@ -475,7 +475,7 @@ PanelWindow {
                         text: cell.badge > 99 ? "99+" : cell.badge
                         color: "white"
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -518,7 +518,7 @@ PanelWindow {
                         text: "+" + (cell.modelData.windows.length - 3)
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -687,7 +687,7 @@ PanelWindow {
                                     elide: Text.ElideRight
                                     color: !!parent.modelData.danger ? Theme.danger : Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                 }
                                 MouseArea {
                                     id: item
@@ -727,7 +727,7 @@ PanelWindow {
                 anchors.right: parent.right; anchors.top: parent.top
                 width: Math.max(16, countText.implicitWidth + 8); height: Theme.px(16); radius: Theme.px(8)
                 color: Theme.accent
-                Text { id: countText; anchors.centerIn: parent; text: Shelf.parked.length; color: Theme.accentInk; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { id: countText; anchors.centerIn: parent; text: Shelf.parked.length; color: Theme.accentInk; font.family: Theme.font; font.pixelSize: Theme.type("caption"); font.weight: Font.DemiBold }
             }
             DropArea {
                 id: shelfDrop
@@ -954,7 +954,7 @@ PanelWindow {
             anchors.centerIn: parent
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 
@@ -974,7 +974,7 @@ PanelWindow {
             anchors.centerIn: parent
             spacing: Theme.px(8)
             Icon { name: "go-down"; size: Theme.px(16); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: Tr.t("The dock steps aside for your windows — rest the pointer on the bottom edge to bring it back"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { text: Tr.t("The dock steps aside for your windows — rest the pointer on the bottom edge to bring it back"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         }
     }
 }

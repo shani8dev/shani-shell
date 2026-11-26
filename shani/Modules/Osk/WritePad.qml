@@ -70,7 +70,7 @@ Item {
         text: pad.reading ? Tr.t("Reading…") : Tr.t("Write here, on the lines - scribble over a word to rub it out")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(14) * Theme.fontScale
+        font.pixelSize: Theme.type("heading")
     }
     Canvas {
         id: ink

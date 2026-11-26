@@ -391,7 +391,7 @@ ColumnLayout {
                     Text {
                         Layout.fillWidth: true; Layout.leftMargin: Theme.px(36)
                         text: modelData.meaning; color: Theme.dim; wrapMode: Text.Wrap
-                        font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.family: Theme.font; font.pixelSize: Theme.type("caption")
                         Accessible.name: text
                     }
                 }
@@ -456,7 +456,7 @@ ColumnLayout {
             }
             Text {
                 Layout.fillWidth: true; color: Theme.dim; wrapMode: Text.Wrap
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 text: page.tpmEnrolled
                     ? Tr.t("Turning this off means you type your passphrase at each boot. Nothing on the disk is deleted.")
                     : Tr.t("This stores your passphrase so the computer can unlock the disk by itself. It needs administrator access; a password may be asked.")
@@ -499,7 +499,7 @@ ColumnLayout {
         }
         Text {
             Layout.fillWidth: true; color: Theme.dim; wrapMode: Text.Wrap
-            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.family: Theme.font; font.pixelSize: Theme.type("small")
             text: Tr.t("A new key makes older recovery keys stop working. Write it down or save it to a file you pick — it is shown only now.")
         }
         RowLayout {
@@ -528,7 +528,7 @@ ColumnLayout {
                     id: keyText; anchors.fill: parent; anchors.margins: Theme.px(10)
                     readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
                     text: page.shownKey; color: Theme.text
-                    font.family: Theme.mono; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.family: Theme.mono; font.pixelSize: Theme.type("body")
                     Accessible.name: Tr.t("Recovery key")
                 }
             }
@@ -543,7 +543,7 @@ ColumnLayout {
 
         Text {
             Layout.fillWidth: true; color: Theme.dim; wrapMode: Text.Wrap
-            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.family: Theme.font; font.pixelSize: Theme.type("small")
             text: Tr.t("A copy of the disk header lets an expert help if the disk will not open. Keep that copy off this disk.")
         }
         RowLayout {
@@ -572,7 +572,7 @@ ColumnLayout {
             Layout.fillWidth: true; visible: page.loaded && page.secureBoot; spacing: Theme.px(8)
             Text {
                 Layout.fillWidth: true; color: Theme.dim; wrapMode: Text.Wrap
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 text: Tr.t("Stage a new signing key when you start using one. Remove old keys once the new one is confirmed.")
             }
             RowLayout {

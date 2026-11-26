@@ -130,7 +130,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         RowLayout {
             Layout.fillWidth: true

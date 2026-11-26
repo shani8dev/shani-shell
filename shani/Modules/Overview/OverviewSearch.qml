@@ -141,13 +141,13 @@ PanelWindow {
                 text: win.typed || Tr.t("Type to search apps, files and settings")
                 color: win.typed ? Theme.text : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(16) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
             }
             Text {
                 text: Tr.t("arrows · Enter · Esc")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.IBeamCursor; onClicked: win.search("") }
@@ -186,7 +186,7 @@ PanelWindow {
                 text: Tr.t("Tools:")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Row {
                 height: Theme.px(28)
@@ -208,7 +208,7 @@ PanelWindow {
                         text: modelData.name
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
             }
@@ -246,8 +246,8 @@ PanelWindow {
                         anchors.leftMargin: Theme.px(5)
                         anchors.rightMargin: Theme.px(4)
                         Icon { name: modelData.icon; size: Theme.px(14); color: modelData.ws.is_focused ? Theme.accentInk : Theme.text }
-                        Text { text: modelData.label; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; color: modelData.ws.is_focused ? Theme.accentInk : Theme.text }
-                        Text { text: modelData.windows; color: modelData.ws.is_focused ? Theme.accentInk : Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: modelData.label; font.family: Theme.font; font.pixelSize: Theme.type("small"); color: modelData.ws.is_focused ? Theme.accentInk : Theme.text }
+                        Text { text: modelData.windows; color: modelData.ws.is_focused ? Theme.accentInk : Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -296,7 +296,7 @@ PanelWindow {
                             text: parent.parent.modelData.keys
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             font.weight: Font.Medium
                         }
                     }
@@ -305,7 +305,7 @@ PanelWindow {
                         text: parent.modelData.what
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
             }

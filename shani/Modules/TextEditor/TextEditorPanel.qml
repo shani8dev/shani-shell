@@ -859,7 +859,7 @@ AppWindow {
                                 text: tab.asking ? Tr.t("Close without saving?") : (tab.modelData.modified ? "● " : "") + tab.modelData.name
                                 color: tab.asking ? Theme.danger : tab.front ? Theme.text : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             MouseArea {
                                 id: tabArea
@@ -958,7 +958,7 @@ AppWindow {
                         text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : (win.matchIndex >= 0 ? (win.matchIndex + 1) + "/" : "") + win.matches + " " + Tr.t("found")
                         color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     IconButton { icon: "go-up"; tip: Tr.t("Previous match"); onClicked: win.find(false) }
                     IconButton { icon: "go-down"; tip: Tr.t("Next match"); onClicked: win.find(true) }
@@ -1029,7 +1029,7 @@ AppWindow {
                         text: Tr.t("This will replace all occurrences of the search text with the replacement text. This cannot be undone.")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         wrapMode: Text.Wrap
                     }
                 }
@@ -1067,7 +1067,7 @@ AppWindow {
                                 color: Theme.text
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             IconButton { size: Theme.px(24); icon: "folder-open"; tip: "Open another folder"; onClicked: win.pickFolder() }
                             IconButton { size: Theme.px(24); icon: "window-close"; tip: "Hide sidebar"; onClicked: filesPane.open = false }
@@ -1086,7 +1086,7 @@ AppWindow {
                             color: Theme.danger
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         ListView {
                             Layout.fillWidth: true
@@ -1109,7 +1109,7 @@ AppWindow {
                                     color: Theme.text
                                     elide: Text.ElideRight
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 MouseArea {
                                     id: fileArea
@@ -1135,7 +1135,7 @@ AppWindow {
                             text: Tr.t("No files here")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                 }
@@ -1503,7 +1503,7 @@ AppWindow {
                     color: TextDocs.error !== "" ? Theme.danger : Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Text {
                     readonly property var at: {
@@ -1523,7 +1523,7 @@ AppWindow {
                                + (win.multiCursor ? "  ·  " + (win.extraCursors.length + 1) + " " + Tr.t("cursors") : ""))
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     font.features: { "tnum": 1 }
                 }
             }
@@ -1567,7 +1567,7 @@ AppWindow {
                         color: Theme.text
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -1617,7 +1617,7 @@ AppWindow {
                 text: "Open a project folder first (Ctrl+K, O)"
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Text {
                 Layout.fillWidth: true
@@ -1625,7 +1625,7 @@ AppWindow {
                 text: "Searching…"
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             ListView {
                 Layout.fillWidth: true
@@ -1646,13 +1646,13 @@ AppWindow {
                             text: modelData.text
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Text {
                             text: modelData.path + ":" + modelData.line
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                     }
                     MouseArea {
@@ -1689,7 +1689,7 @@ AppWindow {
                 text: Tr.t("Highlight as")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             ComboBox {
                 id: syntaxCombo
@@ -1723,7 +1723,7 @@ AppWindow {
                 text: Tr.t("Font family")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             ComboBox {
                 id: fontCombo
@@ -1779,7 +1779,7 @@ AppWindow {
                 text: "Install .tmTheme bundles in Share/shani-textmate to see themes here."
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 wrapMode: Text.Wrap
             }
         }

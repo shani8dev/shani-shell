@@ -74,7 +74,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -84,7 +84,7 @@ ColumnLayout {
                     color: Theme.accent
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Accessible.role: Accessible.Button
                     Accessible.name: Tr.t("Switch player (now %1)").arg(sidebar.player ? sidebar.player.identity : "")
                     Accessible.onPressAction: Media.cycle()
@@ -98,7 +98,7 @@ ColumnLayout {
                     color: Theme.dim
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 // seek: click along the track (only when the player allows it)
                 Rectangle {
@@ -119,7 +119,7 @@ ColumnLayout {
                         text: Time.clock(np.shown)
                         color: Theme.faint
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         Accessible.name: Tr.t("Elapsed %1").arg(text)
                     }
                     Text {
@@ -127,7 +127,7 @@ ColumnLayout {
                         text: Time.clock(parent.len)
                         color: Theme.faint
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         Accessible.name: Tr.t("Total %1").arg(text)
                     }
                     Rectangle {
@@ -216,7 +216,7 @@ ColumnLayout {
             color: Theme.text
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.italic: true
         }
     }

@@ -37,8 +37,13 @@ def test_segmented_tabs_answer_pointer_and_keyboard():
 
 def test_status_pill_maps_every_tone_to_a_palette_token():
     t = (COMMON / "StatusPill.qml").read_text()
-    for token in ("Theme.accent", "Theme.amber", "Theme.danger", "Theme.dim"):
-        assert token in t
+    # one table for every status mark since the redesign (docs/DESIGN.md)
+    assert "Theme.toneColor(tone)" in t
+    theme = (COMMON / "Theme.qml").read_text()
+    table = theme[theme.index("function toneColor"):]
+    table = table[:table.index("\n    }")]
+    for token in ("success", "amber", "danger", "blue", "dim", "accent"):
+        assert token in table, token
     assert "Accessible.name: pill.text" in t
 
 

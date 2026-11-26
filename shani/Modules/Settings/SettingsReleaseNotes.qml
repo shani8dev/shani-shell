@@ -26,7 +26,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
         Accessible.role: Accessible.StaticText
         Accessible.name: text
     }
@@ -79,7 +79,7 @@ ColumnLayout {
                             color: Theme.text
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             font.weight: Font.DemiBold
                             Accessible.role: Accessible.StaticText
                             Accessible.name: text
@@ -96,7 +96,7 @@ ColumnLayout {
                                     visible: modelData.kind === "bullet"
                                     color: Theme.accent
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                     Accessible.ignored: true
                                 }
                                 Text {

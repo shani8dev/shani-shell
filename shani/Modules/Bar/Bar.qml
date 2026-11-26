@@ -403,7 +403,7 @@ Variants {
                                 text: parent.modelData.name || ""
                                 color: parent.modelData.is_active ? Theme.accentInk : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 maximumLength: 24
                                 Accessible.role: Accessible.EditableText
                                 Accessible.name: Tr.t("Rename workspace %1", parent.index + 1)
@@ -432,7 +432,7 @@ Variants {
                                     + (WorkspaceLayout.isFloating(modelData) ? " ◇" : "")
                                 color: modelData.is_active ? Theme.accentInk : (parent.occupied ? Theme.text : Theme.dim)
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 font.weight: Font.DemiBold
                             }
                             MouseArea {
@@ -532,7 +532,7 @@ Variants {
                                     elide: Text.ElideRight
                                     color: bar.inlineMenu === menuLabel.index ? Theme.accentInk : Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                 }
                                 MouseArea {
                                     id: menuMouse
@@ -564,7 +564,7 @@ Variants {
                                 text: "⋯"
                                 color: bar.inlineMenu === bar.overflowMenuIndex ? Theme.accentInk : Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             MouseArea {
                                 id: moreMenuMouse
@@ -589,7 +589,7 @@ Variants {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.Medium
                         }
                         // the layout suggestion: only while the title is hovered or the
@@ -601,7 +601,7 @@ Variants {
                             visible: bar.suggestion !== "" && (titleHover.hovered || Ui.barFocus)
                             text: bar.suggestion
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             font.underline: suggestionArea.containsMouse
                             color: Theme.accent
                             elide: Text.ElideRight
@@ -868,7 +868,7 @@ Variants {
                         text: Ime.running ? Ime.label : Niri.layout.slice(0, 2).toLowerCase()
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Icon { visible: Focus.on; name: Focus.mode ? Focus.mode.icon : ""; size: Theme.px(15); color: Theme.accent; anchors.verticalCenter: parent.verticalCenter; Accessible.name: Tr.t("Focus mode") }
@@ -930,7 +930,7 @@ Variants {
                         text: Math.round(Power.percent * 100) + "%"
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -959,7 +959,7 @@ Variants {
                         font.features: { "tnum": 1 }
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -970,7 +970,7 @@ Variants {
                         font.features: { "tnum": 1 }
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
@@ -979,7 +979,7 @@ Variants {
                         font.features: { "tnum": 1 }
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     // an update waiting: a dot on the clock, one tap to open Updates
@@ -1051,7 +1051,7 @@ Variants {
                                     text: appMi.modelData.checked ? "✓" : ""
                                     Layout.preferredWidth: Theme.px(12)
                                     color: Theme.accent
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -1059,13 +1059,13 @@ Variants {
                                     elide: Text.ElideRight
                                     color: appMi.modelData.enabled === false ? Theme.faint : Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 Text {
                                     text: appMi.modelData.items ? (bar.inlineExpanded[appMi.modelData.path] ? "▾" : "▸") : (appMi.modelData.shortcut || "")
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                 }
                             }
                             MouseArea {
@@ -1192,7 +1192,7 @@ Variants {
                                 color: Theme.text
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                         }
                     }

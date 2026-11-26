@@ -52,7 +52,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 Repeater {
@@ -77,7 +77,7 @@ AppWindow {
                         color: Theme.text
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -108,7 +108,7 @@ AppWindow {
                             : Tr.t("The biggest files in this folder and the ones in it")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Button { visible: DiskUsage.view === "dupes" && DiskUsage.dupes.length > 0; text: Tr.t("Mark every copy but the oldest"); kind: "outline"; onClicked: DiskUsage.markAllExtras() }
                 }
@@ -146,7 +146,7 @@ AppWindow {
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(modelData.head ? 11 : 12) * Theme.fontScale
                             }
-                            Text { visible: !modelData.head; text: DiskUsage.humanSize(modelData.size || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { visible: !modelData.head; text: DiskUsage.humanSize(modelData.size || 0); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         }
                         Accessible.role: Accessible.CheckBox
                         Accessible.name: modelData.head ? Tr.t("%1 copies of %2", modelData.n, DiskUsage.humanSize(modelData.size)) : (modelData.path || "")
@@ -256,7 +256,7 @@ AppWindow {
                     text: DiskUsage.error !== "" ? DiskUsage.error : Tr.t("Nothing here")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
 
@@ -267,7 +267,7 @@ AppWindow {
                     : Tr.t("Click a folder to walk in · click a file to mark it")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             // review the marked list before anything is trashed
@@ -306,7 +306,7 @@ AppWindow {
                             color: Theme.text
                             elide: Text.ElideMiddle
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         IconButton {
                             icon: "window-close"
@@ -327,7 +327,7 @@ AppWindow {
                 text: Tr.t("Nothing marked — click a file block to mark it for removal")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             RowLayout {
@@ -347,7 +347,7 @@ AppWindow {
                     color: Theme.red
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Button {
                     text: Tr.t("Move marked to trash (%1)").arg(DiskUsage.markedCount)
@@ -363,7 +363,7 @@ AppWindow {
                 text: Tr.t("Click a folder to walk in · Esc goes back · nothing is deleted until you review the marked list")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }
@@ -387,7 +387,7 @@ AppWindow {
                 text: Tr.t("This will move %1 item(s) to your trash. They will stay there until you empty the trash manually.", DiskUsage.markedCount)
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 wrapMode: Text.Wrap
             }
             ScrollView {
@@ -401,7 +401,7 @@ AppWindow {
                         text: modelData
                         color: Theme.dim
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
             }

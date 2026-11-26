@@ -109,7 +109,7 @@ RowLayout {
         color: Theme.dim
         horizontalAlignment: Text.AlignRight
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 
     IconButton {

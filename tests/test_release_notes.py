@@ -57,7 +57,7 @@ def test_reader_is_a_scrollable_accessible_surface():
     assert "page.sections.length > 1" in src
     assert '"See all past notes"' in src
     assert "Theme.surface1" in src and "Theme.stroke" in src
-    assert "Theme.px(12) * Theme.fontScale" in src
+    assert 'Theme.type("body")' in src   # on the type scale (docs/DESIGN.md)
     # no hard-coded colour: the reader follows the theme
     assert not re.search(r'color:\s*"(?:#|rgb|rgba)', src)
     # honest loading / error / empty states

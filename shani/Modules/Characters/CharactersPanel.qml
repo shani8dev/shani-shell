@@ -125,7 +125,7 @@ AppWindow {
                             maximumLineCount: 2
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Text {
                             Layout.fillWidth: true
@@ -134,7 +134,7 @@ AppWindow {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                     }
                     MouseArea {
@@ -168,7 +168,7 @@ AppWindow {
                 color: win.copiedLabel !== "" ? Theme.accent : Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

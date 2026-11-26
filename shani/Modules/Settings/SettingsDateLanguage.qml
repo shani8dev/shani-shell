@@ -105,9 +105,9 @@ ColumnLayout {
         }
         ColumnLayout {
             Layout.fillWidth: true; spacing: Theme.px(4)
-            Text { text: Tr.t("NTP servers (space separated)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("NTP servers (space separated)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: ntpServersField; Layout.fillWidth: true; placeholder: "time.cloudflare.com 0.pool.ntp.org" }
-            Text { text: Tr.t("Fallback NTP servers"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Fallback NTP servers"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: ntpFallbackField; Layout.fillWidth: true; placeholder: "1.pool.ntp.org" }
             RowLayout {
                 Layout.fillWidth: true
@@ -156,7 +156,7 @@ ColumnLayout {
             text: Tr.t("Time zone: %1").arg(page.zone || Tr.t("unknown"))
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.fontBody * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         // click where you are; the search below is for those who would rather type
         Item {
@@ -194,7 +194,7 @@ ColumnLayout {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
 
         // ---- world clocks: more cities on the control centre's calendar ---------
@@ -303,7 +303,7 @@ ColumnLayout {
             wrapMode: Text.Wrap
             lineHeight: 1.2
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         RowLayout {
             spacing: Theme.px(6)
@@ -374,7 +374,7 @@ ColumnLayout {
             color: page.systemLocaleOk ? Theme.accent : Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Text {
             Layout.fillWidth: true
@@ -382,7 +382,7 @@ ColumnLayout {
             color: Theme.faint
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Button {
             visible: page.lang !== "" && page.lang.replace(/\..*$/, "") !== page.langAtLogin
@@ -399,7 +399,7 @@ ColumnLayout {
             text: Tr.t("The week starts on")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Flow {
             Layout.fillWidth: true

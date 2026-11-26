@@ -195,7 +195,7 @@ ColumnLayout {
                     visible: (arr.modelData.detail || "") !== ""
                     text: arr.modelData.detail || ""
                     color: Theme.dim; wrapMode: Text.Wrap
-                    font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.family: Theme.mono; font.pixelSize: Theme.type("caption")
                 }
             }
         }
@@ -272,7 +272,7 @@ ColumnLayout {
             visible: ((page.results.btrfs || {}).scrub || "") !== ""
             text: Tr.t("Last check") + ": " + (page.results.btrfs || {}).scrub
             color: Theme.dim; wrapMode: Text.Wrap
-            font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.family: Theme.mono; font.pixelSize: Theme.type("caption")
         }
         Repeater {
             model: page.list("compression", "lines")
@@ -281,7 +281,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 text: modelData
                 color: Theme.dim; wrapMode: Text.Wrap
-                font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.family: Theme.mono; font.pixelSize: Theme.type("caption")
             }
         }
     }
@@ -314,7 +314,7 @@ ColumnLayout {
                     visible: (disk.modelData.health || "") !== ""
                     text: Tr.t("Health") + ": " + disk.modelData.health
                     color: Theme.dim; wrapMode: Text.Wrap
-                    font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.family: Theme.mono; font.pixelSize: Theme.type("caption")
                 }
             }
         }
@@ -365,7 +365,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 text: Tr.t("A health reading taken here is not a scheduled test.")
                 color: Theme.dim; wrapMode: Text.Wrap
-                font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("caption")
             }
         }
     }

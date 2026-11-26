@@ -15,7 +15,7 @@ ColumnLayout {
     function isCurrent(v) { return typeof v === "number" && typeof current === "number" ? Math.abs(current - v) < 0.001 : String(current) === String(v); }
     Layout.fillWidth: true
     spacing: Theme.px(6)
-    Text { visible: picks.label !== ""; text: picks.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+    Text { visible: picks.label !== ""; text: picks.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)

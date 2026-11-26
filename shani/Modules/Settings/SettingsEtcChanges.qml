@@ -190,7 +190,7 @@ ColumnLayout {
                 text: page.diffText
                 color: Theme.text
                 font.family: Theme.mono
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 wrapMode: Text.NoWrap
             }
         }

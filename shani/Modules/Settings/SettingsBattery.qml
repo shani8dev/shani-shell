@@ -96,7 +96,7 @@ ColumnLayout {
                     text: Math.round(page.health) + " %"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(20) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     font.weight: Font.DemiBold
                 }
             }
@@ -121,7 +121,7 @@ ColumnLayout {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
         }
@@ -136,13 +136,13 @@ ColumnLayout {
                 + (page.info.rate > 0.05 ? "  ·  " + page.info.rate.toFixed(1) + " W" : "")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
 
         // ---- the charge over time (upowerd's own record) ----
         RowLayout {
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: Tr.t("Charge"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { Layout.fillWidth: true; text: Tr.t("Charge"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             SegmentedTabs {
                 options: [Tr.t("24 hours"), Tr.t("7 days")]
                 currentIndex: page.span === 86400 ? 0 : 1
@@ -160,7 +160,7 @@ ColumnLayout {
                 ctx.reset();
                 const w = width, h = height, padL = 30, padB = 18, gw = w - padL - 6, gh = h - padB - 6;
                 const now = Date.now() / 1000, from = now - page.span;
-                ctx.font = Math.round(Theme.px(10) * Theme.fontScale) + "px " + Theme.font;
+                ctx.font = Math.round(Theme.type("caption")) + "px " + Theme.font;
                 // 0, 50 and 100 %: faint lines, labelled
                 for (const v of [0, 50, 100]) {
                     const y = 6 + gh * (1 - v / 100);
@@ -203,7 +203,7 @@ ColumnLayout {
             text: Tr.t("Accent: charging. The line: on battery.")
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
 
         // ---- what is using the most power right now ----
@@ -214,7 +214,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: page.hungry
@@ -222,7 +222,7 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Text { Layout.preferredWidth: Theme.px(160); text: modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(160); text: modelData.name; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: Theme.px(6)
@@ -230,7 +230,7 @@ ColumnLayout {
                     color: Theme.surface3
                     Rectangle { width: parent.width * Math.min(1, modelData.cpu / 100); height: parent.height; radius: Theme.px(3); color: Theme.accent }
                 }
-                Text { Layout.preferredWidth: Theme.px(44); horizontalAlignment: Text.AlignRight; text: modelData.cpu + " %"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(44); horizontalAlignment: Text.AlignRight; text: modelData.cpu + " %"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             }
         }
 
@@ -242,7 +242,7 @@ ColumnLayout {
                    page.info.temperature > 0 ? page.info.temperature.toFixed(0) + " °C" : ""].filter(x => x).join("  ·  ")
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 }

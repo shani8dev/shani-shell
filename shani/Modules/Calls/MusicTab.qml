@@ -26,7 +26,7 @@ ColumnLayout {
         Accessible.name: root.title
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(18) * Theme.fontScale
+        font.pixelSize: Theme.type("subtitle")
         font.weight: Font.DemiBold
         wrapMode: Text.Wrap
     }
@@ -37,7 +37,7 @@ ColumnLayout {
         Accessible.name: root.detail
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
         wrapMode: Text.Wrap
     }
     EmptyState {
@@ -80,7 +80,7 @@ ColumnLayout {
         text: PhoneTools.note
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         wrapMode: Text.Wrap
     }
     Item { Layout.fillHeight: true }

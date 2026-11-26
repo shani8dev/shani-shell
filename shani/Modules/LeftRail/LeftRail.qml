@@ -155,7 +155,7 @@ Scope {
                                     ? String(cell.ws.name).substring(0, 1).toUpperCase() : String(cell.index + 1)
                                 color: cell.active ? Theme.accent : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 font.weight: cell.active ? Font.DemiBold : Font.Normal
                             }
                             Grid {

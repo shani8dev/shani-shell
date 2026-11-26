@@ -65,7 +65,7 @@ AppWindow {
                     text: Tr.t("Backup")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(17) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     font.weight: Font.DemiBold
                 }
                 Button {
@@ -120,7 +120,7 @@ AppWindow {
                 text: Tr.t("The backup tool is not installed here. Snapshots and backups cannot be made or restored.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             StackLayout {
@@ -142,7 +142,7 @@ AppWindow {
                                 text: Backup.versions
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             Button {
                                 text: Tr.t("Take a snapshot now")
@@ -170,7 +170,7 @@ AppWindow {
                                 Accessible.name: text
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             Rectangle {
                                 Layout.preferredWidth: Theme.px(120)
@@ -310,7 +310,7 @@ AppWindow {
                                     text: Tr.t("Nothing by that name in any earlier copy. Try a shorter name.")
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 Text {
                                     visible: Backup.findTruncated
@@ -319,7 +319,7 @@ AppWindow {
                                     text: Tr.t("Showing the first 60 matches. Type more of the name to narrow it down.")
                                     color: Theme.faint
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                 }
                                 ListView {
                                     visible: Backup.findResults.length > 0
@@ -361,7 +361,7 @@ AppWindow {
                             text: Tr.t("Taking a snapshot needs administrator rights. Restoring a file puts a copy beside the current one; nothing in your home is overwritten.")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                     }
                 }
@@ -380,7 +380,7 @@ AppWindow {
                                 text: Backup.drive
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             Button {
                                 text: Tr.t("Open backup drive")
@@ -433,7 +433,7 @@ AppWindow {
                                 text: Backup.progress + "%"
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                         }
 
@@ -502,7 +502,7 @@ AppWindow {
                                         text: win.restoreTarget || Tr.t("No folder chosen yet")
                                         color: Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                     Button {
                                         text: Tr.t("Choose folder")

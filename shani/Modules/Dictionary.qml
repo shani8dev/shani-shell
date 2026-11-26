@@ -152,7 +152,7 @@ AppWindow {
                 text: Tr.t("Definitions, synonyms and antonyms")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             Text {
@@ -162,7 +162,7 @@ AppWindow {
                 text: Tr.t("No definitions for ") + win.q
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
 
             // ---- near misses: a hint from the bundled words ------------------
@@ -170,7 +170,7 @@ AppWindow {
                 visible: win.noMatch && win.suggestions.length > 0
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { Layout.fillWidth: true; text: Tr.t("Did you mean"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; Accessible.name: Tr.t("Did you mean") }
+                Text { Layout.fillWidth: true; text: Tr.t("Did you mean"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold; Accessible.name: Tr.t("Did you mean") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -194,7 +194,7 @@ AppWindow {
                 text: Tr.t("Type a word to start · see definitions, synonyms and antonyms")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
 
             // ---- the detail of the word found / chosen ----------------------
@@ -209,7 +209,7 @@ AppWindow {
                     Layout.fillWidth: true
                     text: win.entry ? win.entry.word : ""
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(17) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     font.weight: Font.Bold
                     Accessible.name: Tr.t("Word")
                 }
@@ -242,13 +242,13 @@ AppWindow {
                     }
                 }
 
-                Text { Layout.fillWidth: true; text: Tr.t("Synonyms"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; text: Tr.t("Synonyms"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
                 Repeater {
                     model: win.entry ? win.entry.synonyms : []
                     ListRow { required property string modelData; Layout.fillWidth: true; title: modelData; interactive: false }
                 }
 
-                Text { Layout.fillWidth: true; text: Tr.t("Antonyms"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; text: Tr.t("Antonyms"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
                 Repeater {
                     model: win.entry ? win.entry.antonyms : []
                     ListRow { required property string modelData; Layout.fillWidth: true; title: modelData; interactive: false }
@@ -260,7 +260,7 @@ AppWindow {
                 visible: win.hasQuery && win.results.length > 1 && win.entry === null
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { Layout.fillWidth: true; text: Tr.t("Results"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; text: Tr.t("Results"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
                 Flickable {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.min(220, col.implicitHeight)
@@ -293,7 +293,7 @@ AppWindow {
                 spacing: Theme.px(4)
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: Tr.t("History"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold }
+                    Text { Layout.fillWidth: true; text: Tr.t("History"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold }
                     Button { text: Tr.t("Clear"); kind: "plain"; onClicked: win.history = [] }
                 }
                 Flickable {
@@ -324,14 +324,14 @@ AppWindow {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { Layout.fillWidth: true; text: Tr.t("Pinned"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; Accessible.name: Tr.t("Pinned words") }
+                Text { Layout.fillWidth: true; text: Tr.t("Pinned"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.DemiBold; Accessible.name: Tr.t("Pinned words") }
                 Text {
                     visible: win.pinned.length === 0
                     Layout.fillWidth: true
                     text: Tr.t("No pinned words yet · pin one from its entry")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Flow {
                     visible: win.pinned.length > 0

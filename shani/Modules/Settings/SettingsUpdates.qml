@@ -84,7 +84,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 
@@ -154,15 +154,15 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: Updates.installing || Updates.progress.length > 0 || Updates.note !== "" || Updates.installError !== ""
         spacing: Theme.px(4)
-        Text { Layout.fillWidth: true; visible: Updates.note !== ""; text: Updates.note; color: Theme.accent; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        Text { Layout.fillWidth: true; visible: Updates.installError !== ""; text: Updates.installError; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; visible: Updates.note !== ""; text: Updates.note; color: Theme.accent; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+        Text { Layout.fillWidth: true; visible: Updates.installError !== ""; text: Updates.installError; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         ListView {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(160, Updates.progress.length * 16 + 8)
             visible: Updates.progress.length > 0
             clip: true
             model: Updates.progress
-            delegate: Text { required property string modelData; width: ListView.view.width; text: modelData; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideLeft }
+            delegate: Text { required property string modelData; width: ListView.view.width; text: modelData; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.type("caption"); elide: Text.ElideLeft }
         }
     }
 
@@ -172,6 +172,6 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 }

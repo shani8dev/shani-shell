@@ -81,7 +81,7 @@ ColumnLayout {
             text: PhoneTools.note !== "" ? PhoneTools.note : String(PhoneTools.remote.status || "")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             wrapMode: Text.Wrap
         }
     }

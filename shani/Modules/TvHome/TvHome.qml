@@ -276,7 +276,7 @@ PanelWindow {
                 Text {
                     text: Qt.formatDate(clock.date, "dddd d MMMM")
                     color: Theme.dim
-                    font.pixelSize: Theme.px(16) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                 }
             }
         }
@@ -288,7 +288,7 @@ PanelWindow {
                 visible: Power.hasBattery
                 text: Math.round(Power.percent * 100) + "%"
                 color: Theme.text
-                font.pixelSize: Theme.px(18) * Theme.fontScale
+                font.pixelSize: Theme.type("subtitle")
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
@@ -328,7 +328,7 @@ PanelWindow {
                             x: Theme.px(48)
                             text: shelf.modelData.title
                             color: shelf.active ? Theme.text : Theme.dim
-                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.pixelSize: Theme.type("subtitle")
                             font.weight: Font.DemiBold
                         }
                         ListView {
@@ -400,7 +400,7 @@ PanelWindow {
                                         text: card.modelData.label
                                         color: Theme.text
                                         elide: Text.ElideRight
-                                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                                        font.pixelSize: Theme.type("heading")
                                     }
                                     Text {
                                         visible: !!card.modelData.subtitle && card.modelData.subtitle !== card.modelData.label
@@ -409,7 +409,7 @@ PanelWindow {
                                         text: card.modelData.subtitle || ""
                                         color: Theme.dim
                                         elide: Text.ElideRight
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                 }
                                 MouseArea {
@@ -453,9 +453,9 @@ PanelWindow {
                         radius: height / 2
                         color: Theme.glassStrong
                         border.color: Theme.border
-                        Text { id: keyText; anchors.centerIn: parent; text: modelData.key; color: Theme.text; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
+                        Text { id: keyText; anchors.centerIn: parent; text: modelData.key; color: Theme.text; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
                     }
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: modelData.what; color: Theme.dim; font.pixelSize: Theme.px(15) * Theme.fontScale }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: modelData.what; color: Theme.dim; font.pixelSize: Theme.type("heading") }
                 }
             }
         }
@@ -479,13 +479,13 @@ PanelWindow {
                 Text {
                     text: win.quick ? (win.quick.subtitle || win.quick.label) : ""
                     color: Theme.text
-                    font.pixelSize: Theme.px(20) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: win.quick ? win.quick.label : ""
                     color: Theme.dim
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Row {
                     spacing: Theme.px(24)
@@ -504,7 +504,7 @@ PanelWindow {
                             implicitWidth: Theme.px(130)
                             height: Theme.px(42)
                             MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: modelData.run() }
-                            Text { anchors.centerIn: parent; text: modelData.what; color: Theme.text; font.pixelSize: Theme.px(15) * Theme.fontScale }
+                            Text { anchors.centerIn: parent; text: modelData.what; color: Theme.text; font.pixelSize: Theme.type("heading") }
                         }
                     }
                 }

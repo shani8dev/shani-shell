@@ -204,7 +204,7 @@ AppWindow {
                     color: Theme.danger
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Repeater {
                     model: zoneSearch.text.trim().length >= 2 ? WorldClock.matchingZones(zoneSearch.text) : []
@@ -226,7 +226,7 @@ AppWindow {
                     text: Tr.t("No matching time zones")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
 
                 // A time in one zone, read in another (DST handled by `date`).
@@ -237,7 +237,7 @@ AppWindow {
                         text: Tr.t("Convert a time")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Item { Layout.fillWidth: true }
                 }
@@ -283,7 +283,7 @@ AppWindow {
                     color: Theme.danger
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Text {
                     Layout.fillWidth: true
@@ -291,7 +291,7 @@ AppWindow {
                     text: Tr.t("It is %1 there").arg(WorldClock.convertResult)
                     color: Theme.accent
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 }
             }
@@ -321,7 +321,7 @@ AppWindow {
                             text: Tr.t("Group")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Repeater {
                             model: [""].concat(Array.from(WorldClock.groups || []))
@@ -411,7 +411,7 @@ AppWindow {
                         color: Theme.dim
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Item { Layout.fillHeight: true }
                     TimePicker {
@@ -462,7 +462,7 @@ AppWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.px(4)
-                        Text { text: Tr.t("Repeat on"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: Tr.t("Repeat on"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         Repeater {
                             model: [{ n: 0, l: "S" }, { n: 1, l: "M" }, { n: 2, l: "T" }, { n: 3, l: "W" }, { n: 4, l: "T" }, { n: 5, l: "F" }, { n: 6, l: "S" }]
                             Button {
@@ -484,7 +484,7 @@ AppWindow {
                         Text {
                             visible: !win.compact
                             text: win.alarmDays.length === 0 ? Tr.t("Every day") : Tr.t("Selected days")
-                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                         }
                     }
 
@@ -493,7 +493,7 @@ AppWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.px(4)
-                        Text { text: Tr.t("Snooze"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: Tr.t("Snooze"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         Repeater {
                             model: [5, 9, 10, 15]
                             Choice {
@@ -602,7 +602,7 @@ AppWindow {
                         text: Tr.t("Laps copied")
                         color: Theme.accent
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
             }
@@ -674,7 +674,7 @@ AppWindow {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
 
                 // KClock and Apple Clock keep more than one timer at a time,
@@ -684,7 +684,7 @@ AppWindow {
                     text: Tr.t("Other timers")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Flow {
                     Layout.fillWidth: true

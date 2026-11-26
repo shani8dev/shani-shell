@@ -175,7 +175,7 @@ ColumnLayout {
                 : Tr.t("No printers yet. Printers on the network usually appear by themselves; Add a printer finds the rest.")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: page.printers
@@ -191,11 +191,11 @@ ColumnLayout {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 1
-                        Text { text: pr.modelData.name.replace(/_/g, " "); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text { text: pr.modelData.name.replace(/_/g, " "); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                         Text {
                             text: pr.modelData.state + (pr.isDefault ? " · " + Tr.t("your default") : "")
                                   + (pr.modelData.jobs ? " · " + Tr.t("%1 waiting", pr.modelData.jobs) : "")
-                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                         }
                     }
                 }
@@ -223,7 +223,7 @@ ColumnLayout {
                     text: Tr.t("Your defaults for this printer")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -267,7 +267,7 @@ ColumnLayout {
                     : Tr.t("No other printer is announcing itself. Type its address (as on its own screen or settings page):")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Flow {
                 Layout.fillWidth: true
@@ -299,7 +299,7 @@ ColumnLayout {
                 text: Tr.t("Credentials are saved in your CUPS settings (~/.cups/lpoptions).")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
     }

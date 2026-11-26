@@ -72,7 +72,7 @@ Rectangle {
              : root.checked ? Theme.accent
              : Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
         font.weight: Font.DemiBold
     }
     Spinner {

@@ -152,7 +152,7 @@ Item {
                         text: block.modelData.text || ""
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         wrapMode: Text.WrapAnywhere
                         Accessible.name: Tr.t("Code block")
                     }

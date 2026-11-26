@@ -207,7 +207,7 @@ PanelWindow {
                                 text: mi.modelData.checked ? "✓" : ""
                                 Layout.preferredWidth: Theme.px(12)
                                 color: Theme.accent
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -215,13 +215,13 @@ PanelWindow {
                                 elide: Text.ElideRight
                                 color: mi.modelData.enabled === false ? Theme.faint : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             Text {
                                 text: mi.modelData.items ? (win.expanded[mi.modelData.path] ? "▾" : "▸") : (mi.modelData.shortcut || "")
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                         }
                         MouseArea {
@@ -257,7 +257,7 @@ PanelWindow {
                 color: Theme.dim
                 elide: Text.ElideRight
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             // the app's own menus: File, Edit, View ... (one opens beside the card)
             Flow {
@@ -271,7 +271,7 @@ PanelWindow {
                     text: Tr.t("Reading the app's menus…")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     padding: Theme.px(6)
                 }
                 Repeater {
@@ -293,7 +293,7 @@ PanelWindow {
                             text: chip.modelData.label
                             color: chip.on ? Theme.accentInk : Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         MouseArea {
                             id: chipMouse

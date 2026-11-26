@@ -207,7 +207,7 @@ AppWindow {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Priority:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Priority:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: win.priorityOptions
                     Choice {
@@ -224,7 +224,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: Tasks.lists.length > 1
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Project:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Project:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Choice { text: Tr.t("All projects"); selected: win.filterList === ""; onClicked: { win.filterList = ""; Tasks.selectedList = ""; } }
                 Repeater {
                     model: Tasks.lists
@@ -246,7 +246,7 @@ AppWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             // description/notes: bridge edit accepts DESCRIPTION but had no caller
@@ -254,7 +254,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: win.noteTask !== null
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Notes:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Notes:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextArea {
                     id: noteField
                     width: Math.min(Theme.px(260), parent.width - Theme.px(16))
@@ -272,7 +272,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: win.repeatTask !== null
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Repeat:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Repeat:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: win.repeatRules
                     Choice {
@@ -293,7 +293,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: win.editTask !== null
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Rename:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Rename:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField {
                     id: renameField
                     Layout.fillWidth: true
@@ -311,7 +311,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: win.dueTask !== null
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Due:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Due:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: win.dueOptions
                     Choice {
@@ -328,7 +328,7 @@ AppWindow {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Sort:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Sort:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: [["due", Tr.t("Due")], ["name", Tr.t("Name")], ["priority", Tr.t("Priority")], ["list", Tr.t("Project")]]
                     Choice {
@@ -477,7 +477,7 @@ AppWindow {
                                 font.strikeout: row.modelData.done
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             Text {
                                 visible: text !== ""
@@ -485,7 +485,7 @@ AppWindow {
                                 color: row.late ? Theme.danger : Theme.dim
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                         }
                         Text {
@@ -493,7 +493,7 @@ AppWindow {
                             text: "P" + row.prio
                             color: row.prio === 1 ? Theme.danger : row.prio === 2 ? Theme.accent : Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             Accessible.name: Tr.t("Priority %1").arg(row.prio)
                         }
                         IconButton {

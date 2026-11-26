@@ -68,7 +68,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(8)
-        Text { text: Tr.t("Balance"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+        Text { text: Tr.t("Balance"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         Text { Layout.fillWidth: true; text: Tr.t("L"); color: Theme.dim; horizontalAlignment: Text.AlignRight }
         Text { text: (Audio.balance || 0) === 0 ? Tr.t("Centre") : ((Audio.balance || 0) > 0 ? ("R+" + (Audio.balance||0)) : ("L+" + Math.abs(Audio.balance||0))); color: Theme.accent; font.family: Theme.font }
         Text { text: Tr.t("R"); color: Theme.dim }
@@ -83,7 +83,7 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Text { text: card.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Text { text: card.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -147,7 +147,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 2
-                Text { Layout.alignment: Qt.AlignHCenter; text: (band.gain > 0 ? "+" : "") + band.gain; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                Text { Layout.alignment: Qt.AlignHCenter; text: (band.gain > 0 ? "+" : "") + band.gain; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -206,7 +206,7 @@ ColumnLayout {
                     text: band.modelData >= 1000 ? band.modelData / 1000 + "k" : String(band.modelData)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(9) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
         }
@@ -251,7 +251,7 @@ ColumnLayout {
     // compression: quiet parts up and loud parts down (night mode for films)
     Text {
         text: SoundFx.canCompress ? Tr.t("Quiet and loud parts") : Tr.t("Quiet and loud parts — needs swh-plugins")
-        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
     }
     Flow {
         Layout.fillWidth: true
@@ -306,7 +306,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         RowLayout {
             Layout.fillWidth: true
@@ -326,7 +326,7 @@ ColumnLayout {
                 color: Theme.text
                 elide: Text.ElideMiddle
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Text {
                 Layout.fillWidth: true
@@ -334,7 +334,7 @@ ColumnLayout {
                 text: Tr.t("A .wav impulse response — room, speaker or headphone")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Button { text: Tr.t("Browse"); onClicked: { page.fileTarget = "ir"; soundFileDialog.open(); } }
             Button { visible: page.d.fxIr !== ""; text: Tr.t("Remove"); onClicked: page.d.fxIr = "" }

@@ -76,7 +76,7 @@ def test_fonts_copy_feedback_and_refresh_clears_stale_install_note():
 def test_fonts_file_preview_samples_scale_with_font_scale():
     t = fonts()
     assert (
-        "font.family: fileFont.name; font.pixelSize: Theme.px(16) * Theme.fontScale"
+        'font.family: fileFont.name; font.pixelSize: Theme.type("heading")'
         in t
     )
     assert (

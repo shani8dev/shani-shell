@@ -129,7 +129,7 @@ PanelWindow {
                         color: Theme.text
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -138,7 +138,7 @@ PanelWindow {
                                QuickLook.list.length > 1 ? (QuickLook.list.indexOf(QuickLook.path) + 1) + " / " + QuickLook.list.length : ""].filter(x => x).join("  ·  ")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 IconButton { visible: QuickLook.list.length > 1; icon: "go-previous"; tip: Tr.t("Previous") + " (←)"; onClicked: QuickLook.step(-1) }
@@ -205,7 +205,7 @@ PanelWindow {
                                     text: modelData.label
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -213,7 +213,7 @@ PanelWindow {
                                     color: Theme.text
                                     wrapMode: Text.WrapAnywhere
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                             }
                         }
@@ -310,7 +310,7 @@ PanelWindow {
                               + " / " + Time.clock(player.duration / 1000) : ""
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         Accessible.name: Tr.t("Position %1").arg(text)
                     }
                 }
@@ -341,7 +341,7 @@ PanelWindow {
                             color: Theme.text
                             elide: Text.ElideMiddle
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                     }
                 }
@@ -363,7 +363,7 @@ PanelWindow {
                         color: Theme.text
                         wrapMode: TextEdit.WrapAnywhere
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                 }
 
@@ -386,7 +386,7 @@ PanelWindow {
                 text: Tr.t("Space or Esc closes · ← → the files beside it · Enter opens")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

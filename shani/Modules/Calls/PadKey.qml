@@ -41,7 +41,7 @@ Rectangle {
             text: key.letters
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(9) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
     }
 

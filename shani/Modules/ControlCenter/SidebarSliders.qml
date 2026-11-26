@@ -88,7 +88,7 @@ ColumnLayout {
                     text: Audio.streamName(modelData)
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Layout.maximumWidth: Theme.px(90)
                     elide: Text.ElideRight
                 }

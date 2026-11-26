@@ -80,7 +80,7 @@ ColumnLayout {
         text: Tr.t("Free public channels. Add your own M3U above for more.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     RowLayout {
         Layout.fillWidth: true
@@ -99,7 +99,7 @@ ColumnLayout {
             text: Tr.t("%1 channels", shown.length)
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
     Flow {
@@ -193,7 +193,7 @@ ColumnLayout {
                         text: row.modelData.name
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: row.playing ? Font.DemiBold : Font.Normal
                     }
                     Text {
@@ -203,7 +203,7 @@ ColumnLayout {
                         visible: text !== ""
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
             }

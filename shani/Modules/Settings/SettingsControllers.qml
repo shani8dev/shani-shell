@@ -117,7 +117,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: page.pads
@@ -148,7 +148,7 @@ ColumnLayout {
                         text: Ui.padTestLast && Object.keys(page.held).length ? Tr.t("Pressed: %1", Object.keys(page.held).join(", ")) : Tr.t("Press any button, move the sticks.")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     // A drawn pad shows the press, the stick position and the analogue
                     // triggers together — the old chip list could not show LT/RT pressure.
@@ -187,7 +187,7 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: light.modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                Text { text: light.modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
@@ -238,7 +238,7 @@ ColumnLayout {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 
@@ -256,7 +256,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.WordWrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: InputPlumber.running ? InputPlumber.devices : []
@@ -270,14 +270,14 @@ ColumnLayout {
                     text: ipDev.modelData.name + (ipDev.modelData.profile ? "  ·  " + ipDev.modelData.profile : "")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: Tr.t("Plays as")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 // gamepad kinds only: its keyboard and mouse (a handheld's touchpad, its
                 // extra keys) stay as they are

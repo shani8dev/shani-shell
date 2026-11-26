@@ -163,7 +163,7 @@ ColumnLayout {
                         color: Theme.danger
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     RowLayout {
                         id: removeRow
@@ -218,7 +218,7 @@ ColumnLayout {
             color: Theme.faint
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
     // ---- feature groups: who may share, run VMs, use serial devices ---------
@@ -233,7 +233,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Repeater {
             model: page.featureGroups
@@ -242,8 +242,8 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: Theme.px(2)
-                Text { text: gcol.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.Medium }
-                Text { Layout.fillWidth: true; text: gcol.modelData.desc; color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: gcol.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
+                Text { Layout.fillWidth: true; text: gcol.modelData.desc; color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Repeater {
                     model: page.groupPeople
                     SwitchRow {
@@ -324,7 +324,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     Text {
         Layout.fillWidth: true
@@ -333,6 +333,6 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 }

@@ -206,7 +206,7 @@ AppWindow {
                           + (win.reverse ? " · scrolling up" : " · scrolling down")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 IconButton {
                     icon: "zoom-out"; tip: "Slower (-)"; accessibleName: "Slower"
@@ -216,7 +216,7 @@ AppWindow {
                     text: Math.round(win.speed) + " px/s"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 IconButton {
                     icon: "zoom-in"; tip: "Faster (+)"; accessibleName: "Faster"
@@ -227,7 +227,7 @@ AppWindow {
                     text: "Space play · + / - speed · Home / End jump"
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
         }

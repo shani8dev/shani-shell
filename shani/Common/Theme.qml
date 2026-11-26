@@ -208,8 +208,8 @@ Singleton {
     readonly property color shadow: shadowCard   // default, backward-compatible
 
     // card: a solid surface that floats on glass — for tiles, chips, buttons
-    readonly property color card: contrast ? bg : mix(_shade(_base, 0.02, 0.045, 0.82), _shade(_base, 0.02, 0.035, 0.62))
-    readonly property color cardBorder: contrast ? alpha(text, 0.5) : mix(Qt.rgba(0, 0, 0, 0.08), Qt.rgba(1, 1, 1, 0.09))
+    readonly property color card: contrast ? bg : mix(_shade(_base, 0.0, 0.045, 0.90), _shade(_base, 0.0, 0.055, 0.92))   // a clear step up from the window (docs/DESIGN.md)
+    readonly property color cardBorder: contrast ? alpha(text, 0.5) : mix(Qt.rgba(0, 0, 0, 0.10), Qt.rgba(1, 1, 1, 0.11))
 
     // ---- type and shape --------------------------------------------------------
     // Inter where installed (shani-shell depends on it), the system sans otherwise

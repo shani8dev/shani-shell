@@ -60,7 +60,7 @@ ColumnLayout {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Button { text: Tr.t("Restart the shell"); onClicked: Appearance.restartShell() }
         }
@@ -84,7 +84,7 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(8)
-            Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(80) }
+            Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(80) }
             Repeater {
                 model: [8, 10, 12, 16, 20, 24, 28]
                 Choice {
@@ -105,7 +105,7 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Text { text: fontRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Text { text: fontRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)

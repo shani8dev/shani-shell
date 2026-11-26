@@ -178,10 +178,10 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
-            Text { Layout.fillWidth: true; text: r.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-            Text { Layout.fillWidth: true; visible: r.detail !== ""; text: r.detail; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { Layout.fillWidth: true; text: r.title; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+            Text { Layout.fillWidth: true; visible: r.detail !== ""; text: r.detail; color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         }
-        Text { text: page.human(r.size); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.features: { "tnum": 1 } }
+        Text { text: page.human(r.size); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.features: { "tnum": 1 } }
         Button {
             Layout.preferredWidth: Theme.px(140)
             enabled: r.can && !r.working && page.busy === ""
@@ -201,14 +201,14 @@ ColumnLayout {
                 text: page.scanning && !page.found ? Tr.t("Measuring…") : Tr.t("Up to %1 can be freed").arg(page.human(page.freeable))
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(20) * Theme.fontScale
+                font.pixelSize: Theme.type("subtitle")
                 font.weight: Font.DemiBold
             }
             Text {
                 text: page.done !== "" ? page.done : Tr.t("Only your own files. Nothing here is needed to use the computer.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
         }
         IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Measure again"); onClicked: page.scan() }
@@ -394,7 +394,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
 
     }

@@ -271,7 +271,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 text: Disks.jobLabel || Tr.t("Working…")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Rectangle {
                 Layout.fillWidth: true
@@ -292,7 +292,7 @@ AppWindow {
             text: Disks.error
             color: Theme.red
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
 
         // ---- operation form (shown when an op is selected) ----
@@ -310,7 +310,7 @@ AppWindow {
                     : Tr.t("Write %1 to %2 — this replaces everything on the USB drive with the install image.", win.formIso, win.selectedDisk ? win.selectedDisk.path : "")
                 color: win.opMode === "install" ? Theme.text : Theme.red
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
 
             // The running system disk can never be wiped; for any other internal
@@ -322,7 +322,7 @@ AppWindow {
                 text: Tr.t("This is the running system disk — it cannot be erased, formatted or encrypted.")
                 color: Theme.red
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             TextField {
                 visible: win.opMode !== "" && win.selectedDisk && !win.selectedDisk.removable && !Disks.deviceIsSystem(win.selectedDisk.path)
@@ -351,7 +351,7 @@ AppWindow {
                     text: win.confirmAction === "erase-quick" ? Tr.t("Click again to confirm") : Tr.t("Wipes filesystem signatures (fast, not secure)")
                     color: win.confirmAction === "erase-quick" ? Theme.red : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
             RowLayout {
@@ -371,7 +371,7 @@ AppWindow {
                     text: win.confirmAction === "erase-secure" ? Tr.t("Click again to confirm") : Tr.t("Zeros the first 100 MB (slower, safer)")
                     color: win.confirmAction === "erase-secure" ? Theme.red : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -380,7 +380,7 @@ AppWindow {
                 visible: win.opMode === "format"
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Filesystem:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Filesystem:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: Disks.fstypes
                     Choice {
@@ -416,7 +416,7 @@ AppWindow {
                     text: win.confirmAction === "format" ? Tr.t("Click again to confirm") : Tr.t("This replaces all data on the device")
                     color: win.confirmAction === "format" ? Theme.red : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -425,7 +425,7 @@ AppWindow {
                 visible: win.opMode === "encrypt"
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Filesystem:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Filesystem:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Repeater {
                     model: Disks.fstypes
                     Choice {
@@ -461,7 +461,7 @@ AppWindow {
                 text: Tr.t("There is no way to recover this passphrase — if you forget it, the data on the device is lost forever.")
                 color: Theme.red
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 visible: win.opMode === "encrypt"
@@ -481,7 +481,7 @@ AppWindow {
                         : win.confirmAction === "encrypt" ? Tr.t("Click again to confirm") : Tr.t("Erases the device and creates an encrypted volume")
                     color: win.confirmAction === "encrypt" ? Theme.red : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -511,7 +511,7 @@ AppWindow {
                     text: win.confirmAction === "install" ? Tr.t("Click again to confirm") : Tr.t("Replaces everything on the USB drive")
                     color: win.confirmAction === "install" ? Theme.red : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -556,7 +556,7 @@ AppWindow {
                             text: modelData.model || modelData.name
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(13) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                             Layout.fillWidth: true
@@ -565,14 +565,14 @@ AppWindow {
                             text: win.diskKind(modelData)
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             elide: Text.ElideRight
                         }
                         Text {
                             text: modelData.size
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                     }
 
@@ -599,7 +599,7 @@ AppWindow {
                                             (modelData.mountpoints && modelData.mountpoints.length > 0 ? " → " + modelData.mountpoints[0] : "")
                                         color: Theme.text
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                                        font.pixelSize: Theme.type("caption")
                                         elide: Text.ElideRight
                                     }
                                     Text {
@@ -609,7 +609,7 @@ AppWindow {
                                         text: (modelData.mountpoints || []).length > 0 ? Tr.t("Unmount") : Tr.t("Mount")
                                         color: Theme.accent
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                                        font.pixelSize: Theme.type("caption")
                                         // a tap target as big as any other button
                                         Layout.preferredHeight: Math.max(Theme.px(24), Theme.touchTarget)
                                         verticalAlignment: Text.AlignVCenter
@@ -665,7 +665,7 @@ AppWindow {
                         Text {
                             Layout.fillWidth: true
                             text: (modelData.children || []).map(c => (c.label || c.fstype || c.name) + " " + win.human(c.bytes || 0)).join("  ·  ")
-                            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale; elide: Text.ElideRight
+                            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); elide: Text.ElideRight
                         }
                     }
 
@@ -728,7 +728,7 @@ AppWindow {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             text: Tr.t("Unmount this filesystem before checking it")
-                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                         }
                         Button {
                             text: Tr.t("Mount options…"); flat: true
@@ -781,7 +781,7 @@ AppWindow {
                 text: Tr.t("SMART health: %1", win.selectedDisk && Disks.health[win.selectedDisk.path] ? Disks.health[win.selectedDisk.path].overall || "—" : "—")
                 color: win.selectedDisk && Disks.health[win.selectedDisk.path] && Disks.health[win.selectedDisk.path].overall === "passed" ? Theme.accent : Theme.red
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             Text {
@@ -789,13 +789,13 @@ AppWindow {
                 text: win.selectedDisk && Disks.health[win.selectedDisk.path] ? Tr.t("%1°C · %2 hours", Disks.health[win.selectedDisk.path].temp || 0, Disks.health[win.selectedDisk.path].hours || 0) : ""
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Text {
                 Layout.fillWidth: true
                 visible: Disks.benchmarkResult !== null && Disks.benchmarkResult.mbps !== undefined
                 text: Tr.t("Read %1 in %2 s · %3 MB/s", win.human(Disks.benchmarkResult ? Disks.benchmarkResult.bytes : 0), Disks.benchmarkResult ? Disks.benchmarkResult.seconds : 0, Disks.benchmarkResult ? Disks.benchmarkResult.mbps : 0)
-                color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
         }
 
@@ -806,7 +806,7 @@ AppWindow {
             text: Tr.t("Click a disk to see its partitions and actions · Esc closes")
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
 
         // ---- detailed SMART dialog + self-tests ----------------------------------
@@ -827,27 +827,27 @@ AppWindow {
                     width: parent.width
                     spacing: Theme.px(4)
                     readonly property var info: Disks.smart || ({})
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("%1 · %2 · %3°C · %4 hours powered on").arg(smartCol.info.model || "").arg(smartCol.info.serial || "").arg(smartCol.info.temp || 0).arg(smartCol.info.hours || 0); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { Layout.fillWidth: true; text: Tr.t("Overall: %1", smartCol.info.overall === true || smartCol.info.overall === "passed" ? Tr.t("PASSED") : Tr.t("FAILED")); color: smartCol.info.overall === true || smartCol.info.overall === "passed" ? Theme.accent : Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { Layout.fillWidth: true; text: Tr.t("Attributes (ID · name · value · worst · threshold · raw)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("%1 · %2 · %3°C · %4 hours powered on").arg(smartCol.info.model || "").arg(smartCol.info.serial || "").arg(smartCol.info.temp || 0).arg(smartCol.info.hours || 0); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { Layout.fillWidth: true; text: Tr.t("Overall: %1", smartCol.info.overall === true || smartCol.info.overall === "passed" ? Tr.t("PASSED") : Tr.t("FAILED")); color: smartCol.info.overall === true || smartCol.info.overall === "passed" ? Theme.accent : Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { Layout.fillWidth: true; text: Tr.t("Attributes (ID · name · value · worst · threshold · raw)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Repeater {
                         model: smartCol.info.attributes || []
-                        Text { required property var modelData; Layout.fillWidth: true; text: [modelData.id, win.attrName(modelData), modelData.value, modelData.worst, modelData.thresh, modelData.raw].join(" · "); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                        Text { required property var modelData; Layout.fillWidth: true; text: [modelData.id, win.attrName(modelData), modelData.value, modelData.worst, modelData.thresh, modelData.raw].join(" · "); color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
                     }
                     // capacity + health refresh (expansion)
-                    Text { Layout.fillWidth: true; text: Tr.t("Capacity: %1", smartCol.info.capacity ? win.human(smartCol.info.capacity) : "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: Tr.t("Capacity: %1", smartCol.info.capacity ? win.human(smartCol.info.capacity) : "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
                         id: healthRow
                         readonly property var curHealth: win.selectedDisk ? Disks.health[win.selectedDisk.path] : null
                         Button { text: Tr.t("Refresh health"); flat: true; enabled: !!win.selectedDisk; onClicked: Disks.checkHealth(win.selectedDisk ? win.selectedDisk.path : "") }
-                        Text { Layout.fillWidth: true; visible: !!healthRow.curHealth; text: Tr.t("Health: %1", (healthRow.curHealth && healthRow.curHealth.overall) || "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; visible: !!healthRow.curHealth; text: Tr.t("Health: %1", (healthRow.curHealth && healthRow.curHealth.overall) || "—"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     }
-                    Text { Layout.fillWidth: true; text: Tr.t("Self-test log"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: Tr.t("Self-test log"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Repeater {
                         model: smartCol.info.tests || []
-                        Text { required property var modelData; Layout.fillWidth: true; text: modelData.type + " · " + modelData.status + " · " + modelData.hours + " h"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                        Text { required property var modelData; Layout.fillWidth: true; text: modelData.type + " · " + modelData.status + " · " + modelData.hours + " h"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -856,7 +856,7 @@ AppWindow {
                         text: Disks.smartTestRemaining >= 0
                             ? Tr.t("Self-test %1 — %2% done · about %3 left", Disks.smartTestKind, Math.round(Disks.smartTestPercent), win.smartEta())
                             : Tr.t("Self-test %1 — starting…", Disks.smartTestKind)
-                        color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                     Rectangle {
                         Layout.fillWidth: true
@@ -897,7 +897,7 @@ AppWindow {
             }
             contentItem: ColumnLayout {
                 spacing: Theme.px(6)
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("Comma-separated udisks options, e.g. ro,noauto,uid=1000,gid=1000."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: Tr.t("Comma-separated udisks options, e.g. ro,noauto,uid=1000,gid=1000."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 TextField {
                     Layout.fillWidth: true
                     placeholder: "ro,noauto,uid=1000,gid=1000"
@@ -921,7 +921,7 @@ AppWindow {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     text: Tr.t("Changing the label updates filesystem metadata only — your data is kept.")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 TextField {
                     Layout.fillWidth: true
@@ -949,7 +949,7 @@ AppWindow {
                     Text {
                         text: win.confirmAction.indexOf("relabel-") === 0 ? Tr.t("Click again to confirm") : Tr.t("Label is changed in place, without reformatting")
                         color: win.confirmAction.indexOf("relabel-") === 0 ? Theme.red : Theme.dim
-                        font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                 }
             }
@@ -969,7 +969,7 @@ AppWindow {
                 Text {
                     Layout.fillWidth: true
                     text: Disks.scanResult ? (Disks.scanResult.command === "fsck" ? Tr.t("Filesystem check") : Tr.t("Bad-block scan")) : Tr.t("Running…")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
                 }
                 Flickable {
                     Layout.fillWidth: true
@@ -982,7 +982,7 @@ AppWindow {
                         width: parent.width
                         wrapMode: Text.Wrap
                         text: Disks.scanResult ? (Disks.scanResult.output || Tr.t("Done")) : Tr.t("Working…")
-                        color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("caption")
                     }
                 }
             }
@@ -1009,7 +1009,7 @@ AppWindow {
                                win.human(modelData.size || 0),
                                (modelData.mountpoints || []).length ? "→ " + modelData.mountpoints[0] : Tr.t("(unmounted)"),
                                modelData.ro ? Tr.t("read-only") : ""] .filter(t => t !== "").join(" · ")
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                 }
                 EmptyState {
@@ -1058,7 +1058,7 @@ AppWindow {
                     Layout.fillWidth: true
                     visible: Disks.jobLabel !== "" || Disks.error !== ""
                     text: Disks.jobLabel || Disks.error
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 EmptyState {
                     anchors.centerIn: parent
@@ -1086,7 +1086,7 @@ AppWindow {
                         required property var modelData
                         Layout.fillWidth: true
                         text: modelData.at + "  " + modelData.mbps.toFixed(1) + Tr.t(" MB/s")
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                 }
                 Button { text: Tr.t("Benchmark now"); flat: true; enabled: !!win.selectedDisk && !Disks.busy; onClicked: win.runBench() }
@@ -1127,7 +1127,7 @@ AppWindow {
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
                                 text: modelData.when + "  " + win.human(modelData.size || 0) + "\n" + modelData.path
-                                color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
+                                color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("caption")
                             }
                         }
                         EmptyState {

@@ -51,7 +51,7 @@ Item {
             Accessible.name: root.selected ? root.selected.name : ""
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(16) * Theme.fontScale
+            font.pixelSize: Theme.type("heading")
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
         }
@@ -60,7 +60,7 @@ Item {
             text: root.selected ? (root.selected.genericName || root.selected.comment || "") : ""
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             wrapMode: Text.Wrap
         }
         // the app's keywords, and its tags as removable chips
@@ -69,7 +69,7 @@ Item {
             text: [].concat(root.selected ? root.selected.keywords || [] : []).join(" ")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             wrapMode: Text.Wrap
         }
         RowLayout {
@@ -95,7 +95,7 @@ Item {
                             text: modelData + " ✕"
                             color: Theme.accent
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                 }

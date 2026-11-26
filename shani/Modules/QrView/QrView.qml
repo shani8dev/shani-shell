@@ -43,7 +43,7 @@ PanelWindow {
                 color: Theme.text
                 elide: Text.ElideRight
                 font.family: Theme.font
-                font.pixelSize: Theme.px(16) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
             }
             // white around the code, whatever the style: scanners want the quiet zone light
@@ -69,7 +69,7 @@ PanelWindow {
                     text: Tr.t("QR code unavailable")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
             Text {
@@ -78,7 +78,7 @@ PanelWindow {
                 text: Tr.t("Point a phone's camera at it · Esc closes")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             // if scanning fails, the encoded details are still readable here
             Text {
@@ -88,7 +88,7 @@ PanelWindow {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.mono
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Button {
                 Layout.alignment: Qt.AlignHCenter

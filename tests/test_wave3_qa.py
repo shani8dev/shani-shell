@@ -503,6 +503,7 @@ def test_processes_new_sections_keep_labels_translatable():
         ):
             continue
         stripped = re.sub(r"Tr\.t\([^)]*\)", "", line)
+        stripped = re.sub(r'Theme\.type\("[a-z]+"\)', "", stripped)  # a type-scale step, not a label
         stripped = re.sub(r'(?:===|!==)\s*"[^"]*"', "", stripped)  # type checks
         if re.search(r'"[A-Za-z][A-Za-z ]{2,}', stripped):
             bad.append((i, line.strip()[:100]))

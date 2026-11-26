@@ -81,14 +81,14 @@ ColumnLayout {
                 spacing: Theme.px(12)
                 Accessible.role: Accessible.StaticText
                 Accessible.name: page.pretty(modelData.key) + "  " + modelData.title
-                Text { text: page.pretty(modelData.key); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; Layout.preferredWidth: Theme.px(190) }
-                Text { text: modelData.title; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight
+                Text { text: page.pretty(modelData.key); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small"); Layout.preferredWidth: Theme.px(190) }
+                Text { text: modelData.title; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.fillWidth: true; elide: Text.ElideRight
                        Accessible.role: Accessible.StaticText; Accessible.name: modelData.title }
             }
         }
-        Text { visible: page.binds.length === 0; text: Tr.t("No binds found in your niri config yet"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true
+        Text { visible: page.binds.length === 0; text: Tr.t("No binds found in your niri config yet"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.fillWidth: true
                Accessible.role: Accessible.StaticText; Accessible.name: Tr.t("No binds found in your niri config yet") }
-        Text { visible: page.binds.length > 0 && page.filtered.length === 0; text: Tr.t("No shortcuts match that search"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true
+        Text { visible: page.binds.length > 0 && page.filtered.length === 0; text: Tr.t("No shortcuts match that search"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.fillWidth: true
                Accessible.role: Accessible.StaticText; Accessible.name: Tr.t("No shortcuts match that search") }
 
     }
@@ -103,7 +103,7 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: Theme.px(12)
-                Text { text: page.pretty(modelData.key); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; Layout.preferredWidth: Theme.px(190) }
+                Text { text: page.pretty(modelData.key); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small"); Layout.preferredWidth: Theme.px(190) }
                 IconButton {
                     icon: modelData.fav ? "starred" : "star"
                     tip: modelData.fav ? Tr.t("Remove from your favourites") : Tr.t("Add to your favourites")
@@ -112,10 +112,10 @@ ColumnLayout {
                 }
                 ColumnLayout {
                     spacing: Theme.px(2)
-                    Text { text: modelData.title || modelData.command; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight
+                    Text { text: modelData.title || modelData.command; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.fillWidth: true; elide: Text.ElideRight
                            Accessible.name: modelData.title || modelData.command }
                     Text { visible: page.commandOf(modelData) !== "" && page.commandOf(modelData) !== (modelData.title || modelData.command);
-                           text: page.commandOf(modelData); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; Layout.fillWidth: true; elide: Text.ElideRight
+                           text: page.commandOf(modelData); color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.type("caption"); Layout.fillWidth: true; elide: Text.ElideRight
                            Accessible.name: page.commandOf(modelData) }
                 }
                 IconButton { icon: "media-playback-start"; size: Theme.px(28); tip: Tr.t("Run now"); onClicked: page.runNow(modelData) }
@@ -123,7 +123,7 @@ ColumnLayout {
                 IconButton { icon: "list-remove"; size: Theme.px(28); tip: Tr.t("Remove it"); onClicked: page.removeBind(modelData) }
             }
         }
-        Text { visible: page.sortedBinds.length === 0; text: Tr.t("No shortcuts yet - press a combo below"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.fillWidth: true
+        Text { visible: page.sortedBinds.length === 0; text: Tr.t("No shortcuts yet - press a combo below"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.fillWidth: true
                Accessible.role: Accessible.StaticText; Accessible.name: Tr.t("No shortcuts yet - press a combo below") }
 
         // ---- reassign confirm ----------------------------------------------------------
@@ -131,7 +131,7 @@ ColumnLayout {
             Layout.fillWidth: true
             visible: page.pendingReassign !== null
             spacing: Theme.px(12)
-            Text { text: page.pendingReassign ? Tr.t("Move it from %1 to %2?").arg(page.pendingReassign.oldKey).arg(page.pendingReassign.newKey) : ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { text: page.pendingReassign ? Tr.t("Move it from %1 to %2?").arg(page.pendingReassign.oldKey).arg(page.pendingReassign.newKey) : ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             Button { kind: "primary"; text: Tr.t("Move it"); onClicked: page.confirmReassign() }
             Button { text: Tr.t("Cancel"); onClicked: page.cancelReassign() }
         }
@@ -142,7 +142,7 @@ ColumnLayout {
             spacing: Theme.px(8)
             Button { text: Tr.t("Copy all as text"); onClicked: page.exportText() }
             Button { text: Tr.t("Copy all as JSON"); onClicked: page.exportJson() }
-            Text { visible: page.exported !== ""; text: page.exported; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            Text { visible: page.exported !== ""; text: page.exported; color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("body")
                    Accessible.role: Accessible.StaticText; Accessible.name: page.exported }
         }
 
@@ -184,7 +184,7 @@ ColumnLayout {
                 : page.combo !== "" ? page.pretty(page.combo) : Tr.t("Click here, then press the keys for a new shortcut")
             color: page.combo !== "" ? Theme.text : Theme.dim
             font.family: page.combo !== "" ? Theme.mono : Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         MouseArea { anchors.fill: parent; onClicked: { page.capturing = true; page.combo = ""; parent.forceActiveFocus(); } }
         KeyFocus { onActivated: { page.capturing = true; page.combo = ""; parent.forceActiveFocus(); } }
@@ -211,7 +211,7 @@ ColumnLayout {
         text: Tr.t("That one is already taken: %1. Try another.").arg(page.conflict + " (" + page.pretty(page.combo) + ")")
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
 
     // ---- 2. what it does: an app, a few ready ones, or a command of your own ----------

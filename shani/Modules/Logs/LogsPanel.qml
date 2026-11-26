@@ -229,7 +229,7 @@ AppWindow {
                 text: Tr.t("No entries match this filter")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             // details for the clicked row
@@ -251,7 +251,7 @@ AppWindow {
                         text: win.selected ? (win.selected.time + " · " + win.selected.cat + " · " + win.selected.unit + " · " + win.selected.id) : ""
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         font.weight: Font.DemiBold
                         wrapMode: Text.Wrap
                     }
@@ -260,7 +260,7 @@ AppWindow {
                         text: win.selected ? String(win.selected.msg || "") : ""
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         wrapMode: Text.Wrap
                     }
                     Text {
@@ -269,7 +269,7 @@ AppWindow {
                         text: win.selected ? JSON.stringify(win.selected.raw || {}) : ""
                         color: Theme.dim
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(9) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         wrapMode: Text.Wrap
                     }
                     Button {
@@ -286,7 +286,7 @@ AppWindow {
                 text: Tr.t("%1 shown · Esc closes").arg(win.shown.length) + (win.shown.length > 100 ? " · newest 100" : "")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
     }

@@ -593,7 +593,7 @@ AppWindow {
             visible: win.tab === "containers" || win.tab === "images"
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Text { text: Tr.t("Sort"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Sort"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Repeater {
                 model: win.tab === "images" ? [["name", Tr.t("Name")], ["size", Tr.t("Size")]] : [["name", Tr.t("Name")], ["status", Tr.t("Status")]]
                 Choice { required property var modelData; text: modelData[1]; selected: win.sortKey === modelData[0]; onClicked: win.sortKey = modelData[0] }
@@ -606,7 +606,7 @@ AppWindow {
             wrapMode: Text.WordWrap
             text: !win.hasPodman ? Tr.t("Podman is not installed") : win.error !== "" ? win.error : win.jobLine !== "" ? win.jobLine : win.note
             color: win.error !== "" || !win.hasPodman ? Theme.danger : Theme.dim
-            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         BusyNote {
             visible: job.running
@@ -623,7 +623,7 @@ AppWindow {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: Tr.t("A toolbox is a whole Linux that shares your home folder: install its packages without touching the system, and put its apps in your menu.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -678,12 +678,12 @@ AppWindow {
         Text {
             visible: win.tab === "boxes" && !win.hasDistrobox
             text: Tr.t("Distrobox is not installed")
-            color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         Text {
             visible: win.tab === "boxes" && win.hasDistrobox && win.boxes.length === 0
             text: Tr.t("No toolboxes yet - pick a Linux above")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         ListView {
             reuseItems: true
@@ -707,11 +707,11 @@ AppWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: brow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: brow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                         Text {
                             Layout.fillWidth: true; elide: Text.ElideRight
                             text: [brow.modelData.state === "running" ? Tr.t("running") : Tr.t("stopped"), brow.modelData.image].join("  ·  ")
-                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                         }
                     }
                     Button { text: Tr.t("Open"); onClicked: win.enter(brow.modelData.name) }
@@ -747,7 +747,7 @@ AppWindow {
                     Text {
                         visible: win.apps.length === 0
                         text: act.running ? Tr.t("Looking…") : Tr.t("No apps inside yet - install some in its terminal")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                     Repeater {
                         model: win.appsOf === brow.modelData.name ? win.apps : []
@@ -755,7 +755,7 @@ AppWindow {
                             id: arow
                             required property var modelData
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: arow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: arow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                             Button {
                                 text: win.exported(brow.modelData.name, arow.modelData.id) ? Tr.t("Remove from menu") : Tr.t("Add to menu")
                                 onClicked: win.toggleExport(brow.modelData.name, arow.modelData.id, arow.modelData.name)
@@ -773,8 +773,8 @@ AppWindow {
                         RowLayout {
                             required property var modelData
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: modelData[0]; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                            Text { text: modelData[1]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: modelData[0]; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                            Text { text: modelData[1]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                         }
                     }
                 }
@@ -873,7 +873,7 @@ AppWindow {
                 visible: win.useGpu && !win.cdiReady
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 text: Tr.t("The graphics card setup is missing here. Use a toolbox with the graphics card instead.")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Button {
                 kind: "primary"
@@ -886,19 +886,19 @@ AppWindow {
             visible: win.tab === "containers" && win.others.length === 0
             text: Tr.t("No containers - podman run, docker compose or an IDE's dev container show up here")
             wrapMode: Text.WordWrap; Layout.fillWidth: true
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         Text {                                            // the filter narrows the list; the message above stays for "no containers at all"
             visible: win.tab === "containers" && win.others.length > 0 && win.sortedContainers.length === 0
             text: Tr.t("No containers match the filter")
             wrapMode: Text.WordWrap; Layout.fillWidth: true
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         RowLayout {
             visible: win.tab === "containers" && win.others.length > 0
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Text { text: Tr.t("Show"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Show"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Repeater {
                 model: [["all", Tr.t("All")], ["running", Tr.t("Running")], ["stopped", Tr.t("Stopped")]]
                 Choice { required property var modelData; text: modelData[1]; selected: win.filter === modelData[0]; onClicked: win.filter = modelData[0] }
@@ -927,11 +927,11 @@ AppWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: crow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: crow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                         Text {
                             Layout.fillWidth: true; elide: Text.ElideRight
                             text: [crow.modelData.state, crow.modelData.image, crow.modelData.ports, win.statsText(crow.modelData.name)].filter(x => x).join("  ·  ")
-                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                         }
                     }
                     IconButton {
@@ -985,7 +985,7 @@ AppWindow {
                     Text {
                         visible: win.statsOfContainer === crow.modelData.name
                         text: [win.statsData.cpu, win.statsData.mem].filter(x => x).join(" · ")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                     Picks {
                         label: Tr.t("Rename")
@@ -1067,7 +1067,7 @@ AppWindow {
                             width: lf.width
                             wrapMode: Text.WrapAnywhere
                             text: win.logsOf === crow.modelData.name ? win.logText(crow.modelData.name) : ""
-                            color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale
+                            color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small")
                         }
                     }
                 }
@@ -1080,8 +1080,8 @@ AppWindow {
                         RowLayout {
                             required property var modelData
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData[0]; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                            Text { text: modelData[1]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData[0]; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                            Text { text: modelData[1]; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                         }
                     }
                 }
@@ -1115,7 +1115,7 @@ AppWindow {
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
                         text: modelData.name + "  ·  " + (modelData.official ? Tr.t("official") : Tr.t("community")) + "  ·  " + modelData.stars
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                     Button { text: Tr.t("Fetch"); onClicked: win.pullImageNamed(modelData.name) }
                 }
@@ -1145,7 +1145,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("%1 images, %2", win.images.length, win.size(win.images.reduce((s, i) => s + (i.size || 0), 0)))
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             Button {
                 text: win.removing === "__prune__" ? Tr.t("Click again: remove unused images") : Tr.t("Remove unused")
@@ -1183,10 +1183,10 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: irow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: irow.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Text {
                         text: [win.size(irow.modelData.size || 0), irow.modelData.used ? Tr.t("in use") : Tr.t("unused")].join("  ·  ")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                 }
                 IconButton {
@@ -1207,7 +1207,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 text: Tr.t("A pod keeps a few containers together so they can share their network.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             EmptyState {
                 visible: win.pods.length === 0
@@ -1249,7 +1249,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 text: Tr.t("Volumes keep a container's files after it is removed.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -1278,7 +1278,7 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: Tr.t("%1 volumes", win.volumes.length); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: Tr.t("%1 volumes", win.volumes.length); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 ConfirmButton {
                     text: Tr.t("Remove unused"); armedText: Tr.t("Tap again: remove unused volumes")
                     enabled: win.volumes.some(v => v.size === 0)
@@ -1321,7 +1321,7 @@ AppWindow {
             visible: win.tab === "machines" && !win.hasMachinectl && !win.hasImportctl && !win.hasVmspawn
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             text: Tr.t("Machine tools are not installed on this computer")
-            color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         ColumnLayout {
             visible: win.tab === "machines" && (win.hasMachinectl || win.hasImportctl || win.hasVmspawn)
@@ -1343,12 +1343,12 @@ AppWindow {
             Text {
                 visible: win.machineView === "machines" && !win.hasMachinectl
                 text: Tr.t("Managing machines is not installed on this computer")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Text {
                 visible: win.machineView === "boot" && !win.hasVmspawn
                 text: Tr.t("Booting disk images is not installed on this computer")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             ColumnLayout {
                 visible: win.machineView === "machines" && win.hasMachinectl
@@ -1389,7 +1389,7 @@ AppWindow {
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
                     text: Tr.t("Fetch a ready-made Linux system, then start it as a machine.")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Picks {
                     label: Tr.t("Where from")
@@ -1468,7 +1468,7 @@ AppWindow {
                 RowLayout {
                     visible: win.imageRenameOf !== ""
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: Tr.t("Rename %1", win.imageRenameOf); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: Tr.t("Rename %1", win.imageRenameOf); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     Picks {
                         Layout.fillWidth: true
                         label: Tr.t("New name")
@@ -1499,14 +1499,14 @@ AppWindow {
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
                     text: Tr.t("Pick a disk image file. It opens in a terminal window; close that window to shut the machine down.")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
                         text: win.vmFile !== "" ? win.vmFile : Tr.t("No disk image picked yet")
-                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                        color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     }
                     Button {
                         text: Tr.t("Pick a disk image")
@@ -1530,13 +1530,13 @@ AppWindow {
             Text {
                 visible: !win.hasLxc
                 text: Tr.t("System containers are not installed on this computer")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             Text {
                 visible: win.hasLxc && !win.lxdReady
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 text: Tr.t("System containers need a first-time setup. Set them up with lxd init --auto. If your account is not in the lxd group, ask an administrator to add you, then sign out and back in.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             Button {
                 visible: win.hasLxc && !win.lxdReady
@@ -1615,14 +1615,14 @@ AppWindow {
             Text {
                 visible: !win.hasApptainer
                 text: Tr.t("HPC images are not installed on this computer")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true
                 Text {
                     Layout.fillWidth: true; elide: Text.ElideMiddle
                     text: win.sifFolder
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Button {
                     text: Tr.t("Pick an image folder")
@@ -1662,7 +1662,7 @@ AppWindow {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 text: Tr.t("These images use your graphics card automatically.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             EmptyState {
                 visible: win.sifImages.length === 0
@@ -1705,7 +1705,7 @@ AppWindow {
             Text {
                 visible: !win.hasVirsh
                 text: Tr.t("Virtual machine tools are not installed on this computer")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             // KVM off: Settings > System > Virtualization says why and can switch it on
             RowLayout {
@@ -1714,7 +1714,7 @@ AppWindow {
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
                     text: Tr.t("This computer cannot run virtual machines at full speed yet.")
-                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Button { text: Tr.t("Check virtualization"); onClicked: Ui.openSettings("virtualization") }
             }
@@ -1739,7 +1739,7 @@ AppWindow {
             Text {
                 visible: !win.hasBoxes
                 text: Tr.t("Install Boxes to make a new virtual machine")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             EmptyState {
                 visible: win.domains.length === 0
@@ -1785,13 +1785,13 @@ AppWindow {
             Text {
                 visible: win.android.available !== true
                 text: Tr.t("Android support is not installed on this computer")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 visible: win.android.available === true
                 text: Tr.t("Android is %1 and its session is %2").arg(win.android.initialised === true ? Tr.t("ready") : Tr.t("not set up")).arg(win.android.session || Tr.t("unknown"))
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             Button {
                 visible: win.android.available === true && win.android.initialised !== true && win.android.helper === true
@@ -1802,7 +1802,7 @@ AppWindow {
             Text {
                 visible: win.android.available === true && win.android.initialised !== true && win.android.helper !== true
                 text: Tr.t("The Android setup helper is not installed")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 visible: win.android.available === true && win.android.initialised === true
@@ -1826,7 +1826,7 @@ AppWindow {
                 Text {
                     Layout.fillWidth: true; elide: Text.ElideMiddle
                     text: win.composeFolder !== "" ? win.composeFolder : Tr.t("No folder picked yet")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Button { text: Tr.t("Pick a compose file"); onClicked: win.pickComposeFolder() }
             }
@@ -1878,7 +1878,7 @@ AppWindow {
                 RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Button { text: Tr.t("Status"); onClicked: win.serviceStatus(modelData) }
                     ConfirmButton {
                         text: Tr.t("Remove"); armedText: Tr.t("Tap again: remove")
@@ -1891,7 +1891,7 @@ AppWindow {
             Text {
                 visible: Object.keys(win.serviceStatus).length > 0
                 text: [win.serviceStatus.description, win.serviceStatus.active ? Tr.t("running") : Tr.t("stopped"), win.serviceStatus.sub].filter(x => x).join("  ·  ")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
             }
         }
     }

@@ -34,7 +34,7 @@ PanelWindow {
         Accessible.name: text
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(18) * Theme.fontScale
+        font.pixelSize: Theme.type("subtitle")
     }
     // the ring to touch
     Rectangle {
@@ -73,7 +73,7 @@ PanelWindow {
             text: Tr.t("Cancel")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(14) * Theme.fontScale
+            font.pixelSize: Theme.type("heading")
         }
         TapHandler { onTapped: Calibrate.cancel("cancelled") }
     }

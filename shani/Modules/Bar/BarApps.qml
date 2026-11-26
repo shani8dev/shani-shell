@@ -35,7 +35,7 @@ Row {
             anchors { left: parent.left; leftMargin: Theme.px(12); verticalCenter: parent.verticalCenter }
             spacing: Theme.px(8)
             Icon { name: "system-search"; size: Theme.px(16); color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: Tr.t("Ask me anything"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; anchors.verticalCenter: parent.verticalCenter }
+            Text { text: Tr.t("Ask me anything"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); anchors.verticalCenter: parent.verticalCenter }
         }
         MouseArea { id: searchArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.IBeamCursor; onClicked: Ui.toggleLauncher("") }
         Hint { above: strip.above; text: Tr.t("Search your apps, files and settings, or ask Chronoa"); keys: "Super + Space" }

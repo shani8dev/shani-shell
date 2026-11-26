@@ -202,7 +202,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: Gpu.hasChoice
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Graphics card"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                Text { text: Tr.t("Graphics card"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(120) }
                 Repeater {
                     model: [{ id: "", label: Tr.t("As the app asks") }, { id: "discrete", label: Gpu.other ? Gpu.other.name.split(" ").slice(0, 3).join(" ") : Tr.t("The faster one") }, { id: "default", label: Tr.t("The default one") }]
                     Choice {
@@ -216,7 +216,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                Text { text: Tr.t("Environment"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(120) }
                 TextField {
                     Layout.fillWidth: true
                     placeholder: page.launchOpts.env || Tr.t("NAME=value, space between - Enter to keep")
@@ -226,7 +226,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Arguments"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                Text { text: Tr.t("Arguments"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(120) }
                 TextField {
                     Layout.fillWidth: true
                     placeholder: page.launchOpts.args || Tr.t("added after the app's own - Enter to keep")

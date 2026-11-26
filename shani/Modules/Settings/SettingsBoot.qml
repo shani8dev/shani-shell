@@ -76,7 +76,7 @@ ColumnLayout {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
 
         ColumnLayout {
@@ -104,7 +104,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 
@@ -207,7 +207,7 @@ ColumnLayout {
             color: Theme.text
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         Repeater {
@@ -228,7 +228,7 @@ ColumnLayout {
             color: Theme.text
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         Repeater {

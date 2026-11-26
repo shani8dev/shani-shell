@@ -130,7 +130,7 @@ Variants {
                         text: Qt.formatDate(deskClock.date, "dddd d MMMM")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 Text {
@@ -141,7 +141,7 @@ Variants {
                     color: Theme.faint
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Accessible.role: Accessible.Button
                 Accessible.name: Tr.t("Clock, opens the control centre")
@@ -220,7 +220,7 @@ Variants {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -229,7 +229,7 @@ Variants {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         // seek by clicking along the track (only players that allow it)
                         Rectangle {
@@ -270,7 +270,7 @@ Variants {
                                 text: Time.clock(mediaWin.player ? mediaWin.shown : 0)
                                 color: Theme.faint
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 Accessible.name: Tr.t("Elapsed %1").arg(text)
                             }
                             Text {
@@ -278,7 +278,7 @@ Variants {
                                 text: Time.clock(mediaWin.player ? mediaWin.player.length : 0)
                                 color: Theme.faint
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 Accessible.name: Tr.t("Total %1").arg(text)
                             }
                         }
@@ -338,7 +338,7 @@ Variants {
                     text: Tr.t("Weather — set a city →")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Row {
                     visible: Weather.enabled
@@ -359,7 +359,7 @@ Variants {
                             text: isNaN(Weather.temp) ? "" : Math.round(Weather.temp) + "°"
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.pixelSize: Theme.type("subtitle")
                             font.weight: Font.DemiBold
                         }
                         Text {
@@ -368,7 +368,7 @@ Variants {
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Text {
                             width: parent.width
@@ -376,7 +376,7 @@ Variants {
                             color: Theme.faint
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                     }
                 }
@@ -446,7 +446,7 @@ Variants {
                                 color: Theme.dim
                                 width: Theme.px(30)
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                             Rectangle {
                                 width: Theme.px(116)
@@ -466,7 +466,7 @@ Variants {
                                 text: Math.round(modelData.value * 100) + "%"
                                 color: Theme.faint
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 horizontalAlignment: Text.AlignRight
                             }
                         }
@@ -484,13 +484,13 @@ Variants {
                         text: Tr.t("CPU %1°C", Math.round(SysStats.temp))
                         color: Theme.dim
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                     Text {
                         text: "↓ " + SysStats.rate(SysStats.rxRate) + "  ↑ " + SysStats.rate(SysStats.txRate)
                         color: Theme.dim
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
                 Accessible.role: Accessible.Button

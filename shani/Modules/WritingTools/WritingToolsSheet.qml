@@ -54,14 +54,14 @@ PanelWindow {
                     text: Tr.t("Writing tools")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(16) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: WritingTools.from === "selection" ? Tr.t("the selected text") : Tr.t("what you copied")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 IconButton { icon: "window-close"; tip: Tr.t("Close") + " (Esc)"; onClicked: WritingTools.close() }
             }
@@ -84,7 +84,7 @@ PanelWindow {
                     maximumLineCount: 6
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
 
@@ -113,7 +113,7 @@ PanelWindow {
                     text: Tr.t("Translate into")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -163,7 +163,7 @@ PanelWindow {
                         color: WritingTools.error ? Theme.danger : WritingTools.busy ? Theme.dim : Theme.text
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                     }
                 }
             }
@@ -183,7 +183,7 @@ PanelWindow {
                 text: Tr.t("Written by Chronoa · Esc closes")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

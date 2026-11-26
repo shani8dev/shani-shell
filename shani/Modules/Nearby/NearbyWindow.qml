@@ -83,12 +83,12 @@ AppWindow {
                         id: offerCol
                         anchors { fill: parent; margins: Theme.px(10) }
                         spacing: Theme.px(6)
-                        Text { Layout.fillWidth: true; text: Tr.t("%1 wants to send you").arg(offerBox.modelData.from); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
+                        Text { Layout.fillWidth: true; text: Tr.t("%1 wants to send you").arg(offerBox.modelData.from); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
                         Text {
                             Layout.fillWidth: true
                             text: offerBox.modelData.files.map(f => f.name + " (" + Nearby.human(f.size) + ")").join(", ")
                             color: Theme.dim; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
-                            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.family: Theme.font; font.pixelSize: Theme.type("body")
                         }
                         RowLayout {
                             Layout.alignment: Qt.AlignRight
@@ -112,7 +112,7 @@ AppWindow {
                     color: Nearby.pending.length ? Theme.text : Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Button { text: Nearby.pending.length ? Tr.t("Change…") : Tr.t("Choose files…"); onClicked: win.pick() }
             }
@@ -181,7 +181,7 @@ AppWindow {
                         color: tr.modelData.state === "failed" ? Theme.danger : Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Button {
                         visible: tr.modelData.state === "done" && tr.modelData.direction === "receive" && (tr.modelData.files || []).length > 0
@@ -202,7 +202,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: Nearby.note !== ""
                 spacing: Theme.px(6)
-                Text { Layout.fillWidth: true; text: Nearby.note; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: Nearby.note; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 IconButton { size: Theme.px(22); icon: "window-close"; tip: Tr.t("Dismiss"); onClicked: Nearby.note = "" }
             }
 

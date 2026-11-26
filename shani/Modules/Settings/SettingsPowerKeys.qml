@@ -174,7 +174,7 @@ ColumnLayout {
                 text: Tr.t("Stop charging at (keeps the battery healthy when mostly plugged in)")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
             }
@@ -190,7 +190,7 @@ ColumnLayout {
                     if (v >= 50 && v <= 100 && v !== page.limit) page.saveLimit(v);
                 }
             }
-            Text { text: "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+            Text { text: "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         }
         Picks {
             visible: page.powerLimitSteps.length > 1
@@ -221,20 +221,20 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Lid & idle (logind)")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/logind.conf.d/50-shani-shell.conf. Values: suspend, lock, ignore, poweroff, hibernate, hybrid-sleep, suspend-then-hibernate."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/logind.conf.d/50-shani-shell.conf. Values: suspend, lock, ignore, poweroff, hibernate, hybrid-sleep, suspend-then-hibernate."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         Repeater {
             model: ["HandleLidSwitch","HandleLidSwitchExternalPower","HandleLidSwitchDocked","IdleAction"]
             RowLayout {
                 required property var modelData
                 Layout.fillWidth: true; spacing: Theme.px(6)
-                Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                 TextField { id: lidVal; Layout.fillWidth: true; text: (page.logind && page.logind[modelData]) || ""; placeholder: "suspend" }
                 Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind(modelData, lidVal.text.trim()) }
             }
         }
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
-            Text { Layout.preferredWidth: Theme.px(220); text: "IdleActionSec"; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { Layout.preferredWidth: Theme.px(220); text: "IdleActionSec"; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
             TextField { id: idleSec; Layout.fillWidth: true; text: (page.logind && page.logind["IdleActionSec"]) || ""; placeholder: "300" }
             Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveLogind("IdleActionSec", idleSec.text.trim()) }
         }
@@ -243,13 +243,13 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Sleep (systemd-sleep)")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/sleep.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/sleep.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         Repeater {
             model: [{k:"SuspendState",ph:"mem"},{k:"HibernateState",ph:"disk"},{k:"HybridSleepState",ph:"disk"},{k:"HibernateDelaySec",ph:"1800"}]
             RowLayout {
                 required property var modelData
                 Layout.fillWidth: true; spacing: Theme.px(6)
-                Text { Layout.preferredWidth: Theme.px(180); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(180); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                 TextField { id: slVal; Layout.fillWidth: true; text: (page.sleep && page.sleep[modelData.k]) || ""; placeholder: modelData.ph }
                 Button { text: Tr.t("Save"); enabled: !writer.running; busy: writer.running; onClicked: page.saveSleep(modelData.k, slVal.text.trim()) }
             }

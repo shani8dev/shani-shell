@@ -92,7 +92,7 @@ ColumnLayout {
             text: page.usage
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
     }
 
@@ -246,7 +246,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 ConfirmButton {
                     id: forgetConfirm
@@ -294,7 +294,7 @@ ColumnLayout {
                 visible: net.modelData.type === "gsm"
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Text { text: Tr.t("APN — tap one, or type your own"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("APN — tap one, or type your own"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -349,7 +349,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: net.modelData.type === "gsm"
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Monthly data cap (GB)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(170) }
+                Text { text: Tr.t("Monthly data cap (GB)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(170) }
                 TextField {
                     Layout.fillWidth: true
                     placeholder: page.dataCaps[net.modelData.uuid] ? String(page.dataCaps[net.modelData.uuid]) : Tr.t("No cap (Enter to keep, 0 to clear)")
@@ -372,7 +372,7 @@ ColumnLayout {
         onAccepted: page.d.hotspotName = text.trim()
     }
     // a label above the chips, not among them: a child as wide as its Flow makes the Flow re-lay out itself forever
-    Text { Layout.fillWidth: true; visible: Net.hasWifi; text: Tr.t("Suggestions:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+    Text { Layout.fillWidth: true; visible: Net.hasWifi; text: Tr.t("Suggestions:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     Flow {
         Layout.fillWidth: true
         visible: Net.hasWifi
@@ -423,7 +423,7 @@ ColumnLayout {
             : Tr.t("No modem found")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     SwitchRow {
         Layout.fillWidth: true
@@ -439,7 +439,7 @@ ColumnLayout {
         text: Tr.t("APN and roaming are set per connection in the saved list above.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(10) * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
     }
 
     // ---- VPN -------------------------------------------------------------------
@@ -460,7 +460,7 @@ ColumnLayout {
                     color: Theme.text
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Button {
                     text: vpnRow.modelData.active ? Tr.t("Disconnect") : Tr.t("Connect")
@@ -559,7 +559,7 @@ ColumnLayout {
             visible: page.d.proxyMode === "manual"
             Layout.fillWidth: true
             spacing: Theme.px(12)
-            Text { text: Tr.t("HTTP proxy (host:port)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Text { text: Tr.t("HTTP proxy (host:port)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -573,13 +573,13 @@ ColumnLayout {
                 placeholder: page.d.proxyHttp || "host:port — e.g. proxy.example.com:8080"
                 onAccepted: { page.d.proxyHttp = text.trim(); text = ""; }
             }
-            Text { text: Tr.t("HTTPS proxy (empty: use the HTTP one)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Text { text: Tr.t("HTTPS proxy (empty: use the HTTP one)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             TextField {
                 Layout.fillWidth: true
                 placeholder: page.d.proxyHttps || "host:port"
                 onAccepted: { page.d.proxyHttps = text.trim(); text = ""; }
             }
-            Text { text: Tr.t("SOCKS proxy (host:port)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Text { text: Tr.t("SOCKS proxy (host:port)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             TextField {
                 Layout.fillWidth: true
                 placeholder: page.d.proxySocks || "host:port"
@@ -590,7 +590,7 @@ ColumnLayout {
             visible: page.d.proxyMode === "auto"
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Text { text: Tr.t("Configuration URL"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Text { text: Tr.t("Configuration URL"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             TextField {
                 Layout.fillWidth: true
                 placeholder: page.d.proxyPac || "http://…/proxy.pac"
@@ -607,7 +607,7 @@ ColumnLayout {
             text: page.conn ? "For " + page.connName + ": " + (page.dns || "from the network") : "Not connected."
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         // what each does, in a line: picked with a tap, the servers behind it shown small
         Repeater {
@@ -641,7 +641,7 @@ ColumnLayout {
             text: Tr.t("Search domains: unqualified names are looked up inside these suffixes (e.g. home.arpa).")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             wrapMode: Text.Wrap
         }
         TextField {
@@ -664,13 +664,13 @@ ColumnLayout {
             hint: Tr.t("Managed drop-in /etc/systemd/resolved.conf.d/50-shani-shell.conf. Restarted on save.")
         GridLayout {
             Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-            Text { text: Tr.t("DNS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("DNS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: resolvedDnsField; Layout.fillWidth: true; placeholder: "1.1.1.1 9.9.9.9" }
-            Text { text: Tr.t("Fallback DNS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Fallback DNS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: resolvedFallbackField; Layout.fillWidth: true; placeholder: "1.0.0.1" }
-            Text { text: Tr.t("DNS over TLS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("DNS over TLS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: resolvedDotField; Layout.fillWidth: true; placeholder: "no | yes | opportunistic" }
-            Text { text: Tr.t("DNSSEC"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("DNSSEC"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: resolvedDnssecField; Layout.fillWidth: true; placeholder: "no | yes | allow-downgrade" }
         }
         RowLayout {

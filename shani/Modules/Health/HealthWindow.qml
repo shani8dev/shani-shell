@@ -110,7 +110,7 @@ AppWindow {
                 text: Tr.t("Stays on this computer — no account, no cloud, nothing uploaded.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 wrapMode: Text.Wrap
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
@@ -131,7 +131,7 @@ AppWindow {
                 text: Tr.t("Staying connected lets this computer ring the watch and take readings.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 wrapMode: Text.Wrap
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
@@ -194,7 +194,7 @@ AppWindow {
                             text: Health.device || Health.deviceModel || Tr.t("My watch")
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                             Accessible.name: text
@@ -204,7 +204,7 @@ AppWindow {
                             text: [Health.deviceModel, Health.deviceFirmware].filter(Boolean).join(" · ")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             elide: Text.ElideRight
                             visible: text !== ""
                         }
@@ -213,7 +213,7 @@ AppWindow {
                             text: Health.lastRead ? Tr.t("Read at %1", win.clockTime(Health.lastRead)) : Tr.t("Not read yet")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             Accessible.name: text
                         }
                     }
@@ -223,7 +223,7 @@ AppWindow {
                             text: Health.battery >= 0 ? Tr.t("%1 percent", Health.battery) : Tr.t("Battery not available")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             horizontalAlignment: Text.AlignRight
                             Accessible.name: text
                         }
@@ -283,7 +283,7 @@ AppWindow {
                         text: Tr.t("Activity")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.DemiBold
                     }
                     RowLayout {
@@ -339,7 +339,7 @@ AppWindow {
                                     text: Health.stepsToday.toLocaleString()
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(18) * Theme.fontScale
+                                    font.pixelSize: Theme.type("subtitle")
                                     font.weight: Font.DemiBold
                                 }
                                 Text {
@@ -348,7 +348,7 @@ AppWindow {
                                     text: Tr.t("of %1 steps", Health.stepsGoal.toLocaleString())
                                     color: Theme.faint
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                 }
                             }
                         }
@@ -360,7 +360,7 @@ AppWindow {
                                 text: Tr.t("%1 km · %2 kcal", (Health.distanceM / 1000).toFixed(2), Health.calories)
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 Accessible.name: text
                             }
                             RowLayout {
@@ -382,7 +382,7 @@ AppWindow {
                                             text: (modelData[1] || 0).toLocaleString()
                                             color: Theme.dim
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                                            font.pixelSize: Theme.type("caption")
                                         }
                                         Rectangle {
                                             Layout.fillWidth: true
@@ -404,7 +404,7 @@ AppWindow {
                                             text: modelData[0]
                                             color: Theme.faint
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                                            font.pixelSize: Theme.type("caption")
                                         }
                                     }
                                 }
@@ -437,13 +437,13 @@ AppWindow {
                             text: Tr.t("Steps today")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Text {
                             text: Health.stepsToday.toLocaleString()
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.pixelSize: Theme.type("subtitle")
                             font.weight: Font.DemiBold
                             Accessible.name: Tr.t("%1 steps today", Health.stepsToday)
                         }
@@ -452,7 +452,7 @@ AppWindow {
                                 : Tr.t("of %1 · %2 yesterday", Health.stepsGoal, Health.stepsYesterday)
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                     }
                 }
@@ -470,13 +470,13 @@ AppWindow {
                             text: Tr.t("Asleep")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Text {
                             text: Health.duration(Health.sleep.asleep)
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.pixelSize: Theme.type("subtitle")
                             font.weight: Font.DemiBold
                             Accessible.name: Tr.t("Asleep %1", Health.duration(Health.sleep.asleep))
                         }
@@ -485,7 +485,7 @@ AppWindow {
                             text: Health.device ? Tr.t("From %1", Health.device) : Tr.t("Logged by you · no watch paired")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             elide: Text.ElideRight
                         }
                     }
@@ -505,13 +505,13 @@ AppWindow {
                             text: Tr.t("Watch battery")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Text {
                             text: Tr.t("%1 percent", Health.battery)
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.pixelSize: Theme.type("subtitle")
                             font.weight: Font.DemiBold
                             Accessible.name: Tr.t("Watch battery %1 percent", Health.battery)
                         }
@@ -519,7 +519,7 @@ AppWindow {
                             text: Health.device || Tr.t("Paired watch")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             elide: Text.ElideRight
                         }
                     }
@@ -547,14 +547,14 @@ AppWindow {
                             text: Tr.t("Stress today")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             Accessible.name: text
                         }
                         Text {
                             text: win.stressValues().length ? String(win.stressValues()[win.stressValues().length - 1]) : "—"
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(20) * Theme.fontScale
+                            font.pixelSize: Theme.type("subtitle")
                             font.weight: Font.DemiBold
                             Accessible.name: win.stressValues().length ? Tr.t("Latest stress reading %1", win.stressValues()[win.stressValues().length - 1]) : Tr.t("No stress reading yet")
                         }
@@ -565,7 +565,7 @@ AppWindow {
                                        ? win.clockTime(Health.stressSeries[Health.stressSeries.length - 1].when) : "")
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                     }
                     ColumnLayout {
@@ -576,7 +576,7 @@ AppWindow {
                             text: Tr.t("%1 readings", win.stressValues().length)
                             color: Theme.faint
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Sparkline {
                             Layout.fillWidth: true
@@ -601,7 +601,7 @@ AppWindow {
                     text: Tr.t("Sleep stages")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                     Accessible.name: text
                 }
@@ -624,7 +624,7 @@ AppWindow {
                             text: modelData[0]
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Rectangle {
                             Layout.fillWidth: true
@@ -644,7 +644,7 @@ AppWindow {
                             text: Health.duration(modelData[1])
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             Accessible.name: modelData[0] + ": " + Health.duration(modelData[1])
                         }
                     }
@@ -678,7 +678,7 @@ AppWindow {
                                Health.duration(win.stageMinutes("awake")))
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Accessible.name: text
                 }
                 }
@@ -696,7 +696,7 @@ AppWindow {
                     text: Tr.t("Steps this week")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Sparkline {
@@ -732,7 +732,7 @@ AppWindow {
                     text: Tr.t("Daily trend")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 ListView {
@@ -755,7 +755,7 @@ AppWindow {
                         text: Health.dayLabel(modelData.day)
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Text {
                         Layout.preferredWidth: Theme.px(96)
@@ -763,14 +763,14 @@ AppWindow {
                         text: Tr.t("%1 steps", modelData.steps || 0)
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Text {
                         Layout.fillWidth: true
                         text: Health.duration((modelData.deep_min || 0) + (modelData.light_min || 0))
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 EmptyState {
@@ -794,7 +794,7 @@ AppWindow {
                     text: Tr.t("Workouts")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 ListView {
@@ -822,21 +822,21 @@ AppWindow {
                             text: Health.dayLabel(modelData.day)
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Text {
                             Layout.fillWidth: true
                             text: modelData.kind
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             elide: Text.ElideRight
                         }
                         Text {
                             text: Health.duration(modelData.minutes)
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                     Accessible.role: Accessible.ListItem
@@ -864,7 +864,7 @@ AppWindow {
                         : Tr.t("Spot checks need a worn watch")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.role: Accessible.StatusBar
                     Accessible.name: text
                 }
@@ -903,7 +903,7 @@ AppWindow {
                     text: Tr.t("Watch controls")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -912,7 +912,7 @@ AppWindow {
                     text: Health.watchNote
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     wrapMode: Text.Wrap
                     Accessible.role: Accessible.StatusBar
                     Accessible.name: text
@@ -947,7 +947,7 @@ AppWindow {
                         text: Tr.t("Raise to wake")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Repeater {
                         model: [["on", Tr.t("On")], ["off", Tr.t("Off")]]

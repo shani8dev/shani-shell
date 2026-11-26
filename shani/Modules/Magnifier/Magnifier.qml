@@ -132,7 +132,7 @@ PanelWindow {
             text: Tr.t("Magnifier %1×  ·  scroll to zoom  ·  R / right-click: fresh frame  ·  Esc to close").arg(win.zoom.toFixed(1))
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
     }
 }

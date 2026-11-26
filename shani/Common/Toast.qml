@@ -50,7 +50,7 @@ Rectangle {
             text: root.message
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             wrapMode: Text.Wrap
             verticalAlignment: Text.AlignVCenter
         }

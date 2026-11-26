@@ -28,7 +28,7 @@ Rectangle {
         text: root.text
         color: root.enabled ? Theme.inkOn(root.fill) : Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(13) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
         font.weight: Font.DemiBold
         wrapMode: Text.Wrap
         horizontalAlignment: Text.AlignHCenter

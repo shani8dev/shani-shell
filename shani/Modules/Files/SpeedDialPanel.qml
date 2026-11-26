@@ -128,7 +128,7 @@ ColumnLayout {
         text: SpeedDial.error
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: Theme.px(10) * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
         Accessible.role: Accessible.AlertMessage
         Accessible.name: SpeedDial.error
     }
@@ -151,7 +151,7 @@ ColumnLayout {
                     color: Theme.dim
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     font.weight: Font.DemiBold
                     font.capitalization: Font.AllUppercase
                 }
@@ -217,7 +217,7 @@ ColumnLayout {
                 text: Tr.t("… and %1 more", SpeedDial.entries(sectionColumn.sectionName).length - 8)
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }
@@ -229,6 +229,6 @@ ColumnLayout {
         text: Tr.t("No shortcuts yet. Add a folder you use often, then give it a name.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(10) * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
     }
 }

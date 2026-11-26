@@ -401,12 +401,12 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Text { text: page.realName || page.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { text: page.user; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: page.realName || page.user; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
+                Text { text: page.user; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
             }
         }
 
-        Text { text: Tr.t("Picture"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+        Text { text: Tr.t("Picture"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
         Flow {
             Layout.fillWidth: true
             spacing: Theme.px(8)
@@ -433,7 +433,7 @@ ColumnLayout {
             text: Tr.t("Put a picture in Pictures to choose it here.")
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
 
         TextField {
@@ -460,7 +460,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
     // face
     RowLayout {
@@ -472,7 +472,7 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
-            Text { text: Tr.t("Face"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+            Text { text: Tr.t("Face"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
@@ -482,7 +482,7 @@ ColumnLayout {
                     : Tr.t("On, but your face is not set up yet - it takes five quick looks.")
                 color: page.faceStep >= 0 ? Theme.accent : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
         }
     }
@@ -512,7 +512,7 @@ ColumnLayout {
         color: page.faceNote.indexOf("Done") === 0 ? Theme.dim : Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     // fingerprint
     RowLayout {
@@ -524,7 +524,7 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
-            Text { text: Tr.t("Fingerprint"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+            Text { text: Tr.t("Fingerprint"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
             Text {
                 visible: page.enrolled.length > 0 && page.enrollState === ""
                 text: Tr.t("On the sign-in screen, press Enter with the password empty, then touch the reader.")
@@ -532,7 +532,7 @@ ColumnLayout {
                 wrapMode: Text.Wrap
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
         }
     }
@@ -547,7 +547,7 @@ ColumnLayout {
         color: page.enrollState.startsWith("failed") ? Theme.danger : Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     Rectangle {      // the scans so far
         visible: enroll.running
@@ -564,7 +564,7 @@ ColumnLayout {
             required property string modelData
             Layout.fillWidth: true
             Icon { name: "auth-fingerprint"; size: Theme.px(18); color: Theme.accent }
-            Text { Layout.fillWidth: true; text: page.fingerLabel(modelData); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+            Text { Layout.fillWidth: true; text: page.fingerLabel(modelData); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             IconButton { icon: "edit-delete"; tip: Tr.t("Remove"); Accessible.name: Tr.t("Remove %1", page.fingerLabel(modelData)); onClicked: page.forgetFinger(modelData) }
         }
     }
@@ -595,7 +595,7 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
-            Text { text: Tr.t("Security key"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+            Text { text: Tr.t("Security key"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
@@ -607,7 +607,7 @@ ColumnLayout {
                     : Tr.t("%1 is plugged in. Register it, then touch it to sign in.", page.u2f.keys[0] || Tr.t("A key"))
                 color: page.u2fState.indexOf("failed") === 0 ? Theme.danger : page.u2fState === "touch" ? Theme.accent : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
         }
     }
@@ -647,7 +647,7 @@ ColumnLayout {
             color: Theme.text
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.Medium
             Accessible.name: text
         }
@@ -738,7 +738,7 @@ ColumnLayout {
             color: Theme.text
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.Medium
             Accessible.name: text
         }
@@ -748,7 +748,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             Accessible.name: text
         }
         ColumnLayout {
@@ -846,7 +846,7 @@ ColumnLayout {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
             TextField {
@@ -879,7 +879,7 @@ ColumnLayout {
             color: Theme.amber
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             Accessible.name: text
         }
         InfoBanner {
@@ -901,7 +901,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Text {
             Layout.fillWidth: true
@@ -910,7 +910,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Text {
             Layout.fillWidth: true
@@ -919,7 +919,7 @@ ColumnLayout {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         ColumnLayout {
             Layout.fillWidth: true
@@ -950,7 +950,7 @@ ColumnLayout {
             text: Tr.t("No SSH keys yet.")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         RowLayout {
             Layout.fillWidth: true
@@ -984,7 +984,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     Button {
         text: Tr.t("Change password…")
@@ -1000,6 +1000,6 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 }

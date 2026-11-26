@@ -119,7 +119,8 @@ def test_listrow_is_the_only_row_widget_in_common():
     assert "ListRow.qml" in rows
     # only ListRow carries the title+subtitle+selected row contract;
     # EmptyState is a centered placeholder, not a selectable row.
-    allowed = {"ListRow.qml", "EmptyState.qml"}
+    # Card and AppPage head a group / a page (docs/DESIGN.md): containers, not rows.
+    allowed = {"ListRow.qml", "EmptyState.qml", "Card.qml", "AppPage.qml"}
     others = [r for r in rows if r not in allowed]
     assert not others, f"competing row widgets: {others}"
 

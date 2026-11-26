@@ -67,7 +67,7 @@ ColumnLayout {
                 text: Tr.t("Privacy dashboard")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 font.weight: Font.DemiBold
             }
             Text {
@@ -78,7 +78,7 @@ ColumnLayout {
                     : Tr.t("Apps with access: ") + Object.keys(page.permCounts).map(k => (page.names[k + "/" + page.grants.find(g => g.table === k).id] || k) + " " + page.permCounts[k]).join("  ·  ")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Flow {
                 Layout.fillWidth: true
@@ -98,7 +98,7 @@ ColumnLayout {
                             text: parent.label
                             color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: Theme.fontSmall * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Accessible.role: Accessible.StaticText
                         Accessible.name: label
@@ -127,7 +127,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     Flow {
         Layout.fillWidth: true
@@ -152,7 +152,7 @@ ColumnLayout {
             text: Tr.t("Lock after")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             height: Theme.px(28)
             verticalAlignment: Text.AlignVCenter
         }
@@ -192,7 +192,7 @@ ColumnLayout {
         title: Tr.t("Trash")
     RowLayout {
         spacing: Theme.px(6)
-        Text { text: Tr.t("Empty automatically"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Text { text: Tr.t("Empty automatically"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         Repeater {
             model: [{ label: Tr.t("Never"), value: 0 }, { label: Tr.t("After 7 days"), value: 7 }, { label: Tr.t("After 30 days"), value: 30 }]
             Choice {
@@ -246,7 +246,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     Repeater {
         model: page.grants
@@ -286,7 +286,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     }
 }

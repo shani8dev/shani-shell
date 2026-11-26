@@ -463,7 +463,7 @@ def test_round4_image_recheck_fixes_are_wired():
         "shani/Modules/Island/Island.qml": ['kind: "plain"'],
         "shani/Modules/Share/ShareSheet.qml": ["property int sel: -1"],
         "shani/Modules/Osd/Osd.qml": ['Tr.t("Microphone off")'],
-        "shani/Modules/Chronoa/ChronoaPanel.qml": ["Theme.px(12) * Theme.fontScale"],
+        "shani/Modules/Chronoa/ChronoaPanel.qml": ["Theme.type(\"body\")"],
         "shani/Common/Choice.qml": [
             "font.weight: root.selected ? Font.DemiBold : Font.Normal"
         ],

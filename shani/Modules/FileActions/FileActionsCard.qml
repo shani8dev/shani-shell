@@ -63,7 +63,7 @@ PanelWindow {
                         text: FileActions.fitting ? Tr.t("What size does the form allow?") : Tr.t("What should happen to it?")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -73,7 +73,7 @@ PanelWindow {
                             : Tr.t("%1 files", FileActions.files.length) + " · " + FileActions.files.map(f => f.split("/").pop()).join(", ")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                 }
             }
@@ -101,7 +101,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: FileActions.fitting
                 spacing: Theme.px(6)
-                Text { text: Tr.t("Or the form's own:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("Or the form's own:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TextField { id: fMin; Layout.preferredWidth: Theme.px(70); placeholder: Tr.t("min KB") }
                 TextField { id: fMax; Layout.preferredWidth: Theme.px(70); placeholder: Tr.t("max KB") }
                 TextField { id: fW; Layout.preferredWidth: Theme.px(60); visible: FileActions.kinds === "image"; placeholder: Tr.t("width") }
@@ -137,7 +137,7 @@ PanelWindow {
                                           : Tr.t("The result is saved next to the file - nothing is overwritten.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Button { Layout.alignment: Qt.AlignRight; text: Tr.t("Cancel"); onClicked: FileActions.close() }
         }

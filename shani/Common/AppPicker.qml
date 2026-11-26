@@ -23,7 +23,7 @@ ColumnLayout {
         text: label
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.fontSmall * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
     }
 
     // Current value display
@@ -54,7 +54,7 @@ ColumnLayout {
                     text: root.selectedApp ? root.selectedApp.name : (root.value || root.placeholder)
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     elide: Text.ElideRight
                 }
             }
@@ -149,6 +149,6 @@ ColumnLayout {
         text: Tr.t("No apps found.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 }

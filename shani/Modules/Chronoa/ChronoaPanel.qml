@@ -347,7 +347,7 @@ PanelWindow {
                     text: Tr.t("Chronoa")
                     color: panel.textColor
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(16) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
 
@@ -355,7 +355,7 @@ PanelWindow {
                     text: panel.stateLabel()
                     color: panel.stateColor()
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
 
                 Text {
@@ -363,7 +363,7 @@ PanelWindow {
                     text: "· " + panel.detail
                     color: panel.dimColor
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     elide: Text.ElideRight
                     Layout.maximumWidth: Theme.px(280)
                 }
@@ -384,7 +384,7 @@ PanelWindow {
                         text: panel.modelLabel
                         color: panel.dimColor
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
 
@@ -398,7 +398,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         text: "×"
                         color: panel.dimColor
-                        font.pixelSize: Theme.px(16) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                     }
                     MouseArea {
                         id: closeArea
@@ -457,7 +457,7 @@ PanelWindow {
                     text: Tr.t("Ask for a job.")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(17) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     font.weight: Font.DemiBold
                     Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
@@ -466,7 +466,7 @@ PanelWindow {
                     text: Tr.t("Chronoa runs it on this machine,\nand asks before anything changes.")
                     color: Theme.alpha(Theme.dim, 0.7)
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     lineHeight: 1.5
                     Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
@@ -553,7 +553,7 @@ PanelWindow {
                                     text: row.text
                                     color: panel.textColor
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                     wrapMode: Text.WordWrap
                                 }
                             }
@@ -585,7 +585,7 @@ PanelWindow {
                                     text: row.text
                                     color: panel.textColor
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                     lineHeight: 1.35
                                     wrapMode: Text.WordWrap
                                 }
@@ -619,7 +619,7 @@ PanelWindow {
                                         text: row.text
                                         color: Theme.amber
                                         font.family: Theme.mono
-                                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                                        font.pixelSize: Theme.type("caption")
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                 }
@@ -674,7 +674,7 @@ PanelWindow {
                                         text: row.title
                                         color: panel.textColor
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                                        font.pixelSize: Theme.type("body")
                                         font.weight: Font.DemiBold
                                     }
                                     Text {
@@ -682,7 +682,7 @@ PanelWindow {
                                         text: row.detail
                                         color: panel.dimColor
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                         wrapMode: Text.WordWrap
                                     }
 
@@ -716,7 +716,7 @@ PanelWindow {
                                                     elide: Text.ElideRight
                                                     color: panel.textColor
                                                     font.family: Theme.font
-                                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                                    font.pixelSize: Theme.type("small")
                                                 }
                                                 MouseArea {
                                                     anchors.fill: parent
@@ -735,7 +735,7 @@ PanelWindow {
                                         + row.decision
                                         color: panel.accent
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                 }
                             }
@@ -749,7 +749,7 @@ PanelWindow {
                                 text: row.text
                                 color: panel.dimColor
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 wrapMode: Text.WordWrap
                             }
                         }
@@ -786,7 +786,7 @@ PanelWindow {
                             text: modelData.label
                             color: panel.dimColor
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         MouseArea {
                             id: chipArea
@@ -828,7 +828,7 @@ PanelWindow {
                         Layout.fillWidth: true
                         color: panel.textColor
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         selectionColor: Theme.alpha(Theme.accent, 0.35)
                         clip: true
 
@@ -842,7 +842,7 @@ PanelWindow {
                             text: Tr.t("Ask Chronoa, or describe a task…")
                             color: Theme.alpha(Theme.dim, 0.75)
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -860,7 +860,7 @@ PanelWindow {
                             text: Tr.t("mic")
                             color: panel.dimColor
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         MouseArea {
                             id: micArea
@@ -882,7 +882,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: "■"
                             color: Theme.accentInk
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -903,7 +903,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             text: "↵"
                             color: input.text.trim() === "" ? panel.dimColor : panel.textColor
-                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -919,7 +919,7 @@ PanelWindow {
                 text: Tr.t("↵ send    esc close    ·    tools ask before they change anything")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
         }
     }

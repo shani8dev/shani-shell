@@ -28,7 +28,7 @@ ColumnLayout {
             visible: Shelf.parked.length === 0
             Layout.fillWidth: true; wrapMode: Text.Wrap
             text: Tr.t("Drop files on the Shelf in the dock to keep them here for later. Drag any of these into an app.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
         }
         Flow {
             Layout.fillWidth: true

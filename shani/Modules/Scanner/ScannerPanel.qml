@@ -231,7 +231,7 @@ AppWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true

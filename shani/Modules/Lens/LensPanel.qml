@@ -63,7 +63,7 @@ PanelWindow {
                     text: Lens.phase === "reading" ? Tr.t("Lens · reading…") : Tr.t("Lens")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Read the selection again"); onClicked: Lens.capture() }
@@ -120,7 +120,7 @@ PanelWindow {
                     selectionColor: Theme.accent
                     selectedTextColor: Theme.accentInk
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
 

@@ -35,7 +35,7 @@ ColumnLayout {
         text: root.title
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(14) * Theme.fontScale
+        font.pixelSize: Theme.type("heading")
         font.weight: Font.DemiBold
         visible: root.title !== ""
     }
@@ -47,7 +47,7 @@ ColumnLayout {
         text: root.subtitle
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         visible: root.subtitle !== ""
     }
     Button {

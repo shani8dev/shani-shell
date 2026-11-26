@@ -174,7 +174,7 @@ FloatingWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                     Accessible.ignored: true
                 }
@@ -183,7 +183,7 @@ FloatingWindow {
                     text: win.appName
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     rightPadding: Theme.px(6)
                     Accessible.ignored: true
                 }
@@ -272,7 +272,7 @@ FloatingWindow {
                     text: Tr.t("Save changes before closing?")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     elide: Text.ElideRight
                 }
                 GuardButton { label: Tr.t("Cancel"); onClicked: win.closePending = false }
@@ -296,7 +296,7 @@ FloatingWindow {
             text: gb.label
             color: gb.primary ? Theme.accentInk : Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Accessible.role: Accessible.Button
         Accessible.name: gb.label

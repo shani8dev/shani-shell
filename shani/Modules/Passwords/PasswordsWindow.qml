@@ -478,7 +478,7 @@ AppWindow {
                             : Tr.t("%1 reused password%2", win.reusedCount, win.reusedCount === 1 ? "" : "s")
                         color: Theme.amber
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         font.weight: Font.DemiBold
                     }
                     Item { Layout.fillWidth: true }
@@ -489,7 +489,7 @@ AppWindow {
                     text: win.auditResults.weak.slice(0, 3).map(w => w.label).join(", ") + (win.weakCount > 3 ? "…" : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     elide: Text.ElideRight
                 }
                 Text {
@@ -498,7 +498,7 @@ AppWindow {
                     text: Tr.t("Reused: %1", win.auditResults.reused.slice(0, 2).map(r => r.items.join(", ")).join(" · "))
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     elide: Text.ElideRight
                 }
             }
@@ -523,7 +523,7 @@ AppWindow {
             wrapMode: Text.WordWrap
             text: win.error !== "" ? win.error : win.note
             color: win.error !== "" ? Theme.danger : Theme.dim
-            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.family: Theme.font; font.pixelSize: Theme.type("body")
             Accessible.role: Accessible.StatusBar
             Accessible.name: text
         }
@@ -534,7 +534,7 @@ AppWindow {
                 Layout.fillWidth: true
                 text: Tr.t("Check the keyring and try again")
                 color: Theme.dim
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
             Button { text: Tr.t("Try again"); onClicked: win.refresh() }
@@ -544,7 +544,7 @@ AppWindow {
             Layout.fillWidth: true
             text: Tr.t("Clipboard clears in %1 s", win.clipboardLeft)
             color: Theme.dim
-            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.family: Theme.font; font.pixelSize: Theme.type("small")
             Accessible.role: Accessible.StatusBar
             Accessible.name: text
         }
@@ -564,7 +564,7 @@ AppWindow {
                 text: win.visibleItems.length + " / " + win.items.length
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 font.features: { "tnum": 1 }
             }
             Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }
@@ -606,7 +606,7 @@ AppWindow {
                 Layout.fillWidth: true
                 text: win.newStrength.label + " - " + win.newStrength.tip
                 color: win.newStrength.score <= 1 ? Theme.danger : Theme.dim
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }
@@ -631,7 +631,7 @@ AppWindow {
                     wrapMode: Text.WordWrap
                     text: Tr.t("You already have a password saved for %1.", win.duplicate ? win.duplicate.label : "")
                     color: Theme.amber
-                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -676,21 +676,21 @@ AppWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                         Text {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                             text: win.shownPath === prow.modelData.path ? win.shownSecret : win.about(prow.modelData)
                             color: win.shownPath === prow.modelData.path ? Theme.accent : Theme.dim
                             font.family: win.shownPath === prow.modelData.path ? Theme.mono : Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Text {
                             visible: win.categoryOf(prow.modelData) !== Tr.t("Other")
                             Layout.fillWidth: true
                             text: win.categoryOf(prow.modelData)
                             color: Theme.faint
-                            font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.family: Theme.font; font.pixelSize: Theme.type("caption")
                             Accessible.name: Tr.t("Folder: %1", win.categoryOf(prow.modelData))
                         }
                     }
@@ -770,7 +770,7 @@ AppWindow {
                     wrapMode: Text.WordWrap
                     text: win.noteOf(prow.modelData)
                     color: Theme.text
-                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.family: Theme.font; font.pixelSize: Theme.type("small")
                     Accessible.role: Accessible.StaticText
                     Accessible.name: Tr.t("Secure note for %1: %2", prow.modelData.label, win.noteOf(prow.modelData))
                 }
@@ -826,13 +826,13 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: krow.modelData.uid || krow.modelData.id; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: krow.modelData.uid || krow.modelData.id; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Text {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: [krow.modelData.secret ? Tr.t("yours") : Tr.t("someone else's"), krow.modelData.id,
                                krow.modelData.expires ? Tr.t("until %1", Qt.formatDate(new Date(krow.modelData.expires * 1000), "d MMM yyyy")) : Tr.t("no end date")].join("  ·  ")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     }
                 }
                 IconButton {
@@ -875,7 +875,7 @@ AppWindow {
             text: Tr.t("Websites own real WebAuthn credentials; the shell keeps a keyring-protected REFERENCE to each (label, site, key-handle id), encrypted with your login. A site only accepts credentials registered through its own browser flow — the shell cannot mint one. When libfido2 tools are installed, genuinely local credentials can be created and used for challenge/response (not website logins).")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         RowLayout {
             visible: win.tab === "passkeys"
@@ -923,20 +923,20 @@ AppWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.label || Tr.t("Unnamed"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.label || Tr.t("Unnamed"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Text {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: (prow.modelData.rp_id ? prow.modelData.rp_id + "  ·  " : "")
                             + (prow.modelData.source === "shell" ? Tr.t("Shell-created") : Tr.t("Browser reference"))
                             + (prow.modelData.created ? "  ·  " + Qt.formatDate(new Date(prow.modelData.created * 1000), "d MMM yyyy") : "")
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                     }
                     Text {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: prow.modelData.cred_id ? Tr.t("Key handle: %1", prow.modelData.cred_id.slice(0, 16)) : Tr.t("No local key handle")
-                        color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale
+                        color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.type("caption")
                     }
                 }
                 IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the key-handle id"); onClicked: { Quickshell.clipboardText = prow.modelData.id; clearTimer.restart(); win.clipboardLeft = 45; win.note = Tr.t("%1 id copied", prow.modelData.label) } }
@@ -985,7 +985,7 @@ AppWindow {
                     horizontalAlignment: Text.AlignHCenter
                     text: win.keyringLocked ? Tr.t("The system keyring is locked") : Tr.t("Vault locked")
                     color: Theme.text
-                    font.family: Theme.font; font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.family: Theme.font; font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                     Accessible.role: Accessible.Alert
                     Accessible.name: text
@@ -996,7 +996,7 @@ AppWindow {
                     horizontalAlignment: Text.AlignHCenter
                     text: win.keyringLocked ? Tr.t("Unlock it with your session password, then read again") : Tr.t("Revealed details were hidden on lock or after five minutes of idle time")
                     color: Theme.dim
-                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Button {
                     Layout.alignment: Qt.AlignHCenter

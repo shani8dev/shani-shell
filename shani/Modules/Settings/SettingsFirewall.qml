@@ -91,7 +91,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Text {
             Layout.fillWidth: true
@@ -100,7 +100,7 @@ ColumnLayout {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 
@@ -165,7 +165,7 @@ ColumnLayout {
                     extra: Text {
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         text: page.bannedText(modelData.counts)
                     }
                 }
@@ -177,7 +177,7 @@ ColumnLayout {
                     color: Theme.danger
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
         }
@@ -187,7 +187,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
     }
 
@@ -237,7 +237,7 @@ ColumnLayout {
             }
         }
 
-    Text { Layout.fillWidth: true; text: Tr.t("Open ports"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.Medium }
+    Text { Layout.fillWidth: true; text: Tr.t("Open ports"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.Medium }
     ColumnLayout {
         Layout.fillWidth: true
         spacing: Theme.px(2)
@@ -268,7 +268,7 @@ ColumnLayout {
         }
     }
 
-    Text { Layout.fillWidth: true; text: Tr.t("Allowed services"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.Medium }
+    Text { Layout.fillWidth: true; text: Tr.t("Allowed services"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.Medium }
     ColumnLayout {
         Layout.fillWidth: true
         spacing: Theme.px(2)
@@ -300,14 +300,14 @@ ColumnLayout {
     }
 
     // ---- rich rules: who, what, and what happens ---------------------------
-    Text { Layout.fillWidth: true; text: Tr.t("Rich rules"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.Medium }
+    Text { Layout.fillWidth: true; text: Tr.t("Rich rules"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.weight: Font.Medium }
     Text {
         Layout.fillWidth: true
         text: Tr.t("A port or a service is open to everyone. A rich rule names who it is open to and what happens — accept, reject or drop — and can limit how often, log it, or forward a port elsewhere.")
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     ColumnLayout {
         Layout.fillWidth: true

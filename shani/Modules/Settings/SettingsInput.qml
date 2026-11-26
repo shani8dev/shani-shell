@@ -40,7 +40,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     Repeater {
         model: page.d.kbLayouts
@@ -133,7 +133,7 @@ ColumnLayout {
         color: page.loginError.startsWith("Set") ? Theme.dim : Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 
     }
@@ -147,7 +147,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         visible: page.missing.length > 0
-        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale
+        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                text: page.allDevices ? Tr.t("Showing the settings for every kind of device.") : Tr.t("No %1 here now: their settings are hidden.", page.missing.join(", ")) }
         Choice { text: page.allDevices ? Tr.t("Only what is here") : Tr.t("Show all"); onClicked: page.allDevices = !page.allDevices }
     }
@@ -207,7 +207,7 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 
     }
@@ -321,7 +321,7 @@ ColumnLayout {
         color: Tablet.devices.length ? Theme.text : Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Keyboard button when hidden"); hint: Tr.t("on a touchscreen, or with no keyboard: a small button brings the screen keyboard back"); checked: page.d.oskButton; onToggled: on => page.d.oskButton = on }
     SwitchRow { Layout.fillWidth: true; text: Tr.t("Screen keyboard in tablet mode"); hint: Tr.t("folded into a tablet it comes up, unfolded it goes"); checked: page.d.oskWithTabletMode; onToggled: on => page.d.oskWithTabletMode = on }
@@ -332,7 +332,7 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true
             spacing: Theme.px(4)
-            Text { text: modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+            Text { text: modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -373,14 +373,14 @@ ColumnLayout {
         color: Theme.faint
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
 
     }
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Keyboard")
-    Text { text: Tr.t("Keyboard backlight"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+    Text { text: Tr.t("Keyboard backlight"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)

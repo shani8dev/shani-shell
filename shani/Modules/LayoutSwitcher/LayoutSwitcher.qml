@@ -327,11 +327,11 @@ PanelWindow {
                 Layout.fillHeight: true
                 Layout.alignment: Qt.AlignTop
                 spacing: Theme.px(14)
-                Text { text: Tr.t("Screen and layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(20) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
+                Text { text: Tr.t("Screen and layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     text: Tr.t("Pick one to try it on — your desktop changes at once. Keep it, or Cancel to go back. You can still change any part of it in Settings afterwards.") }
                 // what kind of screen this is: the shell's size and its edges follow it
-                Text { text: Tr.t("This screen is a"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+                Text { text: Tr.t("This screen is a"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -345,8 +345,8 @@ PanelWindow {
                         }
                     }
                 }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.kindNotes[root.kindNow] || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                Text { text: Tr.t("Layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.kindNotes[root.kindNow] || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                Text { text: Tr.t("Layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
                 // the layouts scroll inside the card when they are more than fit (all of them);
                 // the choice of which to show stays in view below
                 Flickable {
@@ -400,11 +400,11 @@ PanelWindow {
                                 RowLayout {
                                     spacing: Theme.px(6)
                                     Icon { name: tile.preset.icon; size: Theme.px(16); color: tile.chosen ? Theme.accent : Theme.text }
-                                    Text { text: tile.preset.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.Medium }
+                                    Text { text: tile.preset.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.Medium }
                                     Rectangle { visible: tile.preset.suits.indexOf(root.kindNow) >= 0; radius: Theme.px(8); color: tile.preset.made === root.kindNow ? Theme.alpha(Theme.accent, 0.25) : Theme.alpha(Theme.text, 0.1); implicitWidth: suitsL.implicitWidth + 12; implicitHeight: suitsL.implicitHeight + 4
-                                        Text { id: suitsL; anchors.centerIn: parent; text: tile.preset.made === root.kindNow ? Tr.t("Best for this screen") : Tr.t("Also works here"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
+                                        Text { id: suitsL; anchors.centerIn: parent; text: tile.preset.made === root.kindNow ? Tr.t("Best for this screen") : Tr.t("Also works here"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") } }
                                     Rectangle { visible: root.now === tile.pi && !root.tried; radius: Theme.px(8); color: Theme.alpha(Theme.accent, 0.25); implicitWidth: nowL.implicitWidth + 12; implicitHeight: nowL.implicitHeight + 4
-                                        Text { id: nowL; anchors.centerIn: parent; text: Tr.t("Now"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } }
+                                        Text { id: nowL; anchors.centerIn: parent; text: Tr.t("Now"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") } }
                                 }
                             }
                             MouseArea { id: ta; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.tryOn(tile.pi) }
@@ -421,7 +421,7 @@ PanelWindow {
                     Choice { text: Tr.t("Familiar layouts"); selected: root.showFamiliar; onClicked: { root.showAll = false; root.showFamiliar = true; } }
                     Choice { text: Tr.t("All %1", root.presets.length); selected: root.showAll; onClicked: { root.showFamiliar = false; root.showAll = true; } }
                 }
-                Text { visible: root.now < 0 && !root.tried; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                Text { visible: root.now < 0 && !root.tried; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     text: Tr.t("Your desktop is set up your own way right now, so none of these is marked. Cancel keeps it exactly as it is.") }
             }
             // the chosen layout: big picture, what it changes, Keep / Cancel
@@ -432,9 +432,9 @@ PanelWindow {
                 spacing: Theme.px(12)
                 Item { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625
                     Mini { anchors.centerIn: parent; height: parent.height; width: root.drawnAs(root.p) === "phone" ? height * 0.5 : parent.width; s: root.p.set; kind: root.drawnAs(root.p) } }
-                Text { text: root.p.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+                Text { text: root.p.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
@@ -445,12 +445,12 @@ PanelWindow {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
                             Icon { name: "object-select-symbolic"; size: Theme.px(14); color: Theme.accent; Layout.alignment: Qt.AlignTop }
-                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                         }
                     }
                 }
                 Item { Layout.fillHeight: true }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     text: Tr.t("Arrows to look through them · Enter to keep · Esc to cancel") }
                 RowLayout {
                     Layout.fillWidth: true

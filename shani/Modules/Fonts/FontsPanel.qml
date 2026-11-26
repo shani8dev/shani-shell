@@ -217,7 +217,7 @@ AppWindow {
                         : Tr.t("%1 styles", win.totalFonts)) : ""
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 IconButton {
                     icon: "view-refresh"
@@ -284,13 +284,13 @@ AppWindow {
                             Layout.fillWidth: true
                             text: fileCard.ready ? fileFont.name : (fileFont.status === FontLoader.Error ? Tr.t("Not a font this can read") : Tr.t("Reading…"))
                             color: Theme.text; font.family: Theme.font; font.weight: Font.DemiBold
-                            font.pixelSize: Theme.px(15) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                             elide: Text.ElideRight
                         }
                         Text {
                             visible: fileCard.ready
                             text: fileCard.installed ? Tr.t("Installed") : Tr.t("Not installed")
-                            color: fileCard.installed ? Theme.accent : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                            color: fileCard.installed ? Theme.accent : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                         }
                         Button {
                             visible: fileCard.ready && !fileCard.installed
@@ -304,14 +304,14 @@ AppWindow {
                         Layout.fillWidth: true
                         visible: fileCard.details !== ""
                         text: fileCard.details
-                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                         wrapMode: Text.Wrap
                     }
                     Text {
                         Layout.fillWidth: true
                         visible: fileCard.ready
                         text: "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n0123456789 .,;:!?&@()"
-                        font.family: fileFont.name; font.pixelSize: Theme.px(16) * Theme.fontScale
+                        font.family: fileFont.name; font.pixelSize: Theme.type("heading")
                         color: Theme.text; wrapMode: Text.Wrap
                     }
                     Repeater {
@@ -341,7 +341,7 @@ AppWindow {
                     text: Tr.t("Size")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Item {
                     Layout.fillWidth: true
@@ -389,7 +389,7 @@ AppWindow {
                     text: win.previewSize + " pt"
                     color: Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
 
@@ -408,7 +408,7 @@ AppWindow {
                     color: Theme.dim
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
@@ -435,7 +435,7 @@ AppWindow {
                     }
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     wrapMode: Text.Wrap
                 }
             }
@@ -485,14 +485,14 @@ AppWindow {
                                 color: Theme.faint
                                 elide: Text.ElideRight
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                             Text {
                                 visible: row.modelData.user === true
                                 text: Tr.t("User")
                                 color: Theme.accent
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                         }
                     }
@@ -534,7 +534,7 @@ AppWindow {
                 color: Theme.dim
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
             Text {
                 Layout.fillWidth: true
@@ -543,7 +543,7 @@ AppWindow {
                 color: win.copiedFamily !== "" ? Theme.accent : Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

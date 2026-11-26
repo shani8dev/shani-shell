@@ -147,11 +147,11 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Text { text: page.info.host || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(18) * Theme.fontScale; font.weight: Font.DemiBold }
-                Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: page.info.host || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
+                Text { text: page.info.os || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Text {
                     text: [page.info.gpu, page.info.driver].filter(x => x).join(" · ")
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
                     visible: text !== ""
                 }
             }
@@ -202,7 +202,7 @@ ColumnLayout {
                     text: modelData[0]
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
             Repeater {
@@ -217,7 +217,7 @@ ColumnLayout {
                     color: Theme.text
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
         }
@@ -265,7 +265,7 @@ ColumnLayout {
                     text: page.checks.length ? Math.round(page.healthScore * 100) + "%" : "–"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(18) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     font.weight: Font.DemiBold
                 }
             }
@@ -285,14 +285,14 @@ ColumnLayout {
                             color: Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         Text {
                             text: modelData.detail
                             color: Theme.dim
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                 }

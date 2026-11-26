@@ -34,7 +34,7 @@ Rectangle {
             text: pill.text
             color: pill.toneColor
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             font.weight: Font.DemiBold
             anchors.verticalCenter: parent.verticalCenter
         }

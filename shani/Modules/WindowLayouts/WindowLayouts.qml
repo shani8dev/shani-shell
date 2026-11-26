@@ -69,7 +69,7 @@ PanelWindow {
                     text: Tr.t("Window layout")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 Item { Layout.fillWidth: true }
@@ -78,7 +78,7 @@ PanelWindow {
                     text: Tr.t("Ctrl+Z to undo")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 IconButton {
                     icon: "edit-undo"
@@ -142,7 +142,7 @@ PanelWindow {
                                 text: modelData.name
                                 color: current ? Theme.accent : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 elide: Text.ElideRight
                             }
                             Text {
@@ -152,7 +152,7 @@ PanelWindow {
                                 text: modelData.cols + "×" + modelData.rows
                                 color: Theme.faint
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                         }
                         MouseArea {
@@ -191,7 +191,7 @@ PanelWindow {
                     spacing: Theme.px(4)
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: Tr.t("Your layouts"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
+                        Text { text: Tr.t("Your layouts"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
                         Item { Layout.fillWidth: true }
                         Button {
                             text: win.customEditing ? Tr.t("Cancel") : Tr.t("New layout…")
@@ -237,7 +237,7 @@ PanelWindow {
                                     text: modelData.name
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                 }
                                 ConfirmButton {
                                     id: deleteLayoutConfirm
@@ -269,7 +269,7 @@ PanelWindow {
                 text: Tr.t("Click a layout to apply it to the focused window. Niri handles the actual tiling — this sends the right actions.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

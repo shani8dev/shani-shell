@@ -326,7 +326,7 @@ AppWindow {
         text: Mail.note
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         Timer { interval: 5000; onTriggered: Mail.note = ""; running: parent.visible }
     }
     // the shared banner: it has a height of its own (the hand-made Rectangle
@@ -370,7 +370,7 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
-                    Text { text: Tr.t("Mail"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                    Text { text: Tr.t("Mail"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
                 }
                 RowLayout {
@@ -423,7 +423,7 @@ AppWindow {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
         }
@@ -444,7 +444,7 @@ AppWindow {
                     text: Mail.folder
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Button {
@@ -508,7 +508,7 @@ AppWindow {
                             : (win.undoAvailable() ? Tr.t("Undo last bulk action") : Tr.t("Archived or deleted — no undo"))
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Button { text: Tr.t("All"); flat: true; visible: win.selecting; onClicked: win.selectAll() }
                     Button { text: Tr.t("Read"); flat: true; visible: win.selecting; enabled: win.selectedUids.length > 0; onClicked: win.bulk("read") }
@@ -601,7 +601,7 @@ AppWindow {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     Accessible.role: Accessible.StaticText
                     Accessible.name: text
                 }
@@ -613,7 +613,7 @@ AppWindow {
                     color: Theme.text
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(20) * Theme.fontScale
+                    font.pixelSize: Theme.type("subtitle")
                     font.weight: Font.DemiBold
                     maximumLineCount: 3
                     elide: Text.ElideRight
@@ -627,7 +627,7 @@ AppWindow {
                     textFormat: Text.PlainText
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Text {
                     Layout.fillWidth: true
@@ -637,7 +637,7 @@ AppWindow {
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                 }
                 // the message as it was sent: Qt's TextDocument renders a subset
                 // of HTML, and the bridge has already taken out everything that
@@ -650,7 +650,7 @@ AppWindow {
                     color: Theme.text
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -763,7 +763,7 @@ AppWindow {
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
             spacing: Theme.px(8)
 
-            Text { text: Tr.t("New message"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(16) * Theme.fontScale; font.weight: Font.DemiBold }
+            Text { text: Tr.t("New message"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
             TextField { id: toBox; Layout.fillWidth: true; placeholder: Tr.t("To…"); label: Tr.t("Recipient"); text: compose.to }
             TextField { id: ccBox; Layout.fillWidth: true; placeholder: Tr.t("Cc…"); label: Tr.t("Cc recipients") }
             TextField { id: bccBox; Layout.fillWidth: true; placeholder: Tr.t("Bcc…"); label: Tr.t("Bcc recipients") }
@@ -775,7 +775,7 @@ AppWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StaticText
                 Accessible.name: text
             }
@@ -822,7 +822,7 @@ AppWindow {
                     text: Tr.t("Message source")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 Item { Layout.fillWidth: true }
@@ -837,7 +837,7 @@ AppWindow {
                     wrapMode: TextArea.Wrap
                     textFormat: Text.PlainText
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
         }

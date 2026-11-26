@@ -28,7 +28,7 @@ ColumnLayout {
             text: Tr.t("The desktop's colours, taken from a picture. Extract shows them first; Apply makes the picture your wallpaper and the colours yours.")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             wrapMode: Text.Wrap
         }
 
@@ -54,7 +54,7 @@ ColumnLayout {
                 : (preview.status === Image.Error ? Tr.t("Could not load that picture") : Tr.t("Loading…"))
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
         }
@@ -64,7 +64,7 @@ ColumnLayout {
         text: WallpaperStyle.image || Tr.t("(nothing picked)")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(10) * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
         elide: Text.ElideMiddle
     }
 
@@ -112,7 +112,7 @@ ColumnLayout {
         text: Matugen.previewError
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         wrapMode: Text.Wrap
         Layout.fillWidth: true
     }
@@ -121,7 +121,7 @@ ColumnLayout {
         text: Tr.t("matugen is not installed — colours from a picture need it (ShaniOS ships it)")
         color: Theme.danger
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         wrapMode: Text.Wrap
         Layout.fillWidth: true
     }
@@ -130,7 +130,7 @@ ColumnLayout {
         text: WallpaperStyle.note
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         wrapMode: Text.Wrap
         Layout.fillWidth: true
     }
@@ -166,7 +166,7 @@ ColumnLayout {
                         text: modelData + "  " + ((page.shown && page.shown[modelData]) || "—")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
             }
@@ -190,7 +190,7 @@ ColumnLayout {
         text: Tr.t("No themes saved yet — extract, name it, Save theme.")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         Layout.fillWidth: true
     }
     ColumnLayout {
@@ -207,7 +207,7 @@ ColumnLayout {
                     text: (modelData.name || "Untitled theme") + (modelData.image ? "  ·  " + modelData.image : "")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     elide: Text.ElideMiddle
                 }
                 Button { text: Tr.t("Load"); onClicked: WallpaperStyle.loadTheme(index) }

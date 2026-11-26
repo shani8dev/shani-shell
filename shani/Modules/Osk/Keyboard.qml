@@ -654,7 +654,7 @@ PanelWindow {
                     text: Tr.t("Nothing copied yet")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
             }
 

@@ -38,7 +38,7 @@ ColumnLayout {
             RowLayout {
                 spacing: Theme.px(8)
                 Icon { name: mode.modelData.icon || "weather-clear-night"; size: Theme.px(18); color: Theme.accent }
-                Text { text: mode.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { text: mode.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
             }
             SwitchRow {
                 Layout.fillWidth: true
@@ -67,13 +67,13 @@ ColumnLayout {
             RowLayout {
                 visible: mode.sc.on
                 spacing: Theme.px(8)
-                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TimePicker {
                     Layout.preferredWidth: Theme.px(140)
                     value: mode.sc.from
                     onPicked: t => page.updateSchedule(mode.index, { from: t })
                 }
-                Text { text: Tr.t("to"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { text: Tr.t("to"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 TimePicker {
                     Layout.preferredWidth: Theme.px(140)
                     value: mode.sc.to
@@ -85,7 +85,7 @@ ColumnLayout {
                 text: Tr.t("Notifications that still come through:")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Flow {
                 Layout.fillWidth: true

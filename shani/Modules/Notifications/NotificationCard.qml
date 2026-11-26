@@ -283,7 +283,7 @@ Glass {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     // critical: a word as well as the red tint, so urgency does not
                     // depend on colour alone (a11y) - distinct from the edge/tint
@@ -302,7 +302,7 @@ Glass {
                             text: Tr.t("Urgent")
                             color: Theme.red
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             font.weight: Font.DemiBold
                         }
                         Accessible.role: Accessible.StaticText
@@ -335,7 +335,7 @@ Glass {
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                     font.italic: root.hideContent
                 }
@@ -435,7 +435,7 @@ Glass {
                                  : index === 0 && root.actions.length > 0 ? Theme.accent : Theme.text
                             elide: Text.ElideRight
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                             font.weight: Font.Medium
                         }
                         Accessible.role: Accessible.Button

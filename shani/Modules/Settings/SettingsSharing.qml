@@ -458,7 +458,7 @@ ColumnLayout {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         ListRow {
             Layout.fillWidth: true
@@ -487,7 +487,7 @@ ColumnLayout {
                 wrapMode: Text.WordWrap
                 text: page.groupNext ? Tr.t("This account may share folders from your next sign-in.")
                                      : Tr.t("This account may not share folders yet.")
-                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
             }
             Button { visible: !page.groupNext; text: Tr.t("Allow"); onClicked: page.run(["pkexec", "gpasswd", "-a", page.user, "sambashare"], Tr.t("Allowed — sign out and in again to share")) }
         }
@@ -545,10 +545,10 @@ ColumnLayout {
             }
             SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow TCP forwarding"); hint: Tr.t("Let tools tunnel connections through this computer"); checked: page.sshTcpForwarding; onToggled: on => { page.sshTcpForwarding = on; page.sshApply({ tcpForwarding: on }, Tr.t("Remote login rules updated")); } }
             SwitchRow { Layout.fillWidth: true; text: Tr.t("Allow X11 forwarding"); hint: Tr.t("Let remote apps open windows on this screen"); checked: page.sshX11Forwarding; onToggled: on => { page.sshX11Forwarding = on; page.sshApply({ x11Forwarding: on }, Tr.t("Remote login rules updated")); } }
-            RowLayout { Layout.fillWidth: true; spacing: Theme.px(6); Text { text: Tr.t("Max auth tries"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale } TextField { id: sshMaxAuthTriesField; Layout.preferredWidth: Theme.px(80); placeholder: "6"; label: Tr.t("Maximum sign-in tries") } }
-            Text { text: Tr.t("Allow users (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            RowLayout { Layout.fillWidth: true; spacing: Theme.px(6); Text { text: Tr.t("Max auth tries"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") } TextField { id: sshMaxAuthTriesField; Layout.preferredWidth: Theme.px(80); placeholder: "6"; label: Tr.t("Maximum sign-in tries") } }
+            Text { text: Tr.t("Allow users (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: sshAllowUsersField; Layout.fillWidth: true; placeholder: page.user; label: Tr.t("Users allowed to sign in") }
-            Text { text: Tr.t("Allow groups (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Allow groups (space separated, empty = all)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: sshAllowGroupsField; Layout.fillWidth: true; placeholder: "wheel"; label: Tr.t("Groups allowed to sign in") }
             Button { text: Tr.t("Save allow list"); kind: "primary"; enabled: !page.busy; busy: act.running || stageProc.running || writeProc.running; onClicked: page.sshApply(null, Tr.t("Remote login rules updated")) }
         }
@@ -612,7 +612,7 @@ ColumnLayout {
                 text: Tr.t("Pairing PIN: %1").arg(page.pairPin)
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(15) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
             }
             Text {
                 Layout.fillWidth: true
@@ -621,7 +621,7 @@ ColumnLayout {
                                            : "") + Tr.t("Pairing page: %1 (self-signed certificate — a browser will warn).").arg(page.pairUrl)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Button {
                 text: page.pairPin !== "" ? Tr.t("Copy PIN") : Tr.t("Copy pairing address")
@@ -889,14 +889,14 @@ ColumnLayout {
             wrapMode: Text.WordWrap
             text: Cast.active ? Tr.t("Casting — this screen is being shared")
                               : Tr.t("Off — share this screen with a TV or Chromecast")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
         }
         Text {
             visible: !Cast.available
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             text: Tr.t("Casting is not available on this computer.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
         }
         RowLayout {
             visible: Cast.available
@@ -913,7 +913,7 @@ ColumnLayout {
         Text {
             visible: page.shares.length === 0
             text: Tr.t("Nothing shared.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: page.shares

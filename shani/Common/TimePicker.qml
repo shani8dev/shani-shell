@@ -59,7 +59,7 @@ ColumnLayout {
         text: label
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.fontSmall * Theme.fontScale
+        font.pixelSize: Theme.type("caption")
     }
 
     RowLayout {
@@ -69,7 +69,7 @@ ColumnLayout {
         ColumnLayout {
             spacing: Theme.px(4)
             Layout.fillWidth: true
-            Text { text: Tr.t("Hour"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            Text { text: Tr.t("Hour"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
@@ -104,7 +104,7 @@ ColumnLayout {
         ColumnLayout {
             spacing: Theme.px(4)
             Layout.fillWidth: true
-            Text { text: Tr.t("Minute"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+            Text { text: Tr.t("Minute"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
@@ -124,8 +124,8 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(6)
-        Text { text: root.display(); color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold }
-        Text { text: Tr.t("· tap to change"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+        Text { text: root.display(); color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+        Text { text: Tr.t("· tap to change"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     }
 
     // Custom: type your own (validated)
@@ -152,7 +152,7 @@ ColumnLayout {
 
     // Quick presets for common schedules
     // a label above the chips, not among them: a child as wide as its Flow makes the Flow re-lay out itself forever
-    Text { Layout.fillWidth: true; text: Tr.t("Common times:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+    Text { Layout.fillWidth: true; text: Tr.t("Common times:"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
     Flow {
         Layout.fillWidth: true
         spacing: Theme.px(6)

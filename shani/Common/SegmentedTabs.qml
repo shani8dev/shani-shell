@@ -48,7 +48,7 @@ Rectangle {
                     text: segment.modelData
                     color: segment.index === tabs.currentIndex ? Theme.text : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     font.weight: Font.DemiBold
                 }
                 MouseArea {

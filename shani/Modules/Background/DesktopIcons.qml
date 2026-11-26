@@ -244,7 +244,7 @@ PanelWindow {
                     maximumLineCount: 2
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 TextField {
                     label: Tr.t("Name")
@@ -316,7 +316,7 @@ PanelWindow {
                 id: stackCol
                 width: parent.width
                 spacing: 2
-                Text { text: stack.entry ? stack.entry.name : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; font.weight: Font.DemiBold; bottomPadding: Theme.px(6) }
+                Text { text: stack.entry ? stack.entry.name : ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold; bottomPadding: Theme.px(6) }
                 Repeater {
                     model: stack.entry ? stack.entry.files : []
                     ListRow {

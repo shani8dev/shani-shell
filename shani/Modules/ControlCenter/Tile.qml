@@ -84,7 +84,7 @@ Rectangle {
             color: root.ink
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         Text {
@@ -94,7 +94,7 @@ Rectangle {
             color: root.on ? Theme.alpha(Theme.accentInk, 0.75) : Theme.dim
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
     }
 
@@ -138,7 +138,7 @@ Rectangle {
             anchors.centerIn: parent
             text: root.hiddenNow ? "+" : "−"
             color: root.hiddenNow ? Theme.accentInk : Theme.text
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
     }
@@ -157,7 +157,7 @@ Rectangle {
             anchors.centerIn: parent
             text: root.expanded ? "▾" : "›"
             color: root.ink
-            font.pixelSize: Theme.px(15) * Theme.fontScale
+            font.pixelSize: Theme.type("heading")
         }
         MouseArea {
             id: chevArea

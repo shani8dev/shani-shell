@@ -101,7 +101,7 @@ PanelWindow {
                     text: Tr.t("Authentication required")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(16) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
             }
@@ -111,7 +111,7 @@ PanelWindow {
                 color: Theme.text
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Text {
                 Layout.fillWidth: true
@@ -119,7 +119,7 @@ PanelWindow {
                 visible: text !== ""
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             RowLayout {
             Layout.fillWidth: true
@@ -143,7 +143,7 @@ PanelWindow {
                 color: Polkit.error || (win.flow && win.flow.supplementaryIsError) ? Theme.danger : Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Text {
                 Layout.fillWidth: true
@@ -151,7 +151,7 @@ PanelWindow {
                 color: Theme.faint
                 elide: Text.ElideMiddle
                 font.family: Theme.mono
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
             RowLayout {
                 Layout.fillWidth: true

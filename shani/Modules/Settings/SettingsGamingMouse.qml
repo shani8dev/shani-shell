@@ -84,7 +84,7 @@ ColumnLayout {
                 current: dev.modelData.rate
                 onPicked: v => page.change(["rate", dev.modelData.id, v])
             }
-            Text { text: Tr.t("Buttons"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+            Text { text: Tr.t("Buttons"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
             Repeater {
                 model: dev.modelData.buttons
                 ColumnLayout {
@@ -129,6 +129,6 @@ ColumnLayout {
         color: Theme.danger
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
 }

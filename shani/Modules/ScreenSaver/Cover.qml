@@ -108,7 +108,7 @@ Variants {
                 text: Tr.t("Press any key or click to dismiss")
                 color: Qt.rgba(1, 1, 1, 0.7)
                 font.family: Theme.font
-                font.pixelSize: Theme.px(14) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
             }
         }
         // a step somewhere else each minute (burn-in), at most a sixth of the screen

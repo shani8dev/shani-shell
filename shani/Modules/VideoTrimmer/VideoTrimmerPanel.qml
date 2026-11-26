@@ -123,7 +123,7 @@ AppWindow {
                         text: Tr.t("ffmpeg is not installed")
                         color: Theme.red
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
 
@@ -133,7 +133,7 @@ AppWindow {
                     text: Tr.t("Input video")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -153,7 +153,7 @@ AppWindow {
                             text: VideoTrimmer.input === "" ? Tr.t("No video — pick one") : VideoTrimmer.input
                             color: VideoTrimmer.input === "" ? Theme.faint : Theme.text
                             font.family: Theme.mono
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             elide: Text.ElideMiddle
                             Accessible.role: Accessible.StaticText
                             Accessible.name: Tr.t("Input video")
@@ -190,7 +190,7 @@ AppWindow {
                         : Tr.t("Duration unknown — set start and end in seconds")
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
 
                 // start offset: slider + seconds field + -1s / +1s
@@ -213,7 +213,7 @@ AppWindow {
                         text: Tr.t("Start")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     TextField {
                         id: startField
@@ -249,7 +249,7 @@ AppWindow {
                         text: Tr.t("End")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     TextField {
                         id: endField
@@ -313,7 +313,7 @@ AppWindow {
                     color: VideoTrimmer.captureError !== "" ? Theme.red : Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
 
                 // ---- multiple segments to join on export -------------------------
@@ -331,7 +331,7 @@ AppWindow {
                         required property int index
                         Layout.fillWidth: true
                         spacing: Theme.px(8)
-                        Text { Layout.fillWidth: true; text: Tr.t("Segment %1").arg(index + 1) + "  ·  " + VideoTrimmer.fmt(modelData.start) + " – " + VideoTrimmer.fmt(modelData.end); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; text: Tr.t("Segment %1").arg(index + 1) + "  ·  " + VideoTrimmer.fmt(modelData.start) + " – " + VideoTrimmer.fmt(modelData.end); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                         IconButton { icon: "list-remove"; size: Theme.px(24); Accessible.name: Tr.t("Remove segment"); onClicked: VideoTrimmer.removeSegment(index) }
                     }
                 }
@@ -354,7 +354,7 @@ AppWindow {
                         color: Theme.surface3
                         Rectangle { width: parent.width * VideoTrimmer.progress; height: parent.height; radius: Theme.px(4); color: Theme.accent }
                     }
-                    Text { text: Math.round(VideoTrimmer.progress * 100) + "%"; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { text: Math.round(VideoTrimmer.progress * 100) + "%"; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                     Button { text: Tr.t("Cancel"); kind: "danger"; onClicked: { win.exportPath = ""; VideoTrimmer.cancelCut() } }
                 }
 
@@ -381,7 +381,7 @@ AppWindow {
                     text: Tr.t("Save trimmed copy") + ": " + win.exportPath
                     color: Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     elide: Text.ElideMiddle
                     Accessible.name: Tr.t("Save trimmed copy")
                 }
@@ -393,7 +393,7 @@ AppWindow {
                     color: Theme.red
                     horizontalAlignment: Text.AlignHCenter
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
 
                 // the result: path, output duration via ffprobe when present,
@@ -407,7 +407,7 @@ AppWindow {
                         text: VideoTrimmer.result
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         elide: Text.ElideMiddle
                         wrapMode: Text.Wrap
                     }
@@ -418,7 +418,7 @@ AppWindow {
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     RowLayout {
                         Layout.alignment: Qt.AlignHCenter
@@ -434,7 +434,7 @@ AppWindow {
                     text: Tr.t("Esc closes · I in · O out · S split · ←/→ frame step")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
         }

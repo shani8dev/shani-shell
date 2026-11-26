@@ -180,7 +180,7 @@ except Exception as e:
                 text: win.message
                 color: win.error !== "" ? Theme.danger : Theme.dim
                 wrapMode: Text.WordWrap
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StaticText; Accessible.name: win.message
             }
 
@@ -223,7 +223,7 @@ except Exception as e:
                         textFormat: Text.PlainText
                         placeholderText: Tr.t("SELECT * FROM …  (Ctrl+Enter to run)")
                         color: Theme.text
-                        font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.family: Theme.font; font.pixelSize: Theme.type("body")
                         Accessible.name: Tr.t("SQL query")
                         onTextChanged: win.sql = text
                         Keys.onPressed: e => {
@@ -274,7 +274,7 @@ except Exception as e:
                                 required property string modelData
                                 Layout.fillWidth: true; text: modelData
                                 color: Theme.dim; elide: Text.ElideRight
-                                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.family: Theme.font; font.pixelSize: Theme.type("small")
                                 font.weight: Font.DemiBold
                                 Accessible.name: Tr.t("Column %1").arg(modelData)
                             }
@@ -297,7 +297,7 @@ except Exception as e:
                                 Layout.fillWidth: true
                                 text: cellRow.modelData[index] === null ? Tr.t("(null)") : String(cellRow.modelData[index])
                                 color: Theme.text; elide: Text.ElideRight
-                                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.family: Theme.font; font.pixelSize: Theme.type("small")
                             }
                         }
                     }
@@ -314,7 +314,7 @@ except Exception as e:
                 visible: !win.busy && win.error === "" && win.columns.length > 0 && win.rows.length === 0
                 text: Tr.t("The query returned no rows")
                 color: Theme.dim
-                font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.family: Theme.font; font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StaticText; Accessible.name: text
             }
 
@@ -333,7 +333,7 @@ except Exception as e:
                         Text {
                             anchors.fill: parent; anchors.margins: Theme.px(6)
                             text: modelData; color: Theme.text; elide: Text.ElideMiddle
-                            font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.family: Theme.font; font.pixelSize: Theme.type("small")
                         }
                         MouseArea { anchors.fill: parent; onClicked: win.runQuery(modelData) }
                         KeyFocus { onActivated: win.runQuery(modelData) }

@@ -330,7 +330,7 @@ AppWindow {
                             Layout.fillWidth: true
                             text: Tr.t("People")
                             color: Theme.dim
-                            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.family: Theme.font; font.pixelSize: Theme.type("body")
                             font.weight: Font.DemiBold
                         }
                     }

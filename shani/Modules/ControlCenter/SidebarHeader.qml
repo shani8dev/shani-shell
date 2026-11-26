@@ -37,7 +37,7 @@ ColumnLayout {
                 font.features: { "tnum": 1 }
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             // the batteries of the mouse, the headphones, the phone …
             Flow {
@@ -57,7 +57,7 @@ ColumnLayout {
                             text: parent.modelData.model.split(" ").slice(0, 2).join(" ") + " " + Math.round(parent.pct) + "%"
                             color: parent.pct < 15 ? Theme.red : Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                     }
                 }
@@ -68,7 +68,7 @@ ColumnLayout {
                 visible: Weather.summary === "" && Settings.data.weatherCity === "" && !Settings.data.useLocation
                 spacing: Theme.px(8)
                 Icon { name: "weather-few-clouds"; size: Theme.px(14); color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: Tr.t("Weather for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: Tr.t("Weather for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); anchors.verticalCenter: parent.verticalCenter }
                 Choice { text: Tr.t("where I am"); onClicked: { Settings.data.useLocation = true; Location.refresh(); }
                     Hint { text: Tr.t("Uses this computer's location (Wi-Fi, GPS) - you can turn it off in Settings > Privacy") } }
                 Choice { visible: Weather.zoneCity !== ""; text: Weather.zoneCity; onClicked: Settings.data.weatherCity = Weather.zoneCity
@@ -82,7 +82,7 @@ ColumnLayout {
                     text: Weather.summary + "  ·  " + (Settings.data.weatherCity || Tr.t("here"))
                     color: weatherArea.containsMouse ? Theme.text : Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.underline: weatherArea.containsMouse
                     // the whole forecast: the Weather app
                     MouseArea { id: weatherArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Ui.openWeather() }
@@ -109,7 +109,7 @@ ColumnLayout {
                                 text: modelData.day
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 font.weight: Font.DemiBold
                             }
                             Icon {
@@ -124,7 +124,7 @@ ColumnLayout {
                                 text: Math.round(modelData.hi) + "°/" + Math.round(modelData.lo) + "°"
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 font.features: { "tnum": 1 }
                             }
                             Text {
@@ -134,7 +134,7 @@ ColumnLayout {
                                 text: Weather.describe(modelData.code).split(" ")[0]
                                 color: Theme.faint
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                         }
                     }
@@ -164,7 +164,7 @@ ColumnLayout {
                                     text: modelData.hour
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(9) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                     font.features: { "tnum": 1 }
                                 }
                                 Text {
@@ -173,7 +173,7 @@ ColumnLayout {
                                     text: Math.round(modelData.temp) + "°"
                                     color: Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                     font.features: { "tnum": 1 }
                                 }
                             }

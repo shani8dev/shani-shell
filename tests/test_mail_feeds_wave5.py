@@ -135,7 +135,8 @@ def test_wave5_controls_use_theme_tokens_and_have_names():
     )
     assert "Theme.glassStrong" in m  # compose and source sheets are glass, not opaque
     assert "Theme.px(" in w and "Theme.px(" in m
-    assert "Theme.fontScale" in w and "Theme.fontScale" in m
+    scaled = lambda s: "Theme.fontScale" in s or "Theme.type(" in s   # type() applies fontScale
+    assert scaled(w) and scaled(m)
     # custom controls publish their own AT-SPI names; the icon buttons override
     # the tip with a real accessible name
     assert 'accessibleName: Tr.t("Next unread article")' in w

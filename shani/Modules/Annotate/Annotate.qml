@@ -196,7 +196,7 @@ PanelWindow {
             anchors.margins: Theme.px(4)
             color: win.colours[win.colour]
             font.family: Theme.font
-            font.pixelSize: Theme.px(16) * Theme.fontScale
+            font.pixelSize: Theme.type("heading")
             onAccepted: win.finishText()
         }
     }
@@ -285,7 +285,7 @@ PanelWindow {
                       + (Ui.annotateStrokes === 0 ? Tr.t("  ·  Drag to draw") : "")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 Accessible.role: Accessible.StaticText
                 Accessible.name: text
             }

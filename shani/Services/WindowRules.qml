@@ -70,11 +70,14 @@ Singleton {
 
     // Niri's opening rules are global: apply this only to phone-only sessions,
     // never to a phone docked to a desktop monitor. Existing windows stay as-is.
+    // Every app, the ones that float on a computer too (Calculator, Settings…):
+    // a phone shows one app at a time (the drop-down pads and a video's
+    // picture-in-picture still float).
     // Maximised, not fullscreen: one app at a time, with the bar kept above it as
     // a phone's status bar is (the clock, the battery, and the Island in it rather
     // than over the app's own header); a video or a game still goes fullscreen.
     readonly property string phoneRule: FF.phoneOnly(FormFactor.screens)
-        ? "window-rule {\n    open-maximized true\n}\n"
+        ? "window-rule {\n    exclude app-id=\"^shani-pad-\"\n    exclude title=\"^Picture.in.[Pp]icture$\"\n    open-floating false\n    open-maximized true\n}\n"
         : ""
 
     readonly property string kdl: Settings.loaded

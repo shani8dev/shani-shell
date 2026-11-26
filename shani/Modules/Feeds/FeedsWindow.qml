@@ -144,12 +144,12 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
-                    Text { text: Tr.t("Feeds"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                    Text { text: Tr.t("Feeds"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
                     Text {
                         text: Tr.t("%1 unread", Feeds.unreadTotal())
                         color: Feeds.unreadTotal() > 0 ? Theme.accent : Theme.faint
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         Accessible.name: text
                     }
                     Item { Layout.fillWidth: true }
@@ -265,7 +265,7 @@ AppWindow {
                         onClicked: { win.leaveSearch(); win.savedShown = !win.savedShown; if (win.savedShown) Feeds.savedArticles() }
                     }
                 }
-                Text { text: Tr.t("Refresh"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Refresh"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -290,7 +290,7 @@ AppWindow {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.role: Accessible.StaticText
                     Accessible.name: text
                 }
@@ -301,7 +301,7 @@ AppWindow {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Text {
@@ -311,7 +311,7 @@ AppWindow {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
         }
@@ -333,7 +333,7 @@ AppWindow {
                     : (Feeds.feeds.filter(f => f.url === Feeds.current)[0] || {}).title || Tr.t("Articles")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -351,7 +351,7 @@ AppWindow {
                 text: Tr.t("%1 results", itemList.count)
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
             Choice {
@@ -412,7 +412,7 @@ AppWindow {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
 
@@ -438,7 +438,7 @@ AppWindow {
                     text: Tr.t("Reader")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Choice {
                     text: Tr.t("Compact")
@@ -455,7 +455,7 @@ AppWindow {
                     text: Tr.t("Offline")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Text {
@@ -463,7 +463,7 @@ AppWindow {
                     text: Tr.t("j/k move · r unread · f save")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Accessible.name: text
                 }
             }
@@ -489,7 +489,7 @@ AppWindow {
                         color: Theme.dim
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Text {
                         Layout.fillWidth: true

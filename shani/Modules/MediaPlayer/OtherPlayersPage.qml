@@ -202,7 +202,7 @@ Item {
                     text: Tr.t("tracklist")
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 IconButton {
                     icon: "view-refresh"
@@ -248,7 +248,7 @@ Item {
                         color: Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -257,7 +257,7 @@ Item {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                     Text {
                         Layout.fillWidth: true
@@ -266,7 +266,7 @@ Item {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Text {
                         Layout.fillWidth: true
@@ -274,7 +274,7 @@ Item {
                         color: Theme.faint
                         elide: Text.ElideRight
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
             }
@@ -317,7 +317,7 @@ Item {
                     text: win.player ? Time.clock(win.shown) : "0:00"
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(9) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Accessible.name: Tr.t("Elapsed %1").arg(text)
                 }
                 Text {
@@ -326,7 +326,7 @@ Item {
                     text: win.player ? win.fmtRemaining(win.shown, seek.len) : "-0:00"
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(9) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Accessible.name: Tr.t("Remaining %1").arg(text)
                 }
                 Text {
@@ -334,7 +334,7 @@ Item {
                     text: win.player ? Time.clock(seek.len) : "0:00"
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(9) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Accessible.name: Tr.t("Total %1").arg(text)
                 }
                 MouseArea {
@@ -362,7 +362,7 @@ Item {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             RowLayout {
@@ -420,7 +420,7 @@ Item {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
 
             // per-player volume: the followed player's own level
@@ -438,7 +438,7 @@ Item {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
 
             // gapless and format info: MPRIS does not advertise gapless, so
@@ -452,7 +452,7 @@ Item {
                     + Array.from(win.player.supportedMimeTypes || []).slice(0, 3).join(", ")) : ""
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
 
             // lyrics: the line being sung, via the Lyrics service (LRCLIB)
@@ -475,7 +475,7 @@ Item {
                         : Tr.t("Looking for lyrics…")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.italic: true
                 }
             }
@@ -492,7 +492,7 @@ Item {
                     text: Tr.t("%1 files", win.queue.length)
                     color: Theme.faint
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
             RowLayout {
@@ -513,7 +513,7 @@ Item {
                         text: win.musicFolder || Tr.t("No folder")
                         color: Theme.text
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                         elide: Text.ElideMiddle
                     }
                 }
@@ -550,7 +550,7 @@ Item {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
 
             SectionTitle {
@@ -591,7 +591,7 @@ Item {
                 color: Theme.faint
                 horizontalAlignment: Text.AlignHCenter
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

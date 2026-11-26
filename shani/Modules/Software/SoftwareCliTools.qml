@@ -40,7 +40,7 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: Tr.t("Everyday command-line tools, installed just for you with Nix. They stay through system updates and need no password.")
-            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         Button {
             visible: page.tools.some(t => t.nix)
@@ -68,8 +68,8 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 0
-                Text { Layout.fillWidth: true; elide: Text.ElideRight; text: row.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                Text { Layout.fillWidth: true; elide: Text.ElideRight; text: row.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                     text: row.modelData.about + "  ·  " + row.modelData.cmd
                         + (row.modelData.installed && !row.modelData.nix ? "  ·  " + Tr.t("part of the system") : "") }
             }
@@ -89,7 +89,7 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: Tr.t("Need a whole other distribution, or containers? The Containers app makes Distrobox toolboxes and runs Podman.")
-            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small")
         }
         Button { text: Tr.t("Containers"); flat: true; onClicked: { Ui.closeAll(); Ui.containers = true; } }
     }

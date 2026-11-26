@@ -83,7 +83,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
 
     // read states: error / offline / empty all say plainly what happened
@@ -153,7 +153,7 @@ ColumnLayout {
                     text: panel.stateLabel(modelData) + (modelData.id ? "  ·  " + modelData.id : "")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -163,7 +163,7 @@ ColumnLayout {
                         modelData.pending ? Tr.t("starts after restart") : ""].filter(function (x) { return x; }).join("  ·  ")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Button {
                     Layout.alignment: Qt.AlignLeft
@@ -211,7 +211,7 @@ ColumnLayout {
             color: Theme.dim
             elide: Text.ElideLeft
             font.family: Theme.mono
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
     }
 
@@ -247,7 +247,7 @@ ColumnLayout {
             color: Theme.dim
             elide: Text.ElideLeft
             font.family: Theme.mono
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
     }
 

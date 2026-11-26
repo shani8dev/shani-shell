@@ -85,7 +85,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.px(6)
-        Text { text: Tr.t("Notebook"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+        Text { text: Tr.t("Notebook"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
         Choice { text: Tr.t("All"); selected: Ui.notesNotebook === ""; onClicked: Ui.notesNotebook = "" }
         Repeater {
             model: QuickNotes.notebooks
@@ -183,7 +183,7 @@ ColumnLayout {
                 color: Theme.text
                 elide: Text.ElideRight
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             IconButton {
@@ -230,7 +230,7 @@ ColumnLayout {
                 text: QuickNotes.lastExported
                 color: Theme.faint
                 font.family: Theme.mono
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 elide: Text.ElideLeft
             }
         }
@@ -244,7 +244,7 @@ ColumnLayout {
                 text: Tr.t("Printed:") + " " + QuickNotes.lastPrinted
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 elide: Text.ElideLeft
             }
         }
@@ -285,7 +285,7 @@ ColumnLayout {
                 selectedTextColor: Theme.accentInk
                 wrapMode: TextEdit.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 onTextChanged: if (activeFocus) QuickNotes.set(text)
                 Text {
                     visible: notes.text === ""
@@ -304,7 +304,7 @@ ColumnLayout {
                 text: Tr.t("Links:")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
             Flow {
                 Layout.fillWidth: true
@@ -330,7 +330,7 @@ ColumnLayout {
         text: Tr.t("Notes are kept in Documents/Notes. Choose a mounted cloud folder (Nextcloud, Dropbox, a network drive) to mirror them there. Nothing is deleted from either side.")
         color: Theme.dim
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     FolderPicker {
         Layout.fillWidth: true
@@ -345,7 +345,7 @@ ColumnLayout {
             text: QuickNotes.syncState
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
         }
         Button {
             text: Tr.t("Sync now")

@@ -24,7 +24,7 @@ ColumnLayout {
             text: Ups.info.model || Ups.info.name || ""
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         Text {
@@ -35,7 +35,7 @@ ColumnLayout {
             color: Ups.low ? Theme.danger : (Ups.onBattery ? Theme.accent : Theme.dim)
             wrapMode: Text.WordWrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         // the charge, as a bar
         Rectangle {
@@ -147,7 +147,7 @@ ColumnLayout {
                     text: row.modelData.label
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Picks {
                     visible: row.modelData.options !== undefined
@@ -180,7 +180,7 @@ ColumnLayout {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
         }
@@ -191,7 +191,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         Text {
             Layout.fillWidth: true
@@ -199,7 +199,7 @@ ColumnLayout {
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         RowLayout {
             Layout.fillWidth: true

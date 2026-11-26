@@ -483,7 +483,7 @@ ColumnLayout {
                 rotation: -Compass.heading
                 Behavior on rotation { RotationAnimation { duration: Theme.anim; direction: RotationAnimation.Shortest } }
                 Icon { anchors.centerIn: parent; name: "go-up-symbolic"; size: Theme.px(20); color: Theme.red }
-                Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.top; text: "N"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale; font.weight: Font.Bold }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.top; text: "N"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("caption"); font.weight: Font.Bold }
             }
         }
         Tile {

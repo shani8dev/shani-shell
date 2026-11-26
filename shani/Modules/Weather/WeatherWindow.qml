@@ -92,7 +92,7 @@ AppWindow {
                             color: Theme.amber
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.pixelSize: Theme.type("body")
                         }
                         Text {
                             Layout.fillWidth: true
@@ -100,7 +100,7 @@ AppWindow {
                             color: Theme.dim
                             wrapMode: Text.Wrap
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                         }
                         Button { text: Tr.t("Retry"); flat: true; onClicked: Weather.fetch() }
                     }
@@ -133,7 +133,7 @@ AppWindow {
                                     color: Theme.amber
                                     wrapMode: Text.Wrap
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                                    font.pixelSize: Theme.type("body")
                                     font.weight: Font.DemiBold
                                 }
                                 Text {
@@ -142,7 +142,7 @@ AppWindow {
                                     color: Theme.text
                                     wrapMode: Text.Wrap
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                             }
                         }
@@ -155,7 +155,7 @@ AppWindow {
                     text: Tr.t("Based on the forecast, not an official warning")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
 
                 // ---- the place ----
@@ -181,7 +181,7 @@ AppWindow {
                     text: (Weather.updatedText !== "" ? Weather.updatedText : "") + Tr.t(" · auto-refresh every %1 min", Weather.refreshMinutes)
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     Accessible.name: text
                 }
 
@@ -209,13 +209,13 @@ AppWindow {
                             }
                             Button { text: Weather.searchBusy ? Tr.t("Searching…") : Tr.t("Search"); flat: true; busy: Weather.searchBusy; onClicked: Weather.searchCity(citySearch.text) }
                         }
-                        Text { Layout.fillWidth: true; visible: Weather.searchError !== ""; text: Weather.searchError; color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; visible: Weather.searchError !== ""; text: Weather.searchError; color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                         Repeater {
                             model: Weather.searchResults
                             RowLayout {
                                 required property var modelData
                                 Layout.fillWidth: true
-                                Text { Layout.fillWidth: true; text: modelData.name + (modelData.country ? ", " + modelData.country : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                Text { Layout.fillWidth: true; text: modelData.name + (modelData.country ? ", " + modelData.country : ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                                 Button { text: Tr.t("Add"); flat: true; onClicked: Weather.addPlace(modelData) }
                             }
                         }
@@ -253,7 +253,7 @@ AppWindow {
                                 Button { text: Tr.t("Cancel"); flat: true; onClicked: win.renameIndex = -1 }
                             }
                         }
-                        Text { Layout.fillWidth: true; visible: Weather.places.length === 0; text: Tr.t("No saved locations yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; visible: Weather.places.length === 0; text: Tr.t("No saved locations yet"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                         Button { text: Tr.t("Save the current city"); flat: true; enabled: win.currentCityReady && !win.currentCitySaved; onClicked: Weather.addPlace({ name: Settings.data.weatherCity, lat: Settings.data.weatherLat, lon: Settings.data.weatherLon }) }
                     }
                 }
@@ -293,7 +293,7 @@ AppWindow {
                             text: Weather.describe(Weather.code) + (Weather.forecast.length ? "  ·  " + Math.round(Weather.forecast[0].hi) + "° / " + Math.round(Weather.forecast[0].lo) + "°" : "")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(14) * Theme.fontScale
+                            font.pixelSize: Theme.type("heading")
                         }
                     }
                     Item { Layout.fillWidth: true }
@@ -306,7 +306,7 @@ AppWindow {
                     wrapMode: Text.Wrap
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     Accessible.name: text
                     text: [
                         isNaN(Weather.feelsLike) ? "" : Tr.t("Feels like") + " " + Math.round(Weather.feelsLike) + Weather.degree,
@@ -339,9 +339,9 @@ AppWindow {
                                 id: dpCol
                                 anchors.centerIn: parent
                                 spacing: Theme.px(2)
-                                Text { Layout.alignment: Qt.AlignHCenter; text: modelData.label; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                                Text { Layout.alignment: Qt.AlignHCenter; text: modelData.label; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                                 Icon { Layout.alignment: Qt.AlignHCenter; name: Weather.iconFor(modelData.code); size: Theme.px(20); color: Theme.text }
-                                Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.hi) + "° / " + Math.round(modelData.lo) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.hi) + "° / " + Math.round(modelData.lo) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                             }
                         }
                     }
@@ -363,16 +363,16 @@ AppWindow {
                         spacing: 2
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: Tr.t("Temperature"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { text: Tr.t("Temperature"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                             Item { Layout.fillWidth: true }
-                            Text { text: win.graphRange; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { text: win.graphRange; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                         }
                         Sparkline { Layout.fillWidth: true; values: win.tempCurve; color: Theme.accent }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: Tr.t("Rain chance"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { text: Tr.t("Rain chance"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                             Item { Layout.fillWidth: true }
-                            Text { text: "100%"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { text: "100%"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                         }
                         Sparkline { Layout.fillWidth: true; values: win.rainCurve; color: Theme.accent; maximum: 1 }
                     }
@@ -401,16 +401,16 @@ AppWindow {
                         ColumnLayout {
                             anchors.centerIn: parent
                             spacing: Theme.px(4)
-                            Text { Layout.alignment: Qt.AlignHCenter; text: modelData.hour; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { Layout.alignment: Qt.AlignHCenter; text: modelData.hour; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                             Icon { Layout.alignment: Qt.AlignHCenter; name: Weather.iconFor(modelData.code); size: Theme.px(22); color: Theme.text }
-                            Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.temp) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
+                            Text { Layout.alignment: Qt.AlignHCenter; text: Math.round(modelData.temp) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
                                 visible: (modelData.rain || 0) > 0
                                 text: Math.round(modelData.rain) + "%"
                                 color: Theme.accent
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
@@ -418,7 +418,7 @@ AppWindow {
                                 text: Weather.windValue(modelData.wind) + " " + Weather.windUnit
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(9) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                             }
                         }
                     }
@@ -429,7 +429,7 @@ AppWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
-                    Text { text: Tr.t("Days"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { text: Tr.t("Days"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Repeater {
                         model: [7, 10, 14, 16]
                         Choice {
@@ -459,15 +459,15 @@ AppWindow {
                                 text: dayRow.modelData.day
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 // Up/Down walk the week; the name carries the range
                                 Accessible.role: Accessible.ListItem
                                 Accessible.name: dayRow.modelData.day + ", " + Math.round(dayRow.modelData.lo) + "° / " + Math.round(dayRow.modelData.hi) + "°"
                                 KeyFocus { }
                             }
                             Icon { name: Weather.iconFor(dayRow.modelData.code); size: Theme.px(20); color: Theme.text }
-                            Text { Layout.fillWidth: true; text: Weather.describe(dayRow.modelData.code); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                            Text { text: Math.round(dayRow.modelData.lo) + "°"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.features: { "tnum": 1 } }
+                            Text { Layout.fillWidth: true; text: Weather.describe(dayRow.modelData.code); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                            Text { text: Math.round(dayRow.modelData.lo) + "°"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.features: { "tnum": 1 } }
                             // the day's range on the week's scale
                             Item {
                                 visible: !win.compact
@@ -485,7 +485,7 @@ AppWindow {
                                     color: Theme.accent
                                 }
                             }
-                            Text { text: Math.round(dayRow.modelData.hi) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.features: { "tnum": 1 } }
+                            Text { text: Math.round(dayRow.modelData.hi) + "°"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.features: { "tnum": 1 } }
                             Button {
                                 text: win.expandedDay === dayRow.index ? Tr.t("Hide") : Tr.t("Details")
                                 flat: true
@@ -511,16 +511,16 @@ AppWindow {
                                 id: detCol
                                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
                                 spacing: 2
-                                Text { Layout.fillWidth: true; text: Tr.t("Chance of rain") + " " + Math.round(modelData.rain) + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                                Text { Layout.fillWidth: true; text: Tr.t("Max wind") + " " + Weather.windValue(modelData.wind) + " " + Weather.windUnit; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                                Text { Layout.fillWidth: true; text: Tr.t("Max UV") + " " + Math.round(modelData.uv) + " · " + Weather.uvLevel(modelData.uv); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                                Text { Layout.fillWidth: true; text: Tr.t("Chance of rain") + " " + Math.round(modelData.rain) + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                                Text { Layout.fillWidth: true; text: Tr.t("Max wind") + " " + Weather.windValue(modelData.wind) + " " + Weather.windUnit; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                                Text { Layout.fillWidth: true; text: Tr.t("Max UV") + " " + Math.round(modelData.uv) + " · " + Weather.uvLevel(modelData.uv); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                                 Text {
                                     Layout.fillWidth: true
                                     visible: modelData.sunrise !== ""
                                     text: Tr.t("Sun") + " " + modelData.sunrise + " / " + modelData.sunset
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                             }
                         }
@@ -534,7 +534,7 @@ AppWindow {
                     color: Theme.faint
                     horizontalAlignment: Text.AlignRight
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
         }

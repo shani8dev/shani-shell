@@ -72,7 +72,7 @@ AppWindow {
                 text: Tr.t("Describe the app you want. Chronoa will generate the QML code, save it to your Developer folder, and add it to the launcher.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -106,7 +106,7 @@ AppWindow {
                     text: Tr.t("Start from")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     height: Math.max(Theme.px(28), Theme.touchTarget)
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -147,7 +147,7 @@ AppWindow {
             text: Tr.t("Your apps")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         ListView {
@@ -180,12 +180,12 @@ AppWindow {
                     ColumnLayout {
                         width: Math.min(Theme.px(260), rowFlow.width - Theme.px(40))
                         spacing: 0
-                        Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight; Layout.fillWidth: true }
                         Text {
                             text: win.confirmDelete === modelData.name ? Tr.t("Click again to delete") : modelData.path
                             color: win.confirmDelete === modelData.name ? Theme.danger : Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                             elide: Text.ElideMiddle
                             Layout.fillWidth: true
                         }
@@ -268,7 +268,7 @@ AppWindow {
                     text: Tr.t("Step %1 of %2", Studio.wizardStep + 1, Studio.wizardCount())
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     Layout.fillWidth: true
                     elide: Text.ElideMiddle
                 }
@@ -288,7 +288,7 @@ AppWindow {
             text: Studio.previewText
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             wrapMode: Text.Wrap
             maximumLineCount: 4
             elide: Text.ElideRight
@@ -299,7 +299,7 @@ AppWindow {
             text: Tr.t("Code preview — %1", Studio.previewPath)
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             Layout.fillWidth: true
         }
 
@@ -309,7 +309,7 @@ AppWindow {
             text: Studio.tailText
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             wrapMode: Text.Wrap
             Layout.fillWidth: true
         }
@@ -319,7 +319,7 @@ AppWindow {
             text: Tr.t("Dashboard widgets")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
             visible: appList.count > 0
         }
@@ -345,7 +345,7 @@ AppWindow {
                 text: modelData.type + " — " + modelData.app
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 Layout.fillWidth: true
             }
         }
@@ -357,7 +357,7 @@ AppWindow {
             text: Tr.t("Generated apps are saved to %1 · Esc closes", Studio.devDir)
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             elide: Text.ElideMiddle
         }
 

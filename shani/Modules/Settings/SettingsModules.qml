@@ -61,7 +61,7 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Blacklisted modules")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/modprobe.d/50-shani-shell.conf. Blacklisted modules are prevented from loading."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/modprobe.d/50-shani-shell.conf. Blacklisted modules are prevented from loading."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
             TextField {
@@ -85,7 +85,7 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Load at boot")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/modules-load.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/modules-load.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
             TextField {
@@ -108,13 +108,13 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Kernel tuning (sysctl)")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/sysctl.d/50-shani-shell.conf. Only allowlisted keys."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/sysctl.d/50-shani-shell.conf. Only allowlisted keys."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         Repeater {
             model: ["vm.swappiness", "fs.inotify.max_user_watches", "fs.inotify.max_user_instances", "kernel.sysrq"]
             RowLayout {
                 required property var modelData
                 Layout.fillWidth: true; spacing: Theme.px(6)
-                Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(220); text: modelData; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                 TextField {
                     id: sysField; Layout.fillWidth: true; placeholder: (page.sysctlLive && page.sysctlLive[modelData]) || ""; text: (page.sysctl && page.sysctl[modelData]) || ""
                     error: sysField.text.trim() !== "" && !/^\d+$/.test(sysField.text.trim()) ? Tr.t("Use a whole number") : ""
@@ -132,7 +132,7 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Loaded modules")
-        Text { Layout.fillWidth: true; text: Tr.t("%1 modules loaded. Read from /proc/modules; nothing here loads or unloads a running module.").arg(KernelModules.count); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("%1 modules loaded. Read from /proc/modules; nothing here loads or unloads a running module.").arg(KernelModules.count); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         TextField { Layout.fillWidth: true; placeholder: Tr.t("Filter modules…"); onTextChanged: page.query = text }
         ColumnLayout {
             Layout.fillWidth: true; spacing: Theme.px(2)
@@ -145,6 +145,6 @@ ColumnLayout {
                 }
             }
         }
-        Text { Layout.fillWidth: true; visible: page.shown.length === 0 && KernelModules.loaded; text: Tr.t("No module matches."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; visible: page.shown.length === 0 && KernelModules.loaded; text: Tr.t("No module matches."); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
     }
 }

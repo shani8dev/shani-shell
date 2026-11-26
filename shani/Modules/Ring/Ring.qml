@@ -268,7 +268,7 @@ PanelWindow {
                 text: win.hot >= 0 && win.items[win.hot] ? win.items[win.hot].label : (win.stack.length > 0 ? Tr.t("Back") : Tr.t("Point at one to see what it does · Esc closes"))
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: win.hot >= 0 ? Font.DemiBold : Font.Normal
             }
         }

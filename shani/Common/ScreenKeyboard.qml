@@ -51,7 +51,7 @@ Rectangle {
             text: key.label
             color: key.accent ? Theme.accent : Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(18) * Theme.fontScale
+            font.pixelSize: Theme.type("subtitle")
         }
         Accessible.role: Accessible.Button
         Accessible.name: key.label

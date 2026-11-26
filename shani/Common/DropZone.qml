@@ -57,7 +57,7 @@ Item {
             text: zone.title
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
@@ -68,7 +68,7 @@ Item {
             text: zone.text
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
         }

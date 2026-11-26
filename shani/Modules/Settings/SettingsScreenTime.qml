@@ -42,7 +42,7 @@ ColumnLayout {
         text: Tr.t("Today") + "  ·  " + ScreenTime.label(ScreenTime.todayTotal)
         color: Theme.text
         font.family: Theme.font
-        font.pixelSize: Theme.px(20) * Theme.fontScale
+        font.pixelSize: Theme.type("subtitle")
         font.weight: Font.DemiBold
     }
     RowLayout {
@@ -73,7 +73,7 @@ ColumnLayout {
                         color: dayCol.index === 6 ? Theme.accent : Theme.surface3
                     }
                 }
-                Text { Layout.alignment: Qt.AlignHCenter; text: dayCol.modelData.day; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.alignment: Qt.AlignHCenter; text: dayCol.modelData.day; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             }
         }
     }
@@ -88,7 +88,7 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: Theme.px(10)
-                Text { Layout.preferredWidth: Theme.px(170); text: appRow.modelData[0]; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(170); text: appRow.modelData[0]; color: Theme.text; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.px(6)
@@ -96,7 +96,7 @@ ColumnLayout {
                     color: Theme.surface3
                     Rectangle { width: parent.width * appRow.modelData[1] / Math.max(1, page.byApp[0][1]); height: parent.height; radius: Theme.px(3); color: Theme.accent }
                 }
-                Text { Layout.preferredWidth: Theme.px(80); horizontalAlignment: Text.AlignRight; text: ScreenTime.label(appRow.modelData[1]); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(80); horizontalAlignment: Text.AlignRight; text: ScreenTime.label(appRow.modelData[1]); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
             }
         }
     }
@@ -105,7 +105,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: page.d.screenTime
         title: Tr.t("Reminders")
-        Text { visible: page.d.screenTime; text: Tr.t("Remind me to take a break"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Text { visible: page.d.screenTime; text: Tr.t("Remind me to take a break"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         Flow {
             visible: page.d.screenTime
             Layout.fillWidth: true
@@ -115,7 +115,7 @@ ColumnLayout {
                 Choice { required property int modelData; text: modelData ? Tr.t("every %1 min", modelData) : Tr.t("Never"); selected: page.d.breakEveryMinutes === modelData; onClicked: page.d.breakEveryMinutes = modelData }
             }
         }
-        Text { visible: page.d.screenTime; text: Tr.t("Daily screen time reminder"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Text { visible: page.d.screenTime; text: Tr.t("Daily screen time reminder"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         Flow {
             visible: page.d.screenTime
             Layout.fillWidth: true

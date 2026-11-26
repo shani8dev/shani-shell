@@ -76,7 +76,7 @@ PanelWindow {
                         text: Tr.t("Pinned screenshot")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -161,7 +161,7 @@ PanelWindow {
                     text: Tr.t("Screenshot not found")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     Accessible.role: Accessible.StaticText
                     Accessible.name: text
                 }
@@ -175,7 +175,7 @@ PanelWindow {
                       + "  ·  " + Math.round(Screenshots.pinZoom * 100) + "%"
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(9) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 elide: Text.ElideMiddle
             }
         }

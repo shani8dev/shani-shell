@@ -80,7 +80,7 @@ AppWindow {
                     Accessible.name: text
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "view-refresh"; tip: Tr.t("Open the camera"); size: Theme.px(28); onClicked: Camera.openViewfinder() }
@@ -103,7 +103,7 @@ AppWindow {
                     text: Camera.available ? Tr.t("Live preview opens in qcam") : Tr.t("No camera found")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Repeater {
                     model: 2
@@ -125,7 +125,7 @@ AppWindow {
                         text: Camera.mode === "video" ? Tr.t("Video mode") : Tr.t("Photo mode")
                         color: "white"
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         font.weight: Font.DemiBold
                     }
                 }
@@ -151,7 +151,7 @@ AppWindow {
                         text: Tr.t("REC") + " " + Camera.elapsed
                         color: "white"
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 Rectangle { id: flashLayer; anchors.fill: parent; color: "white"; opacity: 0; z: 6; Accessible.ignored: true }
@@ -194,7 +194,7 @@ AppWindow {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                Text { text: Tr.t("Timer"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Timer"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Repeater {
                     model: [[0, Tr.t("Off")], [3, "3 s"], [5, "5 s"], [10, "10 s"]]
                     Choice {
@@ -204,10 +204,10 @@ AppWindow {
                         onClicked: Camera.selfTimer = modelData[0]
                     }
                 }
-                Text { text: Tr.t("Photo"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Photo"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Choice { text: "PNG"; selected: Camera.photoFormat === "png"; onClicked: Camera.photoFormat = "png" }
                 Choice { text: "JPG"; selected: Camera.photoFormat === "jpg"; onClicked: Camera.photoFormat = "jpg" }
-                Text { text: Tr.t("Video"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Video"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Choice { text: "WebM"; selected: Camera.videoFormat === "webm"; onClicked: Camera.videoFormat = "webm" }
                 Choice { text: "MP4"; selected: Camera.videoFormat === "mp4"; onClicked: Camera.videoFormat = "mp4" }
             }
@@ -220,13 +220,13 @@ AppWindow {
                 Choice { text: Tr.t("Grid"); selected: Camera.grid; onClicked: Camera.grid = !Camera.grid }
                 Choice { text: Tr.t("Flash"); selected: Camera.flash; onClicked: Camera.flash = !Camera.flash }
                 Choice { text: Tr.t("Burst"); selected: Camera.burst; onClicked: Camera.burst = !Camera.burst }
-                Text { text: Tr.t("Exposure"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Exposure"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Choice { text: "-"; onClicked: Camera.exposure = Math.max(-2, Camera.exposure - 0.5); Accessible.name: Tr.t("Less exposure") }
-                Text { text: Camera.exposure.toFixed(1) + " EV"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; Accessible.name: Tr.t("Exposure %1 EV", Camera.exposure.toFixed(1)) }
+                Text { text: Camera.exposure.toFixed(1) + " EV"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small"); Accessible.name: Tr.t("Exposure %1 EV", Camera.exposure.toFixed(1)) }
                 Choice { text: "+"; onClicked: Camera.exposure = Math.min(2, Camera.exposure + 0.5); Accessible.name: Tr.t("More exposure") }
-                Text { text: Tr.t("Zoom"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Zoom"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Choice { text: "-"; onClicked: Camera.zoom = Math.max(100, Camera.zoom - 50); Accessible.name: Tr.t("Zoom out") }
-                Text { text: Camera.zoom + "%"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; Accessible.name: Tr.t("Zoom %1 percent", Camera.zoom) }
+                Text { text: Camera.zoom + "%"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small"); Accessible.name: Tr.t("Zoom %1 percent", Camera.zoom) }
                 Choice { text: "+"; onClicked: Camera.zoom = Math.min(400, Camera.zoom + 50); Accessible.name: Tr.t("Zoom in") }
             }
 
@@ -250,7 +250,7 @@ AppWindow {
                     text: Camera.phase === "recording" ? Tr.t("Stop") : Camera.mode === "video" ? Tr.t("Record") : Tr.t("Photo")
                     color: "white"
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(16) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
             }
@@ -294,7 +294,7 @@ AppWindow {
                                 text: Camera.available ? "No capture yet" : "No camera found"
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 visible: Camera.last === ""
                             }
                         }
@@ -308,7 +308,7 @@ AppWindow {
                         text: Camera.last ? Camera.last : Camera.available ? Tr.t("Last capture appears here") : Tr.t("Connect a camera, or check the camera switch.")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         wrapMode: Text.WordWrap
                     }
                     Flow {
@@ -328,7 +328,7 @@ AppWindow {
                 text: Tr.t("Gallery")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -341,7 +341,7 @@ AppWindow {
                     text: Camera.galleryView.length + " / " + Camera.gallery.length
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: Tr.t("Showing %1 of %2 captures", Camera.galleryView.length, Camera.gallery.length)
                 }
             }
@@ -351,7 +351,7 @@ AppWindow {
                 text: Tr.t("No captures yet")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Text {
                 Layout.fillWidth: true
@@ -359,7 +359,7 @@ AppWindow {
                 text: Camera.galleryFilter === "favorites" ? Tr.t("No favorites yet") : Tr.t("No recent captures")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
             ListView {
@@ -390,8 +390,8 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { Layout.fillWidth: true; text: modelData.name; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                            Text { Layout.fillWidth: true; text: modelData.when; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: modelData.name; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                            Text { Layout.fillWidth: true; text: modelData.when; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                         }
                         Flow {
                             id: galActions
@@ -429,7 +429,7 @@ AppWindow {
                 text: Tr.t("Space shoot · C mode · G grid · F flash · B burst · T timer · X zoom · Z exposure · Esc close")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 wrapMode: Text.WordWrap
                 Accessible.name: text
             }

@@ -55,7 +55,7 @@ AppWindow {
                 text: Tr.t("These keep working with no window open. Each one runs only while its switch is on.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }
@@ -77,7 +77,7 @@ AppWindow {
                 text: Tr.t("%1 of %2 on", PhoneTools.switches.filter(s => s.on).length, PhoneTools.switches.length)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }

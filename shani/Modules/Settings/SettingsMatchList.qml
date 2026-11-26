@@ -21,7 +21,7 @@ ColumnLayout {
         text: Tr.t("Settings")
         color: Theme.faint
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
         Layout.leftMargin: 2
     }
     Repeater {
@@ -64,7 +64,7 @@ ColumnLayout {
                         color: Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.Medium
                     }
                     Text {
@@ -74,7 +74,7 @@ ColumnLayout {
                         color: Theme.faint
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                 }
                 Text {
@@ -82,7 +82,7 @@ ColumnLayout {
                     text: SettingsIndex.valueSummary(root.d, matchRow.modelData.key)
                     color: root.modifiedKey(matchRow.modelData.key) ? Theme.accent : Theme.dim
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Rectangle {
                     Layout.alignment: Qt.AlignVCenter

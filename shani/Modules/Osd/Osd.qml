@@ -278,7 +278,7 @@ Scope {
                     text: Math.round(root.value * 100) + "%"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     Layout.preferredWidth: Theme.px(26)
                     horizontalAlignment: Text.AlignRight
                 }
@@ -308,7 +308,7 @@ Scope {
                     text: root.label
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     elide: Text.ElideRight
                 }
             }

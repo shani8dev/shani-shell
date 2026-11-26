@@ -49,7 +49,7 @@ Flickable {
                 : Tr.t("FM radio is off")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             wrapMode: Text.Wrap
             Accessible.role: Accessible.StatusBar
             Accessible.name: text
@@ -68,7 +68,7 @@ Flickable {
             text: Tr.t("Presets")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         Flow {
@@ -96,7 +96,7 @@ Flickable {
             text: Tr.t("Another frequency")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         RowLayout {
@@ -142,7 +142,7 @@ Flickable {
                 text: Tr.t("87.5 to 108 MHz")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
 
@@ -153,7 +153,7 @@ Flickable {
             text: Tr.t("Radio volume")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
         }
         Flow {

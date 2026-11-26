@@ -36,7 +36,7 @@ ColumnLayout {
             text: Tr.t("The backup tool is not installed.")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: page.installed ? [
@@ -138,7 +138,7 @@ ColumnLayout {
                 text: Backup.snapshots.length ? Tr.t("%1 earlier versions", Backup.snapshots.length) : Tr.t("None yet")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
     }

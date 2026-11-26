@@ -203,7 +203,7 @@ AppWindow {
                 text: Link.openThread !== "" && Link.threadName !== "" ? Link.threadName : ""   // the window says "Messages"
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(15) * Theme.fontScale
+                font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
                 Layout.fillWidth: true
@@ -213,7 +213,7 @@ AppWindow {
                 text: Link.phoneName
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
         }
 
@@ -246,14 +246,14 @@ AppWindow {
                         color: modelData.incoming ? Theme.text : Theme.accentInk
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                     }
                 }
                 Text {
                     text: Link.when(modelData.when)
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -296,7 +296,7 @@ AppWindow {
                 : Link.sendState === "error" ? Tr.t("Not sent — tap Send to retry") : ""
             color: Link.sendState === "error" ? Theme.danger : Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             Accessible.role: Accessible.StatusBar
             Accessible.name: text
         }
@@ -305,7 +305,7 @@ AppWindow {
             text: Tr.t("Draft saved for this conversation")
             color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             Accessible.role: Accessible.StatusBar
             Accessible.name: text
         }
@@ -315,7 +315,7 @@ AppWindow {
             color: Theme.danger
             wrapMode: Text.Wrap
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             Accessible.role: Accessible.StatusBar
             Accessible.name: Link.note
         }

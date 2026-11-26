@@ -293,7 +293,7 @@ AppWindow {
                     text: "Recent:"
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Flickable {
                     Layout.fillWidth: true
@@ -375,7 +375,7 @@ AppWindow {
                         text: win.selected ? win.selected.tool + " · " + win.selected.target : ""
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -384,7 +384,7 @@ AppWindow {
                         color: Theme.dim
                         wrapMode: Text.Wrap
                         font.family: Theme.mono
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.pixelSize: Theme.type("caption")
                     }
                     RowLayout {
                         Layout.fillWidth: true
@@ -401,7 +401,7 @@ AppWindow {
                 text: win.results.length + " results · Enter runs · Ctrl+F/L focuses the host · Ctrl+R reruns · Esc closes"
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
     }

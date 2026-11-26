@@ -195,7 +195,7 @@ AppWindow {
                     visible: win.searchText !== "" || win.groupFilter !== ""
                     text: win.visibleAccounts.length + " / " + win.accounts.length
                     color: Theme.faint
-                    font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.family: Theme.font; font.pixelSize: Theme.type("small")
                     Accessible.role: Accessible.StatusBar
                     Accessible.name: text
                 }
@@ -222,7 +222,7 @@ AppWindow {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }
@@ -233,7 +233,7 @@ AppWindow {
                 color: Theme.danger
                 wrapMode: Text.Wrap
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.Alert
                 Accessible.name: text
             }
@@ -243,7 +243,7 @@ AppWindow {
                 text: Tr.t("Code copied - clipboard clears in %1 s", win.clipboardLeft)
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }
@@ -286,7 +286,7 @@ AppWindow {
                         anchors { left: parent.left; leftMargin: Theme.px(14); verticalCenter: parent.verticalCenter }
                         text: section.label || ""
                         color: Theme.faint
-                        font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                        font.family: Theme.font; font.pixelSize: Theme.type("caption")
                         font.weight: Font.DemiBold
                         Accessible.role: Accessible.StaticText
                         Accessible.name: Tr.t("%1 codes", section.label)
@@ -310,7 +310,7 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            Text { Layout.fillWidth: true; text: row.modelData.locked ? Tr.t("Your security key - click to unlock its codes") : (row.modelData.issuer || row.modelData.account) + (row.modelData.fromKey ? "  ·  " + Tr.t("on your security key") : ""); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                            Text { Layout.fillWidth: true; text: row.modelData.locked ? Tr.t("Your security key - click to unlock its codes") : (row.modelData.issuer || row.modelData.account) + (row.modelData.fromKey ? "  ·  " + Tr.t("on your security key") : ""); color: Theme.dim; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                             Text {
                                 text: win.copied === row.modelData.id ? Tr.t("Copied")
                                       : row.modelData.locked ? Tr.t("Locked with a password")
@@ -324,7 +324,7 @@ AppWindow {
                                 font.weight: Font.DemiBold
                                 font.letterSpacing: row.modelData.touch || row.modelData.locked ? 0 : 2
                             }
-                            Text { visible: !!row.modelData.issuer && !!row.modelData.account; text: row.modelData.account; color: Theme.faint; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { visible: !!row.modelData.issuer && !!row.modelData.account; text: row.modelData.account; color: Theme.faint; elide: Text.ElideRight; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         }
                         // the time left on this code
                         StatusRing {
@@ -335,7 +335,7 @@ AppWindow {
                             value: row.secondsLeft / row.modelData.period
                             color: row.secondsLeft <= 5 ? Theme.danger : Theme.accent
                             label: Tr.t("%1 seconds left").arg(row.secondsLeft)
-                            Text { anchors.centerIn: parent; text: row.secondsLeft; color: row.secondsLeft <= 5 ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.features: { "tnum": 1 } }
+                            Text { anchors.centerIn: parent; text: row.secondsLeft; color: row.secondsLeft <= 5 ? Theme.danger : Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); font.features: { "tnum": 1 } }
                         }
                         IconButton {
                             visible: !row.modelData.fromKey          // the key's codes are the key's to remove

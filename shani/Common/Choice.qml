@@ -35,7 +35,7 @@ Rectangle {
         // weight is a second cue: selection must not be colour-only (WCAG 1.4.1)
         font.weight: root.selected ? Font.DemiBold : Font.Normal
         font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
+        font.pixelSize: Theme.type("small")
     }
     MouseArea {
         id: area

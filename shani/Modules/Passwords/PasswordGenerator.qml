@@ -78,7 +78,7 @@ ColumnLayout {
                 color: root.generateFailed ? Theme.dim : Theme.text
                 elide: Text.ElideRight
                 font.family: Theme.mono
-                font.pixelSize: Theme.px(17) * Theme.fontScale
+                font.pixelSize: Theme.type("subtitle")
                 Accessible.role: Accessible.StaticText
                 Accessible.name: Tr.t("New password")
             }
@@ -120,7 +120,7 @@ ColumnLayout {
         color: Theme.dim
         wrapMode: Text.Wrap
         font.family: Theme.font
-        font.pixelSize: Theme.px(12) * Theme.fontScale
+        font.pixelSize: Theme.type("body")
     }
     SwitchRow {
         Layout.fillWidth: true
