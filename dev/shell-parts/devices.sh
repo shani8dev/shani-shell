@@ -16,6 +16,44 @@ SERIAL=0A1B2C3D
 # the shell's own bridge processes.
 export SHANI_NFC="$NFC" SHANI_IR="$IR" SHANI_FM="$FM"
 
+# Settings > Background and the phone's own tabs read bridge/phone_tools.py.
+# The same stand-in as calls.sh answers from one state file; parent wires these
+# overrides into the shell's own process too. The Android phone flows below read
+# bridge/android_tools.py against the fake phone tree session.sh built.
+PHONE_TOOLS_FAKE=/work/dev/fake-phone-tools.py
+export SHANI_PHONE_TOOLS_STATE=/tmp/fake-phone-tools.json
+export SHANI_PHONE_TOOLS_LOG=/tmp/fake-phone-tools-devices
+export SHANI_MUSIC="python3 $PHONE_TOOLS_FAKE music"
+export SHANI_FILES_SEND="python3 $PHONE_TOOLS_FAKE files-send"
+export SHANI_FILES_LOG=/tmp/fake-phone-files-devices
+export SHANI_PHONE_REMOTE="python3 $PHONE_TOOLS_FAKE remote"
+export SHANI_PHONE_REMOTE_LOG=/tmp/fake-phone-remote-devices
+export SHANI_PHONE_LINK="python3 $PHONE_TOOLS_FAKE link"
+export SHANI_PHONE_LINK_LOG=/tmp/fake-phone-link-devices
+export SHANI_AUDIO="python3 $PHONE_TOOLS_FAKE audio"
+export SHANI_AUDIO_LOG=/tmp/fake-phone-audio-devices
+python3 "$PHONE_TOOLS_FAKE" seed
+
+# The shell's AndroidTools bridge inherits PATH from session.sh, not the
+# overrides exported here, so its `bluetoothctl scan on` would wait for a
+# controller the container has not got. Hand that bridge the same stand-in as
+# the direct bridge calls below, then put the daemon back for the rest of the
+# suite: this part runs inside shell-test.sh too.
+BT_SHIM=/tmp/fake-bin/bluetoothctl
+cat > "$BT_SHIM" <<'SHIM'
+#!/bin/sh
+exec python3 /work/dev/fake-phone-devices.py "$@"
+SHIM
+chmod +x "$BT_SHIM"
+
+waitlog() {
+    pattern=$1; file=$2; i=0
+    until grep -Eq "$pattern" "$file" 2>/dev/null || [ "$i" -ge 24 ]; do
+        sleep 0.25; i=$((i + 1))
+    done
+    grep -Eq "$pattern" "$file" 2>/dev/null
+}
+
 rm -f "$ADB_LOG" "$BT_LOG"
 python3 "$BT" pair 0C:52:34:9A:1B:2C >/dev/null 2>&1
 
@@ -133,7 +171,7 @@ if [ -f "$A11Y" ]; then
     ipc filePickerOpen open /tmp
     waitfor "d['pickerShown']" 6
     ipc filePickerSelect /tmp/devices-send.txt; ipc filePickerAccept; sleep 0.6
-    press "button:^Send$" \
+    press "button:^Send$" "button:^Send file$" \
         && result devices-send-file-button PASS || result devices-send-file-button FAIL "no send button"
     waitgrep 'push ' \
         && result devices-send-file-calls-adb PASS || result devices-send-file-calls-adb FAIL "$(cat "$ADB_LOG" 2>&1)"
@@ -189,28 +227,127 @@ else
     done
 fi
 
-# ---- FM radio: a source on Media Player > Radio --------------------------------
+# ---- the Phone link tab: Bluetooth and Wi-Fi debugging, both built into Android
 if [ -f "$A11Y" ]; then
-    ipc radioShow popular; sleep 1
-    press "radio button:^FM radio$" \
-        && result devices-fm-is-a-radio-source PASS \
-        || result devices-fm-is-a-radio-source FAIL "Media Player has no FM source"
-    timeout 20 python3 "$A11Y" find "FM radio" >/dev/null 2>&1 \
-        && result devices-fm-source-drawn PASS || result devices-fm-source-drawn FAIL "the FM pane is blank"
-    # a custom frequency is typed; 98.5 is what the stand-in will report
-    press "text field:^For example 91.1$" "text field:^Frequency in MHz$"
-    wtype "98.5"
-    press "button:^Start$" "button:^Start radio$"
-    waitfor "d['fmState'] in ('running', 'on') and abs(d['fmFrequency'] - 98.5) < 0.01" 10 \
-        && result devices-fm-state PASS \
-        || result devices-fm-state FAIL "$(q "['fmState'], d['fmFrequency']")"
-    shot devices-fm 0.3
-    press "button:^Stop$" "button:^Stop radio$"
-    ipc mediaClose
+    press "radio button:^Phone link$" \
+        && result devices-phone-link-tab PASS || result devices-phone-link-tab FAIL "the Phone link tab was not pressable"
+    waitfor "d['phoneLinkPaired']" 10 \
+        && result devices-phone-link-paired PASS \
+        || result devices-phone-link-paired FAIL "$(q "['phoneLinkPaired'], d['androidNote']")"
+    timeout 20 python3 "$A11Y" find "Ready" >/dev/null 2>&1 \
+        && result devices-phone-link-dot PASS || result devices-phone-link-dot FAIL "the status dot has no label"
+    waitfor "'0A1B2C3D' in d['phoneLinkAddress']" 15 \
+        && result devices-phone-link-address PASS || result devices-phone-link-address FAIL "$(q "['phoneLinkAddress']")"
+    shot devices-phone-link 0.3
+
+    # Wi-Fi debugging: the address and code are typed; the button does the pairing
+    press "radio button:^Wi-Fi debugging code$"
+    press "text:^Address and pairing code$" "text field:^Address and pairing code$" "text:^Phone address$"
+    wtype "192.168.1.99:5555 654321"
+    press "button:^Pair this phone$" \
+        && result devices-phone-link-pair-button PASS || result devices-phone-link-pair-button FAIL "no pair button"
+    waitfor "d['androidPair'].get('address','') == '192.168.1.99:5555'" 25 \
+        && result devices-phone-link-pairs PASS || result devices-phone-link-pairs FAIL "$(q "['androidPair']")"
+
+    press "button:^Look for phones$" \
+        && result devices-phone-link-find-button PASS || result devices-phone-link-find-button FAIL "no find button"
+    # one queued bridge job at a time: read the answer, not the click
+    waitfor "not d['androidBusy'] and len(d['androidFind'].get('devices', [])) >= 1" 45 \
+        && result devices-phone-link-finds PASS || result devices-phone-link-finds FAIL "$(q "['androidFind'], d['androidNote']")"
+    timeout 20 python3 "$A11Y" find "Pixel 7" >/dev/null 2>&1 \
+        && result devices-phone-link-nearby PASS || result devices-phone-link-nearby FAIL "the found phone has no row"
+
+    waitfor "not d['androidBusy']" 15
+    press "switch:^Make this computer findable$" "check box:^Make this computer findable$" \
+        && result devices-phone-link-findable-switch PASS || result devices-phone-link-findable-switch FAIL "no findable switch"
+
+    # Forgetting is deliberate: ConfirmButton keeps its accessible name when
+    # armed, so the confirmation is a second press of that same control.
+    waitfor "not d['androidBusy'] and d['phoneLinkPaired']" 15
+    press "button:^Forget this phone$" \
+        && result devices-phone-link-forget-button PASS || result devices-phone-link-forget-button FAIL "no forget button"
+    press "button:^Forget this phone$"
+    waitfor "not d['phoneLinkPaired']" 20 \
+        && result devices-phone-link-forgets PASS || result devices-phone-link-forgets FAIL "$(q "['phoneLinkPaired'], d['androidNote']")"
+    timeout 20 python3 "$A11Y" find "No phone paired" >/dev/null 2>&1 \
+        && result devices-phone-link-empty PASS || result devices-phone-link-empty FAIL "no empty row after forget"
+
+    # leave a paired phone behind for the rest of the suite
+    waitfor "not d['androidBusy']" 15
+    press "radio button:^Wi-Fi debugging code$"
+    press "text:^Address and pairing code$" "text field:^Address and pairing code$" "text:^Phone address$"
+    wtype "192.168.1.42:5555 123456"
+    press "button:^Pair this phone$"
+    waitfor "not d['androidBusy'] and d['phoneLinkPaired']" 20
 else
-    result devices-fm-is-a-radio-source SKIP "no accessibility client"
-    result devices-fm-source-drawn SKIP "no accessibility client"
-    result devices-fm-state SKIP "no accessibility client"
+    for n in phone-link-tab phone-link-paired phone-link-dot phone-link-address \
+             phone-link-pair-button phone-link-pairs phone-link-find-button \
+             phone-link-finds phone-link-nearby phone-link-findable-switch \
+             phone-link-forget-button phone-link-forgets phone-link-empty; do
+        result devices-$n SKIP "no accessibility client"
+    done
+    shot devices-phone-link 0.3
+fi
+
+# ---- Android phone: back up, bring photos in, put things back -------------------
+ipc devicesClose; sleep 0.4; ipc devicesOpen; sleep 0.6
+press "radio button:^Android phone$" "radio button:^Android$" 2>/dev/null || true
+if [ -f "$A11Y" ]; then
+    waitfor "not d['androidBusy']" 15
+    press "button:^Back up now$" \
+        && result android-backup-button PASS || result android-backup-button FAIL "no backup button"
+    waitfor "not d['androidBusy'] and d['androidBackup'].get('summary','').startswith('Copied 9')" 40 \
+        && result android-backup-copies PASS || result android-backup-copies FAIL "$(q "['androidBackup']")"
+    shot android-backup 0.3
+    # a second backup copies nothing: the manifest remembers name, size and date
+    waitfor "not d['androidBusy']" 15
+    press "button:^Back up now$"
+    waitfor "not d['androidBusy'] and d['androidBackup'].get('summary','').startswith('Copied 0')" 40 \
+        && result android-backup-incremental PASS || result android-backup-incremental FAIL "$(q "['androidBackup']")"
+
+    press "button:^Import new photos$" \
+        && result android-photos-button PASS || result android-photos-button FAIL "no import button"
+    waitfor "'new photo' in d['androidPhotos'].get('note','')" 30 \
+        && result android-photos-import PASS || result android-photos-import FAIL "$(q "['androidPhotos']")"
+    press "button:^Import new photos$"
+    waitfor "'No new photos' in d['androidPhotos'].get('note','')" 30 \
+        && result android-photos-twice PASS || result android-photos-twice FAIL "$(q "['androidPhotos']")"
+
+    press "button:^Put files back$" \
+        && result android-restore-button PASS || result android-restore-button FAIL "no restore button"
+    waitfor "d['androidRestore'].get('contacts') == True" 30 \
+        && result android-restore-contacts PASS || result android-restore-contacts FAIL "$(q "['androidRestore']")"
+    shot android-restore 0.3
+
+    # the switch is below the fold; keyboard focus scrolls it into view
+    waitfor "not d['androidBusy']" 15
+    i=0
+    until timeout 20 python3 "$A11Y" find "check box:^Every time this phone connects$" >/dev/null 2>&1 \
+        || [ "$i" -ge 40 ]; do
+        wtype -k Tab; sleep 0.2; i=$((i + 1))
+    done
+    press "check box:^Every time this phone connects$" \
+        && result android-auto-switch PASS || result android-auto-switch FAIL "no auto-import switch"
+    waitfor "d['androidAutoImport'].get('on') == True" 15 \
+        && result android-auto-on PASS || result android-auto-on FAIL "$(q "['androidAutoImport']")"
+
+    press "button:^Use the phone's internet$" \
+        && result android-tether-button PASS || result android-tether-button FAIL "no tether button"
+    waitfor "d['androidTether'].get('on') == True" 25 \
+        && result android-tether PASS || result android-tether FAIL "$(q "['androidTether']")"
+    shot android-tether 0.3
+
+    press "button:^Open Calendar accounts$" \
+        && result android-calendar-button PASS || result android-calendar-button FAIL "no calendar button"
+    waitfor "d['calendarShown'] == True" 8 \
+        && result android-calendar-opens PASS || result android-calendar-opens FAIL "$(q "['calendarShown']")"
+    ipc closeAll
+else
+    for n in backup-button backup-copies backup-incremental photos-button photos-import \
+             photos-twice restore-button restore-contacts auto-switch auto-on \
+             tether-button tether calendar-button calendar-opens; do
+        result android-$n SKIP "no accessibility client"
+    done
 fi
 
 # ---- NFC read, IR list and send ------------------------------------------------
@@ -221,6 +358,8 @@ if [ -f "$A11Y" ]; then
     press "button:^Read a tag$" "button:^Read NFC$"
     waitfor "d['nfcText'] != ''" 10 && result devices-nfc-read PASS \
         || result devices-nfc-read FAIL "$(q "['nfcText'], d['devicesNote']")"
+    timeout 20 python3 "$A11Y" find "Last tag" >/dev/null 2>&1 \
+        && result devices-nfc-result-row PASS || result devices-nfc-result-row FAIL "the tag result has no labelled row"
     press "button:^Look for codes$"
     waitfor "d['irCodes'] != ''" 10 && result devices-ir-lists PASS \
         || result devices-ir-lists FAIL "$(q "['irCodes']")"
@@ -229,9 +368,21 @@ if [ -f "$A11Y" ]; then
         && result devices-ir-send-button PASS || result devices-ir-send-button FAIL "no Send code button"
     waitfor "'Code sent' in d['devicesNote']" 8 \
         && result devices-ir-send PASS || result devices-ir-send FAIL "$(q "['devicesNote']")"
+    timeout 20 python3 "$A11Y" find "Last code" >/dev/null 2>&1 \
+        && result devices-ir-result-row PASS || result devices-ir-result-row FAIL "the code result has no labelled row"
     shot devices-gadgets 0.3
+
+    # FM has one home: Media Player > Radio. This link only opens that page.
+    press "button:^Open FM radio$" \
+        && result devices-fm-link PASS || result devices-fm-link FAIL "no Open FM radio link"
+    waitfor "d['mediaPage'] == 'radio'" 8 \
+        && result devices-fm-link-opens-radio PASS || result devices-fm-link-opens-radio FAIL "$(q "['mediaPage']")"
+    timeout 20 python3 "$A11Y" find "FM radio" >/dev/null 2>&1 \
+        && result devices-fm-link-shows-source PASS || result devices-fm-link-shows-source FAIL "the FM source is not drawn"
+    ipc mediaClose
 else
-    for n in gadgets-tab nfc-read ir-lists ir-send-button ir-send; do
+    for n in gadgets-tab nfc-read nfc-result-row ir-lists ir-send-button ir-send \
+             ir-result-row fm-link fm-link-opens-radio fm-link-shows-source; do
         result devices-$n SKIP "no accessibility client"
     done
 fi
@@ -239,6 +390,34 @@ fi
 ipc devicesClose
 waitfor "d['devicesShown'] == False" 6 && result devices-closes PASS \
     || result devices-closes FAIL "$(q "['devicesShown']")"
+
+# ---- Settings > Background: the phone tools' own switches ---------------------
+ipc settingsCategory background
+waitfor "d['settingsOpen'] and d['settingsCat'] == 'background'" 8 \
+    && result devices-background-opens PASS \
+    || result devices-background-opens FAIL "$(q "['settingsOpen'], d['settingsCat']")"
+waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] >= 2" 10 \
+    && result devices-background-switches PASS \
+    || result devices-background-switches FAIL "$(q "['backgroundSwitches'], d['backgroundOn']")"
+if [ -f "$A11Y" ]; then
+    # the section's title is plain text with no accessible name; its first
+    # switch is the named way to know the section is drawn
+    for i in 1 2 3 4 5 6; do wtype -k Page_Up; sleep 0.15; done
+    timeout 20 python3 "$A11Y" find "check box:^Receive files$" >/dev/null 2>&1 \
+        && result devices-background-section PASS || result devices-background-section FAIL "no phone section"
+    before=$(q "['backgroundOn']")
+    press "switch:^Receive files$" "check box:^Receive files$" \
+        && result devices-background-switch PASS || result devices-background-switch FAIL "no Receive files switch"
+    waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] != $before" 30 \
+        && result devices-background-toggle PASS || result devices-background-toggle FAIL "$(q "['backgroundOn']") (was $before)"
+    press "switch:^Receive files$" "check box:^Receive files$"
+    waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] == $before" 30
+else
+    result devices-background-section SKIP "no accessibility client"
+    result devices-background-switch SKIP "no accessibility client"
+    result devices-background-toggle SKIP "no accessibility client"
+fi
+shot settings-background 0.3
 
 # ---- the lines are also in Settings > Phone (Search must find the page) --------
 ipc settingsCategory phone
@@ -249,3 +428,4 @@ waitfor "'sip-devtest01' in str(d['lines']) and 'Test line' in str(d['sipAccount
     && result devices-sip-in-settings PASS \
     || result devices-sip-in-settings FAIL "$(q "['lines'], d['sipAccounts']")"
 ipc closeAll
+rm -f "$BT_SHIM"

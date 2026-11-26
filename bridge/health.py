@@ -12,6 +12,7 @@ One JSON answer per command, like every other bridge here:
     health.py history [days]          daily rows, oldest first (default 7)
     health.py workouts                the journaled workouts, newest first
     health.py spot <hr|spo2|bp>       one measurement from the watch
+    health.py watch-connect state|on|off   read or set the companion switch
 
 Everything written stays in a sqlite database under XDG_DATA_HOME — nothing is
 uploaded, and there is no account. shani-shell is optional: when the package, a
@@ -69,6 +70,65 @@ def _day(value: Any = None) -> str:
         except ValueError:
             pass
     return datetime.now().date().isoformat()
+
+
+def _fake_path() -> str:
+    """Where a stand-in watch keeps its structured answer (dev only)."""
+    return os.environ.get("SHANI_WATCH_FAKE") or ""
+
+
+def _fake_watch() -> dict:
+    """The readable stand-in watch JSON, or {} when there is none."""
+    path = _fake_path()
+    if not path:
+        return {}
+    try:
+        data = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # no stand-in here: the real path still works
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _stages(value: Any) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    return [
+        {"stage": str(row.get("stage") or ""), "minutes": _int(row.get("minutes"))}
+        for row in value
+        if isinstance(row, dict)
+    ]
+
+
+def _series(value: Any) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    return [
+        {"when": str(row.get("when") or ""), "value": _int(row.get("value"))}
+        for row in value
+        if isinstance(row, dict)
+    ]
+
+
+def _merge_fake(out: dict) -> None:
+    """Overlay a stand-in watch's fields without touching the local journal."""
+    fake = _fake_watch()
+    if not fake:
+        return
+    for key in ("device_model", "device_firmware", "last_read"):
+        if key in fake:
+            out[key] = str(fake[key] or "")[:160]
+    if "connected" in fake:
+        out["connected"] = bool(fake["connected"])
+    if "battery" in fake:
+        out["battery"] = _int(fake["battery"], -1)
+    if "distance_m" in fake:
+        out["distance_m"] = max(0, _int(fake["distance_m"]))
+    if "calories" in fake:
+        out["calories"] = max(0, _int(fake["calories"]))
+    if "sleep_stages" in fake:
+        out["sleep_stages"] = _stages(fake["sleep_stages"])
+    if "stress_series" in fake:
+        out["stress_series"] = _series(fake["stress_series"])
 
 
 def _db_path() -> Path:
@@ -372,12 +432,26 @@ def cmd_summary() -> dict:
         "device": "",
         "history": history,
         "error": "",
+        "device_model": "",
+        "device_firmware": "",
+        "last_read": "",
+        "connected": False,
+        "distance_m": 0,
+        "calories": 0,
+        "sleep_stages": [],
+        "stress_series": [],
     }
+    # A stand-in watch is the whole watch read in a test: do not also look for
+    # real BlueZ/GATT hardware, which can block for seconds on a cold bus.
+    if _fake_watch():
+        _merge_fake(out)
+        return out
     picked = _pick_watch()
     if not picked:
         out["error"] = (
             NOT_INSTALLED if not (moyoung and gatt) else "no paired watch found"
         )
+        _merge_fake(out)
         return out
     mac, name = picked
     try:
@@ -427,7 +501,63 @@ def cmd_summary() -> dict:
             }
         )
     out["workouts"].sort(key=lambda w: w["day"], reverse=True)
+
+    # The dashboard wants the watch's own words for these; the summary is the
+    # only read we do, so anything it does not carry stays honestly empty.
+    out["connected"] = True
+    out["last_read"] = datetime.now().astimezone().isoformat(timespec="minutes")
+    steps = s.get("steps_today") or {}
+    if isinstance(steps, dict):
+        out["distance_m"] = max(0, _int(steps.get("distance_m")))
+        out["calories"] = max(0, _int(steps.get("calories")))
+    device = s.get("device") or {}
+    if isinstance(device, dict):
+        out["device_model"] = str(device.get("model") or device.get("product") or "")[
+            :160
+        ]
+        out["device_firmware"] = str(
+            device.get("software") or device.get("firmware") or ""
+        )[:160]
+    out["sleep_stages"] = _stages(s.get("sleep"))
+    out["stress_series"] = stress
+    _merge_fake(out)
     return out
+
+
+def cmd_watch_connect(state: str) -> dict:
+    """Read or set the companion switch, locally, with no upload."""
+    state = str(state or "").strip().lower()
+    if state not in ("state", "on", "off"):
+        return {**_ok("use state, on or off"), "connected": False}
+    data = _fake_watch()
+    current = bool(data.get("connected", False))
+    if state == "state":
+        return {**_ok(), "connected": current}
+
+    on = state == "on"
+    path = _fake_path()
+    if path:
+        data["connected"] = on
+        try:
+            target = Path(path).expanduser()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+        except OSError as exc:
+            return {**_ok(str(exc)[:160]), "connected": current}
+
+    settings = _module("phone.settings")
+    if settings is not None:
+        try:
+            store = settings.Settings()
+            if hasattr(store, "set_bool"):
+                store.set_bool("watch-companion-enabled", on)
+            else:
+                store.set("watch-companion-enabled", "true" if on else "false")
+        except Exception as exc:  # noqa: BLE001 - a missing phone app is an answer
+            return {**_ok("watch setting: " + str(exc)[:120]), "connected": current}
+    return {**_ok(), "connected": on}
 
 
 def cmd_spot(kind: str) -> dict:
@@ -509,6 +639,8 @@ def main() -> int:
         answer = cmd_spot(args[0] if args else "")
     elif cmd == "find-watch":
         answer = cmd_find_watch()
+    elif cmd == "watch-connect":
+        answer = cmd_watch_connect(args[0] if args else "state")
     else:
         print(json.dumps({"error": "unknown command: " + cmd}))
         return 2

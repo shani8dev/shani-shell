@@ -240,15 +240,21 @@ def test_connect_android_reports_a_bad_code(bridge):
     assert got["ok"] is False and "code did not match" in got["error"]
 
 
-def test_connect_phone_uses_kdeconnect_cli(bridge, monkeypatch):
-    mod, _modules, _ = bridge
-    monkeypatch.setenv("SHANI_KDECONNECT", "/fake/kdeconnect-cli")
-    seen = []
-    monkeypatch.setattr(
-        mod.subprocess, "run", lambda argv, **kw: seen.append(argv) or Done()
-    )
-    assert mod.cmd_connect("phone", "1234") == {"ok": True, "error": ""}
-    assert seen == [["/fake/kdeconnect-cli", "-d", "1234", "--pair"]]
+def test_connect_phone_uses_android_debugging(bridge, monkeypatch):
+    """Pairing a phone uses Bluetooth or adb, never an app on the handset."""
+    mod, modules, _ = bridge
+
+    class AdbPair:
+        def connect(self, address):
+            assert address == "192.168.1.2:37099"
+            return True, ""
+
+        def pair(self, address, code):
+            return True, ""
+
+    modules["phone.adb_pair"] = AdbPair()
+    got = mod.cmd_connect("phone", "192.168.1.2:37099")
+    assert got["ok"] is True and got["error"] == ""
 
 
 def test_connect_bluetooth_uses_gdbus_on_the_device(bridge, monkeypatch):

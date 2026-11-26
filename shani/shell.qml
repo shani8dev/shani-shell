@@ -84,6 +84,7 @@ import qs.Modules.VideoTrimmer
 // registers the folder as a module for the Media Player window, which a `source:`
 // loader reads (an import loads nothing by itself)
 import qs.Modules.MediaPlayer
+import qs.Modules.Calls
 import qs.Modules.Devices
 import qs.Modules.Passwords
 import qs.Modules.Software
@@ -251,7 +252,7 @@ ShellRoot {
     }
 
     // Services that hold no surface still have to be instantiated to run.
-    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Devices, Lines, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Irc, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, Sessions, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
+    readonly property var _services: [BootInfo, SshKeys, KernelModules, SecurityInfo, SysServices, Link, Devices, Lines, PhoneTools, AndroidTools, Idle, InputPlumber, Ups, Polkit, NightLight, AutoRotate, Appearance, Firewall, Feeds, Mail, Irc, Tablet, Privacy, Updates, Drives, Disks, Displays, Osk, Ime, Focus, ScreenTime, Shelf, Phone, Dictation, FocusTimer, QuickNotes, Weather, Screenshots, GameMode, Backup, Access, Smart, Cast, BtAgent, InputConfig, SoundFx, Camera, Housekeeping, SystemSounds, ObexReceive, Proxy, BtSend, Gpu, Printing, Thunderbolt, Agenda, Calculator, Modem, DynamicLock, Share, Automations, Reopen, Sessions, LockKeys, Mirror, LauncherEntries, AppFilter, Scratchpads, Launch, WallpaperSync, FileActions, AmbientLight, WindowRules, WindowLook, Terminal, TerminalApp, TextMate, Keyring, WindowPreview, SmartReplies, WorldClock, Characters, Viewer, PdfViewer, Location, WebApps, ScreenSaver, KbdBacklight, Hooks, Plugged, GamepadNav, InputKinds, TabletMode, WhatsNew, VoiceRecorder, PdfSigner, DiskUsage, WallpaperStyle, VideoTrimmer, Models, AIProviders, Studio]
 
     // The test-only CalDAV hook reads a password from a file: keeping it out of
     // an IPC argument keeps it out of `ps`. Declared at root, not in IpcHandler;
@@ -1273,6 +1274,17 @@ ShellRoot {
                 servicesCount: SysServices.services.length, timersCount: SysServices.timers.length,
                 cronCount: SysServices.cron.length, servicesNote: SysServices.note,
                 callsShown: Ui.calls, callsPad: Ui.callsPad, messagesPending: Ui.messagesPending, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
+                phoneMusicTitle: PhoneTools.music.title || "", phoneMusicState: PhoneTools.music.state || "", phoneMusicSummary: PhoneTools.music.summary || "",
+                phoneFiles: PhoneTools.files.length, phoneFilesReceive: !!PhoneTools.receiveFiles,
+                phoneRemoteOn: !!PhoneTools.remote.on, phoneRemoteNote: PhoneTools.remote.note || "",
+                phoneLinkPaired: !!((AndroidTools.result["state"] || {}).paired), phoneLinkAddress: (AndroidTools.result["state"] || {}).address || (AndroidTools.result["state"] || {}).serial || "", phoneLinkNote: AndroidTools.note || "",
+                androidState: AndroidTools.result["state"] || {}, androidBusy: !!AndroidTools.busy, androidNote: AndroidTools.note || "",
+                androidBackup: AndroidTools.result["backup"] || {}, androidRestore: AndroidTools.result["restore"] || {},
+                androidPhotos: AndroidTools.result["import-photos"] || {}, androidAutoImport: AndroidTools.result["auto-import"] || {},
+                androidContacts: AndroidTools.result["contacts"] || {}, androidCopy: AndroidTools.result["copy"] || {},
+                androidInstall: AndroidTools.result["install"] || {}, androidTether: AndroidTools.result["tether"] || {},
+                androidFind: AndroidTools.result["find"] || {}, androidPair: AndroidTools.result["pair"] || {},
+                backgroundSwitches: PhoneTools.switches.length, backgroundOn: PhoneTools.switches.filter(s => s.on).length,
                 incoming: Link.incoming.name || Link.incoming.number || "", incomingId: Link.incoming.id || "", incomingLine: Link.incoming.line || "",
                 devicesShown: Ui.devices, devicesCount: new Set(Link.devices.map(d => d.id)
                     .concat(Devices.devices.map(d => d.id || d.serial || d.name),
@@ -1283,6 +1295,9 @@ ShellRoot {
                 lines: Lines.lines.map(l => l.id + ":" + (l.ready ? "ready" : "not ready")), sipAccounts: Lines.accounts.map(a => a.name || a.username || a.id),
                 messagesShown: Ui.messages, messagesCount: Link.messages.length,
                 healthShown: Ui.health, healthSteps: Health.stepsToday, healthDevice: Health.device, healthError: Health.error,
+                healthModel: Health.deviceModel, healthFirmware: Health.deviceFirmware, healthLastRead: Health.lastRead,
+                healthConnected: !!Health.connected, healthBattery: Health.battery, healthDistance: Health.distanceM,
+                healthCalories: Health.calories, healthSleepStages: Health.sleepStages.length, healthStressPoints: Health.stressSeries.length,
                 systemCat: Ui.settingsCat, systemOpen: Ui.settingsOpen, systemState: Ui.systemState,
                 linkPhone: Link.phoneName, linkBackend: Link.backend,
                 mailKind: Mail.kind, mailFolders: Mail.folders.length, mailCount: Mail.messages.length,

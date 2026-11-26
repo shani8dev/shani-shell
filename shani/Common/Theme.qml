@@ -165,6 +165,7 @@ Singleton {
     readonly property color amber: mix("#b7791f", "#e0af68")
     readonly property color blue: mix("#3461c1", "#7aa2f7")
     readonly property color red: mix("#c8364f", "#f7768e")
+    readonly property color success: mix("#27794a", "#4ade80")
     readonly property color danger: mix("#c0392b", "#f28b82")
 
     // glass: the translucent card every surface is drawn on

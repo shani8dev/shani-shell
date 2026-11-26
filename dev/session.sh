@@ -46,13 +46,17 @@ export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb-full.p
 # the shell's own apps, as the package installs them: their desktop entries
 # (the launcher's app list, the dock's and the switcher's icon for an app window)
 python3 /work/bin/shani app --write-desktop /root/.local/share/applications
-export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_PHONE_TOOL=/work/bridge/link.py SHANI_DEVICES_TOOL=/work/bridge/devices.py SHANI_SERVICES_TOOL=/work/bridge/services.py SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
+export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_PHONE_TOOL=/work/bridge/link.py SHANI_DEVICES_TOOL=/work/bridge/devices.py SHANI_PHONE_TOOLS_TOOL=/work/bridge/phone_tools.py SHANI_ANDROID_TOOLS_TOOL=/work/bridge/android_tools.py SHANI_MUSIC="python3 /work/dev/fake-phone-tools.py music" SHANI_FILES_SEND="python3 /work/dev/fake-phone-tools.py files-send" SHANI_PHONE_REMOTE="python3 /work/dev/fake-phone-tools.py remote" SHANI_PHONE_LINK="python3 /work/dev/fake-phone-tools.py link" SHANI_AUDIO="python3 /work/dev/fake-phone-tools.py audio" SHANI_PHONE_TOOLS_STATE=/tmp/fake-phone-tools.json SHANI_FILES_DIR=/tmp/fake-phone-files-inbox SHANI_FILES_LOG=/tmp/fake-phone-files-calls SHANI_PHONE_REMOTE_LOG=/tmp/fake-phone-remote-calls SHANI_PHONE_LINK_LOG=/tmp/fake-phone-link-calls SHANI_AUDIO_LOG=/tmp/fake-phone-audio-calls SHANI_SERVICES_TOOL=/work/bridge/services.py
+# an Android phone with no app on it: the adb stand-in reads this fake phone tree
+export SHANI_FAKE_PHONE_DIR=/tmp/fake-android-phone SHANI_BACKUP_CANCEL=/tmp/android-backup-cancel
+python3 /work/dev/fake-android-phone.py "$SHANI_FAKE_PHONE_DIR" >/dev/null 2>&1
+export SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
 export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/tidy.py SHANI_BATTERY_TOOL=/work/bridge/battery.py SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
 # no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
 export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh
 # the file manager's backend: the listing, the watch and the trash
 export SHANI_FILES_TOOL=/work/bridge/files.py SHANI_FILES_JOB_DELAY_FILE=/tmp/files-job-delay
-export SHANI_REPORT_TOOL=/work/bridge/system-report.py SHANI_HEALTH_TOOL=/work/bridge/health-check.py
+export SHANI_REPORT_TOOL=/work/bridge/system-report.py SHANI_HEALTH_TOOL=/work/bridge/health-check.py SHANI_FITNESS_TOOL=/work/bridge/health.py SHANI_WATCH_FAKE=/tmp/fake-watch.json
 # Settings > System: stand-ins for fwupd, shani-health, mdadm, lvs, resolvectl…
 # and the bridge tools that read them (dev/fake-system-env.sh is a harness part).
 . /work/dev/fake-system-env.sh

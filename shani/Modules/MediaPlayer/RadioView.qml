@@ -13,7 +13,9 @@ ColumnLayout {
     // stations you have played lately, newest first (the Shortwave-ish history):
     // the close thing to double-tapping a station again
     property var recent: []
-    property string radioSource: "internet"      // internet | fm: FM is a source on this page, not another tab
+    // Follows the shared choice (another window can open this page with FM picked);
+    // the chips below write that same choice, so both directions stay in sync.
+    readonly property string radioSource: Radio.sourceChoice
 
     // FM radio is a source beside the internet stations
     RowLayout {
@@ -23,12 +25,12 @@ ColumnLayout {
         Choice {
             text: Tr.t("Internet stations")
             selected: view.radioSource === "internet"
-            onClicked: view.radioSource = "internet"
+            onClicked: Radio.sourceChoice = "internet"
         }
         Choice {
             text: Tr.t("FM radio")
             selected: view.radioSource === "fm"
-            onClicked: view.radioSource = "fm"
+            onClicked: Radio.sourceChoice = "fm"
         }
     }
 

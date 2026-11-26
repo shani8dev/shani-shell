@@ -41,6 +41,10 @@ XML = """
       <arg type="i" name="limit" direction="in"/>
       <arg type="s" name="json" direction="out"/>
     </method>
+    <method name="Inventory">
+      <arg type="s" name="section" direction="in"/>
+      <arg type="s" name="json" direction="out"/>
+    </method>
     <signal name="Event"><arg type="s" name="json"/></signal>
   </interface>
 </node>
