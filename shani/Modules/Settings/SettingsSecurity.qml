@@ -455,7 +455,7 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Kernel security (LSM)")
-        Text { Layout.fillWidth: true; visible: !!(r.lsm && r.lsm.length); text: r.lsm && r.lsm.length ? r.lsm.join(", ") : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Text { Layout.fillWidth: true; visible: !!(r.lsm && r.lsm.length); text: r.lsm && r.lsm.length ? r.lsm.join(", ") : ""; color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         InfoBanner {
             Layout.fillWidth: true
             visible: !r.lsm || !r.lsm.length
@@ -498,17 +498,17 @@ ColumnLayout {
         ListRow { Layout.fillWidth: true; interactive: false; icon: "dialog-password"; title: Tr.t("PAM wired"); subtitle: pw.pam_wired ? Tr.t("pam_pwquality appears in PAM") : Tr.t("pam_pwquality not found in PAM — policy may not be enforced") }
         GridLayout {
             Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-            Text { text: Tr.t("Minimum length"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Minimum length"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: minlen; Layout.fillWidth: true; placeholder: "8"; error: page.wholeNumberError(minlen) }
-            Text { text: Tr.t("Different from old (difok)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Different from old (difok)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: difok; Layout.fillWidth: true; placeholder: "1"; error: page.wholeNumberError(difok) }
-            Text { text: Tr.t("Digits (dcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Digits (dcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: dcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(dcredit) }
-            Text { text: Tr.t("Uppercase (ucredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Uppercase (ucredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: ucredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ucredit) }
-            Text { text: Tr.t("Lowercase (lcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Lowercase (lcredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: lcredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(lcredit) }
-            Text { text: Tr.t("Other (ocredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Other (ocredit)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: ocredit; Layout.fillWidth: true; placeholder: "0"; error: page.wholeNumberError(ocredit) }
         }
         RowLayout {
@@ -538,7 +538,7 @@ ColumnLayout {
             SwitchRow { Layout.fillWidth: true; visible: page.auditdLoaded; text: Tr.t("Enable auditd"); hint: Tr.t("System audit logging service"); checked: page.auditdOn; onToggled: on => { auditdSet.payload = JSON.stringify({ enabled: on }); auditdSet.command = page.adminCmd.concat(["auditd-set"]); auditdSet.running = true; } }
             ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Audit profile"); subtitle: page.auditProfile }
         }
-        Text { Layout.fillWidth: true; text: Tr.t("Predefined audit rules managed by shani-shell. Off removes the shell-managed rules file."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Predefined audit rules managed by shani-shell. Off removes the shell-managed rules file."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
             Repeater {
@@ -616,7 +616,7 @@ ColumnLayout {
             Layout.fillWidth: true
             visible: page.auditLoaded && page.auditInfo.have === true && page.auditRecords().length > 0
             text: Tr.t("Recent audit events")
-            color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("body")
         }
         Repeater {
             model: page.auditRecords()
@@ -632,7 +632,7 @@ ColumnLayout {
                     Layout.fillWidth: true; Layout.leftMargin: Theme.px(36)
                     visible: !!modelData.detail
                     text: modelData.detail
-                    color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                    color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                 }
             }
         }
@@ -640,7 +640,7 @@ ColumnLayout {
             Layout.fillWidth: true
             visible: page.auditLoaded && page.auditInfo.have === true && page.auditInfo.truncated === true
             text: Tr.t("Showing the first %1 events; the rest are in the audit log", 25)
-            color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small")
         }
         EmptyState {
             Layout.fillWidth: true
@@ -684,7 +684,7 @@ ColumnLayout {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
         }
@@ -693,13 +693,13 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Coredumps")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/coredump.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/systemd/coredump.conf.d/50-shani-shell.conf."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         Repeater {
             model: [{k:"Storage",ph:"none"},{k:"ProcessSizeMax",ph:"0"},{k:"MaxUse",ph:"1G"}]
             RowLayout {
                 required property var modelData
                 Layout.fillWidth: true; spacing: Theme.px(6)
-                Text { Layout.preferredWidth: Theme.px(160); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { Layout.preferredWidth: Theme.px(160); text: modelData.k; color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small") }
                 TextField { id: cdVal; Layout.fillWidth: true; text: (page.coredump && page.coredump[modelData.k]) || ""; placeholder: modelData.ph }
                 Button { text: Tr.t("Save"); enabled: !coredumpSet.running; busy: coredumpSet.running; onClicked: page.saveCoredump(modelData.k, cdVal.text.trim()) }
             }
@@ -710,14 +710,14 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Hosts")
-        Text { Layout.fillWidth: true; text: Tr.t("Static name mappings in /etc/hosts. Each line: IP address, then hostnames."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        Text { Layout.fillWidth: true; text: Tr.t("The addresses 127.0.0.1, 127.0.1.1 and ::1 are always kept."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Static name mappings in /etc/hosts. Each line: IP address, then hostnames."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+        Text { Layout.fillWidth: true; text: Tr.t("The addresses 127.0.0.1, 127.0.1.1 and ::1 are always kept."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: Theme.px(140)
             radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: hostsEdit.activeFocus ? Theme.accent : Theme.stroke
             TextEdit {
                 id: hostsEdit; anchors.fill: parent; anchors.margins: Theme.px(8)
-                color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale
+                color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small")
                 wrapMode: TextEdit.NoWrap; selectByMouse: true
                 onTextChanged: if (page.hostsText !== text) page.hostsText = text
             }
@@ -740,11 +740,11 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Sudo rules")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/sudoers.d/50-shani-shell. Checked with visudo before and after saving; a failed check rolls back."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed drop-in /etc/sudoers.d/50-shani-shell. Checked with visudo before and after saving; a failed check rolls back."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: Theme.px(120)
             radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: sudoersEdit.activeFocus ? Theme.accent : Theme.stroke
-            TextEdit { id: sudoersEdit; anchors.fill: parent; anchors.margins: Theme.px(8); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.px(11) * Theme.fontScale; wrapMode: TextEdit.NoWrap; selectByMouse: true; onTextChanged: if (page.sudoersText !== text) page.sudoersText = text }
+            TextEdit { id: sudoersEdit; anchors.fill: parent; anchors.margins: Theme.px(8); color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small"); wrapMode: TextEdit.NoWrap; selectByMouse: true; onTextChanged: if (page.sudoersText !== text) page.sudoersText = text }
         }
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
@@ -818,7 +818,7 @@ ColumnLayout {
             }
         }
 
-        Text { Layout.fillWidth: true; text: Tr.t("Lines this page does not manage are kept as they are."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Lines this page does not manage are kept as they are."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         ColumnLayout {
             Layout.fillWidth: true; spacing: Theme.px(2)
             Repeater {
@@ -849,7 +849,7 @@ ColumnLayout {
 
         GridLayout {
             Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-            Text { text: Tr.t("Who"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Who"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             ColumnLayout {
                 Layout.fillWidth: true; spacing: Theme.px(6)
                 Picks {
@@ -868,19 +868,19 @@ ColumnLayout {
                     error: page.whoError()
                 }
             }
-            Text { text: Tr.t("Run as"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Run as"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Picks {
                 options: page.runasOptions()
                 current: page.grantRunas
                 onPicked: v => page.grantRunas = v
             }
-            Text { text: Tr.t("Password"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Password"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Picks {
                 options: [{ label: Tr.t("Ask for a password"), value: "PASSWD" }, { label: Tr.t("Never ask"), value: "NOPASSWD" }]
                 current: page.grantTag
                 onPicked: v => page.grantTag = v
             }
-            Text { text: Tr.t("Commands"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Commands"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             ColumnLayout {
                 Layout.fillWidth: true; spacing: Theme.px(6)
                 Flow {
@@ -924,16 +924,16 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Account lockout (faillock)")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/security/faillock.conf. Values apply to PAM faillock."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed in /etc/security/faillock.conf. Values apply to PAM faillock."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         GridLayout {
             Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-            Text { text: Tr.t("Deny after failures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Deny after failures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: denyField; Layout.fillWidth: true; placeholder: "3" }
-            Text { text: Tr.t("Unlock time (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Unlock time (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: unlockField; Layout.fillWidth: true; placeholder: "600" }
-            Text { text: Tr.t("Fail interval (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Fail interval (s)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: failIntervalField; Layout.fillWidth: true; placeholder: "900" }
-            Text { text: Tr.t("Even deny root"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("Even deny root"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             Button { text: page.evenDenyRoot ? Tr.t("Enabled") : Tr.t("Disabled"); onClicked: page.evenDenyRoot = !page.evenDenyRoot }
         }
         RowLayout {
@@ -954,18 +954,18 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Login defaults")
-        Text { Layout.fillWidth: true; text: Tr.t("Managed keys in /etc/login.defs. Only the listed keys are changed."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("Managed keys in /etc/login.defs. Only the listed keys are changed."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.type("small") }
         GridLayout {
             Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
-            Text { text: Tr.t("PASS_MAX_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("PASS_MAX_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: passMaxField; Layout.fillWidth: true; placeholder: "99999" }
-            Text { text: Tr.t("PASS_MIN_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("PASS_MIN_DAYS"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: passMinField; Layout.fillWidth: true; placeholder: "0" }
-            Text { text: Tr.t("PASS_WARN_AGE"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("PASS_WARN_AGE"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: passWarnField; Layout.fillWidth: true; placeholder: "7" }
-            Text { text: Tr.t("LOGIN_RETRIES"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("LOGIN_RETRIES"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: loginRetriesField; Layout.fillWidth: true; placeholder: "5" }
-            Text { text: Tr.t("LOGIN_TIMEOUT"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Text { text: Tr.t("LOGIN_TIMEOUT"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
             TextField { id: loginTimeoutField; Layout.fillWidth: true; placeholder: "60" }
         }
         RowLayout {

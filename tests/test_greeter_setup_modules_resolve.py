@@ -48,3 +48,29 @@ def test_every_qs_import_resolves(name):
 def test_the_control_sees_common_imports(name):
     # an empty walk would pass the test above: Common/'s own files must be seen
     assert any(f.startswith("Common/") for f in _imports(ROOT / name).get("Common", []))
+
+
+# a relative script or file import ("../Modules/X.js") resolves from the file's
+# own folder: Services/ChronoaSettings.qml importing ../Modules/Settings/*.js
+# loaded in the shell but not in the greeter or setup, whose Services/ is a
+# link with no Modules/ beside it - and the whole Services module failed.
+REL = re.compile(r'^\s*import\s+"([^"]+)"', re.M)
+
+
+@pytest.mark.parametrize("name", ["greeter", "setup"])
+def test_every_relative_import_resolves(name):
+    config = ROOT / name
+    missing = []
+    for d, _, fs in os.walk(config, followlinks=True):
+        for f in fs:
+            if not f.endswith(".qml"):
+                continue
+            qml = Path(d) / f
+            for rel in REL.findall(qml.read_text(errors="replace")):
+                if "://" in rel:
+                    continue
+                # resolved as Quickshell does: from the folder as seen in this config
+                target = Path(os.path.normpath(Path(d) / rel))
+                if not target.exists():
+                    missing.append(f"{qml.relative_to(config)}: {rel}")
+    assert missing == [], f"{name} cannot load: {missing[:5]}"

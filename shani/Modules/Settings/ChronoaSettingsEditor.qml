@@ -6,7 +6,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import qs.Common
 import qs.Services
-import "ChronoaSettings.js" as Words
+import "../../Services/ChronoaSettings.js" as Words
 
 ColumnLayout {
     id: root
@@ -130,7 +130,7 @@ ColumnLayout {
                 : Tr.t("Save this change? The engine will store it and may grant access.")
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             Accessible.role: Accessible.StaticText
             Accessible.name: text
         }

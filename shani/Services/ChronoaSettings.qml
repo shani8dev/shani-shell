@@ -5,7 +5,7 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import qs.Common
-import "../Modules/Settings/ChronoaSettings.js" as Words
+import "ChronoaSettings.js" as Words
 
 Singleton {
     id: root

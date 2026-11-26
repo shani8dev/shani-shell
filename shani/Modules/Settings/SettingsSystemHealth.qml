@@ -171,7 +171,7 @@ ColumnLayout {
                 color: Theme.dim
                 wrapMode: Text.Wrap
                 font.family: Theme.mono
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
             }
         }
         EmptyState {

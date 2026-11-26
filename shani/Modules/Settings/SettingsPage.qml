@@ -334,7 +334,7 @@ ColumnLayout {
                 text: Tr.t("Found: %1").arg(Ui.settingsHighlight)
                 color: Theme.accent
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 elide: Text.ElideRight
             }
         }
@@ -349,7 +349,7 @@ ColumnLayout {
             text: Tr.t("%1 customised", page.modified[page.cat] || 0)
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
         ConfirmButton {
             id: resetSectionConfirm
@@ -406,7 +406,7 @@ ColumnLayout {
                         color: Theme.text
                         wrapMode: Text.Wrap
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.Medium
                     }
                 }
@@ -442,7 +442,7 @@ ColumnLayout {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 ConfirmButton {
                     id: resetAllConfirm
@@ -499,12 +499,12 @@ ColumnLayout {
             Accessible.name: Tr.t("Settings")
             onClicked: Ui.settingsCat = ""
         }
-        Text { text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+        Text { text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
         Text {
             text: page.catTitle
             color: Theme.text
             font.family: Theme.font
-            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.pixelSize: Theme.type("body")
             font.weight: Font.DemiBold
             elide: Text.ElideRight
             Layout.fillWidth: true
@@ -521,7 +521,7 @@ ColumnLayout {
             text: Tr.t("Recently changed (%1)").arg(page.recentChanged.length)
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(10) * Theme.fontScale
+            font.pixelSize: Theme.type("caption")
             font.weight: Font.DemiBold
         }
         Flow {
@@ -563,7 +563,7 @@ ColumnLayout {
                     onClicked: Ui.layoutSwitcher = true
                 }
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Wallpaper") }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale
+                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                     text: Tr.t("Click a picture to use it. One picture can serve both the light and the dark style, or each can have its own.") }
                 Picks {
                     label: Tr.t("A click sets the picture for")
@@ -641,7 +641,7 @@ ColumnLayout {
                     text: OnlineWalls.error
                     color: Theme.danger
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 GridLayout {
                     visible: OnlineWalls.results.length > 0
@@ -704,7 +704,7 @@ ColumnLayout {
                 }
 
                 // a slideshow: the pictures in a folder, changed every so often
-                Text { Layout.fillWidth: true; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; font.weight: Font.DemiBold; text: Tr.t("Change it by itself") }
+                Text { Layout.fillWidth: true; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("caption"); font.weight: Font.DemiBold; text: Tr.t("Change it by itself") }
                 FolderPicker {
                     label: Tr.t("Show the pictures in a folder, one after another")
                     placeholder: Tr.t("No folder — the picture above stays")
@@ -748,12 +748,12 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Files on the desktop"); hint: Tr.t("what is in your Desktop folder - nothing shows while it is empty"); checked: page.d.desktopIcons; onToggled: on => page.d.desktopIcons = on }
                 SwitchRow { Layout.fillWidth: true; visible: page.d.desktopIcons; text: Tr.t("Use stacks"); hint: Tr.t("pile the files by kind - images, screenshots, documents …"); checked: page.d.deskStacks; onToggled: on => page.d.deskStacks = on }
                 Button { visible: page.d.desktopIcons; text: Tr.t("Clean up the desktop's icons"); onClicked: page.d.deskIconPos = {} }
-                Text { text: Tr.t("Drag a card to move it; it is remembered. Click it to open the thing it talks about."); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Text { text: Tr.t("Drag a card to move it; it is remembered. Click it to open the thing it talks about."); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); wrapMode: Text.Wrap; Layout.fillWidth: true }
                 Button { text: Tr.t("Reset widget positions"); onClicked: page.d.deskPos = {} }
 
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Look & feel") }
                 // the accent: one of GNOME's nine (apps follow it too), or the wallpaper's
-                Text { text: Tr.t("Accent colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Accent colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
@@ -842,7 +842,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("GTK apps (gnome-software, nautilus, etc.) adopt the palette via a colour-scheme flip-flop; the shell's own surfaces follow via Theme."); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("GTK apps (gnome-software, nautilus, etc.) adopt the palette via a colour-scheme flip-flop; the shell's own surfaces follow via Theme."); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption"); wrapMode: Text.Wrap; Layout.fillWidth: true }
                 // Theme palette preview strip: show active palette colors
                 Rectangle {
                     visible: page.d.adaptivePalette && Matugen.available
@@ -865,14 +865,14 @@ ColumnLayout {
                     }
                 }
                 // Theme info
-                Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("Active: " + page.d.matugenScheme + " · Contrast: " + String(Math.round(page.d.matugenContrast * 10) / 10) + " · Source: " + String(page.d.matugenSourceColor)); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Text { visible: page.d.adaptivePalette && Matugen.available; text: Tr.t("Active: " + page.d.matugenScheme + " · Contrast: " + String(Math.round(page.d.matugenContrast * 10) / 10) + " · Source: " + String(page.d.matugenSourceColor)); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); wrapMode: Text.WordWrap; Layout.fillWidth: true }
 
                 // matugen scheme options
                 ColumnLayout {
                     visible: page.d.adaptivePalette && Matugen.available
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
-                    Text { text: Tr.t("Palette scheme"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                    Text { text: Tr.t("Palette scheme"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Flow {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
@@ -887,7 +887,7 @@ ColumnLayout {
                             }
                         }
                     }
-                    Text { text: Tr.t("Contrast level"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                    Text { text: Tr.t("Contrast level"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Flow {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
@@ -902,7 +902,7 @@ ColumnLayout {
                             }
                         }
                     }
-                    Text { text: Tr.t("Source color index"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                    Text { text: Tr.t("Source color index"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Flow {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
@@ -918,7 +918,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Dark style"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Dark style"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -963,7 +963,7 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: NightLight.available
-                    Text { text: Tr.t("Night light"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
+                    Text { text: Tr.t("Night light"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(90) }
                     Repeater {
                         model: [2700, 3400, 4000, 5000]
                         Choice {
@@ -987,7 +987,7 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     visible: NightLight.available
-                    Text { text: Tr.t("Turns on"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
+                    Text { text: Tr.t("Turns on"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(90) }
                     Repeater {
                         model: [{ id: "manual", label: Tr.t("By hand") }, { id: "sunset", label: Tr.t("Sunset to sunrise") }, { id: "custom", label: Tr.t("Set hours") }]
                         Choice {
@@ -1005,7 +1005,7 @@ ColumnLayout {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -1046,7 +1046,7 @@ ColumnLayout {
                     color: Theme.dim
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Repeater {
                     model: page.d.barCommands || []
@@ -1077,7 +1077,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Or your own command:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text { text: Tr.t("Or your own command:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1140,12 +1140,12 @@ ColumnLayout {
                     onPicked: v => page.d.railContent = v
                 }
                 Text {
-                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                     text: Tr.t("Out of a window's way: it stays in view and windows open beside it, and it slides away only while a window is moved over it. Only at the edge: windows get the whole screen, and it comes back when you rest the pointer on that edge. Either way it also comes back for a dragged file, an app asking for you, and the overview.")
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: Tr.t("Dock icons"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale; Layout.preferredWidth: Theme.px(90) }
+                    Text { text: Tr.t("Dock icons"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(90) }
                     Repeater {
                         model: [{ v: 40, label: Tr.t("Small") }, { v: 48, label: Tr.t("Medium") }, { v: 56, label: Tr.t("Large") }, { v: 64, label: Tr.t("Touch") }]
                         Choice {
@@ -1223,7 +1223,7 @@ ColumnLayout {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: Theme.px(4)
-                        Text { text: cornerRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: cornerRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         Flow {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
@@ -1304,7 +1304,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(12)
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("Notifications") }
-                Text { text: Tr.t("Pop-ups appear"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Pop-ups appear"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1327,7 +1327,7 @@ ColumnLayout {
                     onPicked: v => page.d.snoozeMinutes = v
                 }
                 // rules: what to keep from popping up, or drop altogether
-                Text { Layout.fillWidth: true; Layout.topMargin: Theme.px(6); text: Tr.t("Rules"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; Layout.topMargin: Theme.px(6); text: Tr.t("Rules"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("caption"); font.weight: Font.DemiBold }
                 Repeater {
                     model: NotifsRules.rules
                     ListRow {
@@ -1389,7 +1389,7 @@ ColumnLayout {
                     text: page.d.notifApps.length ? "Each app that has sent a notification:" : "Apps appear here once they send a notification."
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 Repeater {
                     model: page.d.notifApps
@@ -1400,7 +1400,7 @@ ColumnLayout {
                         readonly property bool through: Array.from(page.d.dndAllowedApps).indexOf(modelData) >= 0
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: appRow.modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
+                        Text { text: appRow.modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
                         RowLayout {
                             spacing: Theme.px(6)
                             Choice {
@@ -1418,7 +1418,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Show pop-ups for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Show pop-ups for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1462,7 +1462,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
                     visible: !page.d.reduceMotion
-                    Text { text: Tr.t("Animation speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(120) }
+                    Text { text: Tr.t("Animation speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(120) }
                     Repeater {
                         model: [{v:0.75,l:"Slow"},{v:1.0,l:"Normal"},{v:1.25,l:"Fast"}]
                         Choice {
@@ -1480,7 +1480,7 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Speak notifications"); hint: Tr.t("the app and title, read aloud"); checked: page.d.speakNotifications; onToggled: on => page.d.speakNotifications = on }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Smart touch"); hint: Tr.t("a floating bubble that opens the Ring, for touchscreens"); checked: page.d.assistiveTouch; onToggled: on => page.d.assistiveTouch = on }
 
-                Text { text: Tr.t("Read aloud speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Read aloud speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1494,7 +1494,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Captions and transcribe language"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Captions and transcribe language"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1509,7 +1509,7 @@ ColumnLayout {
                     }
                 }
                 // voice typing's engine (bridge/dictate.py): Chronoa's own, or whisper alone
-                Text { text: Tr.t("Voice typing engine"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Voice typing engine"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1659,7 +1659,7 @@ ColumnLayout {
                     color: Theme.faint
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 TextField {
                     Layout.fillWidth: true
@@ -1709,7 +1709,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Drawings are saved as (the drawing tool)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Drawings are saved as (the drawing tool)"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1729,7 +1729,7 @@ ColumnLayout {
                     text: Tr.t("JPEG/WebP quality") + ":"
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.fontSmall * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 Flow {
                     Layout.fillWidth: true
@@ -1745,7 +1745,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Copied to the clipboard as"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Copied to the clipboard as"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1760,7 +1760,7 @@ ColumnLayout {
                     }
                 }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Copy the screenshot to the clipboard"); hint: Tr.t("a convenience on top of the saved file"); checked: page.d.screenshotCopyImage; onToggled: on => page.d.screenshotCopyImage = on }
-                Text { text: Tr.t("Annotate screenshots with"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Annotate screenshots with"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1774,7 +1774,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("Recording video codec"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("Recording video codec"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1788,7 +1788,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("A recording captures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("A recording captures"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1802,7 +1802,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("A recording's sound is"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("A recording's sound is"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1816,7 +1816,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: Tr.t("A recording is captured at"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale }
+                Text { text: Tr.t("A recording is captured at"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
@@ -1843,7 +1843,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     visible: page.d.screenSaverEnabled
                     spacing: Theme.px(8)
-                    Text { text: Tr.t("After"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(100) }
+                    Text { text: Tr.t("After"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(100) }
                     Repeater {
                         model: [1, 2, 3, 5, 10]
                         Choice {
@@ -1860,7 +1860,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     visible: page.d.screenSaverEnabled
                     spacing: Theme.px(8)
-                    Text { text: Tr.t("Show"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.fontSmall * Theme.fontScale; Layout.preferredWidth: Theme.px(100) }
+                    Text { text: Tr.t("Show"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(100) }
                     Repeater {
                         model: [{ id: "clock", label: Tr.t("A clock") }, { id: "photos", label: Tr.t("My photos") }]
                         Choice {
@@ -2116,7 +2116,7 @@ ColumnLayout {
                 }
                 // the profile follows the charger: picked from choices; Power.qml has the order
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Power mode follows the charger"); hint: Tr.t("set when you plug in or unplug; battery saver and games still come first"); checked: page.d.profileFollowsCharger; onToggled: on => page.d.profileFollowsCharger = on }
-                Text { visible: page.d.profileFollowsCharger; text: Tr.t("On battery use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { visible: page.d.profileFollowsCharger; text: Tr.t("On battery use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Flow {
                     visible: page.d.profileFollowsCharger
                     Layout.fillWidth: true
@@ -2126,7 +2126,7 @@ ColumnLayout {
                         Choice { required property var modelData; text: modelData[1]; selected: page.d.profileOnBattery === modelData[0]; onClicked: page.d.profileOnBattery = modelData[0] }
                     }
                 }
-                Text { visible: page.d.profileFollowsCharger; text: Tr.t("Plugged in use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                Text { visible: page.d.profileFollowsCharger; text: Tr.t("Plugged in use"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 Flow {
                     visible: page.d.profileFollowsCharger
                     Layout.fillWidth: true
@@ -2141,7 +2141,7 @@ ColumnLayout {
 
                 SettingsPowerKeys { Layout.fillWidth: true; active: page.cat === "power" }
                 SectionTitle { Layout.fillWidth: true; text: Tr.t("When idle") }
-                Text { Layout.fillWidth: true; text: Tr.t("Plugged in"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Text { Layout.fillWidth: true; text: Tr.t("Plugged in"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Repeater {
                     model: [
                         { label: Tr.t("Dim the screen"), key: "dimAfter", options: [60, 120, 240, 300, 0] },
@@ -2154,7 +2154,7 @@ ColumnLayout {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: Theme.px(4)
-                        Text { text: stage.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: stage.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         Flow {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
@@ -2170,7 +2170,7 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { Layout.fillWidth: true; visible: Power.hasBattery; text: Tr.t("On battery"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Text { Layout.fillWidth: true; visible: Power.hasBattery; text: Tr.t("On battery"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Repeater {
                     model: [
                         { label: Tr.t("Dim the screen"), key: "dimAfterBattery", options: [30, 60, 120, 180, 300, 0] },
@@ -2184,7 +2184,7 @@ ColumnLayout {
                         Layout.fillWidth: true
                         spacing: Theme.px(4)
                         visible: Power.hasBattery
-                        Text { text: stageB.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: stageB.modelData.label + Tr.t(" after"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         Flow {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)

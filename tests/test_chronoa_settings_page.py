@@ -77,7 +77,7 @@ def test_the_page_uses_the_engine_rows_and_plain_words():
     assert "confirm: true" in service
     assert "secretsHidden" in service
 
-    words = (ROOT / "shani/Modules/Settings/ChronoaSettings.js").read_text()
+    words = (ROOT / "shani/Services/ChronoaSettings.js").read_text()
     for bad in ("OpenAI", "Anthropic", "Google", "Groq", "OpenRouter"):
         assert bad not in words, bad
 
