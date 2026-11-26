@@ -9,6 +9,8 @@ ipc archiveOpen "$R/locked.zip"; waitfor "d['archiveEntries'] > 0" 6
 ipc archiveExtract ""
 waitfor "d['archivePassword'] and not d['archiveExtracting']" 8 \
     && result archive-asks-for-the-password PASS || result archive-asks-for-the-password FAIL "password $(q "['archivePassword']"), extracting $(q "['archiveExtracting']"), error '$(q "['archiveError']")'"
+[ "$(q "['archiveProtected']")" = True ] \
+    && result archive-reports-protected PASS || result archive-reports-protected FAIL "$(q "['archiveProtected']")"
 [ -z "$(ls -d $R/locked* 2>/dev/null | grep -v 'locked.zip$')" ] && result archive-no-half-made-folder PASS || result archive-no-half-made-folder FAIL "$(ls $R)"
 shot archive-password 0.2
 ipc archiveUnlock "wrong"
@@ -55,6 +57,8 @@ ipc archiveClose
 # a compressed tar cannot, and says so instead of quietly doing nothing
 ( cd $R/src && bsdtar -acf $R/plain.zip s.txt sub )
 ipc archiveOpen "$R/plain.zip"; waitfor "d['archiveEntries'] > 0" 6
+[ "$(q "['archiveProtected']")" = False ] \
+    && result archive-plain-is-not-protected PASS || result archive-plain-is-not-protected FAIL "$(q "['archiveProtected']")"
 [ "$(q "['archiveCanAppend']")" = True ] && result archive-zip-can-be-added-to PASS || result archive-zip-can-be-added-to FAIL "$(q "['archiveCanAppend']")"
 printf 'added-later\n' > $R/src/late.txt
 ipc archiveAppend "$R/src/late.txt"

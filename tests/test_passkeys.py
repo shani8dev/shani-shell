@@ -23,6 +23,21 @@ def test_random_id_is_not_a_credential_id():
     assert "fido2_cred" in src and "fido2_assert" in src
 
 
+def test_the_passkeys_tab_shows_what_this_machine_supports():
+    qml = (ROOT / "shani/Modules/Passwords/PasswordsWindow.qml").read_text()
+    assert "passkey-capabilities" in qml and "id: capsLister" in qml
+    assert "capsLister.running = true" in qml
+    assert 'Tr.t("What this computer supports")' in qml
+    for word in (
+        "Keyring",
+        "Security-key device",
+        "Make a key here",
+        "Sign a challenge here",
+    ):
+        assert f'Tr.t("{word}")' in qml
+    assert 'Tr.t("Available")' in qml and 'Tr.t("Not available")' in qml
+
+
 def test_capabilities_probe_reports_missing_tools():
     # with env pointing to nonexistent binaries, no capability is claimed
     env = {

@@ -153,9 +153,97 @@ def test_bridge_kundali_keeps_the_fields_and_adds_the_engine_text(
     assert "Ascendant" in result["text"]
 
 
+class ChartAstro(FakeAstro):
+    """A chart with the six sections the window draws."""
+
+    def compute_full_chart_v2(self, datetime_str, lat, lon):
+        chart = super().compute_full_chart_v2(datetime_str, lat, lon)
+        chart["planets"][0]["sidereal_longitude"] = 45.5
+        chart["dasha"] = {
+            "mahadashas": [{"lord": "Moon", "years": 10, "start_offset": 0}]
+        }
+        chart["ashtakavarga"] = {"sarva": [3, 4]}
+        chart["aspects"] = [
+            {"planet1": "Moon", "aspect": "conjunct", "planet2": "Sun", "orb": 2}
+        ]
+        return chart
+
+    def julian_day(self, when):
+        return 2460000.5
+
+    def _sun_longitude(self, jd):
+        return 280.0
+
+    def _moon_longitude(self, jd):
+        return 45.5
+
+    def eclipse_details(self, sun, moon, jd):
+        return {
+            "solar_eclipse": False,
+            "lunar_eclipse": True,
+            "angular_separation": 125.5,
+            "magnitude": 0.4,
+            "type": "partial",
+        }
+
+
+@pytest.fixture
+def chart_astro():
+    return ChartAstro()
+
+
+@pytest.mark.parametrize(
+    "action,keys",
+    [
+        ("dasha", ("periods",)),
+        ("ashtakavarga", ("rows",)),
+        ("dignity", ("planets",)),
+        ("aspects", ("aspects",)),
+        ("nakshatra", ("nakshatra", "pada", "lord", "moon")),
+        ("eclipse", ("solar_eclipse", "lunar_eclipse", "magnitude")),
+    ],
+)
+def test_the_chart_sections_return_plain_data(chart_astro, action, keys):
+    out = kundali_engine.compute_data(
+        action,
+        {
+            "action": action,
+            "datetime": "1990-01-01T12:00:00Z",
+            "latitude": 28.6,
+            "longitude": 77.2,
+        },
+        chart_astro,
+    )
+    assert "error" not in out
+    for key in keys:
+        assert key in out
+
+
+def test_removed_calculations_are_not_guessed(chart_astro):
+    for action in ("vimshopaka", "grahana", "bazi", "fullchart", "meanmotion"):
+        out = kundali_engine.compute_data(
+            action,
+            {
+                "action": action,
+                "datetime": "1990-01-01T12:00:00Z",
+                "latitude": 28.6,
+                "longitude": 77.2,
+            },
+            chart_astro,
+        )
+        assert "error" in out
+
+
 def test_the_cli_still_writes_json():
     out = subprocess.run(
-        [sys.executable, str(ROOT / "bridge/kundali.py"), "panchang", "2024-01-01"],
+        [
+            sys.executable,
+            str(ROOT / "bridge/kundali.py"),
+            "panchang",
+            "2024-01-01",
+            "28.6",
+            "77.2",
+        ],
         capture_output=True,
         text=True,
         timeout=60,

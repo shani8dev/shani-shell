@@ -343,9 +343,14 @@ Singleton {
                 root.single = false;
                 root.entries = [];
                 root.error = Tr.t("Not an archive that can be read") + ": " + root.name;
-            } else if (root.extractWhenRead) {
-                root.extractWhenRead = false;
-                root.extract("");
+            } else {
+                // bsdtar's refusal was expected here; the probe succeeded, so
+                // the earlier "Could not use the archive tool" is not an error
+                root.error = "";
+                if (root.extractWhenRead) {
+                    root.extractWhenRead = false;
+                    root.extract("");
+                }
             }
         }
     }

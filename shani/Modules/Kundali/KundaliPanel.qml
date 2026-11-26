@@ -17,6 +17,16 @@ AppWindow {
     implicitHeight: Theme.px(600)
 
     property string mode: "panchang"  // panchang or kundali
+    property string section: "chart"  // a chart's section: chart, dasha, ashtakavarga, ...
+    readonly property var sections: [
+        ["chart", Tr.t("Chart")],
+        ["dasha", Tr.t("Dasha periods")],
+        ["ashtakavarga", Tr.t("Ashtakavarga")],
+        ["dignity", Tr.t("Planetary dignity")],
+        ["aspects", Tr.t("Aspects")],
+        ["nakshatra", Tr.t("Nakshatra details")],
+        ["eclipse", Tr.t("Eclipses")]
+    ]
     property string dateInput: ""
     property string timeInput: "12:00"
     property string latInput: "28.6139"
@@ -34,6 +44,48 @@ AppWindow {
         win.copied = false;
     }
 
+    // A section is data with stable keys; every word here belongs to the UI.
+    function renderSection(data) {
+        if (win.section === "dasha") {
+            let r = Tr.t("Dasha periods") + "\n";
+            for (const d of (data.periods || []))
+                r += "  " + d.lord + ": " + Tr.t("%1 years", d.years) +
+                     " · " + Tr.t("from year %1", d.start_offset) + "\n";
+            return r;
+        }
+        if (win.section === "ashtakavarga") {
+            let r = Tr.t("Ashtakavarga") + "\n";
+            for (const row of (data.rows || []))
+                r += "  " + row.sign + ": " + Tr.t("%1 points", row.points) + "\n";
+            return r;
+        }
+        if (win.section === "dignity") {
+            let r = Tr.t("Planetary dignity") + "\n";
+            for (const p of (data.planets || []))
+                r += "  " + Tr.t("%1 in %2: %3", p.name, p.sign, p.dignity) + "\n";
+            return r;
+        }
+        if (win.section === "aspects") {
+            let r = Tr.t("Aspects") + "\n";
+            for (const a of (data.aspects || []))
+                r += "  " + Tr.t("%1 %2 %3 (orb %4°)", a.planet1, a.aspect, a.planet2, a.orb) + "\n";
+            return r;
+        }
+        if (win.section === "nakshatra") {
+            const m = data.moon || {};
+            return Tr.t("Nakshatra details") + "\n" +
+                "  " + Tr.t("%1, pada %2, lord %3", data.nakshatra, data.pada, data.lord) + "\n" +
+                "  " + Tr.t("Moon in %1 %2°%3'", m.sign, m.degree, String(m.minute).padStart(2, '0')) + "\n";
+        }
+        let r = Tr.t("Eclipses") + "\n" +
+            "  " + Tr.t("Solar eclipse: %1", data.solar_eclipse ? Tr.t("Yes") : Tr.t("No")) + "\n" +
+            "  " + Tr.t("Lunar eclipse: %1", data.lunar_eclipse ? Tr.t("Yes") : Tr.t("No")) + "\n" +
+            "  " + Tr.t("Separation: %1°", data.angular_separation) + "\n";
+        if (data.type)
+            r += "  " + Tr.t("Type: %1", data.type) + " · " + Tr.t("Magnitude: %1", data.magnitude) + "\n";
+        return r;
+    }
+
     // The calendar opens this with a day in mind: use it, and do the panchang
     // once, so the person sees the tithi rather than an empty form.
     onVisibleChanged: if (visible && Ui.kundaliDate) {
@@ -47,6 +99,10 @@ AppWindow {
         win.clearResult();
         if (win.mode === "panchang")
             kundaliProc.command = ["python3", win.scriptPath, "panchang", win.dateInput, win.latInput, win.lonInput];
+        else if (win.section !== "chart")
+            kundaliProc.command = ["python3", win.scriptPath, "details", win.section,
+                                   win.dateInput + "T" + win.timeInput + ":00Z",
+                                   win.latInput, win.lonInput];
         else
             kundaliProc.command = ["python3", win.scriptPath, "kundali",
                                    win.dateInput + "T" + win.timeInput + ":00Z",
@@ -81,6 +137,26 @@ AppWindow {
                     onClicked: { win.mode = "kundali"; win.clearResult() }
                 }
                 Item { Layout.fillWidth: true }
+            }
+
+            // ---- sections of the chart that is open ----
+            Flow {
+                visible: win.mode === "kundali"
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Repeater {
+                    model: win.sections
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.section === modelData[0]
+                        onClicked: {
+                            win.section = modelData[0];
+                            if (win.dateInput !== "") win.calculate();
+                            else win.clearResult();
+                        }
+                    }
+                }
             }
 
             // ---- when ----
@@ -237,6 +313,8 @@ AppWindow {
                                     Tr.t("Nakshatra: %1").arg(data.nakshatra) + "\n" +
                                     Tr.t("Yoga: %1").arg(data.yoga) + "\n" +
                                     Tr.t("Karana: %1").arg(data.karana);
+                    } else if (win.section !== "chart") {
+                        win.result = win.renderSection(data);
                     } else {
                         let r = Tr.t("Kundali (Sidereal, Lahiri)") + "\n\n" + Tr.t("Planets:") + "\n";
                         for (const p of data.planets) {
@@ -244,7 +322,7 @@ AppWindow {
                         }
                         r += "\n" + Tr.t("Houses:") + "\n";
                         for (const h of data.houses) {
-                            r += "  " + Tr.t("House %1", h.number) + ": " + h.sign + " " + h.degree + "°" + String(h.minute).padStart(2, '0') + "'\n";
+                            r += "  " + Tr.t("House %1", h.house_number || h.number) + ": " + h.sign + " " + h.degree + "°" + String(h.minute).padStart(2, '0') + "'\n";
                         }
                         win.result = r;
                     }

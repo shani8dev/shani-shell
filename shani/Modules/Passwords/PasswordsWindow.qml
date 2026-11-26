@@ -37,6 +37,7 @@ AppWindow {
     property string defaultCollection: ""
     property var keys: []
     property var passkeys: []             // [{ label, id, created }] — a metadata registry, not real credentials
+    property var passkeyCaps: ({})        // what the keyring and the FIDO2 tools can do here
     property bool addingPasskey: false
     property string removingPasskey: ""
     property string error: ""
@@ -268,6 +269,7 @@ AppWindow {
         lister.running = true;
         keyLister.running = true;
         passkeyLister.running = true;
+        capsLister.running = true;
         metaReader.running = true;
         if (Settings.data.passwordAuditEnabled === true) runAudit();
     }
@@ -302,6 +304,16 @@ AppWindow {
         id: passkeyLister
         command: ["python3", win.tool, "passkey-list"]
         stdout: StdioCollector { onStreamFinished: { try { const r = JSON.parse(text); win.passkeys = Array.isArray(r) ? r : []; } catch (e) { win.passkeys = []; } } }
+    }
+    Process {
+        id: capsLister
+        command: ["python3", win.tool, "passkey-capabilities"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { win.passkeyCaps = JSON.parse(text) || {}; }
+                catch (e) { win.passkeyCaps = {}; }
+            }
+        }
     }
     // one action at a time; stdin carries any secret
     Process {
@@ -876,6 +888,40 @@ AppWindow {
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: Theme.type("small")
+        }
+        SettingsSection {
+            visible: win.tab === "passkeys"
+            Layout.fillWidth: true
+            title: Tr.t("What this computer supports")
+            hint: Tr.t("A check of the keyring and the tools installed here")
+            Repeater {
+                model: [
+                    [Tr.t("Keyring"), win.passkeyCaps.keyring],
+                    [Tr.t("Security-key device"), win.passkeyCaps.fido2_token],
+                    [Tr.t("Make a key here"), win.passkeyCaps.fido2_cred],
+                    [Tr.t("Sign a challenge here"), win.passkeyCaps.fido2_assert]
+                ]
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Text {
+                        Layout.fillWidth: true
+                        text: modelData[0]
+                        Accessible.name: text
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    Text {
+                        text: modelData[1] ? Tr.t("Available") : Tr.t("Not available")
+                        Accessible.name: text
+                        color: modelData[1] ? Theme.accent : Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                }
+            }
         }
         RowLayout {
             visible: win.tab === "passkeys"

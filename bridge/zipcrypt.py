@@ -5,11 +5,13 @@ library bsdtar is, which the system has - through ctypes, so the password goes
 into the library and never onto a command line (where any user reads it in
 /proc). Used by lock.py; on its own:
 
-    zipcrypt.py make <out.zip> <path>...   password on stdin
     zipcrypt.py extract <archive> <folder> [member...]
                                            password on stdin; {"saved"} or
                                            {"wrongPassword": true}
-    zipcrypt.py encrypted <archive>        {"encrypted": bool}
+
+Making and encrypted-detection are the Archives app's own Compress and Locked
+badge (bsdtar with a password, checked in Services/Archive.qml); lock.py calls
+make() and encrypted() here as library functions, not as commands.
 
 Extracting writes only inside <folder>: a name that climbs out (../, /) or a link
 is not written. Every format libarchive can read is accepted; with member names,
@@ -261,16 +263,9 @@ def _take_back(dest: str, made: list[str]) -> None:
 def main(argv: list[str]) -> int:
     cmd, args = (argv[1], argv[2:]) if len(argv) > 1 else ("", [])
     try:
-        if cmd == "encrypted" and len(args) == 1:
-            print(json.dumps({"encrypted": encrypted(args[0])}))
-            return 0
-        if cmd in ("make", "extract") and len(args) >= 2:
+        if cmd == "extract" and len(args) >= 2:
             pw = sys.stdin.readline().rstrip("\n")
-            r = (
-                make(args[0], args[1:], pw)
-                if cmd == "make"
-                else extract(args[0], args[1], pw, args[2:] or None)
-            )
+            r = extract(args[0], args[1], pw, args[2:] or None)
             print(json.dumps(r))
             return 0 if "saved" in r else 1
     except (OSError, ValueError) as e:
