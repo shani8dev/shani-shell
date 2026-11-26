@@ -568,7 +568,7 @@ Singleton {
             // a calm default: the everyday tiles; "All tiles" in the control centre shows the rest
             // the first page keeps what people reach for daily (Wi-Fi, Bluetooth, Do Not Disturb,
             // night light, dark style, power, screenshots, focus); the tools wait under "All tiles"
-            property list<string> hiddenTiles: ["ruler", "snippets", "compress", "qrgen", "vpn", "hotspot", "phone", "timer", "camera", "photo", "lens", "colorpicker", "rotate", "flashlight", "display", "osk", "keyboard", "clipboard", "backup", "access", "captions", "transcribe", "speak", "magnifier", "callrecord", "cast", "touch", "chronoa", "kbdbacklight"]
+            property list<string> hiddenTiles: []   // every tile that works here shows; a tile for hardware this machine lacks drops out by itself (SidebarTiles `can`)
             property bool quietWhileFullscreen: true
             // weather: off unless a city is set — it asks open-meteo.com, which sees the location
             property string weatherCity: ""
