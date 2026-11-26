@@ -113,7 +113,10 @@ Singleton {
         fwInstall.running = true;
     }
 
-    function openFirmware() { root.installFirmware(); }
+    // The firmware page owns the device list, the online check and applying
+    // updates; opening from a notification lands there, never straight in a
+    // write. installFirmware stays for the page's own confirmed action.
+    function openFirmware() { Ui.closeAll(); Ui.settingsCat = "firmware"; }
 
     Process {
         id: fwInstall

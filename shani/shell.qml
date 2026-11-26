@@ -29,6 +29,7 @@ import qs.Modules.Lock
 import qs.Modules.Polkit
 import qs.Modules.Chronoa
 import qs.Modules.Dock
+import qs.Modules.PhoneNav
 import qs.Modules.Idle
 import qs.Modules.Lens
 import qs.Modules.Ruler
@@ -99,6 +100,9 @@ ShellRoot {
     DesktopIcons {}
     Bar {}
     Island {}
+    // a phone's Back, Home and Recents: made before the dock, so it takes the very
+    // bottom edge and the dock sits above it, as a phone has them
+    Variants { model: Quickshell.screens; PhoneNav {} }
     Variants { model: Quickshell.screens; Dock {} }
     Variants { model: Quickshell.screens; TvHome {} }
     // signed in as the guest (Settings > Users > Guest): said once, at the start
@@ -1177,7 +1181,7 @@ ShellRoot {
                 oskCursor: Osk.cursorLabel,
                 oskRemote: Osk.remote, oskDraft: Osk.draft, oskCommitted: Osk.lastCommitted,
                 launcherSelected: Ui.launcherSelected, launcherText: Ui.launcherText,
-                formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, barNarrow: FormFactor.of(Niri.focusedOutput || "").profile === "phone", barOverlap: Hiding.overlap(Niri.focusedOutput || ""), launcherNarrow: launcherWin.narrow, launcherBottomGap: launcherWin.bottomGap, sidebarShade: sidebarWin.narrow, dockState: Docking.state, dockStarted: Docking.started, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
+                formFactor: FormFactor.focused.profile, barEdge: FormFactor.focusedBarEdge, barNarrow: FormFactor.of(Niri.focusedOutput || "").profile === "phone", barOverlap: Hiding.overlap(Niri.focusedOutput || ""), launcherNarrow: launcherWin.narrow, launcherBottomGap: launcherWin.bottomGap, sidebarShade: sidebarWin.narrow, dockState: Docking.state, dockStarted: Docking.started, rotateSuggest: AutoRotate.suggest, dockSwitches: Docking.switches, dockIcon: Settings.data.dockIconSize, tvHome: Ui.tvHome && FormFactor.tenFoot, tvSelected: Ui.tvSelected, quickPanel: Ui.quickPanel, quickSelected: Ui.quickSelected, edgeLast: EdgeSwipe.last, whiteboard: Ui.whiteboard, whiteboardStrokes: Ui.whiteboardStrokes, whiteboardPage: Ui.whiteboardPage, whiteboardSaved: Ui.whiteboardSaved, edgeStrips: EdgeSwipe.strips, textFocus: Ui.textFocus, netPortal: Net.portal, netLabel: Net.label, portalOpens: Net.portalOpens, floatingWorkspace: WorkspaceLayout.focusedFloating, aiAgent: Scratchpads.agent, panelsRestored: Displays.panelsRestored, uiScale: Theme.ui, formFactors: FormFactor.screens, windowMenuSel: Ui.windowMenuSel, launcherSearchBar: Ui.launcherSearchBar,
                 oskLastPad: Osk.lastPad, oskPadDriven: Osk.padDriven, textByKeys: Ui.textByKeys,
                 ringDepth: Ui.ringDepth,
                 topResult: Ui.topResult, liveWallpaperWhy: LiveWallpaper.why, liveWallpaperPlaying: Ui.liveWallpaperPlaying, launcherFiles: Ui.launcherFiles, launcherMeaning: Ui.launcherMeaning,
@@ -1278,6 +1282,7 @@ ShellRoot {
                 lines: Lines.lines.map(l => l.id + ":" + (l.ready ? "ready" : "not ready")), sipAccounts: Lines.accounts.map(a => a.name || a.username || a.id),
                 messagesShown: Ui.messages, messagesCount: Link.messages.length,
                 healthShown: Ui.health, healthSteps: Health.stepsToday, healthDevice: Health.device, healthError: Health.error,
+                systemCat: Ui.settingsCat, systemOpen: Ui.settingsOpen, systemState: Ui.systemState,
                 linkPhone: Link.phoneName, linkBackend: Link.backend,
                 mailKind: Mail.kind, mailFolders: Mail.folders.length, mailCount: Mail.messages.length,
                 mailSubject: Mail.subject, mailFrom: Mail.from, mailBody: Mail.body.slice(0, 80),

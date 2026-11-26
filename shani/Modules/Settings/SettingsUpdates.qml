@@ -98,69 +98,22 @@ ColumnLayout {
     }
 
     // ---- firmware ----------------------------------------------------------
-    property bool confirmFirmware: false
-
+    // One place reads the machine's firmware and applies an update: the
+    // Firmware updates page. This section points at it; it never writes flash.
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Firmware")
-    Text {
-        Layout.fillWidth: true
-        visible: Updates.firmware.length === 0
-        text: Tr.t("No firmware updates offered.")
-        color: Theme.dim
-        font.family: Theme.font
-        font.pixelSize: Theme.px(11) * Theme.fontScale
-    }
-    ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Theme.px(2)
-        Repeater {
-            model: Updates.firmware
-            ListRow {
-                required property string modelData
-                Layout.fillWidth: true
-                icon: "firmware"
-                title: modelData
-            }
-        }
-    }
-    // the cost named before it is written: PCR 0 changes, so a TPM2-sealed disk
-    // will ask for its passphrase once after a firmware update
-    ColumnLayout {
-        Layout.fillWidth: true
-        visible: page.confirmFirmware && Updates.firmware.length > 0 && !Updates.firmwareInstalling
-        spacing: Theme.px(6)
-        Text {
+
+        ListRow {
             Layout.fillWidth: true
-            text: Tr.t("Keep the computer plugged in. If your disk unlocks by itself at start-up, it will ask for its passphrase once after this — have it ready, then set up automatic unlock again on the Encryption page.")
-            color: Theme.dim
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            icon: "firmware"
+            title: Tr.t("Firmware updates")
+            subtitle: Updates.firmware.length
+                ? Tr.t("%1 update%2 offered — devices, details and applying", Updates.firmware.length, Updates.firmware.length === 1 ? "" : "s")
+                : Tr.t("Devices and what they offer; check takes a moment")
+            trailing: "›"
+            onClicked: { Ui.closeAll(); Ui.settingsCat = "firmware"; }
         }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.px(6)
-            Item { Layout.fillWidth: true }
-            Button { flat: true; text: Tr.t("Cancel"); onClicked: page.confirmFirmware = false }
-            Button { kind: "primary"; text: Tr.t("Install firmware"); onClicked: { page.confirmFirmware = false; Updates.installFirmware(); } }
-        }
-    }
-    ColumnLayout {
-        Layout.fillWidth: true
-        visible: Updates.firmwareInstalling || Updates.firmwareProgress.length > 0 || Updates.firmwareNote !== "" || Updates.firmwareError !== ""
-        spacing: Theme.px(4)
-        Text { Layout.fillWidth: true; visible: Updates.firmwareNote !== ""; text: Updates.firmwareNote; color: Theme.accent; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        Text { Layout.fillWidth: true; visible: Updates.firmwareError !== ""; text: Updates.firmwareError; color: Theme.danger; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-        ListView {
-            Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(120, Updates.firmwareProgress.length * 16 + 8)
-            visible: Updates.firmwareProgress.length > 0
-            clip: true
-            model: Updates.firmwareProgress
-            delegate: Text { required property string modelData; width: ListView.view.width; text: modelData; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideLeft }
-        }
-    }
     }
 
     RowLayout {
@@ -172,10 +125,9 @@ ColumnLayout {
             onClicked: Updates.check()
         }
         Button {
-            visible: Updates.firmware.length > 0
-            text: Updates.firmwareInstalling ? Tr.t("Installing firmware…") : Tr.t("Install firmware")
-            enabled: !Updates.firmwareInstalling && !Updates.installing
-            onClicked: page.confirmFirmware = true
+            text: Tr.t("Open firmware updates")
+            enabled: !Updates.installing
+            onClicked: { Ui.closeAll(); Ui.settingsCat = "firmware"; }
         }
         Item { Layout.fillWidth: true }
         Button {

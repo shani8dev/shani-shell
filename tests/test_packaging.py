@@ -9,6 +9,7 @@ package, so nothing noticed.
 
 Skipped where shani-pkgbuilds is not checked out beside this repo.
 """
+
 import ast
 import os
 import re
@@ -19,9 +20,17 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-PKGBUILD = Path(os.environ.get("SHANI_SHELL_PKGBUILD", ROOT.parent / "shani-pkgbuilds" / "shani-shell" / "PKGBUILD"))
+PKGBUILD = Path(
+    os.environ.get(
+        "SHANI_SHELL_PKGBUILD",
+        ROOT.parent / "shani-pkgbuilds" / "shani-shell" / "PKGBUILD",
+    )
+)
 
-pytestmark = pytest.mark.skipif(not PKGBUILD.exists() or not shutil.which("bash"), reason="no shani-pkgbuilds beside this repo")
+pytestmark = pytest.mark.skipif(
+    not PKGBUILD.exists() or not shutil.which("bash"),
+    reason="no shani-pkgbuilds beside this repo",
+)
 
 
 @pytest.fixture(scope="module")
@@ -29,8 +38,14 @@ def pkgdir(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("pkg")
     src = tmp / "src" / "shani-shell"
     # a copy: package() edits a unit file in place
-    shutil.copytree(ROOT, src, symlinks=True,
-                    ignore=shutil.ignore_patterns(".git", "out", "__pycache__", ".pytest_cache", "docs", "tests", "dev"))
+    shutil.copytree(
+        ROOT,
+        src,
+        symlinks=True,
+        ignore=shutil.ignore_patterns(
+            ".git", "out", "__pycache__", ".pytest_cache", "docs", "tests", "dev"
+        ),
+    )
     out = tmp / "pkg"
     out.mkdir()
     # The packaging repo is not part of this tree. Until its hand-kept copy of
@@ -63,7 +78,12 @@ def qml_sources():
 def test_every_path_the_shell_names_is_packaged(pkgdir):
     wanted = set()
     for path in qml_sources():
-        wanted.update(re.findall(r'"(/usr/(?:lib/shani-shell|share/shani|share/backgrounds/shani)/[^"\s$]+)"', path.read_text(errors="ignore")))
+        wanted.update(
+            re.findall(
+                r'"(/usr/(?:lib/shani-shell|share/shani|share/backgrounds/shani)/[^"\s$]+)"',
+                path.read_text(errors="ignore"),
+            )
+        )
     assert wanted, "the scan found nothing: the pattern is wrong"
     missing = sorted(p for p in wanted if not (pkgdir / p.lstrip("/")).exists())
     assert missing == []
@@ -75,7 +95,13 @@ def test_bridge_scripts_find_their_own_modules(pkgdir):
     missing = []
     for script in lib.glob("*.py"):
         for node in ast.walk(ast.parse(script.read_text())):
-            names = [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module] if isinstance(node, ast.ImportFrom) and node.level == 0 else []
+            names = (
+                [a.name for a in node.names]
+                if isinstance(node, ast.Import)
+                else [node.module]
+                if isinstance(node, ast.ImportFrom) and node.level == 0
+                else []
+            )
             for name in names:
                 top = (name or "").split(".")[0]
                 if top in local and not (lib / (top + ".py")).exists():
@@ -95,7 +121,11 @@ def test_the_configs_are_packaged_whole(pkgdir):
 def test_the_apps_have_desktop_entries(pkgdir):
     apps = pkgdir / "usr/share/applications"
     names = {p.name for p in apps.glob("dev.shani.*.desktop")}
-    assert {"dev.shani.TextEditor.desktop", "dev.shani.Files.desktop", "dev.shani.Calculator.desktop"} <= names
+    assert {
+        "dev.shani.TextEditor.desktop",
+        "dev.shani.Files.desktop",
+        "dev.shani.Calculator.desktop",
+    } <= names
     for entry in apps.glob("dev.shani.*.desktop"):
         text = entry.read_text()
         assert re.search(r"^Exec=shani app [a-z-]+( %u)?$", text, re.M), entry.name
@@ -111,7 +141,9 @@ def test_every_default_app_of_the_image_is_in_the_image(pkgdir):
     or one of the natively packaged apps named here."""
     desk = PKGBUILD.parent.parent / "shani-desktop-niri"
     mimeapps = desk / "etc/skel/.config/mimeapps.list"
-    flatpaks = ROOT.parent / "shani-install-media/image_profiles/niri/flatpak-packages.txt"
+    flatpaks = (
+        ROOT.parent / "shani-install-media/image_profiles/niri/flatpak-packages.txt"
+    )
     if not mimeapps.exists() or not flatpaks.exists():
         pytest.skip("no shani-desktop-niri or shani-install-media beside this repo")
     shipped = {line.strip() for line in flatpaks.read_text().splitlines() if line.strip() and not line.startswith("#")}

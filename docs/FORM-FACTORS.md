@@ -23,7 +23,7 @@ between upstream device support, replay tests and Shani hardware verification.
 | Board | Bottom bar; dock above it; the tools (the Ring) by a swipe in from the left or right edge and the apps from the bottom, as Promethean, SMART, ViewSonic and BenQ panels reach theirs from either side; whiteboard pages/PDF; pen pressure/eraser/palm handling; guest account integration | Real pens and simultaneous users; reach of all controls, including the Island; guest isolation checks; cast receiver |
 | TV | Ten-foot home; remote/controller navigation; EDID size/name detection | Real remotes/CEC and TVs; overscan; mixed laptop/TV setup; gamescope desktop integration |
 | Projector | Told by its EDID name (projector, beamer, "PJ", Optoma) or chosen; bigger shell, no rail; Presenting offered as for any new screen; the Focus layout suits it | Real projectors' EDIDs, keystone/overscan, mirrored versus extended presenting |
-| Phone | Compact bar/launcher, bottom Quick Settings shade, bounded notifications/lock cards, compact Settings, native dial/messages/contacts windows | Whole-app portrait layouts, safe areas, landscape/keyboard occlusion, native modem/audio testing, suspend/wake and mixed-output policy |
+| Phone | Compact bar/launcher, a Quick Settings and notifications shade pulled down from the top, bounded notifications/lock cards, compact Settings, native dial/messages/contacts windows | Whole-app portrait layouts, safe areas, landscape/keyboard occlusion, native modem/audio testing, suspend/wake and mixed-output policy |
 
 ## Shared foundation
 

@@ -103,7 +103,14 @@ and a `Theme.touchTarget` hit area (pinned by
   `header` (true), `compact` (readonly, width < `Theme.px(600)`), `tools`
   alias, `content` default alias; `gone()`, `requestClose()`, `canClose()`,
   `toggleMaximised()`. Resolves `desktopId` via `ShellApps.idFor(appName)` and
-  registers nav-audit roots. Root every app window in this.
+  registers nav-audit roots. Root every app window in this. `sidePane`: the
+  window's SidePane; when `compact` a menu button in the header opens it.
+### SidePane.qml  ·  an app's sidebar that folds into a drawer on a narrow window.
+- `compact` (bind to the window's), `open`, `paneWidth` (`Theme.px(176)`),
+  `label` (what the header button opens), `content` default alias (fill it with
+  `anchors.fill: parent`). Wide: a column in the RowLayout; narrow: no width,
+  slides in from the left over the content, a tap beside it closes it. Close it
+  when the user picks something. Every sidebar app uses it (phones).
 ### NavWindow.qml  ·  navigation-mode window variant (`NavWindow.qml`).
 ### Glass / GroupBox / SectionTitle / Hint
 - `Glass.qml` (translucent panel), `GroupBox.qml` (titled section),

@@ -10,13 +10,14 @@
     cleanup.py clean flatpak           Flatpak runtimes no app uses any more
 
 Only the person's own files: the system's (update images, old snapshots, the
-journal) is Cassini's Maintenance page, which runs as root with a reason.
+journal) is Settings > System > Maintenance, which runs as root with a reason.
 
 Some caches are not offered: the ones that cost a download to make again
 (Chronoa's models, the shell's own music and map caches) - they are listed,
 marked "keep", with why. A cache folder is named, never a path: a NAME with a
 "/" or "..", or one that is not a folder of ~/.cache, is refused (exit 3).
 """
+
 from __future__ import annotations
 
 import json
@@ -64,9 +65,18 @@ def downloads_dir() -> Path:
     if env:
         return Path(env)
     try:
-        for line in (Path(os.environ.get("XDG_CONFIG_HOME") or HOME / ".config") / "user-dirs.dirs").read_text().splitlines():
+        for line in (
+            (
+                Path(os.environ.get("XDG_CONFIG_HOME") or HOME / ".config")
+                / "user-dirs.dirs"
+            )
+            .read_text()
+            .splitlines()
+        ):
             if line.startswith("XDG_DOWNLOAD_DIR="):
-                return Path(line.split("=", 1)[1].strip().strip('"').replace("$HOME", str(HOME)))
+                return Path(
+                    line.split("=", 1)[1].strip().strip('"').replace("$HOME", str(HOME))
+                )
     except OSError:
         pass
     return HOME / "Downloads"
@@ -101,7 +111,9 @@ def scan() -> dict:
         for p in sorted(CACHE.iterdir()):
             if not p.is_dir() or p.name == "thumbnails":
                 continue
-            caches.append({"name": p.name, "size": size_of(p), "keep": KEEP.get(p.name, "")})
+            caches.append(
+                {"name": p.name, "size": size_of(p), "keep": KEEP.get(p.name, "")}
+            )
     except OSError:
         pass
     caches.sort(key=lambda c: -c["size"])
@@ -110,8 +122,13 @@ def scan() -> dict:
         "trash": {"size": size_of(TRASH), "count": trash_count},
         "thumbnails": {"size": size_of(CACHE / "thumbnails")},
         "caches": caches,
-        "downloads": {"size": sum(size_of(p) for p in olds), "count": len(olds), "days": DAYS,
-                      "folder": str(downloads_dir()), "items": [p.name for p in olds[:50]]},
+        "downloads": {
+            "size": sum(size_of(p) for p in olds),
+            "count": len(olds),
+            "days": DAYS,
+            "folder": str(downloads_dir()),
+            "items": [p.name for p in olds[:50]],
+        },
         "flatpak": shutil.which("flatpak") is not None,
     }
 
@@ -136,13 +153,22 @@ def clean(what: str, arg: str = "") -> dict:
     if what == "downloads":
         moved = 0
         for p in old_downloads():
-            if subprocess.run([GIO, "trash", "--", str(p)], capture_output=True).returncode == 0:
+            if (
+                subprocess.run(
+                    [GIO, "trash", "--", str(p)], capture_output=True
+                ).returncode
+                == 0
+            ):
                 moved += 1
         return {"ok": True, "moved": moved}
     if what == "flatpak":
         if not shutil.which("flatpak"):
             raise ValueError("flatpak is not installed")
-        r = subprocess.run(["flatpak", "uninstall", "--unused", "-y", "--noninteractive"], capture_output=True, text=True)
+        r = subprocess.run(
+            ["flatpak", "uninstall", "--unused", "-y", "--noninteractive"],
+            capture_output=True,
+            text=True,
+        )
         return {"ok": r.returncode == 0, "error": r.stderr.strip()[-300:]}
     raise ValueError(f"nothing called {what!r} to clean")
 
@@ -158,7 +184,10 @@ def main(argv: list[str]) -> int:
     except ValueError as exc:
         print(f"cleanup: {exc}", file=sys.stderr)
         return 3
-    print("usage: cleanup.py scan | clean trash|thumbnails|downloads|flatpak | clean cache NAME", file=sys.stderr)
+    print(
+        "usage: cleanup.py scan | clean trash|thumbnails|downloads|flatpak | clean cache NAME",
+        file=sys.stderr,
+    )
     return 3
 
 

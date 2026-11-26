@@ -234,7 +234,7 @@ ColumnLayout {
     // Deepin's control centre in a sidebar: a grid of categories, then one at a time
     readonly property string cat: Ui.settingsCat
     property bool inWindow: false        // in the Settings window: its own list replaces the grid
-    readonly property var cats: [{ id: "personal", words: "wallpaper style colours from a picture matugen palette saved themes accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look click through glyph volume brightness layout preset slideshow desktop widgets scrollbars corner radius calendar events celsius fahrenheit temperature degrees", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps plugged devices greetings do not disturb focus modes schedule quiet lock privacy hide content locked", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet bluetooth", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr auto rotate", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling layout preset effects glide pop dissolve shadow corners rounded blur frosted glass speed", label: Tr.t("Windows"), icon: "focus-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds volume balance", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions motion animation speed smart touch transparency opaque battery", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk numlock tablet touchscreen drawing middle paste gaming mouse dpi polling rate buttons game controllers gamepad joystick", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats calendar events week start monday sunday first day", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings webapp web apps pwa screenshot format region sound fps recording framerate", label: Tr.t("Default apps"), icon: "view-app-grid" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator pointer nav hints ignore mouse", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows remote nearby localsend airdrop send to phone visible", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "phone", words: "phone calls dial pad sim mobile modem landline sip account line airtime voicemail answering calls", label: Tr.t("Phone"), icon: "call-start" }, { id: "devices", words: "devices android phone gadget bluetooth pair nfc infrared remote radio fm screen on phone nearby device", label: Tr.t("Devices"), icon: "smartphone" }, { id: "firewall", words: "firewall ports services zones open block allow deny security firewalld incoming connections", label: Tr.t("Firewall"), icon: "security-high" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "boot", words: "boot recovery slot blue green rollback update version candidate boot failure rollback A B", label: Tr.t("Boot & Recovery"), icon: "system-reboot" }, { id: "updates", words: "updates update upgrade channel stable latest rollback firmware fwupd restart reboot version", label: Tr.t("Updates"), icon: "software-update-available" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard pin", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "security", words: "security lsm apparmor audit password policy pwquality secure boot encryption kernel lockdown", label: Tr.t("Security"), icon: "security-high" }, { id: "journal", words: "journal logs journald vacuum storage systemd log rotate retention", label: Tr.t("Journal"), icon: "document-open-recent" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar fingerprint security key yubikey fido u2f", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power ups power cut uninterruptible battery health wear cycles capacity charge history drain saver idle lock suspend lid power button charge limit dim screen off percentage", label: Tr.t("Power"), icon: "system-run" }, { id: "storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", label: Tr.t("Storage"), icon: "drive-harddisk" }, { id: "screentime", words: "screen time wellbeing digital break reminder limit usage apps today week focus", label: Tr.t("Screen time"), icon: "preferences-desktop-screensaver" }, { id: "modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", label: Tr.t("Kernel modules"), icon: "application-x-addon" }, { id: "about", words: "about computer name hostname system version hardware reset defaults", label: Tr.t("About"), icon: "help-about" }]
+    readonly property var cats: [{ id: "personal", words: "wallpaper style colours from a picture matugen palette saved themes accent theme dark icons fonts cursor pointer blur dock bar tiles hot corners weather night light look click through glyph volume brightness layout preset slideshow desktop widgets scrollbars corner radius calendar events celsius fahrenheit temperature degrees", label: Tr.t("Personalisation"), icon: "preferences-desktop-wallpaper" }, { id: "notifications", words: "notifications pop-ups sound apps plugged devices greetings do not disturb focus modes schedule quiet lock privacy hide content locked", label: Tr.t("Notifications"), icon: "preferences-system-notifications" }, { id: "network", words: "network proxy dns wifi vpn wired internet bluetooth", label: Tr.t("Network"), icon: "network-workgroup" }, { id: "phone", words: "phone calls dial pad sim mobile modem landline sip account line airtime voicemail answering calls", label: Tr.t("Phone"), icon: "call-start" }, { id: "devices", words: "devices android phone gadget bluetooth pair nfc infrared remote radio fm screen on phone nearby device", label: Tr.t("Devices"), icon: "smartphone" }, { id: "displays", words: "displays screens monitor resolution refresh rate scale rotation arrange mirror vrr auto rotate", label: Tr.t("Displays"), icon: "video-display" }, { id: "windows", words: "windows gaps focus ring column width animations tiling layout preset effects glide pop dissolve shadow corners rounded blur frosted glass speed", label: Tr.t("Windows"), icon: "focus-windows" }, { id: "sound", words: "sound equaliser equalizer eq bass loudness crossfeed headphones autoeq impulse microphone noise profiles system sounds volume balance", label: Tr.t("Sound"), icon: "audio-speakers" }, { id: "access", words: "accessibility screen reader large text contrast mono flash speak captions motion animation speed smart touch transparency opaque battery", label: Tr.t("Accessibility"), icon: "preferences-desktop-accessibility" }, { id: "input", words: "keyboard layouts language input touchpad mouse tap scroll speed repeat shortcuts compose caps osk numlock tablet touchscreen drawing middle paste gaming mouse dpi polling rate buttons game controllers gamepad joystick", label: Tr.t("Keyboard & input"), icon: "input-keyboard" }, { id: "time", words: "date time timezone clock 24-hour language locale region formats calendar events week start monday sunday first day", label: Tr.t("Date & language"), icon: "preferences-system-time" }, { id: "apps", words: "default apps browser mail startup autostart flatpak permissions screenshots terminal recordings webapp web apps pwa screenshot format region sound fps recording framerate", label: Tr.t("Default apps"), icon: "view-app-grid" }, { id: "search", words: "search launcher files folders documents web engine google duckduckgo calculator pointer nav hints ignore mouse", label: Tr.t("Search"), icon: "system-search" }, { id: "printers", words: "printers printer print cups default test page queue scanner add", label: Tr.t("Printers"), icon: "printer" }, { id: "sharing", words: "sharing share folder network samba smb files public windows remote nearby localsend airdrop send to phone visible", label: Tr.t("Sharing"), icon: "folder-remote" }, { id: "firewall", words: "firewall ports services zones open block allow deny security firewalld incoming connections", label: Tr.t("Firewall"), icon: "security-high" }, { id: "backup", words: "backup backups restore earlier versions snapshots time machine history deleted files drive restic", label: Tr.t("Backup"), icon: "drive-harddisk" }, { id: "boot", words: "boot recovery slot blue green rollback update version candidate boot failure rollback A B", label: Tr.t("Boot & Recovery"), icon: "system-reboot" }, { id: "updates", words: "updates update upgrade channel stable latest rollback firmware fwupd restart reboot version", label: Tr.t("Updates"), icon: "software-update-available" }, { id: "automations", words: "automations rules when then routines triggers wifi plugged headphones schedule shortcuts", label: Tr.t("Automations"), icon: "system-run" }, { id: "privacy", words: "privacy permissions camera microphone recent files trash lock screen clipboard pin", label: Tr.t("Privacy"), icon: "preferences-system-privacy" }, { id: "security", words: "security lsm apparmor audit password policy pwquality secure boot encryption kernel lockdown", label: Tr.t("Security"), icon: "security-high" }, { id: "journal", words: "journal logs journald vacuum storage systemd log rotate retention", label: Tr.t("Journal"), icon: "document-open-recent" }, { id: "chronoa", words: "chronoa assistant ai island model voice wake word", label: Tr.t("Chronoa"), icon: "face-smile-big" }, { id: "account", words: "account name password picture avatar fingerprint security key yubikey fido u2f", label: Tr.t("Your account"), icon: "avatar-default" }, { id: "users", words: "users add user remove administrator automatic login", label: Tr.t("Users"), icon: "system-users" }, { id: "power", words: "power ups power cut uninterruptible battery health wear cycles capacity charge history drain saver idle lock suspend lid power button charge limit dim screen off percentage", label: Tr.t("Power"), icon: "system-run" }, { id: "storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", label: Tr.t("Storage"), icon: "drive-harddisk" }, { id: "screentime", words: "screen time wellbeing digital break reminder limit usage apps today week focus", label: Tr.t("Screen time"), icon: "preferences-desktop-screensaver" }, { id: "modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", label: Tr.t("Kernel modules"), icon: "application-x-addon" }, { id: "about", words: "about computer name hostname system version hardware reset defaults", label: Tr.t("About"), icon: "help-about" }, { id: "firmware", words: "firmware updates devices fwupd apply capsule bios", label: Tr.t("Firmware updates"), icon: "computer" }, { id: "health", words: "system health checks verify diagnose problems", label: Tr.t("System health"), icon: "dialog-ok" }, { id: "maintenance", words: "maintenance clean system space report factory reset", label: Tr.t("Maintenance"), icon: "system-run" }, { id: "graphics", words: "graphics gpu driver render node pci mesa", label: Tr.t("Graphics & drivers"), icon: "video-display" }, { id: "appversions", words: "app versions installed flatpak snap os", label: Tr.t("App versions"), icon: "system-software-install" }, { id: "etcchanges", words: "system changes etc overlay diff restore file back", label: Tr.t("System changes"), icon: "document-edit" }, { id: "persistence", words: "persistence survives slot switch data var", label: Tr.t("Persistence"), icon: "drive-harddisk" }, { id: "virtualization", words: "virtualization kvm virtual machines libvirt lxc lxd nspawn", label: Tr.t("Virtualization"), icon: "computer" }, { id: "disksfs", words: "disks filesystems raid lvm btrfs subvolume compression smart", label: Tr.t("Disks & filesystems"), icon: "drive-harddisk" }, { id: "background", words: "background services cron priority irq audit log mail", label: Tr.t("Background services"), icon: "preferences-system" }, { id: "dns", words: "dns resolver nameserver which answers set", label: Tr.t("DNS"), icon: "network-workgroup" }, { id: "netservices", words: "network services inbound ports sshd tunnels mdns announcements", label: Tr.t("Network services"), icon: "network-server" }, { id: "adminaccess", words: "access sign in directory kerberos smartcard privileges sudo ssh keys codes", label: Tr.t("Sign-in & access"), icon: "security-high" }]
     readonly property var catIcons: { const o = {}; for (const c of cats) o[c.id] = c.icon; return o; }
     readonly property string catTitle: (cats.find(c => c.id === cat) || { label: Tr.t("Settings") }).label
     // find a setting by what is in it: "proxy" → Network, "lid" → Power
@@ -243,10 +243,10 @@ ColumnLayout {
     // and GNOME's Settings do): 29 categories in one flat list hid most of them
     readonly property var catGroups: [
         { name: Tr.t("Personal"), ids: ["personal", "displays", "sound", "windows", "notifications", "access", "input", "time"] },
-        { name: Tr.t("Connections"), ids: ["network", "phone", "devices", "sharing", "printers"] },
+        { name: Tr.t("Connections"), ids: ["network", "phone", "devices", "dns", "netservices", "sharing", "printers"] },
         { name: Tr.t("Apps & AI"), ids: ["apps", "search", "automations", "chronoa", "screentime"] },
-        { name: Tr.t("Privacy & security"), ids: ["privacy", "security", "firewall", "account", "users"] },
-        { name: Tr.t("System"), ids: ["power", "storage", "backup", "updates", "boot", "journal", "modules", "about"] }
+        { name: Tr.t("Privacy & security"), ids: ["privacy", "security", "firewall", "account", "users", "adminaccess"] },
+        { name: Tr.t("System"), ids: ["about", "updates", "firmware", "boot", "health", "maintenance", "power", "storage", "disksfs", "backup", "graphics", "appversions", "etcchanges", "persistence", "virtualization", "background", "journal", "modules"] }
     ]
     // the categories in their sections' order, each with its section's name
     readonly property var groupedCats: {
@@ -2190,6 +2190,87 @@ ColumnLayout {
 
             }
         }
+    }
+
+    // System pages folded in from the old system manager. Each is a plain
+    // read-first page made when its category opens, gone when another opens.
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "firmware"
+        visible: active
+        sourceComponent: Component { SettingsFirmware { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "health"
+        visible: active
+        sourceComponent: Component { SettingsSystemHealth { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "maintenance"
+        visible: active
+        sourceComponent: Component { SettingsMaintenance { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "graphics"
+        visible: active
+        sourceComponent: Component { SettingsGraphics { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "appversions"
+        visible: active
+        sourceComponent: Component { SettingsAppVersions { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "etcchanges"
+        visible: active
+        sourceComponent: Component { SettingsEtcChanges { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "persistence"
+        visible: active
+        sourceComponent: Component { SettingsPersistence { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "virtualization"
+        visible: active
+        sourceComponent: Component { SettingsVirtualization { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "disksfs"
+        visible: active
+        sourceComponent: Component { SettingsDisksFs { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "background"
+        visible: active
+        sourceComponent: Component { SettingsBackground { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "dns"
+        visible: active
+        sourceComponent: Component { SettingsDns { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "netservices"
+        visible: active
+        sourceComponent: Component { SettingsNetServices { Layout.fillWidth: true; active: true } }
+    }
+    Loader {
+        Layout.fillWidth: true
+        active: page.cat === "adminaccess"
+        visible: active
+        sourceComponent: Component { SettingsAccess { Layout.fillWidth: true; active: true } }
     }
 }
 // USB Storage settings (Android-style)

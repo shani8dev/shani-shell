@@ -322,6 +322,21 @@ var entries = [
     { key: "fmRadio", label: "FM radio", cat: "devices", hint: "listen to local radio through the aerial", words: "fm radio frequency station aerial gadget" },
     { key: "nfcReader", label: "NFC reader", cat: "devices", hint: "read and write nearby tags", words: "nfc tag read write nearby gadget" },
     { key: "about", label: "About", cat: "about", hint: "this machine — model, CPU, GPU, memory, kernel, compositor", words: "about machine info system kernel cpu memory gpu" },
+
+    // ---- System pages folded in from the old system manager -------------------
+    { key: "firmware", label: "Firmware updates", cat: "firmware", hint: "the machine's firmware devices, what can be updated, and applying it", words: "firmware updates devices fwupd lvfs capsule bios uefi apply restart" },
+    { key: "systemHealth", label: "System health", cat: "health", hint: "run the checks and see every result in plain words", words: "health checks verify diagnose problems report system" },
+    { key: "maintenance", label: "Maintenance", cat: "maintenance", hint: "clean system space, save a report, or factory reset", words: "maintenance clean cleanup system space old updates backup report diagnostics reset factory" },
+    { key: "graphics", label: "Graphics & drivers", cat: "graphics", hint: "each graphics card, its driver and its render node", words: "graphics gpu driver render node pci mesa vulkan monitor black unbound" },
+    { key: "appVersions", label: "App versions", cat: "appversions", hint: "which version of each installed app is really there", words: "app versions installed flatpak snap os deployment package" },
+    { key: "etcChanges", label: "System changes", cat: "etcchanges", hint: "what this computer changed in its system settings, and putting a file back", words: "system changes etc overlay diff restore file back config" },
+    { key: "persistence", label: "Persistence", cat: "persistence", hint: "what survives a switch between system slots", words: "persistence survives slot update switch data var bind mount state" },
+    { key: "virtualization", label: "Virtualization", cat: "virtualization", hint: "KVM readiness and what the virtual machine tools hold", words: "virtualization kvm virtual machines libvirt lxc lxd nspawn readiness manage containers" },
+    { key: "disksFilesystems", label: "Disks & filesystems", cat: "disksfs", hint: "RAID, logical volumes, subvolumes, compression and disk health", words: "disks filesystems raid mdadm lvm btrfs subvolume scrub compression smart disk health" },
+    { key: "backgroundServices", label: "Background services", cat: "background", hint: "scheduled work, process priority, interrupts and the audit log", words: "background services cron schedule system jobs priority interrupts irq audit log mail" },
+    { key: "dnsResolver", label: "DNS", cat: "dns", hint: "which name resolver actually answers, and setting one", words: "dns resolver nameserver which answers set systemd resolved" },
+    { key: "networkServices", label: "Network services", cat: "netservices", hint: "what can reach this machine and what it announces", words: "network services inbound open ports sshd tunnels mdns announcements web server mail relay" },
+    { key: "signInAccess", label: "Sign-in & access", cat: "adminaccess", hint: "who may sign in, and what they may do once they do", words: "access sign in directory sssd kerberos smartcard privileges sudo ssh keys codes security modules" },
 ];
 
 // every key, grouped by category: for “N customised” and “Reset this section”
@@ -357,7 +372,21 @@ var groups = {
     users: [],
     screentime: ["screenTime", "breakEveryMinutes", "screenLimitMinutes"],
     power: ["dimAfter", "dimAfterBattery", "lockAfter", "screenOffAfter", "suspendAfter", "lockAfterBattery", "screenOffAfterBattery", "suspendAfterBattery", "lockBeforeSuspend", "autoPowerSaver", "powerSaverAt", "profileFollowsCharger", "profileOnBattery", "profilePluggedIn", "autoLockOnLowBattery", "batteryLimit"],
-    about: []
+    about: [],
+    // read-first system pages: no shell setting keys to reset
+    firmware: [],
+    health: [],
+    maintenance: [],
+    graphics: [],
+    appversions: [],
+    etcchanges: [],
+    persistence: [],
+    virtualization: [],
+    disksfs: [],
+    background: [],
+    dns: [],
+    netservices: [],
+    adminaccess: []
 };
 
 // is a value a scalar we may compare and reset?

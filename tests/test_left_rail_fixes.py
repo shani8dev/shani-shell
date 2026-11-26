@@ -26,7 +26,7 @@ def test_left_rail_reserves_its_strip_and_is_one_per_screen():
 def test_the_dock_and_the_rail_never_both_show_workspaces():
     dock = (ROOT / "shani/Modules/Dock/Dock.qml").read_text()
     assert "readonly property bool spacesHere: !(Settings.data.leftRail && Settings.data.railContent !== \"apps\" && FormFactor.hasRail(output))" in dock
-    assert "model: win.spacesHere ? win.spaces.concat([null]) : []" in dock
+    assert "model: win.spacesHere && !win.phone ? win.spaces.concat([null]) : []" in dock
     niri = (ROOT / "shani/Services/Niri.qml").read_text()
     assert "function windowsOn(ws)" in niri and "function newWorkspaceOn(output)" in niri
     assert "Niri.newWorkspaceOn(" in RAIL and "Niri.windowsOn(" in RAIL

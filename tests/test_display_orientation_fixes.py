@@ -32,12 +32,14 @@ def test_autorotate_off_restores_upright():
 def test_autorotate_stops_when_locked():
     """A locked device must not follow the accelerometer into a new rotation."""
     t = source("AutoRotate.qml")
-    assert re.search(r"running: root\.active && root\.available && !Lock\.locked", t), (
+    # it runs with auto-rotate off too (a rotate button is offered), never when locked
+    assert re.search(r"running: root\.available && !Lock\.locked", t), (
         "the watcher is gated on the lock state"
     )
     assert re.search(
-        r"onExited: if \(root\.active && root\.available && !Lock\.locked", t
+        r"onExited: if \(root\.available && !Lock\.locked", t
     ), "a stop caused by locking is not retried"
+    assert "root.suggest = m[1]" in t and "function rotateToHeld()" in t, "held another way: offer, don't turn"
     assert "Timer {" in t and "id: retry" in t, "a retry path exists"
 
 
@@ -53,7 +55,7 @@ def test_autorotate_recovers_from_a_dead_sensor_watcher():
     assert "sensor.running = false" in retry and "Qt.binding(" in retry, (
         "the same running binding is re-armed, not just set to true"
     )
-    assert "root.active && root.available && !Lock.locked" in retry, (
+    assert "root.available && !Lock.locked" in retry, (
         "the re-armed binding keeps the lock guard"
     )
 
