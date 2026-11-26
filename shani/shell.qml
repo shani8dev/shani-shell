@@ -722,6 +722,7 @@ ShellRoot {
         }
         function inputPlumberManageAll(on: bool) { InputPlumber.setManageAll(on); }
         function upsRefresh() { Ups.refresh(); }
+        function bootVerify() { BootInfo.verify(); }
         // the same path a tap takes (tests drive the keyboard with it)
         function oskPress(key: string) { Osk.press(key); }
         // a swipe through these letters, as a finger over the keys reports it
@@ -1239,6 +1240,8 @@ ShellRoot {
                 updatesCandidate: Updates.candidate, updatesChannel: Updates.channel,
                 updatesFirmware: Updates.firmware, updatesSummary: Updates.summary,
                 bootAvailable: BootInfo.available, bootRows: BootInfo.rows.map(r => r.label + ": " + r.value), bootNote: BootInfo.note,
+                bootSecure: BootInfo.secureboot, bootVerify: BootInfo.verifyChecks, bootVerifyNote: BootInfo.verifyNote, bootVerifyBusy: BootInfo.verifyBusy,
+                upsPolicy: Ups.policy, updatesAvailability: Updates.availability,
                 settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen, settingsCompact: Ui.settingsCompact, settingsShowingPage: Ui.settingsShowingPage,
                 chronoaState: Ui.chronoaState, chronoaSettingsPage: Ui.chronoaSettingsPage,
                 pinned: Niri.pinned, badges: Notifs.perApp,

@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import qs.Common
 import qs.Services
 import "../../Common/ToolPath.js" as ToolPath
+import "../../Common/Format.js" as Format
 
 ColumnLayout {
     id: page
@@ -48,6 +49,12 @@ ColumnLayout {
     property bool auditProfileBusy: false
     property string auditProfileNote: ""
     property bool auditProfileNoteOk: false
+    // auditd state comes from one read: an empty ausearch is only fair when
+    // auditd is running and its log is real
+    property var auditInfo: ({})
+    property bool auditBusy: false
+    property bool auditLoaded: false
+    readonly property string auditTool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_HEALTH_TOOL"), "system_health.py")
     // "off" removes the shell-managed rules file: ask for a second click
     property string confirmingAudit: ""
     Timer { id: auditConfirmTimer; interval: 4000; onTriggered: page.confirmingAudit = "" }
@@ -55,8 +62,8 @@ ColumnLayout {
     property string faillockNote: ""
     property bool faillockNoteOk: false
     property bool faillockBusy: false
-    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); }
-    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); }
+    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); page.loadAudit(); }
+    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); page.loadAudit(); }
 
     readonly property var r: SecurityInfo.report || ({})
     readonly property var aa: r.apparmor || ({})
@@ -184,6 +191,54 @@ ColumnLayout {
         stdout: StdioCollector { onStreamFinished: { const v = text.trim(); page.auditProfile = v || "unknown"; } }
     }
     function loadAuditProfile() { auditProfileRead.running = false; auditProfileRead.running = true; }
+
+    Process {
+        id: auditProc
+        command: ["python3", page.auditTool, "audit"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = {};
+                try { d = JSON.parse(text) || {}; } catch (e) { d = {}; }
+                page.auditLoaded = true;
+                page.auditBusy = false;
+                page.auditInfo = d.have === true ? d : { have: false, error: d.error || Tr.t("Could not read the audit state"), records: [], verdict: "unresolved" };
+                page.publishAudit();
+            }
+        }
+        stderr: StdioCollector {}
+        onExited: code => {
+            if (code !== 0) {
+                page.auditLoaded = true;
+                page.auditBusy = false;
+                page.auditInfo = { have: false, error: Tr.t("Could not read the audit state"), records: [], verdict: "unresolved" };
+                page.publishAudit();
+            }
+        }
+    }
+    function loadAudit() { page.auditBusy = true; auditProc.running = false; auditProc.running = true; page.publishAudit(); }
+    function auditRecords() {
+        const rs = Array.isArray(page.auditInfo.records) ? page.auditInfo.records : [];
+        return rs.slice(0, 25);
+    }
+    function auditLogLabel() {
+        if (!page.auditLoaded || page.auditInfo.have !== true) return Tr.t("not read");
+        const present = page.auditInfo.log_present;
+        if (present === null || present === undefined) return Tr.t("not read");
+        if (!present) return Tr.t("No audit log");
+        const size = page.auditInfo.log_size;
+        return size === null || size === undefined ? Tr.t("Audit log present") : Format.humanSize(size, "si");
+    }
+    function publishAudit() {
+        const o = Object.assign({}, Ui.systemState || {});
+        o.securityAudit = {
+            verdict: page.auditInfo.verdict || "unresolved",
+            active: page.auditInfo.active || "",
+            records: Array.isArray(page.auditInfo.records) ? page.auditInfo.records : [],
+            error: page.auditInfo.error || ""
+        };
+        Ui.systemState = o;
+    }
+
     Process {
         id: auditProfileSet
         stdinEnabled: true
@@ -456,6 +511,9 @@ ColumnLayout {
             Layout.fillWidth: true; spacing: Theme.px(2)
             ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("auditd"); subtitle: au.active || Tr.t("unknown") }
             ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("enabled"); subtitle: au.enabled || Tr.t("unknown") }
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Running now"); subtitle: page.auditLoaded && page.auditInfo.have === true ? (page.auditInfo.active || Tr.t("unknown")) : Tr.t("not read") }
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Enabled at boot"); subtitle: page.auditLoaded && page.auditInfo.have === true ? (page.auditInfo.enabled || Tr.t("unknown")) : Tr.t("not read") }
+            ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Audit log"); subtitle: page.auditLogLabel() }
             SwitchRow { Layout.fillWidth: true; visible: page.auditdLoaded; text: Tr.t("Enable auditd"); hint: Tr.t("System audit logging service"); checked: page.auditdOn; onToggled: on => { auditdSet.payload = JSON.stringify({ enabled: on }); auditdSet.command = page.adminCmd.concat(["auditd-set"]); auditdSet.running = true; } }
             ListRow { Layout.fillWidth: true; interactive: false; icon: "document-open-recent"; title: Tr.t("Audit profile"); subtitle: page.auditProfile }
         }
@@ -487,6 +545,88 @@ ColumnLayout {
             visible: page.auditProfileNote !== ""
             tone: page.auditProfileNoteOk ? "ok" : "error"
             text: page.auditProfileNote
+        }
+
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Item { Layout.fillWidth: true }
+            IconButton {
+                icon: "view-refresh"
+                size: Theme.px(28)
+                tip: Tr.t("Read audit state again")
+                Accessible.name: Tr.t("Read audit state again")
+                enabled: !page.auditBusy
+                onClicked: page.loadAudit()
+            }
+        }
+        BusyNote { Layout.fillWidth: true; visible: page.auditBusy; note: Tr.t("Reading audit state…"); iconSize: Theme.px(16) }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === false
+            tone: "error"
+            title: Tr.t("Audit state could not be read")
+            text: page.auditInfo.error || Tr.t("No reason was given")
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === true && page.auditInfo.verdict === "not-running"
+            tone: "warn"
+            text: Tr.t("auditd is not running, so nothing is being recorded. This is not a computer with nothing to report.")
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === true && page.auditInfo.verdict === "no-log"
+            tone: "warn"
+            text: Tr.t("There is no audit log on this computer, so no events can be shown.")
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === true && page.auditInfo.verdict === "empty-log"
+            tone: "warn"
+            text: Tr.t("The audit log is empty, so no events were recorded.")
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === true && page.auditInfo.verdict === "unresolved"
+            tone: "warn"
+            text: Tr.t("The audit state could not be read, so no claim is made about events.")
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === true && page.auditRecords().length > 0
+            text: Tr.t("Recent audit events")
+            color: Theme.text; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        Repeater {
+            model: page.auditRecords()
+            ColumnLayout {
+                required property var modelData
+                Layout.fillWidth: true; spacing: 0
+                ListRow {
+                    Layout.fillWidth: true; interactive: false; icon: "document-open-recent"
+                    title: modelData.type || Tr.t("Event")
+                    subtitle: modelData.time || ""
+                }
+                Text {
+                    Layout.fillWidth: true; Layout.leftMargin: Theme.px(36)
+                    visible: !!modelData.detail
+                    text: modelData.detail
+                    color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === true && page.auditInfo.truncated === true
+            text: Tr.t("Showing the first %1 events; the rest are in the audit log", 25)
+            color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        EmptyState {
+            Layout.fillWidth: true
+            visible: page.auditLoaded && page.auditInfo.have === true && page.auditInfo.verdict === "genuine" && page.auditRecords().length === 0 && !page.auditBusy
+            icon: "dialog-ok"
+            title: Tr.t("Nothing to report")
+            subtitle: Tr.t("Audit logging is working and has no events.")
         }
 
     }

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Stands in for shani-health (tests/test_system_health.py, dev/shell-parts:
-system-health): five mixed checks in the tool's own JSON shape, a saved bundle
-for --export-logs, and a call log in $FAKE_SHANI_HEALTH/calls like fake-podman."""
+system-health): five mixed checks in the tool's own JSON shape, a Btrfs
+storage report for --storage-info, a saved bundle for --export-logs, and a
+call log in $FAKE_SHANI_HEALTH/calls like fake-podman. Also stands in for
+pkexec, which just passes the helper's argv through."""
 
 import json
 import os
@@ -46,6 +48,88 @@ CHECKS = [
     },
 ]
 
+STORAGE_CHECKS = [
+    {
+        "section": "storage_info",
+        "key": "Free",
+        "status": "ok",
+        "message": "42 GB free of 512 GB",
+    },
+    {"section": "storage_info", "key": "Total", "status": "info", "message": "512 GB"},
+    {
+        "section": "storage_info",
+        "key": "Used",
+        "status": "info",
+        "message": "470 GB (ratio: 480 GB)",
+    },
+    {
+        "section": "storage_info",
+        "key": "Snapshots",
+        "status": "ok",
+        "message": "12 snapshots",
+    },
+    {
+        "section": "storage_info",
+        "key": "Quotas",
+        "status": "ok",
+        "message": "consistent",
+    },
+    {
+        "section": "storage_info",
+        "key": "Scrub",
+        "status": "ok",
+        "message": "last run clean",
+    },
+    {
+        "section": "storage_info",
+        "key": "Scrub tmr",
+        "status": "ok",
+        "message": "enabled",
+    },
+    {
+        "section": "storage_info",
+        "key": "Maint tmrs",
+        "status": "warning",
+        "message": "2 of 4 timers not enabled",
+    },
+    {"section": "storage_info", "key": "bees", "status": "ok", "message": "running"},
+    {
+        "section": "storage_info",
+        "key": "Dev errors",
+        "status": "critical",
+        "message": "non-zero error counters detected",
+    },
+    {
+        "section": "storage_info",
+        "key": "Dedup",
+        "status": "info",
+        "message": "not configured",
+    },
+    {
+        "section": "storage_info",
+        "key": "@home",
+        "status": "ok",
+        "message": "12G (ratio: 20G)",
+    },
+    {
+        "section": "storage_info",
+        "key": "@snapshots",
+        "status": "warning",
+        "message": "960K (ratio: 16M)",
+    },
+]
+# Continuation rows from the real tool. They are not capacity keys and must
+# never appear as summary rows or warnings.
+STORAGE_CHECKS += [
+    {
+        "section": "storage_info",
+        "key": "row2",
+        "status": "info",
+        "message": "detail line %d" % i,
+    }
+    for i in range(20)
+]
+
 a = sys.argv[1:]
 with open(os.path.join(D, "calls"), "a") as f:
     f.write(os.path.basename(sys.argv[0]) + " " + " ".join(a) + "\n")
@@ -58,6 +142,22 @@ if "--export-logs" in a:
         f.write("Five checks; two need attention.\n")
     print(path)
     sys.exit(0)
+
+if "-s" in a or "--storage-info" in a:
+    # The real tool fails before it prints any JSON: a mount failure or a
+    # cancelled pkexec leaves stdout empty and only a FATAL line on stderr.
+    if os.environ.get("FAKE_SHANI_HEALTH_STORAGE_FAIL"):
+        print("FATAL Could not mount root at subvolid=5", file=sys.stderr)
+        sys.exit(1)
+    print(
+        json.dumps(
+            {
+                "timestamp": "2026-11-26T12:00:00+00:00",
+                "checks": STORAGE_CHECKS,
+            }
+        )
+    )
+    sys.exit(1 if os.environ.get("FAKE_SHANI_HEALTH_STORAGE_EXIT") else 0)
 
 if os.environ.get("FAKE_SHANI_HEALTH_BROKEN"):
     print("not json at all")

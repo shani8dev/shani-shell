@@ -14,7 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / "bridge" / "system_disks.py"
 FAKE = ROOT / "dev" / "fake-system-disks.py"
-TOOLS = ("mdadm", "pvs", "vgs", "lvs", "btrfs", "compsize", "smartctl")
+TOOLS = ("mdadm", "pvs", "vgs", "lvs", "btrfs", "compsize", "smartctl", "systemctl")
 
 MDSTAT = """Personalities : [raid1] [raid6] [raid5] [raid4]
 md127 : active raid1 sda1[0] sdb1[1]
@@ -23,6 +23,13 @@ md127 : active raid1 sda1[0] sdb1[1]
 unused devices: <none>
 """
 DEGRADED = MDSTAT.replace("[2/2] [UU]", "[2/1] [U_]")
+SMARTD_CONF = """# /etc/smartd.conf
+# DEVICESCAN -n never is only a comment here
+DEVICESCAN -d removable -n standby -m root -M exec /usr/share/smartmontools/smartd-runner
+"""
+NO_STATS = """UUID: 4d2e1f80-1234-4c56-8a90-abcdef123456
+\tno stats available
+"""
 
 
 @pytest.fixture
@@ -32,7 +39,11 @@ def env(tmp_path):
     for name in ("sda", "sdb", "nvme0n1"):
         (tmp_path / name).touch()
     (tmp_path / "mdstat").write_text(MDSTAT)
+    (tmp_path / "smartd.conf").write_text(SMARTD_CONF)
     e = dict(os.environ, FAKE_SYSTEM_DISKS=str(tmp_path))
+    e.pop("FAKE_SYSTEM_DISKS_FAIL", None)
+    e.pop("FAKE_SYSTEM_DISKS_SCRUB", None)
+    e.pop("FAKE_SYSTEM_DISKS_SMARTD_STATE", None)
     e["PATH"] = "%s:%s" % (tmp_path, os.environ["PATH"])
     e.update(
         SHANI_MDADM="mdadm",
@@ -42,6 +53,8 @@ def env(tmp_path):
         SHANI_BTRFS="btrfs",
         SHANI_COMPSIZE="compsize",
         SHANI_SMARTCTL="smartctl",
+        SHANI_SMARTD_CONF=str(tmp_path / "smartd.conf"),
+        SHANI_SYSTEM_SYSTEMCTL="systemctl",
         SHANI_MDSTAT=str(tmp_path / "mdstat"),
         SHANI_DISK_GLOB="%s/sd? %s/nvme?n1" % (tmp_path, tmp_path),
     )
@@ -116,6 +129,63 @@ def test_btrfs_subvolumes_usage_and_scrub_text(tmp_path, env):
     assert "finished" in r["scrub"] and "no errors found" in r["scrub"]
 
 
+def test_btrfs_show_df_and_finished_scrub_are_parsed(tmp_path, env):
+    r, rc = run(env, "btrfs")
+    assert rc == 0 and r["error"] == "" and r["scrub_state"] == "finished"
+    assert r["show"] == {
+        "label": "shani_root",
+        "uuid": "4d2e1f80-1234-4c56-8a90-abcdef123456",
+        "devices": 1,
+        "used": "6.41GiB",
+        "members": [
+            {"id": "1", "size": "100.00GiB", "used": "6.41GiB", "path": "/dev/sda2"}
+        ],
+    }
+    assert [(d["kind"], d["profile"], d["total"], d["used"]) for d in r["df"]] == [
+        ("Data", "single", "40.00GiB", "6.38GiB"),
+        ("System", "DUP", "8.00MiB", "16.00KiB"),
+        ("Metadata", "DUP", "2.00GiB", "32.00MiB"),
+        ("GlobalReserve", "single", "16.00MiB", "0.00B"),
+    ]
+    assert "btrfs fi show /" in calls(tmp_path)
+    assert "btrfs fi df /" in calls(tmp_path)
+
+
+def test_never_scrubbed_says_never_not_clean(tmp_path, env):
+    fixture = tmp_path / "scrub-no-stats"
+    fixture.write_text(NO_STATS)
+    env["FAKE_SYSTEM_DISKS_SCRUB"] = str(fixture)
+    r, rc = run(env, "btrfs")
+    assert rc == 0 and r["error"] == ""
+    assert r["scrub_state"] == "never"
+    assert "no stats available" in r["scrub"]
+    assert "no errors found" not in r["scrub"]
+
+
+def test_btrfs_failed_reads_leave_empty_structures(tmp_path, env):
+    env["FAKE_SYSTEM_DISKS_FAIL"] = "btrfs:show btrfs:df btrfs:scrub"
+    r, _ = run(env, "btrfs")
+    assert r["error"] and r["have"]
+    assert r["show"] == {
+        "label": "",
+        "uuid": "",
+        "devices": 0,
+        "used": "",
+        "members": [],
+    }
+    assert r["df"] == [] and r["scrub"] == "" and r["scrub_state"] == "unknown"
+    assert len(r["subvolumes"]) == 4 and "Device size" in r["usage"]
+
+    env["FAKE_SYSTEM_DISKS_FAIL"] = (
+        "btrfs:list btrfs:show btrfs:df btrfs:usage btrfs:scrub"
+    )
+    r, _ = run(env, "btrfs")
+    assert r["have"] is False and r["error"]
+    assert r["subvolumes"] == [] and r["df"] == [] and r["usage"] == ""
+    assert r["show"]["members"] == [] and r["scrub"] == ""
+    assert r["scrub_state"] == "unknown"
+
+
 def test_compsize_missing_is_absence_not_error(tmp_path, env):
     r, rc = run(env, "compression")
     assert rc == 0 and r["have"] and r["error"] == "" and len(r["lines"]) >= 2
@@ -134,6 +204,45 @@ def test_smart_reports_health_temperature_and_model(env):
         "temp": "32",
         "model": "WDC WD10EZEX-00BN5A0",
     }
+
+
+def test_smartd_schedule_counts_and_service_are_reported(tmp_path, env):
+    r, rc = run(env, "smart")
+    s = r["schedule"]
+    assert rc == 0 and s["config_present"] is True and s["error"] == ""
+    assert s["scan"] is True and s["deferred"] == 1
+    assert s["per_disk"] == 0 and s["never"] == 0 and s["scan_never"] is False
+    assert s["service"] is True
+    assert "systemctl is-active smartd.service" in calls(tmp_path)
+
+    env["FAKE_SYSTEM_DISKS_SMARTD_STATE"] = "inactive"
+    assert run(env, "smart")[0]["schedule"]["service"] is False
+    env["FAKE_SYSTEM_DISKS_SMARTD_STATE"] = "something-else"
+    assert run(env, "smart")[0]["schedule"]["service"] is None
+    env["FAKE_SYSTEM_DISKS_FAIL"] = "systemctl"
+    assert run(env, "smart")[0]["schedule"]["service"] is None
+
+
+def test_smartd_directives_are_counted_and_comments_ignored(tmp_path, env):
+    (tmp_path / "smartd.conf").write_text("""# DEVICESCAN -n never
+# DEVICE /dev/sdc -n never
+DEVICESCAN -d removable -n never
+DIRECTORY /etc/smart
+DEVICE /dev/sda -n never
+DEVICE /dev/sdb -n standby
+""")
+    s = run(env, "smart")[0]["schedule"]
+    assert s["scan"] is True and s["scan_never"] is True
+    assert s["per_disk"] == 2 and s["never"] == 1 and s["deferred"] == 0
+
+
+def test_missing_smartd_conf_invents_no_schedule(tmp_path, env):
+    (tmp_path / "smartd.conf").unlink()
+    s = run(env, "smart")[0]["schedule"]
+    assert s["config_present"] is False and s["error"]
+    assert s["scan"] is False and s["per_disk"] == 0 and s["never"] == 0
+    assert s["deferred"] == 0 and s["scan_never"] is False
+    assert s["service"] is True
 
 
 @pytest.mark.parametrize("verb", ["raid", "lvm", "btrfs", "compression", "smart"])

@@ -45,6 +45,7 @@ COMMANDS = {
     "shani-upgrade-adviser": "shani-upgrade-adviser.sh",
     "gen-efi": "gen-efi.sh",
     "shani-backup": "cli.py",
+    "shani-cassini-save": "shani-cassini-save.sh",
 }
 
 # OS tools outside shani-deploy: their source is not beside this repo, so the

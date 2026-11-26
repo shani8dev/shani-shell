@@ -2,19 +2,75 @@
 // zone the person is using — the services and ports let in. firewalld's own
 // zones do the talking (public is the safe default, home trusts your own
 // devices); this page only reads and changes what is in them.
+import Quickshell
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/ToolPath.js" as ToolPath
 
 ColumnLayout {
     id: page
     spacing: Theme.px(12)
     property bool active: false
     property string zone: ""             // the zone being edited (the active one at first)
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_NET_TOOL"), "system_net.py")
 
-    onActiveChanged: if (active) { Firewall.refresh(); page.zone = "" }
-    Component.onCompleted: if (active) Firewall.refresh()
+    property var fail2banInfo: ({})
+    property bool fail2banBusy: false
+    readonly property var jailRows: Array.isArray(page.fail2banInfo.per_jail) ? page.fail2banInfo.per_jail : []
+
+    onActiveChanged: if (active) { Firewall.refresh(); page.zone = ""; page.reloadFail2ban() }
+    Component.onCompleted: if (active) { Firewall.refresh(); page.reloadFail2ban(); page.publishFail2ban() }
+
+    function publishFail2ban() {
+        const r = page.fail2banInfo;
+        const o = Object.assign({}, Ui.systemState || {});
+        o.fail2ban = {
+            jails: Array.isArray(r.jails) ? r.jails : [],
+            banned: Array.isArray(r.banned) ? r.banned : [],
+            per_jail: Array.isArray(r.per_jail) ? r.per_jail : [],
+            available: !!r.available,
+            error: r.error || ""
+        };
+        Ui.systemState = o;
+    }
+    function countText(v) {
+        return (v === null || v === undefined) ? Tr.t("not reported") : String(v);
+    }
+    function bannedText(counts) {
+        const c = counts || {};
+        return Tr.t("Banned now %1, ever %2", page.countText(c.currently_banned), page.countText(c.total_banned));
+    }
+    // A JSON array becomes an array-like QVariantList once a delegate holds it;
+    // Array.isArray alone would hide the addresses we actually read.
+    function bannedList(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        return typeof value.length === "number" ? Array.from(value) : [];
+    }
+    function reloadFail2ban() {
+        page.fail2banBusy = true;
+        fail2banProc.running = false;
+        fail2banProc.running = true;
+    }
+
+    Process {
+        id: fail2banProc
+        command: ["python3", page.tool, "fail2ban"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text) || {}; }
+                catch (e) { r = { available: false, error: Tr.t("Could not read the list") }; }
+                page.fail2banInfo = r;
+                page.fail2banBusy = false;
+                page.publishFail2ban();
+            }
+        }
+        onExited: page.fail2banBusy = false
+    }
 
     // ---- the firewall itself ------------------------------------------------
     SettingsSection {
@@ -42,6 +98,93 @@ ColumnLayout {
             visible: Firewall.note !== ""
             text: Firewall.note
             color: Theme.danger
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+    }
+
+    // ---- repeated sign-in attempts (read-only) ------------------------------
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Repeated sign-in attempts")
+        hint: Tr.t("Jails hold back addresses that keep failing to sign in. This page only reads the list.")
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignRight
+            Button {
+                Layout.alignment: Qt.AlignRight
+                text: Tr.t("Refresh the list")
+                Accessible.name: Tr.t("Refresh the list of jails and banned addresses")
+                enabled: !page.fail2banBusy
+                busy: page.fail2banBusy
+                onClicked: page.reloadFail2ban()
+            }
+        }
+        BusyNote { Layout.fillWidth: true; visible: page.fail2banBusy; note: Tr.t("Loading…"); iconSize: Theme.px(16) }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: !page.fail2banBusy && page.fail2banInfo.available === false
+            tone: "error"
+            title: Tr.t("No list to show")
+            text: Tr.t("The check did not answer, so no jail or banned address is shown.") +
+                  (page.fail2banInfo.error ? " " + page.fail2banInfo.error : "")
+            accessibleRole: Accessible.AlertMessage
+        }
+        EmptyState {
+            visible: !page.fail2banBusy && page.fail2banInfo.available === true &&
+                     Array.isArray(page.fail2banInfo.jails) && page.fail2banInfo.jails.length === 0
+            icon: "system-lock-screen"
+            title: Tr.t("No jails are set up")
+            subtitle: Tr.t("No jail is holding back an address right now.")
+        }
+        ListRow {
+            Layout.fillWidth: true
+            visible: !page.fail2banBusy && page.fail2banInfo.available === true &&
+                     Array.isArray(page.fail2banInfo.jails) && page.fail2banInfo.jails.length > 0
+            interactive: false
+            icon: "system-lock-screen"
+            title: Tr.t("Jails and bans")
+            subtitle: Tr.t("Jails set up: %1", (page.fail2banInfo.jails || []).length)
+            trailing: page.bannedText(page.fail2banInfo.counts)
+        }
+        Repeater {
+            model: page.jailRows
+            ColumnLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: Theme.px(2)
+                ListRow {
+                    Layout.fillWidth: true
+                    interactive: false
+                    icon: "system-lock-screen"
+                    title: modelData.name
+                    subtitle: page.bannedList(modelData.banned).join(", ") ||
+                              Tr.t("No address is banned right now")
+                    extra: Text {
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                        text: page.bannedText(modelData.counts)
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(36)
+                    visible: modelData.error !== ""
+                    text: modelData.error
+                    color: Theme.danger
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("An address is banned after repeated failed sign-ins. This page only reads the list; it does not change it.")
+            color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font
             font.pixelSize: Theme.px(11) * Theme.fontScale

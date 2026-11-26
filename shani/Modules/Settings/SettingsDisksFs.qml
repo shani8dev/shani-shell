@@ -60,6 +60,10 @@ ColumnLayout {
             lvm: { pvs: lvm.pvs || [], vgs: lvm.vgs || [], lvs: lvm.lvs || [] },
             btrfs: { subvolumes: btrfs.subvolumes || [], scrub: btrfs.scrub || "", compression: comp.lines || [] },
             smart: smart.disks || [],
+            show: btrfs.show || {},
+            df: btrfs.df || [],
+            scrubState: btrfs.scrub_state || "",
+            smartd: smart.schedule || {},
             section: page.section
         };
         Ui.systemState = o;
@@ -67,6 +71,27 @@ ColumnLayout {
     function errorFor(v) { const r = page.results[v] || {}; return r.error || ""; }
     function have(v) { const r = page.results[v] || {}; return r.have === true; }
     function list(v, key) { const r = page.results[v] || {}; return r[key] || []; }
+    function countOf(v) { return Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0); }
+    function btrfsShow() { return (page.results.btrfs || {}).show || {}; }
+    function scrubState() { return (page.results.btrfs || {}).scrub_state || ""; }
+    function scrubNote(st) {
+        if (st === "never") return Tr.t("Never scrubbed — there are no check results for this filesystem");
+        if (st === "finished") return Tr.t("Last check finished");
+        if (st === "running") return Tr.t("A check is running");
+        if (st === "unknown") return Tr.t("The check state is not known");
+        return "";
+    }
+    function dfTitle(row) {
+        const k = row.kind || "";
+        const p = row.profile || "";
+        return (k && p) ? (k + " · " + p) : (k || p || Tr.t("Allocation"));
+    }
+    function smartd() { return (page.results.smart || {}).schedule || {}; }
+    function serviceNote(v) { return v === true ? Tr.t("running") : (v === false ? Tr.t("not running") : Tr.t("not known")); }
+    function scanNote(s) {
+        if (s.scan_never) return Tr.t("Every disk is skipped");
+        return s.scan ? Tr.t("Disks are scanned") : Tr.t("No automatic disk scan");
+    }
     function lvmFacts() {
         const out = [];
         const r = page.results.lvm || {};
@@ -207,6 +232,31 @@ ColumnLayout {
             title: page.have("btrfs") ? Tr.t("No subvolumes") : Tr.t("Btrfs is not available")
             subtitle: page.have("btrfs") ? Tr.t("This computer has no Btrfs subvolumes to show.") : Tr.t("This computer has no Btrfs information to show.")
         }
+        ListRow {
+            Layout.fillWidth: true; interactive: false
+            visible: !page.busy && page.have("btrfs") &&
+                     (page.btrfsShow().label !== "" || page.btrfsShow().uuid !== "" || page.countOf(page.btrfsShow().devices) > 0)
+            icon: "folder"
+            title: page.btrfsShow().label || Tr.t("Filesystem")
+            subtitle: page.btrfsShow().uuid ? Tr.t("UUID %1", page.btrfsShow().uuid) : ""
+            trailing: Tr.t("Devices: %1", page.countOf(page.btrfsShow().devices))
+        }
+        Repeater {
+            model: page.have("btrfs") ? page.list("btrfs", "df") : []
+            ListRow {
+                required property var modelData
+                Layout.fillWidth: true; interactive: false
+                icon: "folder"
+                title: page.dfTitle(modelData)
+                subtitle: Tr.t("Total %1, used %2", modelData.total || "", modelData.used || "")
+            }
+        }
+        ListRow {
+            Layout.fillWidth: true; interactive: false
+            visible: !page.busy && page.have("btrfs") && page.scrubNote(page.scrubState()) !== ""
+            icon: "dialog-information"
+            title: page.scrubNote(page.scrubState())
+        }
         Repeater {
             model: page.have("btrfs") ? page.list("btrfs", "subvolumes") : []
             ListRow {
@@ -266,6 +316,56 @@ ColumnLayout {
                     color: Theme.dim; wrapMode: Text.Wrap
                     font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
+            }
+        }
+        // An on-demand reading is not a scheduled test. Show what smartd is set
+        // up to do; nothing here starts a test.
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: !page.busy && (page.have("smart") || page.smartd().config_present === true)
+            spacing: Theme.px(8)
+            SectionTitle { Layout.fillWidth: true; text: Tr.t("Test schedule") }
+            ListRow {
+                Layout.fillWidth: true; interactive: false
+                icon: "dialog-information"
+                title: Tr.t("Schedule file")
+                subtitle: page.smartd().config_present ? Tr.t("A schedule file is present") : Tr.t("No schedule file")
+            }
+            ListRow {
+                Layout.fillWidth: true; interactive: false
+                icon: "dialog-information"
+                title: Tr.t("Disk scans")
+                subtitle: page.scanNote(page.smartd())
+            }
+            ListRow {
+                Layout.fillWidth: true; interactive: false
+                icon: "drive-harddisk"
+                title: Tr.t("Disks listed one by one")
+                trailing: String(page.countOf(page.smartd().per_disk))
+            }
+            ListRow {
+                Layout.fillWidth: true; interactive: false
+                icon: "drive-harddisk"
+                title: Tr.t("Deferred tests")
+                trailing: String(page.countOf(page.smartd().deferred))
+            }
+            ListRow {
+                Layout.fillWidth: true; interactive: false
+                icon: "drive-harddisk"
+                title: Tr.t("Disks skipped with never")
+                trailing: String(page.countOf(page.smartd().never))
+            }
+            ListRow {
+                Layout.fillWidth: true; interactive: false
+                icon: "dialog-information"
+                title: Tr.t("Test service")
+                subtitle: page.serviceNote(page.smartd().service)
+            }
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("A health reading taken here is not a scheduled test.")
+                color: Theme.dim; wrapMode: Text.Wrap
+                font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
     }

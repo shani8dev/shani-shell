@@ -1,5 +1,5 @@
 pragma Singleton
-// ShaniOS updates, read from shani-deploy:
+// this system updates, read from shani-deploy:
 // `shani-deploy --status --check --json` (ok, update_available,
 // boot_markers.reboot_needed, current_slot). Checked at start and hourly;
 // The shell installs updates; this service reads the status.
@@ -11,7 +11,10 @@ import qs.Common
 Singleton {
     id: root
     property bool known: false
-    property bool available: false
+    // A null update_available means the check did not reach the server; that
+    // is not "up to date". available stays false unless a check said yes.
+    property string availability: "unknown"
+    readonly property bool available: root.availability === "available"
     property bool rebootNeeded: false
     property string slot: ""
     property string version: ""          // the release on this slot (/etc/shani-version)
@@ -165,7 +168,8 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: if (text.trim() === "open") root.openFirmware() }
     }
     Timer { interval: 6 * 3600 * 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: fw.running = true }
-    readonly property string summary: !known ? "" : rebootNeeded ? "Restart to finish updating"
+    readonly property string summary: availability === "unknown" ? Tr.t("The check did not finish")
+        : rebootNeeded ? "Restart to finish updating"
         : available ? "An update is ready" : firmware.length ? "Firmware update ready"
         : "Up to date" + (slot ? " · slot " + slot : "")
 
@@ -191,9 +195,10 @@ Singleton {
             onStreamFinished: {
                 try {
                     const s = JSON.parse(text);
-                    root.known = !!s.ok;
-                    root.available = !!s.update_available;
-                    root.rebootNeeded = !!(s.boot_markers && s.boot_markers.reboot_needed);
+                    root.known = true;
+                    root.availability = s.update_available === true ? "available"
+                        : s.update_available === false ? "current" : "unknown";
+                    root.rebootNeeded = !!(s.reboot_needed || (s.boot_markers && s.boot_markers.reboot_needed));
                     root.slot = s.current_slot || "";
                     root.version = s.version || "";
                     const remote = s.remote || {};
@@ -201,6 +206,7 @@ Singleton {
                     root.remoteLatest = remote.latest || "";
                 } catch (e) {
                     root.known = false;
+                    root.availability = "unknown";
                 }
             }
         }

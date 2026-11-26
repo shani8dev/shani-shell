@@ -28,7 +28,7 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Updates")
-        hint: Tr.t("ShaniOS keeps two systems, blue and green. An update writes the other one and the next boot starts from it, so a bad update leaves the one you know.")
+        hint: Tr.t("this system keeps two systems, blue and green. An update writes the other one and the next boot starts from it, so a bad update leaves the one you know.")
 
         // ---- what is running, and what is offered -----------------------------
         ColumnLayout {
@@ -48,9 +48,14 @@ ColumnLayout {
             }
             ListRow {
                 Layout.fillWidth: true
-                icon: Updates.rebootNeeded ? "system-reboot" : (Updates.available ? "software-update-available" : "dialog-ok")
-                title: Updates.summary || Tr.t("Checking…")
-                subtitle: Updates.rebootNeeded ? Tr.t("A restart finishes it") : ""
+                icon: Updates.availability === "unknown" ? "dialog-information"
+                    : Updates.rebootNeeded ? "system-reboot"
+                    : (Updates.available ? "software-update-available" : "dialog-ok")
+                title: Updates.availability === "unknown" ? Tr.t("The check did not finish")
+                    : (Updates.summary || Tr.t("Checking…"))
+                subtitle: Updates.availability === "unknown"
+                    ? Tr.t("The update server did not answer, so this is not a claim that you are up to date")
+                    : (Updates.rebootNeeded ? Tr.t("A restart finishes it") : "")
             }
         }
     }

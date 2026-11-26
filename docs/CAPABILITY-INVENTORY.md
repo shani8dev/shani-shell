@@ -43,7 +43,11 @@ One row per tab; status is in the first cell. Paths are worktree-relative
 except `../shani-cassini/...`, which is read-only. A seed named there means
 move the functions into a GTK-free bridge using rule 2, never keep the GTK
 copy. Full evidence per row is in `docs/inventory/group-01.md` through
-`group-07.md`; direct code spot-checks follow the table.
+`group-07.md`; direct code spot-checks follow the table. The ordered gaps
+3 and 17-24 below are now closed: the `boot_recovery`, `secureboot`,
+`btrfs`, `storage`, `smart`, `audit`, `firewall`, `ups` and `updates` rows
+have the shell reads and page rows described there (see the Status section
+of `SHARED-ARCHITECTURE.md`).
 
 | Tab | Shell coverage (pages + bridges) | Tab does that shell does not | Shell does better | Seed (rule 1) | GNOME/Plasma/COSMIC repeat? | Effort |
 |---|---|---|---|---|---|---|
@@ -142,7 +146,7 @@ feature gaps in table order (`chronoa`, `network_monitor`, `password_policy`,
 
 1. Read-only `gen-efi tpm2-status --json` and `pcrlock-status` section in `bridge/bootinfo.py` + Security page (`encryption`, S, security).
 2. Recovery-key display and LUKS-header-backup action through the admin helper, typed confirmation, secrets never in argv (`encryption`, M, data-safety).
-3. `sbctl status --json` and enrolled-key count in `bridge/bootinfo.py`; do not copy the tab's MOK password literal (`secureboot`, M, security).
+3. DONE — `sbctl status --json` and enrolled-key count in `bridge/bootinfo.py` (`secureboot` verb, EFI/MOK fallback, no MOK password literal); the Boot page shows the state and count (`secureboot`, M, security).
 4. done — Preserve unmanaged sshd lines and stage content with a SHA-256 expect over stdin in `remote-access-set` (`remote_access`, M, security).
 5. done — Re-run `sshd -t` after install with rollback and read back mode/owner in `remote-access-set` (`remote_access`, S, data-safety).
 6. done — Per-principal NOPASSWD rows with Add/Remove over `sudoers-set`, keeping its `visudo -c` pre/post checks (`access`, S, security).
@@ -156,14 +160,14 @@ feature gaps in table order (`chronoa`, `network_monitor`, `password_policy`,
 14. done — Subject to account mapping add/edit/remove through the pkexec rule (`smartcard`, M, security).
 15. done — FIDO2 `authfile`/`origin`/`appid` and guarded flags editor in `bridge/u2f.py` (`security_keys`, M, security).
 16. done — Yubico OTP `mode`/`id`/`chalresp_path` editor with typed confirmation in `bridge/u2f.py` (`security_keys`, M, security).
-17. `--verify-existing` check rows for MOK-signed UKIs, loader default and rollback backups in SettingsBoot (`boot_recovery`, M, data-safety).
-18. Validated seven-key `upsmon.conf` policy read/write with INT bounds in `bridge/ups.py` (`ups`, M, data-safety).
-19. Keep `update_available: null` as "check did not complete" instead of "no update" (`updates`, S, data-safety).
-20. `btrfs fi show` and `fi df` plus never-scrubbed state in `bridge/system_disks.py` (`btrfs`, M, data-safety).
-21. `shani-health --storage-info` verb in `bridge/system_health.py` with capacity and maintenance rows (`storage`, M, data-safety).
-22. smartd config and service state in the SMART bridge so on-demand reads are not mistaken for scheduled testing (`smart`, S, data-safety).
-23. auditd state and log stat so an empty `ausearch` is never reported as "nothing to report" (`audit`, M, security).
-24. `fail2ban-client status` jail and banned-IP read in `bridge/system_net.py` (`firewall`, S, security).
+17. DONE — buttoned `shani-deploy --verify-existing` read through pkexec in `bridge/bootinfo.py`; SGR severity, advice and unread lines rendered in SettingsBoot (`boot_recovery`, M, data-safety).
+18. DONE — seven-key `upsmon.conf` policy read/write with INT bounds, quoted command and absolute path in `bridge/ups.py`; save through `shani-cassini-save` with the content on stdin and a SHA-256 expect; Settings > UPS offers clickable values (`ups`, M, data-safety).
+19. DONE — `Updates.qml` keeps `update_available: null` as `availability: "unknown"` and "The check did not finish"; it never says "Up to date" on a failed check (`updates`, S, data-safety).
+20. DONE — `btrfs fi show`/`fi df` parsing and a never-scrubbed state in `bridge/system_disks.py`, rendered in Disks and filesystems (`btrfs`, M, data-safety).
+21. DONE — `system_health.py storage` verb reads `shani-health --storage-info` through pkexec, handles no-JSON failure honestly, and Settings > Storage shows capacity, maintenance, subvolume and warning rows (`storage`, M, data-safety).
+22. DONE — smartd config directives and tri-state service in `bridge/system_disks.py smart()`, rendered as a schedule group beside the on-demand drive read (`smart`, S, data-safety).
+23. DONE — `system_health.py audit` reads ausearch, auditd state and log stat, computes an honest empty-result verdict, and Settings > Security renders it; no "Nothing to report" unless the verdict is genuine (`audit`, M, security).
+24. DONE — `system_net.py fail2ban` reads jail counts and banned addresses, surfaces refusals verbatim, and Settings > Firewall shows them as a read-only section (`firewall`, S, security).
 
 ## Order of work for the shell
 
