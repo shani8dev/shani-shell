@@ -87,6 +87,16 @@ Singleton {
     property string containersDone: ""       // ...the last long job's "<what>:ok",
     property string containersEntered: ""    // ...the toolbox opened in a terminal last,
     property string containersExported: ""   // ...the app put in the menu last
+    property var containersPods: []          // ...the pods and volumes listed,
+    property var containersVolumes: []
+    property var containersMachines: []      // ...the nspawn machines and images,
+    property var containersMachineImages: []
+    property var containersSearch: []         // ...images found in the registry search
+    property string containersTerminal: ""   // ...the last terminal command opened,
+    property string containersStarted: ""    // ...the container started last,
+    property string containersFollow: ""     // ...the followed log text,
+    property string containersStats: ""      // ...the last CPU and memory reading shown
+    property string containersDetails: ""    // ...the last readable details shown
     property bool software: false            // Software (Modules/Software: GNOME Software, Warehouse, Gear Lever)
     property var softwareResults: []         // for the tests: the ids listed,
     property var softwareInstalled: []       // ...installed,
