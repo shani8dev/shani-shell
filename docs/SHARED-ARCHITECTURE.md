@@ -150,11 +150,23 @@ ShaniOS's own (the backends' name is still open):
 - **The shared backends repo: name not decided yet** (to be a plain,
   descriptive, distro-neutral name). Written `<backends>` below; packages
   `<backends>-<domain>`, command `<backends> <domain> <action>`.
-- **`chronoa`** - the assistant (today `shani-chronoa`; to be renamed).
+- **`chrono-shell`** (Chrono Shell) - the desktop shell (today `shani-shell`;
+  to be renamed), and **`chronoa`** - the Chrono Assistant (today
+  `shani-chronoa`; to be renamed): one distro-neutral "Chrono" family
+  (decided 2026-11-26). Nothing is released yet, so the renames carry **no
+  compatibility layer**: no old command (`shani` becomes `chrono`), no old
+  unit or package aliases, no data-folder migration - every caller (all in
+  our own repos) changes in the same step. The `dev.shani.*` identifiers do
+  not change (below).
 - **ShaniOS extras** (`shani-*`): everything specific to ShaniOS, kept out of
   the neutral projects (below).
-- D-Bus/Varlink names move to the neutral names with the interface change
-  (phase 3), with the old names kept as aliases for a release.
+- **Identifiers stay `dev.shani.*`** (app IDs, D-Bus and Varlink names,
+  GSettings-free config IDs): reverse-DNS IDs name the publisher, not the
+  product, and the project owns **shani.dev** (and **shanios.com**, the
+  distribution's own). Like `org.kde.*` and `org.gnome.*`, they stay the same on
+  every distribution and through the Chrono rename, so no dock pin, default app
+  or file association breaks. shani.dev is the projects' home (Chrono Shell,
+  Chronoa, the shared backends); shanios.com is ShaniOS's.
 
 ## Structure: one repo to maintain, many parts to run and package
 
@@ -195,8 +207,10 @@ the way systemd, PipeWire, NetworkManager and PackageKit are reused:
    defines a provider interface; the core ships neutral providers, and a
    distribution adds its own as a plugin (like PackageKit's backends or fwupd's
    plugins), upstream, not as a patch.
-3. **Distro specifics live in a separate extras package.** For ShaniOS: the
-   providers for `shani-deploy` and `gen-efi`, and the vendor config for
+3. **Distro specifics live in separate, distro-only packages.** For ShaniOS:
+   the providers for `shani-deploy` and `gen-efi` ship with `shani-deploy`
+   itself (ShaniOS-only - no other distribution will have these tools), and
+   the vendor config for
    <backends>, `chronoa` and the shell (names, branding, default apps, image
    paths) - the pattern of `fedora-release` or `ubuntu-settings`. The neutral
    projects never name ShaniOS in code.
