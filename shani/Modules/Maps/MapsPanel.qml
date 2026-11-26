@@ -443,7 +443,7 @@ AppWindow {
                     text: win.placeName !== "" ? win.placeName : (Location.available ? (Weather.zoneCity || Tr.t("Where you are")) : "")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(15) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -506,7 +506,7 @@ AppWindow {
                 text: win.searchError
                 color: Theme.danger
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 wrapMode: Text.WordWrap
             }
             Text {
@@ -515,7 +515,7 @@ AppWindow {
                 text: win.locationNote
                 color: Location.error !== "" ? Theme.danger : Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 wrapMode: Text.WordWrap
             }
             Text {
@@ -524,7 +524,7 @@ AppWindow {
                 text: win.placeDesc + (win.placeType ? " · " + win.placeType : "") + " (" + win.mapLat.toFixed(4) + ", " + win.mapLon.toFixed(4) + ")"
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 wrapMode: Text.WordWrap
             }
             // what OpenStreetMap knows of it: open when, a phone, a website (a click opens it)
@@ -537,7 +537,7 @@ AppWindow {
                     width: win.compact ? col.width : implicitWidth
                     wrapMode: Text.WordWrap
                     text: Tr.t("Open: %1", win.placeHours)
-                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
                 }
                 Button { visible: win.placePhone !== ""; flat: true; text: win.placePhone; onClicked: Quickshell.execDetached(["xdg-open", "tel:" + win.placePhone.replace(/\s/g, "")]) }
                 Button { visible: win.placeWebsite !== ""; flat: true; text: Tr.t("Website"); onClicked: Quickshell.execDetached(["xdg-open", win.placeWebsite]) }
@@ -713,7 +713,7 @@ AppWindow {
                     style: Text.Outline
                     styleColor: Theme.bg
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
 
@@ -746,7 +746,7 @@ AppWindow {
                         color: win.routeError !== "" ? Theme.danger : Theme.text
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.DemiBold
                     }
                     IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close directions"); onClicked: win.clearRoute() }
@@ -781,7 +781,7 @@ AppWindow {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 Button {

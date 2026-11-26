@@ -145,7 +145,7 @@ AppWindow {
                         color: Theme.text
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                     Text {
@@ -157,7 +157,7 @@ AppWindow {
                               + (Archive.modified ? "  ·  " + Tr.t("Changed this session") : "")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                 }
                 Button {
@@ -193,7 +193,7 @@ AppWindow {
                     text: Tr.t("Recent files")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Repeater {
                     model: Archive.recent
@@ -226,7 +226,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     font.weight: Font.DemiBold
                 }
                 Flow {
@@ -251,7 +251,7 @@ AppWindow {
                     Layout.fillWidth: true
                     visible: win.passVisible
                     spacing: Theme.px(8)
-                    Text { text: Tr.t("Password"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                    Text { text: Tr.t("Password"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                     TextField {
                         id: archPass
                         Layout.fillWidth: true
@@ -273,7 +273,7 @@ AppWindow {
                     text: win.passHint
                     color: Theme.danger
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 // a failed Compress leaves entries empty, so the result row at
                 // the bottom cannot show it — say it here, where Create lives
@@ -284,7 +284,7 @@ AppWindow {
                     color: Theme.danger
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -313,7 +313,7 @@ AppWindow {
                         color: Theme.dim
                         elide: Text.ElideMiddle
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Button { text: Tr.t("Show in Files"); onClicked: win.reveal(Archive.made) }
                     Button { text: Tr.t("Open it"); flat: true; onClicked: { const m = Archive.made; Archive.toCompress = []; Archive.open(m); } }
@@ -343,14 +343,14 @@ AppWindow {
                     color: Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Text {
                     text: Tr.t("Sort:")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Choice {
                     text: Tr.t("Name")
@@ -373,7 +373,7 @@ AppWindow {
                     text: Tr.t("Extract into")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Choice {
                     text: Tr.t("Rename")
@@ -409,7 +409,7 @@ AppWindow {
                     color: Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
             Flow {
@@ -428,7 +428,7 @@ AppWindow {
                     text: win.visibleEntries.length + " / " + Archive.entries.length + " " + Tr.t("items")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     font.features: { "tnum": 1 }
                 }
                 IconButton {
@@ -532,14 +532,14 @@ AppWindow {
                                 color: Theme.text
                                 elide: Text.ElideMiddle
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 Accessible.name: row.modelData.path
                             }
                             Text {
                                 text: row.modelData.dir ? "" : Archive.human(row.modelData.size)
                                 color: Theme.faint
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 font.features: { "tnum": 1 }
                             }
                             // just this one, beside the archive
@@ -631,7 +631,7 @@ AppWindow {
                     color: Archive.error !== "" ? Theme.danger : Theme.dim
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
                 Button {
                     visible: Archive.extractedTo !== ""
@@ -672,7 +672,7 @@ AppWindow {
                         : Archive.testing ? Tr.t("Working…") : Tr.t("Working…")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Rectangle {

@@ -97,7 +97,7 @@ AppWindow {
         color: Theme.alpha(Theme.surface1, 0.96)
         border.width: 1
         border.color: Theme.border
-        Text { id: noteText; anchors.centerIn: parent; text: win.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { id: noteText; anchors.centerIn: parent; text: win.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
     }
     Timer { interval: 4000; onTriggered: win.note = ""; running: noteToast.visible }
 
@@ -157,7 +157,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next (→)"); onClicked: Viewer.next() }
@@ -368,7 +368,7 @@ AppWindow {
                                     text: String(index + 1)
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -460,7 +460,7 @@ AppWindow {
                         + (Viewer.slideshow ? "  ·  " + Tr.t("slideshow") : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
                 IconButton { icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: Viewer.rotate() }
                 IconButton { icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: Viewer.rotateCCW() }
@@ -535,7 +535,7 @@ AppWindow {
                     text: Tr.t("← → to browse · wheel to zoom · R to turn · Esc closes")
                     color: Theme.faint
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                     elide: Text.ElideRight
                 }
             }

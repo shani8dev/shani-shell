@@ -91,7 +91,7 @@ AppWindow {
             width: parent.width - Theme.px(16)
             text: win.note
             elide: Text.ElideRight
-            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small")
         }
         Timer { interval: 4000; onTriggered: win.note = ""; running: parent.visible }
     }
@@ -168,7 +168,7 @@ AppWindow {
             spacing: Theme.px(8)
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: Tr.t("Merge / Split PDFs"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; text: Tr.t("Merge / Split PDFs"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
                 IconButton { icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close"); onClicked: win.mergeSplitShown = false }
             }
             SectionTitle { Layout.fillWidth: true; text: Tr.t("Merge") }
@@ -177,7 +177,7 @@ AppWindow {
                 text: win.mergePaths.length ? Tr.t("%1 PDFs chosen", win.mergePaths.length) : Tr.t("Choose two or more PDFs")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Flow {
                 Layout.fillWidth: true
@@ -202,7 +202,7 @@ AppWindow {
                 text: PdfViewer.name ? Tr.t("Split %1", PdfViewer.name) : Tr.t("Open a PDF to split it")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 elide: Text.ElideMiddle
             }
             TextField {
@@ -242,7 +242,7 @@ AppWindow {
             spacing: Theme.px(4)
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: Tr.t("Document properties"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(14) * Theme.fontScale; font.weight: Font.DemiBold }
+                Text { Layout.fillWidth: true; text: Tr.t("Document properties"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
                 IconButton { icon: "window-close"; size: Theme.px(26); tip: Tr.t("Close"); onClicked: PdfViewer.info = null }
             }
             Repeater {
@@ -250,8 +250,8 @@ AppWindow {
                 RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
-                    Text { Layout.preferredWidth: Theme.px(120); text: Tr.t(modelData[0]); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Text { Layout.preferredWidth: Theme.px(120); text: Tr.t(modelData[0]); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { Layout.fillWidth: true; text: modelData[1]; wrapMode: Text.WrapAnywhere; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                 }
             }
         }
@@ -282,7 +282,7 @@ AppWindow {
                     text: Tr.t("Print") + (PdfViewer.name !== "" ? "  ·  " + PdfViewer.name : "")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                     elide: Text.ElideMiddle
                 }
@@ -385,7 +385,7 @@ AppWindow {
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(14) * Theme.fontScale
+                    font.pixelSize: Theme.type("heading")
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextSpread() }
@@ -459,7 +459,7 @@ AppWindow {
                         color: Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     TextField {
                         id: jumpField
@@ -531,7 +531,7 @@ AppWindow {
                                                 text: String(index + 1)
                                                 color: Theme.dim
                                                 font.family: Theme.font
-                                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                                font.pixelSize: Theme.type("caption")
                                             }
                                             MouseArea {
                                                 anchors.fill: parent
@@ -573,7 +573,7 @@ AppWindow {
                                                 text: "  ".repeat(modelData.level) + modelData.title
                                                 color: Theme.text
                                                 font.family: Theme.font
-                                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                                font.pixelSize: Theme.type("caption")
                                                 elide: Text.ElideRight
                                                 MouseArea {
                                                     anchors.fill: parent
@@ -654,7 +654,7 @@ AppWindow {
                                 color: Theme.text
                                 selectionColor: Theme.accent
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 Accessible.role: Accessible.EditableText
                                 Accessible.name: Tr.t("Page text")
                             }
@@ -845,7 +845,7 @@ AppWindow {
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: Theme.px(4)
-                                    Text { text: Tr.t("Colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                                    Text { text: Tr.t("Colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                                     Repeater {
                                         model: [ { c: "#e5484d", n: Tr.t("Red") }, { c: "#f5d90a", n: Tr.t("Yellow") }, { c: "#46a758", n: Tr.t("Green") }, { c: "#0091ff", n: Tr.t("Blue") }, { c: "#ffffff", n: Tr.t("White") } ]
                                         Rectangle {
@@ -863,7 +863,7 @@ AppWindow {
                                             KeyFocus { onActivated: win.penColor = modelData.c }
                                         }
                                     }
-                                    Text { text: Tr.t("Size"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                                    Text { text: Tr.t("Size"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                                     Repeater {
                                         model: [0.005, 0.008, 0.014]
                                         Choice {
@@ -899,7 +899,7 @@ AppWindow {
                                 wrapMode: Text.WordWrap
                                 horizontalAlignment: Text.AlignHCenter
                                 text: Tr.t("This PDF is locked. Its password opens it.")
-                                color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale
+                                color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
                             }
                             TextField { id: pdfPass; Layout.fillWidth: true; secret: true; placeholderText: Tr.t("Password"); onAccepted: PdfViewer.unlockWith(text) }
                             Text {
@@ -907,7 +907,7 @@ AppWindow {
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignHCenter
                                 text: PdfViewer.passwordError
-                                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.type("body")
                             }
                             Button { Layout.alignment: Qt.AlignHCenter; kind: "primary"; text: Tr.t("Unlock"); enabled: pdfPass.text !== ""; onClicked: PdfViewer.unlockWith(pdfPass.text) }
                         }
@@ -923,7 +923,7 @@ AppWindow {
                                 text: PdfViewer.error !== "" ? PdfViewer.error : Tr.t("No pages yet")
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(13) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                             }
                             Button {
                                 Layout.alignment: Qt.AlignHCenter
@@ -1006,7 +1006,7 @@ AppWindow {
                                         text: modelData.label.replace(/_/g, " ")
                                         color: Theme.dim
                                         font.family: Theme.font
-                                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                                        font.pixelSize: Theme.type("small")
                                     }
                                     TextField {
                                         Layout.fillWidth: true
@@ -1062,7 +1062,7 @@ AppWindow {
                                 color: PdfViewer.formError !== "" ? Theme.danger : Theme.dim
                                 wrapMode: Text.Wrap
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             Button { visible: PdfViewer.formSaved !== ""; flat: true; text: Tr.t("Open the filled copy"); onClicked: PdfViewer.open(PdfViewer.formSaved) }
                         }
@@ -1091,7 +1091,7 @@ AppWindow {
                                     : win.extraPanel === "attachments" ? Tr.t("Attachments") : Tr.t("Annotations")
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                font.pixelSize: Theme.type("body")
                                 font.weight: Font.DemiBold
                             }
                             IconButton {
@@ -1140,7 +1140,7 @@ AppWindow {
                                                 text: modelData.title + "  ·  " + (modelData.page + 1)
                                                 color: Theme.text
                                                 font.family: Theme.font
-                                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                                font.pixelSize: Theme.type("small")
                                                 elide: Text.ElideRight
                                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.goTo(modelData.page) }
                                                 Accessible.role: Accessible.Button
@@ -1168,7 +1168,7 @@ AppWindow {
                                                 : modelData.kind === "goto" ? Tr.t("Page %1", modelData.target) : modelData.name
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                                            font.pixelSize: Theme.type("small")
                                             elide: Text.ElideMiddle
                                         }
                                         MouseArea { id: linkArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.followLink(modelData) }
@@ -1190,7 +1190,7 @@ AppWindow {
                                             text: modelData.name + "  ·  " + modelData.size
                                             color: Theme.text
                                             font.family: Theme.font
-                                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                                            font.pixelSize: Theme.type("small")
                                             elide: Text.ElideMiddle
                                         }
                                         Button { flat: true; text: Tr.t("Save"); onClicked: win.saveAttachment(modelData.index, modelData.name) }
@@ -1202,7 +1202,7 @@ AppWindow {
                                     text: PdfViewer.attachmentNote
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                    font.pixelSize: Theme.type("caption")
                                     wrapMode: Text.Wrap
                                 }
 
@@ -1226,7 +1226,7 @@ AppWindow {
                                                     + (modelData.content ? "\n" + modelData.content : "")
                                                 color: Theme.text
                                                 font.family: Theme.font
-                                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                                font.pixelSize: Theme.type("small")
                                                 wrapMode: Text.Wrap
                                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.goTo(modelData.page) }
                                                 Accessible.role: Accessible.Button
@@ -1242,7 +1242,7 @@ AppWindow {
                                     text: Tr.t("No links in this document")
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -1250,7 +1250,7 @@ AppWindow {
                                     text: Tr.t("No embedded files")
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -1258,7 +1258,7 @@ AppWindow {
                                     text: Tr.t("No annotations yet — mark up a page to add one")
                                     color: Theme.dim
                                     font.family: Theme.font
-                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                    font.pixelSize: Theme.type("small")
                                 }
                             }
                         }
@@ -1286,7 +1286,7 @@ AppWindow {
                         + (PdfViewer.fitMode === "width" ? "  ·  " + Tr.t("fit width") : PdfViewer.fitMode === "actual" ? "  ·  " + Tr.t("actual size") : "")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     elide: Text.ElideRight
                 }
             }

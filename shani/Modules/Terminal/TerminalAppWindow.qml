@@ -312,7 +312,7 @@ AppWindow {
             text: Tr.t("↑/↓ select · Enter connect · / find · Ctrl+F find · Ctrl+1…4 tab · Ctrl+Tab next tab · Ctrl+T tunnels · F2 test · Delete remove (twice) · Esc close")
             color: Theme.dim
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
             Accessible.name: text
         }
 
@@ -325,7 +325,7 @@ AppWindow {
             text: Tr.t("A connection is open in another window — press Esc again to close")
             color: Theme.danger
             font.family: Theme.font
-            font.pixelSize: Theme.px(11) * Theme.fontScale
+            font.pixelSize: Theme.type("small")
         }
 
         // session tabs: the shells we launched, with reconnect and close
@@ -379,8 +379,8 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
-                            Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                            Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                         }
                         Button { text: Tr.t("Connect"); kind: "primary"; onClicked: { win.noteLaunch(modelData); TerminalApp.connect(modelData) } }
                         Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
@@ -393,8 +393,8 @@ AppWindow {
             }
 
             // text
-            Text { visible: TerminalApp.error !== ""; text: TerminalApp.error; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; Accessible.name: text }
-            Text { visible: win.hostNote !== ""; text: win.hostNote; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; Accessible.name: text }
+            Text { visible: TerminalApp.error !== ""; text: TerminalApp.error; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("small"); Accessible.name: text }
+            Text { visible: win.hostNote !== ""; text: win.hostNote; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); Accessible.name: text }
             Text {
                 visible: win.pasteError !== ""
                 Layout.fillWidth: true
@@ -402,7 +402,7 @@ AppWindow {
                 text: win.pasteError
                 color: Theme.danger
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
             Text {
@@ -412,7 +412,7 @@ AppWindow {
                 text: Tr.t("Press Delete again to remove this host")
                 color: Theme.danger
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
 
@@ -436,7 +436,7 @@ AppWindow {
                 text: Tr.t("%1 reachable · %2 unreachable · %3 not tested", win.healthCount("ok"), win.healthCount("failed"), win.healthCount("untested"))
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 Accessible.name: text
             }
 
@@ -497,7 +497,7 @@ AppWindow {
                 visible: win.splitView && !win.compact
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { text: Tr.t("Right pane:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Text { text: Tr.t("Right pane:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Repeater {
                     model: win.hostGroups()
                     Choice {
@@ -551,8 +551,8 @@ AppWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 0
-                                Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
-                                Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : "") + (modelData.key ? " · " + Tr.t("key") : "") + (modelData.group ? " · " + modelData.group : "") + (modelData.lastConnected ? " · " + Tr.t("Used %1", win.relativeTime(modelData.lastConnected)) : "") + (modelData.status === "failed" ? " · " + Tr.t("Unreachable") : modelData.status === "ok" ? " · " + Tr.t("Reachable") : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { text: modelData.user + "@" + modelData.host + (modelData.port !== 22 ? ":" + modelData.port : "") + (modelData.key ? " · " + Tr.t("key") : "") + (modelData.group ? " · " + modelData.group : "") + (modelData.lastConnected ? " · " + Tr.t("Used %1", win.relativeTime(modelData.lastConnected)) : "") + (modelData.status === "failed" ? " · " + Tr.t("Unreachable") : modelData.status === "ok" ? " · " + Tr.t("Reachable") : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                             Button { text: Tr.t("Connect"); kind: "outline"; onClicked: { win.noteLaunch(modelData); TerminalApp.connect(modelData) } }
                             Button { text: Tr.t("Test"); enabled: !TerminalApp.busy && modelData.type !== "serial"; onClicked: TerminalApp.testConnection(modelData, (ok, msg) => win.hostNote = (ok === "ok" ? Tr.t("Connected to %1", modelData.name) : Tr.t("Test failed: %1", msg))) }
@@ -610,8 +610,8 @@ AppWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 0
-                                Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
-                                Text { text: modelData.user + "@" + modelData.host + (modelData.group ? " · " + modelData.group : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { text: modelData.user + "@" + modelData.host + (modelData.group ? " · " + modelData.group : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                             Button { text: Tr.t("Connect"); kind: "outline"; onClicked: { win.noteLaunch(modelData); TerminalApp.connect(modelData) } }
                         }
@@ -781,8 +781,8 @@ AppWindow {
                         anchors { fill: parent; margins: Theme.px(8) }
                         spacing: Theme.px(8)
                         Icon { name: "text-x-generic"; size: Theme.px(18); color: Theme.dim }
-                        Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
-                        Text { text: modelData.fingerprint.split(" ").pop() || ""; color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.px(9) * Theme.fontScale; elide: Text.ElideRight; Layout.preferredWidth: 100; horizontalAlignment: Text.AlignRight }
+                        Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: modelData.fingerprint.split(" ").pop() || ""; color: Theme.faint; font.family: Theme.mono; font.pixelSize: Theme.type("caption"); elide: Text.ElideRight; Layout.preferredWidth: 100; horizontalAlignment: Text.AlignRight }
                         IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy path"); onClicked: Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", modelData.path]) }
                     }
                     MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
@@ -810,7 +810,7 @@ AppWindow {
                 text: Tr.t("Forward a port through an SSH server: local (-L), remote (-R), or a dynamic SOCKS proxy (-D). It runs in the background until stopped.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Flow {
                 Layout.fillWidth: true
@@ -864,7 +864,7 @@ AppWindow {
                 text: Tr.t("Port %1 is already forwarded by an active %2 tunnel — stop it first", tunLocal.text.trim(), win.tunnelMode === "D" ? "SOCKS" : win.tunnelMode)
                 color: Theme.danger
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
             ListView {
@@ -878,8 +878,8 @@ AppWindow {
                     width: tunnelList.width
                     spacing: Theme.px(8)
                     Icon { name: "network-workgroup"; size: Theme.px(18); color: Theme.dim }
-                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                    Text { text: modelData.mode + " · " + modelData.localPort; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.label; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                    Text { text: modelData.mode + " · " + modelData.localPort; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Button { text: Tr.t("Stop"); flat: true; onClicked: TerminalApp.stopTunnel(modelData.id) }
                 }
                 EmptyState {
@@ -896,7 +896,7 @@ AppWindow {
                 text: Tr.t("Tunnels run in the background; Shani cannot verify a dropped tunnel is still alive.")
                 color: Theme.faint
                 font.family: Theme.font
-                font.pixelSize: Theme.px(10) * Theme.fontScale
+                font.pixelSize: Theme.type("caption")
                 Accessible.name: text
             }
         }
@@ -914,7 +914,7 @@ AppWindow {
                 text: Tr.t("Saved SSH commands — copy one into a terminal when you need it.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -943,7 +943,7 @@ AppWindow {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
-                Text { text: Tr.t("Run on:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                Text { text: Tr.t("Run on:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                 Repeater {
                     model: TerminalApp.hosts
                     Choice {
@@ -967,8 +967,8 @@ AppWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
-                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.command; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.px(10) * Theme.fontScale }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.command; color: Theme.dim; font.family: Theme.mono; font.pixelSize: Theme.type("caption") }
                     }
                     IconButton {
                         icon: "go-next"; size: Theme.px(26)
@@ -995,7 +995,7 @@ AppWindow {
                 text: win.snippetNote
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 Accessible.name: text
             }
         }

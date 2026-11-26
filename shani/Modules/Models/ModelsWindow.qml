@@ -59,9 +59,9 @@ AppWindow {
             RowLayout {
                 anchors { fill: parent; margins: Theme.px(10) }
                 spacing: Theme.px(16)
-                Text { text: Tr.t("RAM: %1 GB free / %2 GB", Models.ramAvailable.toFixed(1), Models.ramTotal.toFixed(1)); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                Text { visible: Models.vram > 0; text: Tr.t("VRAM: %1 GB", Models.vram.toFixed(1)); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                Text { visible: Models.gpuName !== ""; text: Models.gpuName; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { text: Tr.t("RAM: %1 GB free / %2 GB", Models.ramAvailable.toFixed(1), Models.ramTotal.toFixed(1)); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                Text { visible: Models.vram > 0; text: Tr.t("VRAM: %1 GB", Models.vram.toFixed(1)); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                Text { visible: Models.gpuName !== ""; text: Models.gpuName; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); elide: Text.ElideRight; Layout.fillWidth: true }
             }
         }
 
@@ -77,7 +77,7 @@ AppWindow {
                 text: Tr.t("Installed models")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             ListView {
@@ -101,15 +101,15 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
-                            Text { text: modelData.size + " · " + modelData.source; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { text: modelData.size + " · " + modelData.source; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         }
                         Text {
                             visible: !Models.fitsInRam(modelData.size)
                             text: Tr.t("Too large for RAM")
                             color: Theme.red
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Button {
                             text: Settings.data.chronoaPreferredModel === modelData.name ? Tr.t("Using") : Tr.t("Use for Chronoa")
@@ -141,7 +141,7 @@ AppWindow {
                 text: Tr.t("Available downloads")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             ListView {
@@ -164,15 +164,15 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
-                            Text { text: modelData.size + " · " + modelData.description; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { text: modelData.size + " · " + modelData.description; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small"); elide: Text.ElideRight; Layout.fillWidth: true }
                         }
                         Text {
                             visible: !Models.fitsInRam(modelData.size)
                             text: Tr.t("May not fit")
                             color: Theme.amber
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            font.pixelSize: Theme.type("caption")
                         }
                         Button {
                             text: Tr.t("Download")
@@ -199,7 +199,7 @@ AppWindow {
                 text: Tr.t("Connect cloud AI providers. API keys are stored encrypted in Passwords — they never leave your computer except to the provider you choose.")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
 
             InfoBanner {
@@ -227,10 +227,10 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
-                            Text { text: modelData.endpoint || "—"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                            Text { text: modelData.endpoint || "—"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         }
-                        Text { text: Tr.t("Connected"); color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text { text: Tr.t("Connected"); color: Theme.accent; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                         Button { text: Tr.t("Disconnect"); kind: "outline"; flat: true; onClicked: AIProviders.disconnect(modelData.id) }
                     }
                 }
@@ -241,7 +241,7 @@ AppWindow {
                 text: Tr.t("Available providers")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 font.weight: Font.DemiBold
             }
             Repeater {
@@ -259,9 +259,9 @@ AppWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.DemiBold }
-                            Text { text: modelData.endpoint || Tr.t("Enter your endpoint URL"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                            Text { visible: modelData.docs !== ""; text: modelData.docs; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(9) * Theme.fontScale }
+                            Text { text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                            Text { text: modelData.endpoint || Tr.t("Enter your endpoint URL"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                            Text { visible: modelData.docs !== ""; text: modelData.docs; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                         }
                         Button { text: Tr.t("Connect…"); kind: "primary"; onClicked: { win.connectId = modelData.id; win.connectKey = ""; win.connectEndpoint = modelData.endpoint || ""; } }
                     }
@@ -302,7 +302,7 @@ AppWindow {
                     text: Tr.t("Your API key is stored encrypted in Passwords. It is only sent to the provider you choose.")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                     wrapMode: Text.Wrap
                 }
                 TextField {
@@ -319,7 +319,7 @@ AppWindow {
                     text: Tr.t("Enter an API key to enable Connect")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     wrapMode: Text.Wrap
                 }
                 TextField {
@@ -357,7 +357,7 @@ AppWindow {
                 text: Tr.t("Remove the downloaded model from this computer? You will need to download it again to use it.")
                 color: Theme.text
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
         }
     }

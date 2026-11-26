@@ -780,7 +780,7 @@ AppWindow {
                                 text: modelData.name + " (" + (modelData.members ? modelData.members.length : 0) + ")"
                                 color: win.activeAlbum === modelData.name ? "white" : Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                font.pixelSize: Theme.type("caption")
                                 elide: Text.ElideMiddle
                             }
                             MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { win.activeAlbum = win.activeAlbum === modelData.name ? "" : modelData.name; } }
@@ -829,7 +829,7 @@ AppWindow {
                     text: win.scanning ? Tr.t("Looking…") : win.shown.length + " " + Tr.t("photos")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: win.scan() }
                 IconButton { size: Theme.px(30); icon: "folder-pictures"; tip: Tr.t("Open Pictures in Files"); onClicked: Files.show(win.pictures) }
@@ -854,7 +854,7 @@ AppWindow {
                     text: Tr.t("Sort")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Repeater {
@@ -902,7 +902,7 @@ AppWindow {
                     text: Tr.t("Timeline")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Choice {
@@ -937,7 +937,7 @@ AppWindow {
                     text: Tr.t("[ / ] to step")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                    font.pixelSize: Theme.type("caption")
                 }
             }
             // ---- People: name chips + assign a name to the selection -------------
@@ -949,7 +949,7 @@ AppWindow {
                     text: Tr.t("People")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Choice {
@@ -1004,7 +1004,7 @@ AppWindow {
                     text: win.placesReady ? Tr.t("%1 places", win.places.length) : Tr.t("Reading locations…")
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Choice {
@@ -1052,7 +1052,7 @@ AppWindow {
                     text: Tr.t("Tags")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Choice {
@@ -1091,7 +1091,7 @@ AppWindow {
                 text: Tr.t("No keyword tags yet — select photos and add one (use > to nest)")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             Flow {
                 Layout.fillWidth: true
@@ -1101,7 +1101,7 @@ AppWindow {
                     text: Tr.t("Smart albums")
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                     Accessible.name: text
                 }
                 Choice {
@@ -1139,7 +1139,7 @@ AppWindow {
                 text: Tr.t("No smart albums yet — set a filter and save it")
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
             }
             // batch operations on the multi-selection (Ctrl/Shift-click tiles)
             Flow {
@@ -1150,7 +1150,7 @@ AppWindow {
                     text: Tr.t("%1 selected", win.selected.length)
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                    font.pixelSize: Theme.type("body")
                 }
                 TextField {
                     id: albumField
@@ -1198,7 +1198,7 @@ AppWindow {
                 text: win.scanError !== "" ? win.scanError : win.importNote
                 color: Theme.dim
                 font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.pixelSize: Theme.type("small")
                 elide: Text.ElideRight
             }
 
@@ -1227,7 +1227,7 @@ AppWindow {
                     text: win.tileSize + " px"
                     color: Theme.dim
                     font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    font.pixelSize: Theme.type("small")
                 }
             }
             RowLayout {
@@ -1315,7 +1315,7 @@ AppWindow {
                         text: monthCol.modelData.key + "  ·  " + monthCol.modelData.items.length
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                        font.pixelSize: Theme.type("heading")
                         font.weight: Font.DemiBold
                     }
                     Grid {
@@ -1356,14 +1356,14 @@ AppWindow {
                                         visible: win.favoriteOf(tile.modelData.path)
                                         text: "★"
                                         color: "#ffd54a"
-                                        font.pixelSize: Theme.px(16) * Theme.fontScale
+                                        font.pixelSize: Theme.type("heading")
                                     }
                                     Text {
                                         anchors { top: parent.top; right: parent.right; margins: Theme.px(4) }
                                         visible: win.duplicatePaths.indexOf(tile.modelData.path) >= 0
                                         text: "⧉"
                                         color: Theme.accent
-                                        font.pixelSize: Theme.px(14) * Theme.fontScale
+                                        font.pixelSize: Theme.type("heading")
                                     }
                                 }
                                 Accessible.role: Accessible.Graphic
@@ -1525,7 +1525,7 @@ AppWindow {
                         text: win.detailPath ? win.detailPath.split("/").pop() : Tr.t("No photo selected")
                         color: Theme.text
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.pixelSize: Theme.type("body")
                         font.weight: Font.DemiBold
                         elide: Text.ElideMiddle
                     }
@@ -1538,14 +1538,14 @@ AppWindow {
                                 text: modelData.label
                                 color: Theme.dim
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                             }
                             Text {
                                 Layout.fillWidth: true
                                 text: modelData.value
                                 color: Theme.text
                                 font.family: Theme.font
-                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                                font.pixelSize: Theme.type("small")
                                 elide: Text.ElideRight
                             }
                         }
@@ -1555,7 +1555,7 @@ AppWindow {
                         text: Tr.t("Rating")
                         color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                        font.pixelSize: Theme.type("small")
                     }
                     Flow {
                         spacing: 0
@@ -1582,7 +1582,7 @@ AppWindow {
                             text: win.favoriteOf(win.detailPath) ? Tr.t("Favorite") : Tr.t("Not favorite")
                             color: Theme.dim
                             font.family: Theme.font
-                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            font.pixelSize: Theme.type("small")
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -1649,14 +1649,14 @@ AppWindow {
                 text: (win.slideIndex + 1) + " / " + win.shown.length + "  ·  " + Tr.t("←/→ navigate") + "  ·  " + Tr.t("Space pause") + "  ·  " + Tr.t("Esc close")
                 color: "#cccccc"
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
             }
             Text {
                 anchors { bottom: parent.bottom; right: parent.right; margins: Theme.px(16) }
                 text: win.slidePath.split("/").pop()
                 color: "#cccccc"
                 font.family: Theme.font
-                font.pixelSize: Theme.px(12) * Theme.fontScale
+                font.pixelSize: Theme.type("body")
                 elide: Text.ElideMiddle
             }
             RowLayout {
