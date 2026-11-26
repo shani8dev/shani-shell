@@ -78,3 +78,19 @@ def test_retrograde_follows_the_sky():
     assert not a.is_retrograde("Sun", _jd("2020-12-01 12:00"))
     chart = a.compute_chart("2020-10-25T12:00:00Z", 28.6139, 77.2090)
     assert next(p for p in chart["planets"] if p["name"] == "Mercury")["retrograde"] is True
+
+
+def test_the_window_reads_the_birth_time_as_local_time():
+    """The window appended "Z" to the typed time: an Indian birth at 10:00
+    was computed as 10:00 UTC (15:30 IST) - the rising sign about three signs
+    off. It builds a local Date and sends its UTC instant, and says which
+    zone it read the time in."""
+    qml = (ROOT / "shani/Modules/Kundali/KundaliPanel.qml").read_text()
+    fn = qml[qml.index("function birthInstant()"):]
+    fn = fn[:fn.index("\n    }")]
+    assert 'new Date(win.dateInput + "T" + (win.timeInput || "12:00") + ":00")' in fn
+    assert "toISOString()" in fn
+    calc = qml[qml.index("function calculate()"):]
+    calc = calc[:calc.index("\n    }")]
+    assert calc.count("win.birthInstant()") == 2 and ':00Z"' not in calc
+    assert 'Tr.t("Local time, %1", win.zoneLabel)' in qml

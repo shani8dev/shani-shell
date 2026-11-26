@@ -94,6 +94,20 @@ AppWindow {
         win.calculate();
     }
 
+    // The birth time as the person typed it is a clock time where they are -
+    // this computer's time zone, with its summer time - never UTC: read as
+    // UTC, an Indian birth time moved the chart 5.5 hours (the rising sign
+    // by about three signs). The bridge gets the instant in UTC.
+    function birthInstant() {
+        const d = new Date(win.dateInput + "T" + (win.timeInput || "12:00") + ":00");
+        return isNaN(d.getTime()) ? win.dateInput + "T" + win.timeInput + ":00Z" : d.toISOString();
+    }
+    readonly property string zoneLabel: {
+        const m = -new Date(win.dateInput + "T" + (win.timeInput || "12:00") + ":00").getTimezoneOffset();
+        if (isNaN(m)) return "";
+        const h = Math.floor(Math.abs(m) / 60), mi = Math.abs(m) % 60;
+        return "UTC" + (m < 0 ? "−" : "+") + String(h).padStart(2, "0") + ":" + String(mi).padStart(2, "0");
+    }
     function calculate() {
         win.loading = true;
         win.clearResult();
@@ -101,11 +115,11 @@ AppWindow {
             kundaliProc.command = ["python3", win.scriptPath, "panchang", win.dateInput, win.latInput, win.lonInput];
         else if (win.section !== "chart")
             kundaliProc.command = ["python3", win.scriptPath, "details", win.section,
-                                   win.dateInput + "T" + win.timeInput + ":00Z",
+                                   win.birthInstant(),
                                    win.latInput, win.lonInput];
         else
             kundaliProc.command = ["python3", win.scriptPath, "kundali",
-                                   win.dateInput + "T" + win.timeInput + ":00Z",
+                                   win.birthInstant(),
                                    win.latInput, win.lonInput];
         kundaliProc.running = true;
     }
@@ -177,6 +191,15 @@ AppWindow {
                     text: win.timeInput
                     onTextChanged: { win.timeInput = text; win.clearResult() }
                     onAccepted: win.calculate()
+                }
+                // the zone the time is read in (this computer's), so a birth
+                // elsewhere is not silently taken as local
+                Text {
+                    visible: win.mode === "kundali" && win.zoneLabel !== ""
+                    text: Tr.t("Local time, %1", win.zoneLabel)
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.type("small")
                 }
             }
 
