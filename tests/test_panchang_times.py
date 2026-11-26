@@ -1,11 +1,13 @@
-"""Panchang times: rise/set, limbs, muhurtas, varjyam, choghadiya, months.
+"""Panchang times: rise/set, limbs, muhurtas, varjyam, amrit, choghadiya, months.
 
 Published references: sunrise-sunset.org (Pune 2026-10-19, Delhi equinox,
 Stockholm solstice) and phasesmoon.com (Pune moonrise 2026-10-19). The
 prompt's "about 06:37 / 18:17 / 13:01" for Pune are rough; the published
 figures for those coordinates are 06:29 / 18:09 / 13:40 IST. Varjyam is
 checked against Drik Panchang's Mumbai day pages for 2026-10-19 and
-2026-10-30 and against the Muhurta Chintamani visha-ghati table.
+2026-10-30 and against the Muhurta Chintamani visha-ghati table. Amrit
+Kaal uses AstroChaganti's AMRITA_GHATIS table and its Hyderabad worked
+example, plus Drik Panchang's Mumbai day pages.
 """
 
 from __future__ import annotations
@@ -224,6 +226,40 @@ def test_varjyam_is_empty_without_sunrise():
     assert result["varjyam"] == []
 
 
+def test_amrit_kaal_matches_astrochaganti_worked_example():
+    """Hyderabad 2026-06-11: Revati and Ashwini windows from its docs."""
+    result = compute("2026-06-11", 17.3850, 78.4867, "Asia/Kolkata")
+    published = (("05:59", "07:30"), ("23:49", "01:17+1"))
+    windows = result["amrit_kaal"]
+    assert len(windows) == 2
+    for window, (start, end) in zip(windows, published):
+        assert window["name"] == "Amrit Kaal"
+        assert window["auspicious"] is True
+        assert delta(window["start"], start) <= 4
+        assert delta(window["end"], end) <= 4
+
+
+@pytest.mark.parametrize(
+    "d,published",
+    [
+        ("2026-10-19", ("08:29", "10:16")),
+        ("2026-10-30", ("21:58", "23:27")),
+    ],
+    ids=["mumbai-2026-10-19", "mumbai-2026-10-30"],
+)
+def test_amrit_kaal_matches_drik_panchang(d, published):
+    result = compute(d, 19.07283, 72.88261, "Asia/Kolkata")
+    assert any(
+        delta(w["start"], published[0]) <= 4 and delta(w["end"], published[1]) <= 4
+        for w in result["amrit_kaal"]
+    )
+
+
+def test_amrit_kaal_is_empty_without_sunrise():
+    result = compute("2026-06-21", 69.6492, 18.9553, "Europe/Oslo")
+    assert result["amrit_kaal"] == []
+
+
 @pytest.mark.parametrize(
     "offset", range(7), ids=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 )
@@ -307,6 +343,7 @@ def test_cli_prints_one_json_object_and_errors_without_traceback():
         "limbs",
         "muhurtas",
         "varjyam",
+        "amrit_kaal",
         "choghadiya",
         "horas",
         "month",
