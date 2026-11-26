@@ -206,7 +206,7 @@ AppWindow {
                                 Accessible.name: modelData
                                     + ((Irc.unread[modelData] || 0) > 0 ? ", " + Tr.t("%1 unread", Irc.unread[modelData]) : "")
                                     + ((Irc.mentions[modelData] || 0) > 0 ? ", " + Tr.t("%1 mentions", Irc.mentions[modelData]) : "")
-                                onClicked: { Irc.markRead(modelData); channelsPane.open = false; }
+                                onClicked: Irc.markRead(modelData)
                             }
                             EmptyState {
                                 objectName: "irc-channels-empty"

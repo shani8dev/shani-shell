@@ -26,7 +26,7 @@ def test_appgrid_is_a_soft_wrap_grid():
     cols = APPGRID.split("columns: ", 1)[1].split("\n", 1)[0]
     assert "Math.floor(grid.width / Theme.px(" in cols
     assert "Math.max(1, " in cols  # at least one column
-    assert "narrow ? 1" in cols  # narrow = one column at a time
+    assert "narrow ? 4" in cols  # a phone's app drawer is four icons across
     assert "columnSpacing" in APPGRID and "rowSpacing" in APPGRID
 
 

@@ -1793,7 +1793,8 @@ AppWindow {
                 Rectangle {
                     id: preview
                     Layout.preferredWidth: Math.min(Theme.px(230), win.width * 0.3)
-                    Layout.maximumWidth: Theme.px(230)   // keep the empty state readable
+                    Layout.minimumWidth: Theme.px(190)   // keep the empty state readable
+                    Layout.maximumWidth: Theme.px(230)
                     Layout.fillHeight: true
                     visible: Files.showPreview && !Files.splitActive && !win.compact
                     radius: Theme.radiusSmall

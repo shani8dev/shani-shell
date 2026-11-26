@@ -59,7 +59,6 @@ AppWindow {
         CloudSync.add(id, remote, local, win.directionChoice, win.conflictChoice, bandwidthField.text.trim(),
                       parseInt(intervalField.text.trim(), 10) || 0);
         idField.text = ""; remoteField.text = ""; localPicker.value = "";
-        formPane.open = false;   // the new job is on the list: leave the form drawer
     }
     Component.onCompleted: CloudSync.loadRemotes()
 
@@ -229,7 +228,7 @@ AppWindow {
                             kind: "primary"
                             text: Tr.t("Add job")
                             enabled: CloudSync.available
-                            onClicked: win.add()
+                            onClicked: { win.add(); formPane.open = false; }   // the new job is on the list: leave the drawer
                         }
                     }
                     }

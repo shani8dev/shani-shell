@@ -110,9 +110,10 @@ def direct_children(body):
     return out
 
 
-WIDTH = re.compile(
-    r"(?:Layout\.)?(?:preferredWidth|minimumWidth|width)\s*:\s*Theme\.px\((\d+)\)"
-)
+# A minimumWidth is a floor, not a fixed column: a pane hidden on compact may
+# keep a desktop floor without taking a phone's width. Preferred and plain
+# widths are the ones that pin a side pane beside a filling pane.
+WIDTH = re.compile(r"(?:Layout\.)?(?:preferredWidth|width)\s*:\s*Theme\.px\((\d+)\)")
 
 
 def fixed_side_columns(text):
