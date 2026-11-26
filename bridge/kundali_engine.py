@@ -98,6 +98,7 @@ ACTION_GROUPS = (
     ("sky", ("grahana", "eclipse", "meanmotion")),
     ("traditions", ("bazi", "ziwei", "chinese", "temperament")),
     ("matching", ("ashtakoota",)),
+    ("doshas", ("mangaldosha",)),
 )
 ACTIONS = tuple(a for _, group in ACTION_GROUPS for a in group)
 
@@ -295,7 +296,17 @@ def new_data(action: str, arguments: dict, astronomy) -> dict:
     if action == "ashtakoota":
         other = _second_chart(arguments, astronomy) or chart
         return astronomy.ashtakoota_guna_milan(chart, other)
+    if action == "mangaldosha":
+        return astronomy.mangal_dosha(chart)
     return {"error": f"Unknown calculation: {action}"}
+
+
+def _answer_new(action: str, arguments: dict, astronomy) -> str:
+    """One new calculation as readable text, with one honest error path."""
+    try:
+        return render_new(action, new_data(action, arguments, astronomy))
+    except Exception as exc:  # noqa: BLE001
+        return f"Calculation failed: {exc}"
 
 
 def render_new(action: str, data: dict) -> str:
@@ -312,7 +323,18 @@ def render_new(action: str, data: dict) -> str:
             f"  Total: {data['total']}/36 - {data['verdict']}",
             f"  Nadi dosha: {data['nadi_dosha']['present']}",
             f"  Bhakoot dosha: {data['bhakoot_dosha']['present']}",
+            f"  Mangal dosha both: {data['mangal_dosha']['both']}",
         ]
+        return "\n".join(lines)
+    if action == "mangaldosha":
+        lines = [
+            "Mangal (Kuja) Dosha:",
+            f"  Present: {data['present']} (effective: {data['effective']})",
+            f"  Mars in {data['mars_sign']}, house {data['mars_house_from_ascendant']} from ascendant",
+        ]
+        for name, view in data["houses"].items():
+            lines.append(f"  From {name}: house {view['house']} ({view['afflicted']})")
+        lines.append(f"  Cancellations: {', '.join(data['cancellations']) or 'none'}")
         return "\n".join(lines)
     return "Calculation failed: no renderer"
 
@@ -348,6 +370,9 @@ def compute(arguments: dict, astronomy) -> str:
             )
         except Exception as exc:  # noqa: BLE001
             return f"Calculation failed: {exc}"
+
+    if action == "mangaldosha":
+        return _answer_new("mangaldosha", arguments, astronomy)
 
     # ---- every calculation the engine offers (restored from 98075ba) ----
 

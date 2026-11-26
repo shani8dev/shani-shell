@@ -4403,6 +4403,7 @@ def ashtakoota_guna_milan(chart_a: dict, chart_b: dict) -> dict:
             "cancelled": bhakoot_cancel,
             "distance": dist,
         },
+        "mangal_dosha": mangal_match(chart_a, chart_b),
     }
 
 
@@ -4414,3 +4415,108 @@ def score_lord_friend(first: str, second: str) -> bool:
         GRAHA_FRIEND_MATRIX[_FRIEND_ORDER.index(first)][_FRIEND_ORDER.index(second)]
         >= 4
     )
+
+
+# ---------------------------------------------------------------------------
+# Mangal (Kuja) dosha
+# ---------------------------------------------------------------------------
+
+#: Mars in these houses from the ascendant, the Moon or Venus causes dosha.
+MANGAL_HOUSES = (1, 2, 4, 7, 8, 12)
+
+
+def _house_from(origin: float, target: float) -> int:
+    """Whole-sign house number of ``target`` counted from ``origin``."""
+    return int(((target - origin) % 360) // 30) + 1
+
+
+def _aspect_sign_diff(from_lon: float, to_lon: float) -> int:
+    """Sign distance from a planet to another; 0/4/6/8 mean conjunct or the
+    classical 5th, 7th and 9th aspects."""
+    return (int(to_lon / 30) - int(from_lon / 30)) % 12
+
+
+def _mars_strong_sign(sign_index: int) -> bool:
+    """Mars is strong in Aries, Scorpio (own) or Capricorn (exalted)."""
+    return sign_index in (0, 7, 9)
+
+
+def mangal_dosha(chart: dict) -> dict:
+    """Kuja dosha from the ascendant, the Moon and Venus, with the standard
+    cancellations. Houses are whole-sign houses counted from each origin.
+    """
+    planets = {p.get("name"): p for p in chart.get("planets", [])}
+    if "Mars" not in planets:
+        raise ValueError("chart has no Mars")
+
+    def lon(name):
+        p = planets.get(name)
+        return float(p.get("sidereal_longitude") or 0) % 360 if p else None
+
+    mars = lon("Mars")
+    moon = lon("Moon")
+    venus = lon("Venus")
+    asc = float(chart.get("ascendant") or 0) % 360
+    views = {}
+    for name, origin in (("ascendant", asc), ("moon", moon), ("venus", venus)):
+        if origin is None:
+            continue
+        house = _house_from(origin, mars)
+        views[name] = {
+            "origin": round(origin, 4),
+            "house": house,
+            "afflicted": house in MANGAL_HOUSES,
+        }
+
+    present = any(v["afflicted"] for v in views.values())
+    mars_sign = int(mars / 30) % 12
+    cancellations = []
+    if _mars_strong_sign(mars_sign):
+        cancellations.append("mars_own_or_exalted")
+    jupiter = lon("Jupiter")
+    if jupiter is not None and _aspect_sign_diff(jupiter, mars) in (0, 4, 6, 8):
+        cancellations.append("jupiter_aspect_or_conjunct")
+    if venus is not None and _aspect_sign_diff(venus, mars) in (0, 4, 6, 8):
+        cancellations.append("venus_aspect_or_conjunct")
+    sun = lon("Sun")
+    if sun is not None and int(sun / 30) % 12 == 4 and mars_sign == 4:
+        cancellations.append("mars_with_sun_in_leo")
+    return {
+        "present": present,
+        "cancellations": cancellations,
+        "cancelled": bool(cancellations),
+        "effective": bool(present and not cancellations),
+        "mars_sign": SIGNS[mars_sign],
+        "mars_house_from_ascendant": _house_from(asc, mars),
+        "houses": views,
+    }
+
+
+def _mangal_or_empty(chart: dict) -> dict:
+    """Charts built for guna matching alone may not carry Mars."""
+    if any(p.get("name") == "Mars" for p in chart.get("planets", [])):
+        return mangal_dosha(chart)
+    return {
+        "present": False,
+        "cancellations": [],
+        "cancelled": False,
+        "effective": False,
+        "mars_sign": None,
+        "mars_house_from_ascendant": None,
+        "houses": {},
+    }
+
+
+def mangal_match(chart_a: dict, chart_b: dict) -> dict:
+    """Matching check: when both partners have effective Kuja dosha it cancels."""
+    first, second = _mangal_or_empty(chart_a), _mangal_or_empty(chart_b)
+    both = first["effective"] and second["effective"]
+    return {
+        "partner_a": first,
+        "partner_b": second,
+        "both": bool(both),
+        "cancelled": bool(both),
+        "dosha_for_matching": bool(
+            (first["effective"] or second["effective"]) and not both
+        ),
+    }
