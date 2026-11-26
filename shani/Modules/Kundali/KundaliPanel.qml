@@ -661,6 +661,24 @@ AppWindow {
                        (win.day || {}).shaka_year ? Tr.t("Shaka %1", win.day.shaka_year) : "",
                        (win.day || {}).ritu ? Tr.t("%1 ritu", win.day.ritu) : "",
                        (win.day || {}).ayana || ""].filter(s => s).join(" · ")
+            ListRow {
+                Layout.fillWidth: true
+                visible: win.times !== null
+                interactive: false
+                icon: "x-office-calendar"
+                title: Tr.t("Amanta %1 · Purnimanta %2", ((win.times || {}).month || {}).amanta || "",
+                            ((win.times || {}).month || {}).purnimanta || "")
+                subtitle: Tr.t("%1 paksha", ((win.times || {}).month || {}).paksha || "")
+            }
+            ListRow {
+                Layout.fillWidth: true
+                visible: win.times !== null
+                interactive: false
+                icon: "weather-clear-night"
+                title: Tr.t("Moon %1% lit · %2", Math.round(((win.times || {}).illumination || {}).percent || 0),
+                            ((win.times || {}).illumination || {}).phase || "")
+                subtitle: ((win.times || {}).illumination || {}).waxing ? Tr.t("Waxing") : Tr.t("Waning")
+            }
         }
         Card {
             Layout.fillWidth: true
