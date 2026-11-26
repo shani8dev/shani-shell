@@ -58,7 +58,7 @@ grim /work/out/shots/18-greeter.png 2>/dev/null || true
 wtype nope -k Return; sleep 1.2
 grim /work/out/shots/19-greeter-failed.png 2>/dev/null || true
 # the user field keeps "shani"; only the password is typed again
-wtype shani -k Return
+wtype shani-test -k Return    # the password dev/fake-greetd.py accepts
 i=0
 while kill -0 "$NIRI_PID" 2>/dev/null && [ "$i" -lt 40 ]; do sleep 0.25; i=$((i + 1)); done
 
@@ -132,7 +132,7 @@ export SHANI_GREETER_USER=shani SHANI_GREETER_FACE=1 SHANI_GREETER_FINGERPRINT=0
 got=$(FAKE_FACE=match greet face "")
 [ "$got" = "create_session start_session" ] && result greeter-face PASS || result greeter-face FAIL "got: $got"
 # not recognised: the password, as ever
-got=$(FAKE_FACE=miss greet face-miss shani)
+got=$(FAKE_FACE=miss greet face-miss shani-test)
 [ "$got" = "create_session post_auth_message_response start_session" ] && result greeter-face-then-password PASS || result greeter-face-then-password FAIL "got: $got"
 export SHANI_GREETER_FACE=0
 
