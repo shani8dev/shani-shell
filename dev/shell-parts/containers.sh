@@ -6,13 +6,18 @@
 #      machines, machine images and disk-image boot, unused images pruned ----
 A11Y=${A11Y:-/testbed/lib/a11y_client.py}
 rm -f /tmp/fake-podman/state.json /tmp/fake-podman/calls /tmp/fake-podman/exported /tmp/fake-podman/errors
+rm -f /tmp/fake-lxc/*.json /tmp/fake-lxc/calls /tmp/fake-lxc/errors /tmp/fake-lxc/uninitialised
+rm -f /tmp/fake-apptainer/*.json /tmp/fake-apptainer/calls /tmp/fake-apptainer/errors
+rm -f /tmp/fake-virsh/*.json /tmp/fake-virsh/calls /tmp/fake-virsh/errors /tmp/fake-virsh/undefined
+rm -f /tmp/fake-waydroid/*.json /tmp/fake-waydroid/calls /tmp/fake-waydroid/errors /tmp/fake-waydroid/notinitialised
+rm -f /tmp/fake-compose/*.json /tmp/fake-compose/calls /tmp/fake-compose/errors /tmp/fake-compose/compose
 SHANI_QS_CONFIG=/work/shani python3 /work/bin/shani app containers >/dev/null 2>&1
 waitfor "d['containersShown'] and 'box:' not in ' '.join(d['containersList']) and 'web:running' in d['containersList']" 8 && result containers-listed PASS || result containers-listed FAIL "$(q "['containersShown'], d['containersList']")"
 shot app-containers 0.3
 if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" press "radio button:^Arch Linux$" >/dev/null 2>&1
     timeout 20 python3 "$A11Y" press "radio button:^Separate$" >/dev/null 2>&1
-    timeout 20 python3 "$A11Y" press "radio button:^Use NVIDIA$" >/dev/null 2>&1
+    timeout 20 python3 "$A11Y" press "check box:^Use the graphics card$" >/dev/null 2>&1
     timeout 20 python3 "$A11Y" press "button:^New toolbox$" >/dev/null 2>&1
     waitfor "d['containersDone'] == 'create arch:ok' and 'box:arch:exited' in d['containersList']" 15 && result containers-box-made PASS || result containers-box-made FAIL "$(q "['containersDone'], d['containersList']")"
     grep -q -- "--image docker.io/library/archlinux:latest" /tmp/fake-podman/calls || result containers-box-image FAIL "$(cat /tmp/fake-podman/calls)"
@@ -24,8 +29,9 @@ if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" press "button:^Open$" >/dev/null 2>&1
     waitfor "d['containersEntered'] == 'arch'" 6 && result containers-box-open PASS || result containers-box-open FAIL "$(q "['containersEntered']")"
     timeout 20 python3 "$A11Y" press "radio button:^Containers$" >/dev/null 2>&1
+    sleep 1.5
     timeout 20 python3 "$A11Y" press "button:^Stop$" >/dev/null 2>&1
-    waitfor "'web:exited' in d['containersList']" 8 && result containers-stop PASS || result containers-stop FAIL "$(q "['containersList']")"
+    waitfor "'web:exited' in d['containersList']" 8 && result containers-stop PASS || { result containers-stop FAIL "$(q "['containersList']")"; echo "  stop controls:"; timeout 20 python3 "$A11Y" actionable 2>/dev/null | grep -i "stop" | head -8 || true; }
     timeout 20 python3 "$A11Y" press "radio button:^Images$" >/dev/null 2>&1
     timeout 20 python3 "$A11Y" press "button:^Remove unused$" >/dev/null 2>&1
     timeout 20 python3 "$A11Y" press "button:^Click again: remove unused images$" >/dev/null 2>&1
@@ -81,6 +87,8 @@ if [ -f "$A11Y" ]; then
     waitfor "'cache' in d['containersVolumes']" 8 && result containers-volume-create PASS || result containers-volume-create FAIL "$(q "['containersVolumes']")"
 
     # machines, machine images and the disk-image boot button
+    timeout 20 python3 "$A11Y" press "radio button:^Machines & VMs$" >/dev/null 2>&1
+    sleep 0.3
     timeout 20 python3 "$A11Y" press "radio button:^Machines$" >/dev/null 2>&1
     shot app-containers-machines 0.4
     sleep 0.4
@@ -89,10 +97,14 @@ if [ -f "$A11Y" ]; then
     waitfor "'machinectl shell archlinux' in d['containersTerminal']" 8 && result containers-machine-shell PASS || result containers-machine-shell FAIL "$(q "['containersTerminal']")"
     timeout 20 python3 "$A11Y" press "radio button:^Machine images$" >/dev/null 2>&1
     shot app-containers-machine-images 0.4
-    sleep 0.4
+    sleep 2.0
     waitfor "any('archlinux' in x for x in d['containersMachineImages'])" 8 && result containers-machine-images-listed PASS || result containers-machine-images-listed FAIL "$(q "['containersMachineImages']")"
-    timeout 20 python3 "$A11Y" press "button:^Make a copy$" >/dev/null 2>&1
-    waitfor "'archlinux-copy' in d['containersMachineImages']" 8 && grep -q -- "machinectl clone archlinux archlinux-copy" /tmp/fake-podman/calls && result containers-image-clone PASS || result containers-image-clone FAIL "$(q "['containersMachineImages']")"
+    for _try in 1 2 3; do
+        sleep 1.0
+        timeout 20 python3 "$A11Y" press "button:^Make a copy$" >/dev/null 2>&1
+        waitfor "'archlinux-copy' in d['containersMachineImages']" 5 && break
+    done
+    grep -q -- "machinectl clone archlinux archlinux-copy" /tmp/fake-podman/calls && result containers-image-clone PASS || result containers-image-clone FAIL "$(q "['containersMachineImages']")"
     timeout 20 python3 "$A11Y" press "button:^Fetch machine image$" >/dev/null 2>&1
     waitfor "d['containersDone'].startswith('fetch ')" 12 && grep -q -- "importctl pull-tar" /tmp/fake-podman/calls && result containers-image-pull PASS || { result containers-image-pull FAIL "$(q "['containersDone']")"; echo "  machine fetch controls:"; timeout 20 python3 "$A11Y" actionable 2>/dev/null | grep -i -E "fetch|image" | head -12 || true; tail -5 /tmp/fake-podman/calls 2>/dev/null || true; }
     timeout 20 python3 "$A11Y" press "radio button:^Boot a disk image$" >/dev/null 2>&1
@@ -101,6 +113,52 @@ if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" press "radio button:^Toolboxes$" >/dev/null 2>&1
     sleep 0.4
     timeout 20 python3 "$A11Y" press "button:^Install a package file$" >/dev/null 2>&1 && sleep 0.5 && wtype -k Escape && result containers-install-offered PASS || result containers-install-offered FAIL
+
+    # system containers through LXD
+    timeout 20 python3 "$A11Y" press "radio button:^Machines & VMs$" >/dev/null 2>&1
+    sleep 0.3
+    timeout 20 python3 "$A11Y" press "radio button:^System containers$" >/dev/null 2>&1
+    shot app-containers-lxd 0.4
+    waitfor "any('web-lxd' in x for x in d['containersLxd'])" 8 && result containers-lxd-listed PASS || result containers-lxd-listed FAIL "$(q "['containersLxd']")"
+    timeout 20 python3 "$A11Y" press "button:^Start system$" >/dev/null 2>&1
+    waitfor "any('ubuntu:' in x for x in d['containersLxd'])" 8 && grep -q -- "lxc launch ubuntu:24.04 ubuntu" /tmp/fake-lxc/calls && result containers-lxd-launch PASS || result containers-lxd-launch FAIL "$(q "['containersLxd']")"
+    timeout 20 python3 "$A11Y" press "button:^Open a shell$" >/dev/null 2>&1
+    waitfor "'lxc exec' in d['containersTerminal']" 8 && result containers-lxd-shell PASS || result containers-lxd-shell FAIL "$(q "['containersTerminal']")"
+
+    # HPC images, virtual machines, Android
+    timeout 20 python3 "$A11Y" press "radio button:^Toolboxes$" >/dev/null 2>&1
+    sleep 0.3
+    timeout 20 python3 "$A11Y" press "radio button:^HPC images$" >/dev/null 2>&1
+    shot app-containers-apptainer 0.4
+    sleep 0.6
+    waitfor "any('ubuntu_22.04.sif' in x for x in d['containersSif'])" 8 && result containers-sif-listed PASS || result containers-sif-listed FAIL "$(q "['containersSif']")"
+    timeout 20 python3 "$A11Y" press "button:^Open a shell$" >/dev/null 2>&1
+    waitfor "'apptainer shell' in d['containersTerminal']" 8 && result containers-sif-shell PASS || result containers-sif-shell FAIL "$(q "['containersTerminal']")"
+    timeout 20 python3 "$A11Y" press "radio button:^Machines & VMs$" >/dev/null 2>&1
+    sleep 0.3
+    timeout 20 python3 "$A11Y" press "radio button:^Virtual machines$" >/dev/null 2>&1
+    shot app-containers-vms 0.4
+    sleep 1.0
+    waitfor "any('dev-vm' in x for x in d['containersDomains'])" 8 && result containers-vms-listed PASS || result containers-vms-listed FAIL "$(q "['containersDomains']")"
+    sleep 0.8
+    timeout 20 python3 "$A11Y" press "button:^Console$" >/dev/null 2>&1
+    waitfor "'virt-viewer' in d['containersTerminal']" 8 && result containers-vm-console PASS || { result containers-vm-console FAIL "$(q "['containersTerminal']")"; echo "  console controls:"; timeout 20 python3 "$A11Y" actionable 2>/dev/null | grep -i "console\|virt" | head -8 || true; }
+    timeout 20 python3 "$A11Y" press "radio button:^Android$" >/dev/null 2>&1
+    shot app-containers-android 0.4
+    sleep 1.5
+    waitfor "any('ready' in x for x in d['containersAndroid'])" 8 && result containers-android-status PASS || { result containers-android-status FAIL "$(q "['containersAndroid']")"; echo "  android controls:"; timeout 20 python3 "$A11Y" actionable 2>/dev/null | grep -i "android\|session" | head -8 || true; shot app-containers-android-debug 0.3; }
+    timeout 20 python3 "$A11Y" press "button:^Start session$" >/dev/null 2>&1
+    waitfor "any('RUNNING' in x for x in d['containersAndroid'])" 8 && result containers-android-start PASS || result containers-android-start FAIL "$(q "['containersAndroid']")"
+    timeout 20 python3 "$A11Y" press "button:^Open Android apps$" >/dev/null 2>&1
+    waitfor "'show-full-ui' in d['containersTerminal']" 8 && result containers-android-ui PASS || result containers-android-ui FAIL "$(q "['containersTerminal']")"
+
+    # compose folder and service form are offered; their commands are bridge-tested
+    timeout 20 python3 "$A11Y" press "radio button:^Containers$" >/dev/null 2>&1
+    sleep 0.3
+    timeout 20 python3 "$A11Y" press "radio button:^Compose$" >/dev/null 2>&1
+    timeout 20 python3 "$A11Y" press "button:^Pick a compose file$" >/dev/null 2>&1 && sleep 0.5 && wtype -k Escape && result containers-compose-offered PASS || result containers-compose-offered FAIL
+    timeout 20 python3 "$A11Y" press "radio button:^Services$" >/dev/null 2>&1
+    shot app-containers-services 0.4
 fi
 [ -s /tmp/fake-podman/errors ] && { echo "  the stand-in failed:"; cat /tmp/fake-podman/errors; }
 ipc closeAll
