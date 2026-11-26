@@ -13,7 +13,6 @@ import json
 import math
 import sys
 from datetime import date as date_type, datetime, time, timedelta, timezone
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:  # script (sys.path[0] = bridge/) and import (tests) both work
@@ -25,20 +24,6 @@ except ImportError:  # pragma: no cover - imported as bridge.panchang_times
 SUN_H0 = -0.833  # upper limb at the horizon, with standard refraction
 MOON_H0 = 0.125  # Moon's centre: refraction - parallax + semi-diameter
 
-_SIGNS = [
-    "Aries",
-    "Taurus",
-    "Gemini",
-    "Cancer",
-    "Leo",
-    "Virgo",
-    "Libra",
-    "Scorpio",
-    "Sagittarius",
-    "Capricorn",
-    "Aquarius",
-    "Pisces",
-]
 _MONTHS = [
     "Chaitra",
     "Vaisakha",
@@ -387,6 +372,10 @@ def _interval(
     }
 
 
+# Amrit Kaal and Varjyam are left out: their per-nakshatra ghati offsets
+# differ between printed panchangs, so there is no correct table to use here.
+
+
 def _muhurtas(
     sunrise: datetime | None, sunset: datetime | None, zone: ZoneInfo, day: date_type
 ) -> list[dict]:
@@ -495,10 +484,110 @@ def _horas(
     return result
 
 
+def _tithi_crossings(
+    start_jd: float, end_jd: float, multiple: float, offset: float = 0.0
+) -> list[float]:
+    """Julian days where the Moon-Sun angle passes an offset + n * multiple."""
+    target = (
+        math.floor((_limb_angle(start_jd, "tithi") - offset) / multiple) + 1
+    ) * multiple + offset
+    found: list[float] = []
+    left = start_jd
+    unwrapped = _limb_angle(left, "tithi")
+    while left < end_jd:
+        right = min(left + 0.25, end_jd)
+        angle_left = _limb_angle(left, "tithi")
+        step = (_limb_angle(right, "tithi") - angle_left) % 360.0
+        if step > 180:  # a backwards blip cannot be a real month
+            step -= 360.0
+
+        def progress(jd: float) -> float:
+            return unwrapped + (_limb_angle(jd, "tithi") - angle_left) % 360.0
+
+        if unwrapped + step >= target:
+            low, high = left, right
+            for _ in range(40):
+                middle = (low + high) / 2
+                if progress(middle) < target:
+                    low = middle
+                else:
+                    high = middle
+            found.append((low + high) / 2)
+            target += multiple
+        unwrapped += step
+        left = right
+    return found
+
+
+def _new_moons(start: datetime, end: datetime) -> list[float]:
+    return _tithi_crossings(_jd(start), _jd(end), 360.0)
+
+
+def _amanta_index(jd: float) -> int:
+    """A lunar month takes the sign the Sun enters during it (new moon + 1)."""
+    return (int(_sidereal_pair(jd)[0] / 30.0) + 1) % 12
+
+
+def _month(day: date_type, zone: ZoneInfo, zone_name: str) -> dict:
+    midnight, next_midnight = _local_window(day, zone)
+    moons = _new_moons(midnight - timedelta(days=40), next_midnight)
+    if not moons:
+        return {"error": "No new moon near this date"}
+    last_new_moon = moons[-1]
+    amanta = _amanta_index(last_new_moon)
+    noon = kundali_engine.utc_instant(f"{day.isoformat()}T12:00@{zone_name}")
+    tithi_angle = _limb_angle(astronomy.julian_day(noon), "tithi")
+    shukla = tithi_angle < 180
+    purnimanta = (amanta + (0 if shukla else 1)) % 12
+
+    # The Vikram/Shaka year turns at the Chaitra new moon of this year.
+    march = datetime(day.year, 3, 1, tzinfo=timezone.utc)
+    june = datetime(day.year, 6, 1, tzinfo=timezone.utc)
+    chaitra = next(
+        (jd for jd in _new_moons(march, june) if _amanta_index(jd) == 0), None
+    )
+    before_chaitra = chaitra is not None and midnight < _utc_from_jd(chaitra)
+    samvat = day.year - 1 if before_chaitra else day.year
+    return {
+        "amanta": _MONTHS[amanta],
+        "purnimanta": _MONTHS[purnimanta],
+        "paksha": "Shukla" if shukla else "Krishna",
+        "vikram": samvat + 57,
+        "shaka": samvat - 78,
+    }
+
+
+_PHASE_NAMES = (
+    (11.25, "New Moon"),
+    (78.75, "Waxing Crescent"),
+    (101.25, "First Quarter"),
+    (168.75, "Waxing Gibbous"),
+    (191.25, "Full Moon"),
+    (258.75, "Waning Gibbous"),
+    (281.25, "Last Quarter"),
+    (348.75, "Waning Crescent"),
+    (360.0, "New Moon"),
+)
+
+
+def _illumination(day: date_type, zone_name: str) -> dict:
+    noon = astronomy.julian_day(
+        kundali_engine.utc_instant(f"{day.isoformat()}T12:00@{zone_name}")
+    )
+    status = astronomy.lunar_status(noon)
+    angle = float(status["phase_angle"])
+    phase = next(name for limit, name in _PHASE_NAMES if angle < limit)
+    return {
+        "percent": float(status["illumination"]),
+        "phase": phase,
+        "waxing": bool(status["waxing"]),
+    }
+
+
 def _rise_set(
     day: date_type, lat: float, lon: float, zone: ZoneInfo
-) -> tuple[dict, dict, dict, dict]:
-    """Return the sun and moon blocks plus the sunrise/sunset instants."""
+) -> tuple[dict, dict, datetime | None, datetime | None, datetime | None]:
+    """Return the sun and moon blocks plus the rise/set instants (UTC)."""
     start, end = _local_window(day, zone)
     sun = _crossings(start, end, lat, lon, SUN_H0, "sun")
     moon = _crossings(start, end, lat, lon, MOON_H0, "moon")
@@ -507,15 +596,12 @@ def _rise_set(
     moonrise = next((t for t, kind in moon if kind == "rise"), None)
     moonset = next((t for t, kind in moon if kind == "set"), None)
 
+    night_end = _following_sunrise(sunset, lat, lon) if sunset else None
     sun_block = {
         "sunrise": _clock(sunrise, zone, day) if sunrise else None,
         "sunset": _clock(sunset, zone, day) if sunset else None,
         "day_length": _minutes(sunrise, sunset) if sunrise and sunset else None,
-        "night_length": _minutes(
-            sunset, sunset + timedelta(days=1) - (sunset - sunrise)
-        )
-        if sunrise and sunset
-        else None,
+        "night_length": _minutes(sunset, night_end) if sunset and night_end else None,
     }
     if not sunrise or not sunset:
         sun_block["note"] = "Sun does not both rise and set on this date"
@@ -529,7 +615,7 @@ def _rise_set(
         moon_block["note"] = (
             moon_block.get("note", "") + ";" if moon_block.get("note") else ""
         ) + "Moon does not set on this date"
-    return sun_block, moon_block, sunrise, sunset
+    return sun_block, moon_block, sunrise, sunset, night_end
 
 
 def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
@@ -537,10 +623,9 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
     zone = ZoneInfo(zone_name)
     if not -90 <= lat <= 90 or not -180 <= lon <= 180:
         raise ValueError("latitude must be -90..90 and longitude -180..180")
-    sun, moon, sunrise, sunset = _rise_set(day, lat, lon, zone)
+    sun, moon, sunrise, sunset, night_end = _rise_set(day, lat, lon, zone)
     weekday = (day.weekday() + 1) % 7  # Sunday = 0
-    if sunrise and sunset:
-        night_end = _following_sunrise(sunset, lat, lon)
+    if sunrise and sunset and night_end:
         choghadiya = _choghadiya(sunrise, sunset, night_end, zone, day, weekday)
         horas = _horas(sunrise, sunset, night_end, zone, day, weekday)
     else:
@@ -554,8 +639,8 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
         "muhurtas": _muhurtas(sunrise, sunset, zone, day),
         "choghadiya": choghadiya,
         "horas": horas,
-        "month": {},
-        "illumination": {},
+        "month": _month(day, zone, zone_name),
+        "illumination": _illumination(day, zone_name),
     }
 
 

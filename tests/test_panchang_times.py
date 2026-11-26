@@ -19,7 +19,6 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "bridge"))
-import astronomy as a  # noqa: E402
 import panchang_times as pt  # noqa: E402
 
 
@@ -206,6 +205,41 @@ def test_choghadiya_and_hora_sequences_follow_the_weekday_orders(offset):
     assert horas[12]["start"] == result["sun"]["sunset"]
     assert horas[0]["lord"] == first_lord
     assert all(horas[i]["end"] == horas[i + 1]["start"] for i in range(23))
+
+
+@pytest.mark.parametrize(
+    "d,expected",
+    [
+        ("2026-10-19", ("Ashwina", "Ashwina", 2083, 1948)),  # Shukla: both agree
+        ("2026-10-30", ("Ashwina", "Kartika", 2083, 1948)),  # Krishna: Purnimanta + 1
+        ("2026-03-10", ("Phalguna", "Chaitra", 2082, 1947)),  # before Chaitra new moon
+        ("2026-04-01", ("Chaitra", "Chaitra", 2083, 1948)),
+    ],
+    ids=["shukla", "krishna", "before-chaitra", "after-chaitra"],
+)
+def test_month_and_year_match_a_printed_panchang(d, expected):
+    month = compute(d, 18.5204, 73.8567, "Asia/Kolkata")["month"]
+    assert (
+        month["amanta"],
+        month["purnimanta"],
+        month["vikram"],
+        month["shaka"],
+    ) == expected
+
+
+@pytest.mark.parametrize(
+    "d,phase",
+    [
+        ("2026-03-19", "New Moon"),
+        ("2026-04-01", "Full Moon"),
+        ("2026-10-19", "First Quarter"),
+        ("2026-10-30", "Waning Gibbous"),
+    ],
+)
+def test_illumination_phase_and_percent(d, phase):
+    result = compute(d, 18.5204, 73.8567, "Asia/Kolkata")["illumination"]
+    assert 0 <= result["percent"] <= 100
+    assert result["phase"] == phase
 
 
 def test_cli_prints_one_json_object_and_errors_without_traceback():
