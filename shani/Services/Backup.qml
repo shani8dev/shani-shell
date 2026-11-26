@@ -231,6 +231,8 @@ Singleton {
         }
     }
 
+    // note: what to say once the step has worked (the panel shows its own
+    // progress line while it runs)
     function runOp(op, args, note) {
         if (action.running || backupJob.running) return false;
         root.pendingOp = op;
@@ -249,17 +251,17 @@ Singleton {
         root.restorePick = snapshot;
         root.restoreTarget = target;
         root.lastTarget = target;
-        return runOp("restore", [target, snapshot], Tr.t("Restoring into %1…", target));
+        return runOp("restore", [target, snapshot], Tr.t("Restored into %1", target));
     }
 
     function snapshotCreate(source, destination, readonly) {
         return runOp("snapshot-create", readonly ? [source, destination, "--readonly"] : [source, destination],
-                     Tr.t("Taking a snapshot…"));
+                     Tr.t("Snapshot taken"));
     }
 
-    function snapshotDelete(path) { return runOp("snapshot-delete", [path], Tr.t("Removing the snapshot…")); }
-    function homeSnapshotNow() { return runOp("home-snapshot", [], Tr.t("Taking a snapshot of your home…")); }
-    function homeRemove(name) { return runOp("home-remove", [name], Tr.t("Removing the snapshot…")); }
+    function snapshotDelete(path) { return runOp("snapshot-delete", [path], Tr.t("Snapshot removed")); }
+    function homeSnapshotNow() { return runOp("home-snapshot", [], Tr.t("Snapshot of your home taken")); }
+    function homeRemove(name) { return runOp("home-remove", [name], Tr.t("Snapshot removed")); }
     function setSchedule(on) { return runOp("schedule", [on ? "on" : "off"], on ? Tr.t("Daily backup turned on") : Tr.t("Daily backup turned off")); }
     function setScheduleTime(hhmm) { return runOp("schedule", ["at", hhmm], Tr.t("Daily backup at %1", hhmm)); }
 

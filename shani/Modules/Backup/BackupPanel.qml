@@ -94,7 +94,8 @@ AppWindow {
                 note: Backup.running ? Tr.t("Backing up your home…")
                     : Backup.busyOp === "restore" ? Tr.t("Restoring your backup…")
                     : Backup.copyBusy ? Tr.t("Restoring the file…")
-                    : Backup.busyOp === "home-snapshot" ? Tr.t("Taking a snapshot…")
+                    : Backup.busyOp === "home-snapshot" || Backup.busyOp === "snapshot-create" ? Tr.t("Taking a snapshot…")
+                    : Backup.busyOp === "snapshot-delete" || Backup.busyOp === "home-remove" ? Tr.t("Removing the snapshot…")
                     : Tr.t("Working…")
             }
             InfoBanner {
@@ -313,7 +314,8 @@ AppWindow {
                         ListView {
                             visible: Backup.driveSetUp && Backup.backups.length > 0
                             Layout.fillWidth: true
-                            height: Theme.px(150)
+                            // in a layout `height` is ignored: size to the rows, scroll past a few
+                            Layout.preferredHeight: Math.min(contentHeight, Theme.px(260))
                             clip: true
                             reuseItems: true
                             model: Backup.backups
@@ -431,7 +433,7 @@ AppWindow {
                                     TextField {
                                         Layout.fillWidth: true
                                         label: Tr.t("Another time (optional)")
-                                        placeholder: "07:45"
+                                        placeholder: Tr.t("Another time, as 07:45")
                                         text: win.customTime
                                         onTextChanged: win.customTime = text
                                         onAccepted: { if (win.customTime) Backup.setScheduleTime(win.customTime); }
@@ -446,7 +448,7 @@ AppWindow {
                                 InfoBanner {
                                     Layout.fillWidth: true
                                     tone: "info"
-                                    text: Tr.t("Before each update a snapshot of your home is taken automatically. Shani Backup has no switch to turn that off.")
+                                    text: Tr.t("Before each update, a snapshot of your home is taken automatically.")
                                 }
                             }
                         }

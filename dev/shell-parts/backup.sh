@@ -108,7 +108,7 @@ shot backup-restore-done 0.4
 # ---- snapshots: create, delete, the daily switch and its time -----------------
 ipc backupTab snapshots
 waitfor "d['backupTab'] == 'snapshots'" 5 || result backup-snapshots-tab FAIL "$(q "['backupTab']")"
-seen "Before each update a snapshot" \
+seen "Before each update, a snapshot" \
     && result backup-preupdate-explained PASS || result backup-preupdate-explained FAIL "no plain-words note"
 click "check box:^Back up every day$"
 waitfor "not d['backupScheduleOn']" 6 && result backup-schedule-off PASS || result backup-schedule-off FAIL "$(q "['backupScheduleOn']")"
