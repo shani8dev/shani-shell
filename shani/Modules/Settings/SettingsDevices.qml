@@ -30,7 +30,28 @@ ColumnLayout {
         Devices.refresh();
         Devices.ir("list", "");        // the refresh does not ask the remote for its codes
         Link.refresh();
-        Phone.search();
+        AndroidTools.refresh();
+        AndroidTools.run("find", []);
+    }
+
+    // A phone the native tools can reach: cable or Wi-Fi debugging, with adb's
+    // battery line split into a number and its charging flag.
+    readonly property var androidRows: {
+        const s = AndroidTools.result.state || ({});
+        if (!s.paired) return [];
+        const match = /^(\d+)%/.exec(String(s.battery || ""));
+        return [{
+            id: String(s.serial || s.name || "phone"),
+            name: String(s.name || ""),
+            paired: true,
+            reachable: true,
+            battery: match ? parseInt(match[1], 10) : -1,
+            charging: /charging/i.test(String(s.battery || ""))
+        }];
+    }
+    readonly property var nearbyPhones: {
+        const r = AndroidTools.result.find || ({});
+        return Array.isArray(r.devices) ? r.devices : [];
     }
 
     function deviceSubtitle(d) {
@@ -72,10 +93,10 @@ ColumnLayout {
         }
         Button {
             text: Tr.t("Look again")
-            onClicked: { Link.refresh(); Phone.search(); }
+            onClicked: { Link.refresh(); Devices.refresh(); AndroidTools.refresh(); AndroidTools.run("find", []); }
         }
         EmptyState {
-            visible: Link.devices.length === 0 && Phone.devices.length === 0
+            visible: Link.devices.length === 0 && page.androidRows.length === 0
             icon: "phone"
             title: Tr.t("No devices found")
             subtitle: Tr.t("Wake the device, make sure it is on the same network, then choose Look again.")
@@ -92,12 +113,12 @@ ColumnLayout {
             }
         }
         Repeater {
-            model: Phone.devices
+            model: page.androidRows
             ListRow {
                 id: phoneRow
                 required property var modelData
-                // the same device can be in both lists; show it once
-                visible: !Link.devices.some(d => d.id === phoneRow.modelData.id)
+                // the same phone can be in both lists; show it once
+                visible: !Link.devices.some(d => d.name === phoneRow.modelData.name && phoneRow.modelData.name !== "")
                 Layout.fillWidth: true
                 interactive: false
                 icon: "phone"
@@ -110,28 +131,70 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Connect a device")
-        hint: Tr.t("Pick what you want to connect, then give its address if you know it.")
+        hint: Tr.t("Pair one below with Bluetooth or Wi-Fi debugging")
         Picks {
             label: Tr.t("What to connect")
             options: [
-                { label: Tr.t("Phone by cable"), value: "android" },
+                { label: Tr.t("Phone by cable"), value: "cable" },
                 { label: Tr.t("Bluetooth device"), value: "bluetooth" },
-                { label: Tr.t("Phone nearby"), value: "phone" }
+                { label: Tr.t("Wi-Fi debugging"), value: "wifi" }
             ]
             current: page.connectKind
             onPicked: v => page.connectKind = v
         }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            visible: page.connectKind === "cable"
+            text: Tr.t("Connect an Android phone by USB or Wi-Fi debugging (Developer options), then allow this computer on the phone.")
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
+        // phones the native tools found; typing a custom address stays possible
+        Flow {
+            Layout.fillWidth: true
+            visible: page.connectKind === "bluetooth"
+            spacing: Theme.px(6)
+            Repeater {
+                model: page.nearbyPhones.filter(d => d.kind === "bluetooth")
+                Choice {
+                    required property var modelData
+                    text: modelData.name || modelData.address
+                    selected: addressField.text === modelData.address
+                    onClicked: addressField.text = modelData.address
+                }
+            }
+        }
         TextField {
             id: addressField
             Layout.fillWidth: true
+            visible: page.connectKind !== "cable"
             label: Tr.t("Address")
-            placeholder: Tr.t("Optional — address or code, if needed")
+            placeholder: Tr.t("Address or code, if needed")
+        }
+        TextField {
+            id: codeField
+            Layout.fillWidth: true
+            visible: page.connectKind === "wifi"
+            label: Tr.t("Pairing code")
+            placeholder: Tr.t("The six-digit code shown on the phone")
         }
         Button {
-            text: Tr.t("Connect")
+            text: page.connectKind === "cable" ? Tr.t("Look again") : Tr.t("Connect")
             kind: "primary"
-            enabled: !Devices.busy
-            onClicked: Devices.connect(page.connectKind, addressField.text.trim())
+            enabled: !Devices.busy && (page.connectKind === "cable" || (addressField.text.trim() !== ""
+                && (page.connectKind !== "wifi" || codeField.text.trim() !== "")))
+            onClicked: {
+                const addr = addressField.text.trim();
+                if (page.connectKind === "cable") {
+                    Devices.refresh(); Link.refresh(); AndroidTools.refresh();
+                } else if (page.connectKind === "wifi") {
+                    Devices.connect("android", addr, codeField.text.trim());
+                } else {
+                    Devices.connect("bluetooth", addr);
+                }
+            }
         }
     }
 
@@ -308,5 +371,11 @@ ColumnLayout {
         visible: Devices.note !== ""
         tone: "info"
         text: Devices.note
+    }
+    InfoBanner {
+        Layout.fillWidth: true
+        visible: AndroidTools.note !== ""
+        tone: "info"
+        text: AndroidTools.note
     }
 }
