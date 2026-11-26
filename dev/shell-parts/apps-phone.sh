@@ -50,11 +50,13 @@ ffmpeg -loglevel error -y -f lavfi -i "testsrc=size=640x360:rate=25" -f lavfi -i
     -t 3 -c:v libx264 -preset ultrafast -pix_fmt yuv420p "$A/clip.mp4" 2>/dev/null || true
 
 for spec in $(python3 - <<'PY'
-import importlib.machinery, importlib.util
+import importlib.machinery, importlib.util, os
 loader = importlib.machinery.SourceFileLoader("shani_cli", "/work/bin/shani")
 m = importlib.util.module_from_spec(importlib.util.spec_from_loader("shani_cli", loader)); loader.exec_module(m)
 for name, s in m.APPS.items():
-    if s[8] is not None:          # an action (a screenshot, a colour pick) waits for the pointer: not a window
+    # SHANI_APPS="text-editor,files": only these (a quick re-run of the ones that failed)
+    only = os.environ.get("SHANI_APPS", "").replace(",", " ").split()
+    if s[8] is not None and (not only or name in only):   # an action (a screenshot, a colour pick) waits for the pointer: not a window
         print(f"{name}:{s[8]}")
 PY
 ); do

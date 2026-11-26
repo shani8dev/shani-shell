@@ -802,15 +802,17 @@ AppWindow {
 
     function retryOpen() { if (TextDocs.lastPath !== "") TextDocs.open(TextDocs.lastPath); }
     function dismissError() { TextDocs.error = ""; }
-    // a field in a Flow takes the space the buttons beside it leave; on a
-    // phone the buttons wrap below instead of squeezing the field away
-    function spareWidth(row, field) {
-        let used = 0;
+    // the width a row of buttons needs on one line, from the buttons' own sizes:
+    // beside the field on a computer; on a phone the row takes its own line and wraps.
+    // (Working a field's width out from its own Flow's width fed back into itself:
+    // qs grew to 12 GB opening the editor on a phone.)
+    function oneLine(row) {
+        let w = 0, n = 0;
         for (let i = 0; i < row.children.length; i++) {
             const c = row.children[i];
-            if (c !== field && c.visible) used += c.width + row.spacing;
+            if (c.visible) { w += c.implicitWidth; n++; }
         }
-        return Math.max(Theme.px(140), row.width - used);
+        return w + Math.max(0, n - 1) * row.spacing;
     }
 
     Item {
@@ -921,14 +923,16 @@ AppWindow {
             }
 
             // ---- find and replace ----
-            Flow {
+            GridLayout {
                 id: findRow
                 Layout.fillWidth: true
                 visible: win.finding && TextDocs.docs.length > 0
-                spacing: Theme.px(6)
+                columns: win.compact ? 1 : 2
+                columnSpacing: Theme.px(6)
+                rowSpacing: Theme.px(6)
                 TextField {
                     id: findField
-                    width: win.spareWidth(findRow, findField)
+                    Layout.fillWidth: true
                     placeholder: Tr.t("Find")
                     onAccepted: win.find(true)
                     onTextChanged: win.matchIndex = -1
@@ -941,50 +945,72 @@ AppWindow {
                         }
                     }
                 }
-                CheckBox { text: "Aa"; checked: win.caseSensitive; onCheckedChanged: win.caseSensitive = checked; ToolTip.text: "Match case"; Accessible.name: "Match case" }
-                CheckBox { text: "W"; checked: win.wholeWord; onCheckedChanged: win.wholeWord = checked; ToolTip.text: "Whole word"; Accessible.name: "Whole word" }
-                CheckBox { text: ".*"; checked: win.useRegex; onCheckedChanged: win.useRegex = checked; ToolTip.text: "Regular expression"; Accessible.name: "Regular expression" }
-                Text {
-                    width: implicitWidth
-                    text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : (win.matchIndex >= 0 ? (win.matchIndex + 1) + "/" : "") + win.matches + " " + Tr.t("found")
-                    color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                Flow {
+                    id: findRowTools
+                    Layout.fillWidth: win.compact
+                    Layout.preferredWidth: win.compact ? 0 : win.oneLine(findRowTools)
+                    spacing: Theme.px(6)
+                    CheckBox { text: "Aa"; checked: win.caseSensitive; onCheckedChanged: win.caseSensitive = checked; ToolTip.text: "Match case"; Accessible.name: "Match case" }
+                    CheckBox { text: "W"; checked: win.wholeWord; onCheckedChanged: win.wholeWord = checked; ToolTip.text: "Whole word"; Accessible.name: "Whole word" }
+                    CheckBox { text: ".*"; checked: win.useRegex; onCheckedChanged: win.useRegex = checked; ToolTip.text: "Regular expression"; Accessible.name: "Regular expression" }
+                    Text {
+                        width: implicitWidth
+                        text: findField.text === "" ? "" : win.matches === 0 ? Tr.t("Not found") : (win.matchIndex >= 0 ? (win.matchIndex + 1) + "/" : "") + win.matches + " " + Tr.t("found")
+                        color: win.matches === 0 && findField.text !== "" ? Theme.danger : Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    IconButton { icon: "go-up"; tip: Tr.t("Previous match"); onClicked: win.find(false) }
+                    IconButton { icon: "go-down"; tip: Tr.t("Next match"); onClicked: win.find(true) }
+                    Button { text: Tr.t("Replace…"); flat: true; checked: win.replacing; onClicked: win.replacing = !win.replacing }
                 }
-                IconButton { icon: "go-up"; tip: Tr.t("Previous match"); onClicked: win.find(false) }
-                IconButton { icon: "go-down"; tip: Tr.t("Next match"); onClicked: win.find(true) }
-                Button { text: Tr.t("Replace…"); flat: true; checked: win.replacing; onClicked: win.replacing = !win.replacing }
             }
-            Flow {
+            GridLayout {
                 id: replaceRow
                 Layout.fillWidth: true
                 visible: win.finding && win.replacing
-                spacing: Theme.px(6)
+                columns: win.compact ? 1 : 2
+                columnSpacing: Theme.px(6)
+                rowSpacing: Theme.px(6)
                 TextField {
                     id: replaceField
-                    width: win.spareWidth(replaceRow, replaceField)
+                    Layout.fillWidth: true
                     placeholder: Tr.t("Replace with")
                     onAccepted: win.replaceOne()
                     input.Keys.onEscapePressed: win.leave()
                 }
-                Button { text: Tr.t("Replace"); onClicked: win.replaceOne() }
-                Button { text: Tr.t("Replace all"); onClicked: replaceAllConfirm.open() }
+                Flow {
+                    id: replaceRowTools
+                    Layout.fillWidth: win.compact
+                    Layout.preferredWidth: win.compact ? 0 : win.oneLine(replaceRowTools)
+                    spacing: Theme.px(6)
+                    Button { text: Tr.t("Replace"); onClicked: win.replaceOne() }
+                    Button { text: Tr.t("Replace all"); onClicked: replaceAllConfirm.open() }
+                }
             }
-            Flow {
+            GridLayout {
                 id: gotoRow
                 Layout.fillWidth: true
                 visible: win.gotoOpen
-                spacing: Theme.px(6)
+                columns: win.compact ? 1 : 2
+                columnSpacing: Theme.px(6)
+                rowSpacing: Theme.px(6)
                 TextField {
                     id: gotoField
-                    width: win.spareWidth(gotoRow, gotoField)
+                    Layout.fillWidth: true
                     placeholder: "Line number"
                     input.validator: IntValidator { bottom: 1; top: 1000000 }
                     onAccepted: win.submitGoto()
                     input.Keys.onEscapePressed: { win.gotoOpen = false; edit.forceActiveFocus(); }
                 }
-                Button { text: Tr.t("Go"); onClicked: win.submitGoto() }
-                Button { text: Tr.t("Cancel"); flat: true; onClicked: { win.gotoOpen = false; edit.forceActiveFocus(); } }
+                Flow {
+                    id: gotoRowTools
+                    Layout.fillWidth: win.compact
+                    Layout.preferredWidth: win.compact ? 0 : win.oneLine(gotoRowTools)
+                    spacing: Theme.px(6)
+                    Button { text: Tr.t("Go"); onClicked: win.submitGoto() }
+                    Button { text: Tr.t("Cancel"); flat: true; onClicked: { win.gotoOpen = false; edit.forceActiveFocus(); } }
+                }
             }
 
             // confirm dialog for replace all
