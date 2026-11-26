@@ -552,6 +552,8 @@ APPS: dict[str, tuple] = {
               [], ["disksOpen"], None, "disksShown"),
     "terminal-app": ("dev.shani.TerminalApp", "Remote Hosts", "SSH hosts, keys and remote shells", "utilities-terminal", "Network;Utility;",
                      [], ["terminalAppOpen"], None, "terminalAppShown"),
+    "background": ("dev.shani.Background", "Background", "Phone, watch and music with no window open", "preferences-system", "System;Utility;",
+                   [], ["backgroundOpen"], "backgroundOpen", "backgroundShown"),
     "backup": ("dev.shani.Backup", "Shani Backup", "Restore your home from a snapshot", "document-save", "System;Utility;",
                [], ["backupOpen"], None, "backupShown"),
     "feeds": ("dev.shani.Feeds", "Feeds", "Read RSS and Atom feeds", "mail-unread", "Network;News;Utility;",

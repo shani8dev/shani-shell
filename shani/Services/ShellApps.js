@@ -12,6 +12,7 @@ var ids = {
     "Database browser": "dev.shani.DatabaseBrowser",
     "Paste history": "dev.shani.PasteHistory",
     "Services": "dev.shani.Services",
+    "Background": "dev.shani.Background",
     "Calls": "dev.shani.Calls",
     "Devices": "dev.shani.Devices",
     "Messages": "dev.shani.Messages",

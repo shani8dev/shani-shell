@@ -253,6 +253,12 @@ ColumnLayout {
         Layout.fillWidth: true
         title: Tr.t("Phone and watch, with no window open")
         hint: Tr.t("Each one runs only while its switch is on")
+        Button {
+            text: Tr.t("Open the Background page")
+            flat: true
+            Accessible.name: Tr.t("Open the Background page with the grouped switches")
+            onClicked: { Ui.closeAll(); Ui.backgroundServices = true; }
+        }
         BusyNote {
             Layout.fillWidth: true
             visible: PhoneTools.busy
