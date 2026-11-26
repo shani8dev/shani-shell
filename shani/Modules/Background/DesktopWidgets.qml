@@ -22,6 +22,8 @@ Variants {
         // the lock flag is read defensively here; declare widgetsLocked in Settings.qml
         // (plus a SettingsPage toggle) to persist it and make it settable from the UI.
         property bool widgetsLocked: Settings.data.widgetsLocked === true
+        // a phone's home screen: the time large and centred, no card around it
+        readonly property bool phone: scr.modelData ? FormFactor.of(scr.modelData.name).profile === "phone" : false
 
         // positions: remembered, or the sensible default, then clamped so a card
         // stays on the screen, clear of the bar above and the dock below
@@ -32,7 +34,7 @@ Variants {
             // when the bar is down there (a classroom board)
             const bottomGap = bottomBar ? Theme.barHeight + 56 : 104;
             const defaults = {
-                "clock": { x: 24, y: 64 },
+                "clock": scr.phone ? { x: Math.round((sw - w) / 2), y: 72 } : { x: 24, y: 64 },
                 "weather": { x: Math.max(12, sw - w - 24), y: 64 },
                 "media": { x: 24, y: Math.max(12, sh - h - bottomGap) },
                 "stats": { x: Math.max(12, sw - w - 24), y: Math.max(12, sh - h - bottomGap) }
@@ -83,10 +85,13 @@ Variants {
             Glass {
                 id: clockCard
                 x: 24; y: 64
-                width: Theme.px(216)
-                height: agendaText.visible ? 108 : 90
+                width: scr.phone ? (scr.modelData ? scr.modelData.width : 412) - 48 : Theme.px(216)
+                height: scr.phone ? Theme.px(150) : (agendaText.visible ? 108 : 90)
                 radius: Theme.radiusLarge
-                elevation: "soft"
+                elevation: scr.phone ? "none" : "soft"
+                // Glass's own colour and edge, but none at all on a phone
+                color: scr.phone ? "transparent" : (strong ? (opaque ? Theme.bg : Theme.glassStrong) : (opaque ? Theme.bg : Theme.glass))
+                border.width: scr.phone ? 0 : (edge === "strong" ? 1 : (edge === "subtle" ? 0.5 : 0))
 
                 Component.onCompleted: {
                     const p = scr.loadPos("clock", width, height);
@@ -111,13 +116,17 @@ Variants {
                     anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.px(14) }
                     spacing: Theme.px(3)
                     Text {
+                        width: parent.width
+                        horizontalAlignment: scr.phone ? Text.AlignHCenter : Text.AlignLeft
                         text: Settings.data.use24h ? Qt.formatTime(deskClock.date, "HH:mm") : Qt.formatTime(deskClock.date, "h:mm AP")
                         color: Theme.text
-                        font.family: Theme.mono
-                        font.pixelSize: Theme.px(30)
-                        font.weight: Font.Medium
+                        font.family: scr.phone ? Theme.font : Theme.mono
+                        font.pixelSize: Theme.px(scr.phone ? 72 : 30)
+                        font.weight: scr.phone ? Font.Light : Font.Medium
                     }
                     Text {
+                        width: parent.width
+                        horizontalAlignment: scr.phone ? Text.AlignHCenter : Text.AlignLeft
                         text: Qt.formatDate(deskClock.date, "dddd d MMMM")
                         color: Theme.dim
                         font.family: Theme.font

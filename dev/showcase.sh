@@ -8,16 +8,15 @@
 # defaults (mounted at /desktop: Papirus-Dark, Inter, dark, adw-gtk3), the icon
 # theme shani-shell.service reads from them, and the shell's own defaults (no
 # settings written). Apps the dev image lacks but the dock pins by default
-# (Vivaldi, Cassini, Chronoa) get stand-in launchers with their real icons
+# (Vivaldi and Chronoa) get stand-in launchers with their real icons
 # (/shani: the sibling repos).
 if [ -d /desktop/usr/share/glib-2.0/schemas ]; then
     cp /desktop/usr/share/glib-2.0/schemas/*.gschema.override /usr/share/glib-2.0/schemas/ && glib-compile-schemas /usr/share/glib-2.0/schemas
 fi
 export QS_ICON_THEME=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")
 A=/root/.local/share/applications; I=/root/.local/share/icons/hicolor/scalable/apps; mkdir -p $A $I
-[ -f /shani/shani-cassini/data/dev.shani.cassini.svg ] && cp /shani/shani-cassini/data/dev.shani.cassini.svg $I/
 [ -f /shani/shani-chronoa/usr/share/icons/hicolor/scalable/apps/shani-chronoa.svg ] && cp /shani/shani-chronoa/usr/share/icons/hicolor/scalable/apps/shani-chronoa.svg $I/
-for e in "com.vivaldi.Vivaldi:Vivaldi:vivaldi" "dev.shani.cassini:Cassini:dev.shani.cassini" "shani-chronoa:Chronoa:shani-chronoa"; do
+for e in "com.vivaldi.Vivaldi:Vivaldi:vivaldi" "shani-chronoa:Chronoa:shani-chronoa"; do
     IFS=: read id name icon <<EOF
 $e
 EOF
@@ -47,7 +46,7 @@ sleep 1.5
 gnome-calculator >/dev/null 2>&1 &
 sleep 2.5
 
-notify-send -a Cassini -i system-software-update "Update ready" "ShaniOS 2026.10.28 is signed and staged in slot B. Reboot when convenient."
+notify-send -a "System updates" -i system-software-update "Update ready" "ShaniOS 2026.10.28 is signed and staged in slot B. Reboot when convenient."
 notify-send -a Mail -i mail-unread "Lunch at 1?" "Priya: the usual place, I'll book a table."
 sleep 1
 

@@ -29,7 +29,7 @@ PanelWindow {
     // closed it must not be there at all - a transparent window would still
     // take the taps meant for the desktop
     readonly property bool narrow: FormFactor.focused.profile === "phone"
-    visible: Ui.controlCenter || (!narrow && slide.x < width) || (narrow && slide.y < win.height - 1)
+    visible: Ui.controlCenter || (!narrow && slide.x < width) || (narrow && slide.y > -slide.height + 1)
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -66,10 +66,11 @@ PanelWindow {
         // clear of the bar: on a board the bar is at the bottom, so the sidebar
         // starts at the top instead of below a bar that is not there
         readonly property bool bottomBar: FormFactor.barEdge(win.screen.name) === "bottom"
-        // a phone: a shade up from the bottom, the whole width; everywhere else
-        // one column in from the right, clear of the bar (docs/FORM-FACTORS.md)
+        // a phone: a shade down from the top, the whole width - it follows the
+        // finger that pulled it from the top edge, as a phone's does; everywhere
+        // else one column in from the right, clear of the bar (docs/FORM-FACTORS.md)
         readonly property real insetTop: narrow ? Theme.px(10) : (bottomBar ? Theme.px(10) : Theme.barHeight + 18)
-        y: narrow ? (Ui.controlCenter ? insetTop : parent.height) : insetTop
+        y: narrow ? (Ui.controlCenter ? insetTop : -height - Theme.px(10)) : insetTop
         height: Math.max(0, parent.height - Osk.heightOn(win.screen.name) - (narrow ? insetTop : y + (bottomBar ? Theme.barHeight + 18 : 10)))
         x: narrow ? 0 : (Ui.controlCenter ? parent.width - width - 10 : parent.width + 10)
         radius: Theme.radiusLarge

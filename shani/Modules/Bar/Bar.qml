@@ -482,7 +482,8 @@ Variants {
                     elevation: "none"
                     edge: "subtle"
                     // a taskbar shows the windows' apps instead (as Windows' does)
-                    visible: Niri.focusedWindow !== null && bar.appsAt === ""
+                    // a phone's status bar has no room for it (the app is full screen below)
+                    visible: Niri.focusedWindow !== null && bar.appsAt === "" && !bar.narrow
                     Layout.maximumWidth: Math.max(140, bar.width * 0.25) + 84
                     // sized by what it holds (it had no width of its own and drew no chip)
                     implicitWidth: titleRow.implicitWidth + 20

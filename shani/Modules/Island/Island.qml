@@ -105,6 +105,9 @@ PanelWindow {
     // in the middle of the bar, on whichever edge the bar is: the top, or the
     // bottom of a classroom board (within reach) and of a bottom taskbar (where the
     // assistant's box sits) - but a centred taskbar's middle is its apps', so then the top
+    // a phone's status bar has no room for words at rest: the mascot alone, as a
+    // phone shows its assistant; it says what it is doing when it is doing it
+    readonly property bool phone: FormFactor.of(win.screen ? win.screen.name : "").profile === "phone"
     readonly property string edge: {
         const e = FormFactor.focusedBarEdge;
         return e === "bottom" && Settings.data.barApps === "center" ? "top" : e;
@@ -348,7 +351,7 @@ PanelWindow {
                 color: win.activity ? win.activity.color : Theme.dim
             }
             Text {
-                visible: win.mode !== "ask"
+                visible: win.mode !== "ask" && !(win.phone && win.mode === "rest" && !win.busy && win.activity === null)
                 Layout.fillWidth: win.mode !== "rest"
                 Layout.maximumWidth: Theme.px(340)
                 Layout.preferredWidth: win.mode === "rest" && win.activity ? Math.min(260, implicitWidth) : implicitWidth

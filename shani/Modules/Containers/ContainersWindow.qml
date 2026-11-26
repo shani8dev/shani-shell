@@ -1707,11 +1707,16 @@ AppWindow {
                 text: Tr.t("Virtual machine tools are not installed on this computer")
                 color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
             }
-            Text {
+            // KVM off: Settings > System > Virtualization says why and can switch it on
+            RowLayout {
                 visible: win.hasVirsh && !win.kvmOk
-                Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: Tr.t("KVM is not usable here. The KVM check in Shani Cassini can diagnose and fix it.")
-                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                    text: Tr.t("This computer cannot run virtual machines at full speed yet.")
+                    color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button { text: Tr.t("Check virtualization"); onClicked: Ui.openSettings("virtualization") }
             }
             RowLayout {
                 Layout.fillWidth: true

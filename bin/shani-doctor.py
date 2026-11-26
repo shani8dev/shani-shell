@@ -150,10 +150,10 @@ FEATURES = [
         "util-linux udisks2 btrfs-progs",
     ),
     (
-        "Cassini (system manager)",
-        ["shani-cassini", "gdbus"],
-        "shani-cassini",
-        "shani-cassini",
+        "System pages (Settings)",
+        ["python3", "gdbus"],
+        "python3 shani-shell",
+        "python3 shani-shell",
     ),
     (
         "Chronoa (AI assistant)",

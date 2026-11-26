@@ -30,6 +30,8 @@ FloatingWindow {
     property int margins: Theme.px(14)
     property bool header: true
     readonly property bool compact: width < Theme.px(600)
+    // its sidebar (Common/SidePane): on a narrow window a menu button in the header opens it
+    property var sidePane: null
     // closed by the compositor (Mod+Q, the bar's close button) or by the app itself
     signal gone()
     default property alias content: body.data
@@ -150,6 +152,12 @@ FloatingWindow {
             RowLayout {
                 anchors { fill: parent; leftMargin: Theme.px(12); rightMargin: Theme.px(6) }
                 spacing: Theme.px(8)
+                WindowButton {
+                    visible: win.compact && win.sidePane !== null
+                    icon: "open-menu"
+                    tip: win.sidePane ? win.sidePane.label : ""
+                    onClicked: win.sidePane.open = !win.sidePane.open
+                }
                 Image {
                     Layout.preferredWidth: Theme.px(20)
                     Layout.preferredHeight: Theme.px(20)

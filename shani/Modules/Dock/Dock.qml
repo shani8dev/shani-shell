@@ -117,7 +117,10 @@ PanelWindow {
     // the left rail, when it is on, is where the workspaces are: the dock does
     // not show a second copy of them
     // Back and the keyboard as buttons on a touch screen, which has no keys
-    readonly property bool touchNav: Settings.data.navButtons && ["tablet", "phone", "board", "handheld"].indexOf(FormFactor.of(output).profile) >= 0
+    // a phone's dock is its favourites only (up to five), as a phone's is; its
+    // Back, Home and Recents are the navigation bar below it (Modules/PhoneNav)
+    readonly property bool phone: FormFactor.of(output).profile === "phone"
+    readonly property bool touchNav: Settings.data.navButtons && ["tablet", "board", "handheld"].indexOf(FormFactor.of(output).profile) >= 0
     readonly property bool spacesHere: !(Settings.data.leftRail && Settings.data.railContent !== "apps" && FormFactor.hasRail(output))
     // the apps (pinned, then running) and what a click does: one list with the
     // bar's taskbar and the rail (Services/Taskbar)
@@ -280,6 +283,7 @@ PanelWindow {
         // the accent (a click on it opens the overview) - and "+" for a new one.
         Row {
             id: controls
+            visible: !win.phone           // a phone's Back, Home and Recents are its navigation bar (Modules/PhoneNav)
             spacing: row.spacing
             // a touch screen has no Back, Esc or Super key: Back here, as Android's
             // taskbar and the board makers' toolbars have it (Overview and Show
@@ -318,6 +322,16 @@ PanelWindow {
                         }
                     }
                 }
+            }
+            // held another way with auto-rotate off: turn the screen to match (a few seconds)
+            DockTile {
+                id: rotateTile
+                visible: win.touchNav && AutoRotate.suggest !== ""
+                on: true
+                tip: Tr.t("Rotate the screen")
+                icon: "object-rotate-right"
+                onActivated: AutoRotate.rotateToHeld()
+                Icon { anchors.centerIn: parent; name: "object-rotate-right"; size: parent.width * 0.5; color: Theme.accent }
             }
             // ...and the keyboard, for typing anywhere (a field in the shell opens it by itself)
             DockTile {
@@ -361,10 +375,22 @@ PanelWindow {
             }
         }
         // the two system buttons, then the apps: a hairline between, so each group reads as one
-        DockSeparator {}
+        DockSeparator { visible: !win.phone }
+
+        // a phone's dock opens all its apps (a phone's app drawer); swiping up from
+        // the bottom edge does the same (Modules/EdgeStrips)
+        DockTile {
+            id: appsTile
+            visible: win.phone
+            on: Ui.launcher
+            tip: Tr.t("All apps")
+            icon: "view-app-grid"
+            onActivated: Ui.toggleLauncher("")
+            Icon { anchors.centerIn: parent; name: "view-app-grid"; size: parent.width * 0.5; color: appsTile.on ? Theme.accent : Theme.text }
+        }
 
         Repeater {
-            model: win.items
+            model: win.phone ? win.items.filter(x => x.pinned).slice(0, 5) : win.items
             Item {
                 id: cell
                 required property var modelData
@@ -689,6 +715,7 @@ PanelWindow {
         // they wait at the top of the sidebar's Shelf, and drag out from there
         DockTile {
             id: shelfTile
+            visible: !win.phone
             tip: Shelf.parked.length ? Tr.t("Shelf: %1 kept for later - drop more here", Shelf.parked.length)
                                      : Tr.t("Shelf: drop files here to keep them for later")
             Accessible.name: Tr.t("Shelf")
@@ -710,9 +737,9 @@ PanelWindow {
                 onDropped: d => { win.dropsIn = 0; win.dragging = false; Shelf.park(d.urls); d.acceptProposedAction(); }
             }
         }
-        DockSeparator { visible: win.spacesHere }
+        DockSeparator { visible: win.spacesHere && !win.phone }
         Repeater {
-            model: win.spacesHere ? win.spaces.concat([null]) : []
+            model: win.spacesHere && !win.phone ? win.spaces.concat([null]) : []
             DockTile {
                 id: wsCell
                 required property var modelData
@@ -776,10 +803,10 @@ PanelWindow {
         }
         // the trash, last: drop files to throw them away; a click opens it in
         // Files; right-click twice empties it. Watched by inotify, never polled.
-        DockSeparator { visible: Settings.data.dockTrash }
+        DockSeparator { visible: Settings.data.dockTrash && !win.phone }
         DockTile {
             id: trashTile
-            visible: Settings.data.dockTrash
+            visible: Settings.data.dockTrash && !win.phone
             property bool arming: false
             readonly property int count: trashFiles.count
             onCountChanged: Ui.trashCount = count
