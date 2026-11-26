@@ -186,6 +186,25 @@ for t in podman distrobox; do ln -sf /work/dev/fake-podman.py /tmp/fake-podman/b
 for t in machinectl importctl systemd-vmspawn; do ln -sf /work/dev/fake-machinectl.py /tmp/fake-podman/bin/$t; done
 export FAKE_PODMAN=/tmp/fake-podman SHANI_PODMAN=/tmp/fake-podman/bin/podman SHANI_DISTROBOX=/tmp/fake-podman/bin/distrobox
 export SHANI_MACHINECTL=/tmp/fake-podman/bin/machinectl SHANI_IMPORTCTL=/tmp/fake-podman/bin/importctl SHANI_VMSPAWN=/tmp/fake-podman/bin/systemd-vmspawn
+# LXD, Apptainer, libvirt, Waydroid, compose and user services stood in for too:
+for spec in "lxc:/tmp/fake-lxc:dev/fake-lxc.py" "lxd:/tmp/fake-lxc:dev/fake-lxc.py" \
+            "apptainer:/tmp/fake-apptainer:dev/fake-apptainer.py" \
+            "virsh:/tmp/fake-virsh:dev/fake-virsh.py" "virt-viewer:/tmp/fake-virsh:dev/fake-virsh.py" \
+            "waydroid:/tmp/fake-waydroid:dev/fake-waydroid.py" "waydroid-helper:/tmp/fake-waydroid:dev/fake-waydroid.py" \
+            "podman-compose:/tmp/fake-compose:dev/fake-compose.py" "systemctl:/tmp/fake-compose:dev/fake-systemctl-user.py"; do
+    tool=${spec%%:*}; rest=${spec#*:}; dir=${rest%%:*}; fake=${rest#*:}
+    mkdir -p "$dir/bin"
+    ln -sf "/work/$fake" "$dir/bin/$tool"
+done
+export FAKE_LXC=/tmp/fake-lxc FAKE_APPTAINER=/tmp/fake-apptainer FAKE_VIRSH=/tmp/fake-virsh
+export FAKE_WAYDROID=/tmp/fake-waydroid FAKE_COMPOSE=/tmp/fake-compose
+export SHANI_LXC=/tmp/fake-lxc/bin/lxc SHANI_LXD=/tmp/fake-lxc/bin/lxd
+export SHANI_APPTAINER=/tmp/fake-apptainer/bin/apptainer SHANI_APPTAINER_FOLDER=/tmp/fake-apptainer/images
+FAKE_APPTAINER=/tmp/fake-apptainer python3 /work/dev/fake-apptainer.py --version >/dev/null 2>&1 || true   # seed its images
+export SHANI_VIRSH=/tmp/fake-virsh/bin/virsh SHANI_VIRT_VIEWER=/tmp/fake-virsh/bin/virt-viewer SHANI_KVM=1
+export SHANI_WAYDROID=/tmp/fake-waydroid/bin/waydroid SHANI_WAYDROID_HELPER=/tmp/fake-waydroid/bin/waydroid-helper SHANI_PKEXEC=
+export SHANI_COMPOSE=/tmp/fake-compose/bin/podman-compose SHANI_SYSTEMCTL=/tmp/fake-compose/bin/systemctl
+export SHANI_QUADLET_DIR=/tmp/fake-quadlet
 # udisks2 stood in for on the session bus (tests/fixtures/fake_udisks.py): a USB
 # stick and the computer's own disk; a write lands in /tmp/fake-udisks/sdb.img
 mkdir -p /tmp/fake-udisks
