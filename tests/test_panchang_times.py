@@ -127,6 +127,53 @@ def test_limb_end_after_midnight_carries_a_day_suffix():
     assert result["limbs"]["yoga"]["next"] == "Shula"
 
 
+@pytest.mark.parametrize(
+    "offset", range(7), ids=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+)
+def test_eighth_day_muhurtas_follow_the_weekday_tables(offset):
+    d = date(2026, 10, 19) + timedelta(days=offset)
+    result = compute(d.isoformat(), 18.5204, 73.8567, "Asia/Kolkata")
+    weekday = (d.weekday() + 1) % 7
+    rise = minutes(result["sun"]["sunrise"])
+    day_length = minutes(result["sun"]["day_length"])
+    eighth = day_length / 8
+    by_name = {m["name"]: m for m in result["muhurtas"]}
+    for name, parts in (
+        ("Rahu Kaal", pt._RAHU_PARTS),
+        ("Yamaganda", pt._YAMA_PARTS),
+        ("Gulika Kaal", pt._GULIKA_PARTS),
+    ):
+        start = rise + (parts[weekday] - 1) * eighth
+        m = by_name[name]
+        assert delta(m["start"], f"{int(start) // 60:02d}:{int(start) % 60:02d}") <= 1
+        assert abs(delta(m["end"], m["start"]) - eighth) <= 1
+        assert m["auspicious"] is False
+
+
+def test_abhijit_and_brahma_muhurta_follow_their_rules():
+    result = compute("2026-10-19", 18.5204, 73.8567, "Asia/Kolkata")
+    by_name = {m["name"]: m for m in result["muhurtas"]}
+    rise = minutes(result["sun"]["sunrise"])
+    day_length = minutes(result["sun"]["day_length"])
+    abhijit = by_name["Abhijit"]
+    assert (
+        delta(
+            abhijit["start"],
+            f"{int(rise + 7 * day_length / 15) // 60:02d}:"
+            f"{int(rise + 7 * day_length / 15) % 60:02d}",
+        )
+        <= 1
+    )
+    assert abs(delta(abhijit["end"], abhijit["start"]) - day_length / 15) <= 1
+    assert abhijit["auspicious"] is True
+    brahma = by_name["Brahma Muhurta"]
+    assert (
+        delta(brahma["start"], f"{(rise - 96) // 60:02d}:{(rise - 96) % 60:02d}") <= 1
+    )
+    assert delta(brahma["end"], brahma["start"]) == 48
+    assert brahma["auspicious"] is True
+
+
 def test_cli_prints_one_json_object_and_errors_without_traceback():
     script = str(ROOT / "bridge" / "panchang_times.py")
     good = subprocess.run(

@@ -378,6 +378,63 @@ def _limbs(sunrise: datetime | None, zone: ZoneInfo, day: date_type) -> dict:
     return result
 
 
+def _interval(
+    start: datetime,
+    fraction: float,
+    length: timedelta,
+    zone: ZoneInfo,
+    day: date_type,
+    name: str,
+    auspicious: bool,
+) -> dict:
+    begin = start + fraction * length
+    return {
+        "name": name,
+        "start": _clock(begin, zone, day),
+        "end": _clock(begin + length, zone, day),
+        "auspicious": auspicious,
+    }
+
+
+def _muhurtas(
+    sunrise: datetime | None, sunset: datetime | None, zone: ZoneInfo, day: date_type
+) -> list[dict]:
+    if sunrise is None or sunset is None:
+        return []
+    weekday = (day.weekday() + 1) % 7  # Sunday = 0
+    daylight = sunset - sunrise
+    eighth = daylight / 8
+    result = [
+        _interval(
+            sunrise, _RAHU_PARTS[weekday] - 1, eighth, zone, day, "Rahu Kaal", False
+        ),
+        _interval(
+            sunrise, _YAMA_PARTS[weekday] - 1, eighth, zone, day, "Yamaganda", False
+        ),
+        _interval(
+            sunrise,
+            _GULIKA_PARTS[weekday] - 1,
+            eighth,
+            zone,
+            day,
+            "Gulika Kaal",
+            False,
+        ),
+        _interval(sunrise, 7, daylight / 15, zone, day, "Abhijit", True),
+    ]
+    # Two muhurtas (2 x 48 minutes) before sunrise.
+    brahma = sunrise - timedelta(minutes=96)
+    result.append(
+        {
+            "name": "Brahma Muhurta",
+            "start": _clock(brahma, zone, day),
+            "end": _clock(brahma + timedelta(minutes=48), zone, day),
+            "auspicious": True,
+        }
+    )
+    return result
+
+
 def _rise_set(
     day: date_type, lat: float, lon: float, zone: ZoneInfo
 ) -> tuple[dict, dict, dict, dict]:
@@ -420,14 +477,14 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
     zone = ZoneInfo(zone_name)
     if not -90 <= lat <= 90 or not -180 <= lon <= 180:
         raise ValueError("latitude must be -90..90 and longitude -180..180")
-    sun, moon, sunrise, _sunset = _rise_set(day, lat, lon, zone)
+    sun, moon, sunrise, sunset = _rise_set(day, lat, lon, zone)
     return {
         "date": day.isoformat(),
         "place": {"latitude": lat, "longitude": lon, "timezone": zone_name},
         "sun": sun,
         "moon": moon,
         "limbs": _limbs(sunrise, zone, day),
-        "muhurtas": [],
+        "muhurtas": _muhurtas(sunrise, sunset, zone, day),
         "choghadiya": {},
         "horas": [],
         "month": {},
