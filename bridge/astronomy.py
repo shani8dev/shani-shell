@@ -4877,3 +4877,80 @@ def kp_lords(chart: dict) -> dict:
         "points": planets,
         "cusps": [details(f"house {i + 1}", value) for i, value in enumerate(cusps)],
     }
+
+
+# ---------------------------------------------------------------------------
+# Varshaphal (Tajika annual chart)
+# ---------------------------------------------------------------------------
+
+
+def _sun_sidereal(jd: float) -> float:
+    return _norm(_sun_longitude(jd) - ayanamsa_lahiri(jd))
+
+
+def solar_return_instant(natal_sun_lon: float, year: int) -> str:
+    """UTC ISO instant when the sidereal Sun returns to its natal longitude
+    in ``year``, found by stepping one day and bisecting the crossing.
+    """
+    from datetime import datetime, timezone
+
+    start = julian_day(f"{int(year):04d}-01-01T00:00:00Z")
+    target = natal_sun_lon % 360
+    previous = (_sun_sidereal(start) - target) % 360
+    for day in range(1, 400):
+        jd = start + day
+        current = (_sun_sidereal(jd) - target) % 360
+        if current < previous:  # crossed the target longitude
+            low, high = jd - 1, jd
+            for _ in range(20):
+                mid = (low + high) / 2
+                if (_sun_sidereal(mid) - target) % 360 > 180:
+                    low = mid
+                else:
+                    high = mid
+            return _jd_to_iso(high)
+        previous = current
+    raise ValueError(f"no solar return found for {year}")
+
+
+def varshaphal(chart: dict, year: int) -> dict:
+    """Tajika solar-return chart cast for the birth place, its Muntha
+    (progressed ascendant, one sign per completed year) and the year lord.
+    """
+    sun = next((p for p in chart.get("planets", []) if p.get("name") == "Sun"), None)
+    if sun is None:
+        raise ValueError("chart has no Sun")
+    birth = str(chart.get("datetime") or "")
+    birth_year = int(birth[:4]) if birth[:4].isdigit() else year
+    lat, lon = float(chart.get("latitude") or 0), float(chart.get("longitude") or 0)
+    instant = solar_return_instant(float(sun.get("sidereal_longitude") or 0), int(year))
+    annual = compute_chart(instant, lat, lon)
+    muntha = _norm(float(chart.get("ascendant") or 0) + (int(year) - birth_year) * 30)
+    muntha_sign = int(muntha / 30) % 12
+    sun_longitude = next(p for p in annual["planets"] if p["name"] == "Sun")[
+        "sidereal_longitude"
+    ]
+    sun_sign = int(sun_longitude / 30) % 12
+    return {
+        "system": "varshaphal",
+        "year": int(year),
+        "solar_return": instant,
+        "birth_place": {"latitude": lat, "longitude": lon},
+        "ascendant": round(annual["ascendant"], 4),
+        "planets": [
+            {
+                "name": p["name"],
+                "sign": p["sign"],
+                "longitude": p["sidereal_longitude"],
+                "retrograde": p["retrograde"],
+            }
+            for p in annual["planets"]
+        ],
+        "muntha": {
+            "longitude": round(muntha, 4),
+            "sign": SIGNS[muntha_sign],
+            "lord": SIGN_LORDS[muntha_sign],
+        },
+        "year_lord": SIGN_LORDS[sun_sign],
+        "year_lord_sign": SIGNS[sun_sign],
+    }

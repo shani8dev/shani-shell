@@ -100,6 +100,7 @@ ACTION_GROUPS = (
     ("matching", ("ashtakoota",)),
     ("doshas", ("mangaldosha", "kalasarpa", "sadesati")),
     ("kp", ("kplords",)),
+    ("annual", ("varshaphal",)),
 )
 ACTIONS = tuple(a for _, group in ACTION_GROUPS for a in group)
 
@@ -305,6 +306,11 @@ def new_data(action: str, arguments: dict, astronomy) -> dict:
         return astronomy.sade_sati(chart, arguments.get("now"))
     if action == "kplords":
         return astronomy.kp_lords(chart)
+    if action == "varshaphal":
+        from datetime import datetime, timezone
+
+        year = int(arguments.get("year") or datetime.now(timezone.utc).year)
+        return astronomy.varshaphal(chart, year)
     return {"error": f"Unknown calculation: {action}"}
 
 
@@ -384,6 +390,16 @@ def render_new(action: str, data: dict) -> str:
                 f"sub {cusp['sub_lord']}, sub-sub {cusp['sub_sub_lord']}"
             )
         return "\n".join(lines)
+    if action == "varshaphal":
+        return "\n".join(
+            [
+                f"Varshaphal {data['year']}:",
+                f"  Solar return: {data['solar_return']}",
+                f"  Muntha: {data['muntha']['sign']} (lord {data['muntha']['lord']})",
+                f"  Year lord: {data['year_lord']} in {data['year_lord_sign']}",
+                f"  Return ascendant: {data['ascendant']}°",
+            ]
+        )
     return "Calculation failed: no renderer"
 
 
@@ -430,6 +446,9 @@ def compute(arguments: dict, astronomy) -> str:
 
     if action == "kplords":
         return _answer_new("kplords", arguments, astronomy)
+
+    if action == "varshaphal":
+        return _answer_new("varshaphal", arguments, astronomy)
 
     # ---- every calculation the engine offers (restored from 98075ba) ----
 
