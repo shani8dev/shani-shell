@@ -38,12 +38,13 @@ ColumnLayout {
         || recoveryProc.running || headerProc.running || mokEnrollProc.running
         || mokCleanupProc.running || saveKeyProc.running
 
+    // No read on open: every gen-efi call needs root, so each read is a
+    // password prompt (two per read). The person asks for it with Read state.
     onActiveChanged: {
-        if (active) page.read();
-        else page.clearKey();
+        if (!active) page.clearKey();
         publish();
     }
-    Component.onCompleted: { if (active) page.read(); publish(); }
+    Component.onCompleted: publish()
     onLoadedChanged: publish()
     onBusyChanged: publish()
     onReportChanged: publish()
@@ -367,7 +368,8 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Encryption and boot")
-        hint: Tr.t("At a glance — what the disk and the boot setup report right now.")
+        hint: page.loaded ? Tr.t("At a glance — what the disk and the boot setup report right now.")
+                          : Tr.t("Reading the disk's encryption and boot state needs your password.")
 
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.px(6)
