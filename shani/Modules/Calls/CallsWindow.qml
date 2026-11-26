@@ -4,8 +4,8 @@
 // address book where there is one.
 //
 // bridge/link.py does the talking (phone.lines for the landline and the
-// modem, phone.phone for a phone over KDE Connect / GSConnect / plain
-// Bluetooth); the window is only a view. The other tabs ask PhoneTools for
+// modem, phone.phone for a phone over a phone link or plain Bluetooth); the
+// window is only a view. The other tabs ask PhoneTools for
 // the phone's music, files and remote keys; none of them speaks to a tool.
 import Quickshell
 import QtQuick

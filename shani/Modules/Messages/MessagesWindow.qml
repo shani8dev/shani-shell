@@ -2,8 +2,8 @@
 // The list is one row per conversation, the newest first; opening one shows
 // the thread and the reply box. Sending is a real send — the button says so.
 //
-// bridge/link.py does the talking (phone.phone: GSConnect, KDE Connect, or
-// plain Bluetooth through MAP); the window is only a view.
+// bridge/link.py does the talking (phone.phone over a phone link or plain
+// Bluetooth); the window is only a view.
 import Quickshell
 import QtQuick
 import QtQuick.Layouts
