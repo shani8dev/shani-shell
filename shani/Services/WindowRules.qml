@@ -70,8 +70,11 @@ Singleton {
 
     // Niri's opening rules are global: apply this only to phone-only sessions,
     // never to a phone docked to a desktop monitor. Existing windows stay as-is.
+    // Maximised, not fullscreen: one app at a time, with the bar kept above it as
+    // a phone's status bar is (the clock, the battery, and the Island in it rather
+    // than over the app's own header); a video or a game still goes fullscreen.
     readonly property string phoneRule: FF.phoneOnly(FormFactor.screens)
-        ? "window-rule {\n    open-fullscreen true\n}\n"
+        ? "window-rule {\n    open-maximized true\n}\n"
         : ""
 
     readonly property string kdl: Settings.loaded

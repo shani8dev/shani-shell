@@ -125,8 +125,9 @@ two-step empty confirmation for both keyboard and pointer users.
 
 Niri [window opening rules](https://niri-wm.github.io/niri/Configuration%3A-Window-Rules.html)
 are global and have no output matcher. Automatic
-`open-fullscreen` therefore applies **only when every detected output is a
-phone**. Attaching a desktop monitor removes that rule; changing focus alone
+`open-maximized` (one app at a time, the bar kept above it as a phone's status
+bar, the Island in it rather than over the app's header) therefore applies
+**only when every detected output is a phone**. Attaching a desktop monitor removes that rule; changing focus alone
 does not rewrite it. This protects the desktop, but is not a complete
 phone-plus-monitor policy. Existing windows are not resized by an opening rule.
 Per-app rules are applied afterwards, but floating/width rules do not themselves

@@ -20,26 +20,28 @@ PY
     waitfor "not d['barOverlap']" 5 && result phone-bar-fits PASS \
         || result phone-bar-fits FAIL "the clusters meet at this width"
     shot phone-bar 0.4
-    # one app at a time: niri opens every window fullscreen on a phone. The rule
-    # is read back from the file the shell writes, checked with niri's own parser,
-    # and then with a real window - a fullscreen one is as tall as the screen.
+    # one app at a time: niri opens every window maximised on a phone, the bar kept
+    # above it as a phone's status bar. The rule is read back from the file the shell
+    # writes, checked with niri's own parser, and then with a real window - as wide
+    # as the screen, and under the bar, not over it.
     kdl="${XDG_CONFIG_HOME:-$HOME/.config}/niri/shani-windows.kdl"
-    i=0; until grep -q "open-fullscreen" "$kdl" 2>/dev/null || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
-    grep -q "open-fullscreen" "$kdl" 2>/dev/null && result phone-windows-open-fullscreen PASS \
-        || result phone-windows-open-fullscreen FAIL "niri was not told"
+    i=0; until grep -q "open-maximized" "$kdl" 2>/dev/null || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
+    grep -q "open-maximized" "$kdl" 2>/dev/null && result phone-windows-open-maximised PASS \
+        || result phone-windows-open-maximised FAIL "niri was not told"
     niri validate -c "$kdl" >/dev/null 2>&1 && result phone-niri-accepts-the-rule PASS \
         || result phone-niri-accepts-the-rule FAIL "niri cannot read what was written"
     foot --app-id=fs-test sh -c 'sleep 25' >/dev/null 2>&1 &
     i=0; until [ -n "$(niri msg -j windows | python3 -c 'import json,sys
 print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), ""))' 2>/dev/null)" ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
-    python3 - <<'PY' && result phone-a-window-is-fullscreen PASS || result phone-a-window-is-fullscreen FAIL
+    python3 - <<'PY' && result phone-a-window-fills-under-the-bar PASS || result phone-a-window-fills-under-the-bar FAIL
 import json, subprocess
 def query(what):
     return json.loads(subprocess.check_output(["niri", "msg", "-j", what]))
 window = next(w for w in query("windows") if w["app_id"] == "fs-test")
 screen = next(iter(query("outputs").values()))["logical"]
 width, height = window["layout"]["tile_size"]
-assert abs(width - screen["width"]) <= 1 and abs(height - screen["height"]) <= 1, (window, screen)
+# the whole width, and the height but the bar's: the status bar stays in view
+assert width >= screen["width"] * 0.95 and screen["height"] * 0.8 <= height < screen["height"] - 20, (window, screen)
 PY
     niri msg action close-window --id "$(niri msg -j windows | python3 -c 'import json,sys
 print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), ""))' 2>/dev/null)" 2>/dev/null
@@ -77,9 +79,9 @@ print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), 
     if [ -z "${SHANI_FORM_FACTOR:-}" ]; then
         waitfor "d['formFactor'] == 'computer' and not d['barNarrow']" 5 \
             && result phone-wide-screen-keeps-everything PASS || result phone-wide-screen-keeps-everything FAIL "$(q "['formFactor'], d['barNarrow']")"
-        i=0; while grep -q 'open-fullscreen' "$kdl" && [ "$i" -lt 20 ]; do sleep 0.25; i=$((i+1)); done
-        ! grep -q 'open-fullscreen' "$kdl" && result phone-leaves-no-fullscreen-rule PASS \
-            || result phone-leaves-no-fullscreen-rule FAIL
+        i=0; while grep -q 'open-maximized' "$kdl" && [ "$i" -lt 20 ]; do sleep 0.25; i=$((i+1)); done
+        ! grep -q 'open-maximized' "$kdl" && result phone-leaves-no-phone-rule PASS \
+            || result phone-leaves-no-phone-rule FAIL
     fi
 else
     result phone-profile SKIP "requires automatic or phone profile"

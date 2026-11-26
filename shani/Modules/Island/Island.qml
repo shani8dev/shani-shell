@@ -102,8 +102,17 @@ PanelWindow {
     readonly property bool busy: hasApproval || asking || working
     onBusyChanged: Ui.islandBusy = busy
     visible: Chronoa.visible && (busy || Hiding.barShown[Niri.focusedOutput] !== false)   // its screen is the focused one; reading screen here looped
-    anchors.top: true
+    // in the middle of the bar, on whichever edge the bar is: the top, or the
+    // bottom of a classroom board (within reach) and of a bottom taskbar (where the
+    // assistant's box sits) - but a centred taskbar's middle is its apps', so then the top
+    readonly property string edge: {
+        const e = FormFactor.focusedBarEdge;
+        return e === "bottom" && Settings.data.barApps === "center" ? "top" : e;
+    }
+    anchors.top: edge !== "bottom"
+    anchors.bottom: edge === "bottom"
     margins.top: 8
+    margins.bottom: 8
     implicitWidth: card.width
     implicitHeight: card.height
     color: "transparent"
@@ -132,7 +141,7 @@ PanelWindow {
         const m = mascot.mapToItem(card, 0, 0);
         Bridge.send({
             op: "geometry",
-            mascot: [sx + Math.round(m.x), 8 + Math.round(m.y), Math.round(mascot.width), Math.round(mascot.height)],
+            mascot: [sx + Math.round(m.x), (win.edge === "bottom" ? win.screen.height - 8 - card.height : 8) + Math.round(m.y), Math.round(mascot.width), Math.round(mascot.height)],
             island: [sx, 8, Math.round(card.width), Math.round(card.height)],
             panel: Theme.barHeight + 8
         });
