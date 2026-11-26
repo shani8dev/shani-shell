@@ -6,3 +6,4 @@ out/
 .serena/
 .codegraph/
 .ruff_cache/
+codegraph.json

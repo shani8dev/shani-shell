@@ -15,7 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 # ignored on purpose (.gitignore): run output and tool caches
-IGNORED_OK = {"out", "__pycache__", ".pytest_cache", ".ruff_cache", ".serena", ".codegraph", ".git"}
+IGNORED_OK = {"out", "__pycache__", ".pytest_cache", ".ruff_cache", ".serena", ".codegraph", "codegraph.json", ".git"}
 
 
 def tracked_top_level():
