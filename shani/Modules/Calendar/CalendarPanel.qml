@@ -758,7 +758,8 @@ AppWindow {
                 onAccepted: { if (win.quickAdd(text)) clear(); }
             }
 
-            RowLayout {
+            // a Flow: on a phone the chips wrap instead of running off the edge
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
@@ -780,7 +781,6 @@ AppWindow {
                         Ui.kundali = true;
                     }
                 }
-                Item { Layout.fillWidth: true }
                 Choice { text: Tr.t("Go to date…"); selected: win.pickingDate; onClicked: { win.pickingDate = !win.pickingDate; if (win.pickingDate) dateField.forceActiveFocus(); } }
                 Choice { text: Tr.t("Today"); onClicked: { win.goToday(); win.pickingDate = false; } }
                 Button {
@@ -889,6 +889,7 @@ AppWindow {
                         required property var modelData
                         readonly property int day: isWeek ? 0 : modelData.day
                         Layout.fillWidth: true
+                        implicitHeight: Math.max(Theme.touchTarget, Theme.px(30))
                         isWeek: modelData.week !== undefined
                         label: isWeek ? String(modelData.week) : (day > 0 ? String(day) : "")
                         isToday: day === win.today.getDate() && win.offset === 0 && win.month.getMonth() === win.today.getMonth() && win.month.getFullYear() === win.today.getFullYear()
@@ -959,7 +960,8 @@ AppWindow {
                     Text {
                         text: ""
                         Layout.fillWidth: false
-                        Layout.preferredWidth: Theme.px(44)
+                        Layout.preferredWidth: win.compact ? Theme.px(30) : Theme.px(44)
+                        Layout.maximumWidth: win.compact ? Theme.px(30) : Theme.px(44)
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
@@ -972,7 +974,7 @@ AppWindow {
                             required property int index
                             readonly property date dayDate: win.weekDays[index]
                             Layout.fillWidth: true
-                            implicitHeight: Theme.px(34)
+                            implicitHeight: Math.max(Theme.touchTarget, Theme.px(34))
                             label: Qt.formatDate(dayDate, "ddd d")
                             date: dayDate
                             isToday: win.isSameDay(dayDate, win.today)
@@ -988,7 +990,10 @@ AppWindow {
                     columnSpacing: 2
                     Text {
                         text: Tr.t("All-day")
-                        Layout.preferredWidth: Theme.px(44)
+                        Accessible.name: Tr.t("All-day")
+                        elide: Text.ElideRight
+                        Layout.preferredWidth: win.compact ? Theme.px(30) : Theme.px(44)
+                        Layout.maximumWidth: win.compact ? Theme.px(30) : Theme.px(44)
                         color: Theme.faint
                         horizontalAlignment: Text.AlignHCenter
                         font.family: Theme.font
@@ -1002,7 +1007,7 @@ AppWindow {
                             required property int index
                             readonly property var _evs: win.allDayForDay(index)
                             Layout.fillWidth: true
-                            implicitHeight: Math.max(22, _evs.length * 18 + 4)
+                            implicitHeight: Math.max(Theme.touchTarget, _evs.length * Math.max(Theme.touchTarget, Theme.px(16)) + 4)
                             radius: Theme.px(6)
                             color: "transparent"
                             // drop here to make the dragged event all-day
@@ -1024,7 +1029,7 @@ AppWindow {
                                         required property var modelData
                                         readonly property color calColor: win.eventColor(modelData.calendar)
                                         Layout.fillWidth: true
-                                        implicitHeight: Theme.px(16)
+                                        implicitHeight: Math.max(Theme.touchTarget, Theme.px(16))
                                         radius: Theme.px(4)
                                         color: Theme.alpha(calColor, 0.45)
                                         property var dragEvent: modelData
@@ -1086,7 +1091,8 @@ AppWindow {
                                 Layout.fillWidth: true
                                 spacing: 2
                                 Text {
-                                    Layout.preferredWidth: Theme.px(44)
+                                    Layout.preferredWidth: win.compact ? Theme.px(30) : Theme.px(44)
+                                    Layout.maximumWidth: win.compact ? Theme.px(30) : Theme.px(44)
                                     Layout.fillWidth: false
                                     text: (hour < 10 ? "0" : "") + hour + ":00"
                                     color: Theme.faint
@@ -1102,7 +1108,7 @@ AppWindow {
                                         required property int index
                                         readonly property var _evs: win.weekEventsForHour(index, hourRow.hour)
                                         Layout.fillWidth: true
-                                        implicitHeight: Math.max(20, _evs.length * 16 + 2)
+                                        implicitHeight: Math.max(Theme.touchTarget, _evs.length * Math.max(Theme.touchTarget, Theme.px(14)) + 2)
                                         radius: Theme.px(4)
                                         color: "transparent"
                                         border.width: 1
@@ -1134,7 +1140,7 @@ AppWindow {
                                                     required property var modelData
                                                     readonly property color calColor: win.eventColor(modelData.calendar)
                                                     Layout.fillWidth: true
-                                                    implicitHeight: Theme.px(14)
+                                                    implicitHeight: Math.max(Theme.touchTarget, Theme.px(14))
                                                     radius: Theme.px(3)
                                                     color: Theme.alpha(calColor, 0.45)
                                                     property var dragEvent: modelData
@@ -1176,6 +1182,8 @@ AppWindow {
                                             Text {
                                                 visible: hourCell._evs.length > 2
                                                 Layout.fillWidth: true
+                                                implicitHeight: Math.max(Theme.touchTarget, 14)
+                                                verticalAlignment: Text.AlignVCenter
                                                 text: Tr.t("+%1 more").arg(hourCell._evs.length - 2)
                                                 color: Theme.accent
                                                 font.family: Theme.font
@@ -1226,7 +1234,8 @@ AppWindow {
                             Layout.fillWidth: true
                             spacing: 2
                             Text {
-                                Layout.preferredWidth: Theme.px(44)
+                                Layout.preferredWidth: win.compact ? Theme.px(30) : Theme.px(44)
+                                Layout.maximumWidth: win.compact ? Theme.px(30) : Theme.px(44)
                                 Layout.fillWidth: false
                                 text: (hour < 10 ? "0" : "") + hour + ":00"
                                 color: Theme.faint
@@ -1239,7 +1248,7 @@ AppWindow {
                                 id: dayHourCell
                                 readonly property var _evs: win.dayEventsForHour(hour)
                                 Layout.fillWidth: true
-                                implicitHeight: Math.max(22, _evs.length * 18 + 2)
+                                implicitHeight: Math.max(Theme.touchTarget, _evs.length * Math.max(Theme.touchTarget, Theme.px(16)) + 2)
                                 radius: Theme.px(4)
                                 color: "transparent"
                                 border.width: 1
@@ -1261,7 +1270,7 @@ AppWindow {
                                             required property var modelData
                                             readonly property color calColor: win.eventColor(modelData.calendar)
                                             Layout.fillWidth: true
-                                            implicitHeight: Theme.px(16)
+                                            implicitHeight: Math.max(Theme.touchTarget, Theme.px(16))
                                             radius: Theme.px(3)
                                             color: Theme.alpha(calColor, 0.45)
                                             Accessible.role: Accessible.Button
@@ -1878,15 +1887,22 @@ AppWindow {
             Rectangle {
                 anchors.centerIn: parent
                 width: Math.min(parent.width - Theme.px(48), Theme.px(460))
-                implicitHeight: detailCol.implicitHeight + Theme.px(24)
+                height: Math.min(detailCol.implicitHeight + Theme.px(48), parent.height - Theme.px(24))
                 radius: Theme.radiusLarge
                 color: Theme.surface1
                 border.width: 1
                 border.color: Theme.border
-                ColumnLayout {
-                    id: detailCol
-                    anchors { fill: parent; margins: Theme.px(12) }
-                    spacing: Theme.px(6)
+                Flickable {
+                    anchors.fill: parent
+                    anchors.margins: Theme.px(12)
+                    contentWidth: width
+                    contentHeight: detailCol.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    ColumnLayout {
+                        id: detailCol
+                        width: parent.width
+                        spacing: Theme.px(6)
                     Text {
                         Layout.fillWidth: true
                         text: (win.viewingEvent || {}).summary || ""
@@ -1959,6 +1975,7 @@ AppWindow {
                             onClicked: win.noteForEvent(win.viewingEvent)
                         }
                         Button { Layout.fillWidth: true; text: Tr.t("Edit"); kind: "primary"; onClicked: win.editViewed() }
+                    }
                     }
                 }
             }

@@ -270,10 +270,11 @@ AppWindow {
         spacing: Theme.px(8)
 
         // ---- header ----
-        RowLayout {
+        // a Flow: on a phone the buttons and tabs wrap instead of clipping
+        Flow {
             Layout.fillWidth: true
+            spacing: Theme.px(6)
             // the title is the window's own (AppWindow's header), not repeated here
-            Item { Layout.fillWidth: true }
             Button { text: Tr.t("Refresh"); flat: true; onClicked: TerminalApp.refresh() }
             Button {
                 text: win.showShortcuts ? Tr.t("Hide shortcuts") : Tr.t("Shortcuts")
@@ -448,6 +449,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Button {
+                    visible: !win.compact
                     text: win.splitView ? Tr.t("Single pane") : Tr.t("Split panes")
                     flat: true; checked: win.splitView
                     onClicked: { win.splitView = !win.splitView; if (win.splitView && !win.splitGroup) win.splitGroup = win.groupFilter; }
@@ -497,7 +499,7 @@ AppWindow {
             }
 
             Flow {
-                visible: win.splitView
+                visible: win.splitView && !win.compact
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 Text { text: Tr.t("Right pane:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
@@ -531,12 +533,15 @@ AppWindow {
                     delegate: Rectangle {
                         id: hostRow
                         required property var modelData
+                        required property int index
                         width: hostList.width
                         height: Theme.px(52)
                         radius: Theme.radiusSmall
                         color: hostList.currentItem === hostRow ? Theme.alpha(Theme.accent, 0.14) : (rowArea.containsMouse ? Theme.hover : "transparent")
                         Accessible.role: Accessible.ListItem
                         Accessible.name: Tr.t("Host %1, %2", modelData.name, win.statusName(modelData))
+                        // a tap selects the row too: touch has no hover
+                        TapHandler { onTapped: hostList.currentIndex = hostRow.index }
                         RowLayout {
                             anchors { fill: parent; margins: Theme.px(8) }
                             spacing: Theme.px(8)
@@ -584,7 +589,8 @@ AppWindow {
                     id: hostListB
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    visible: win.splitView
+                    // one pane on a phone: the right pane is a desktop-only split
+                    visible: win.splitView && !win.compact
                     clip: true
                     reuseItems: true
                     model: win.visibleHosts(win.splitGroup)
