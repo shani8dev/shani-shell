@@ -16,9 +16,9 @@ CHRONOA = (ROOT / "shani/Modules/Chronoa/ChronoaSurface.qml").read_text(
 
 
 def test_sidebar_narrow_close_keeps_window_visible_for_slide_animation():
-    """A phone shade must stay mounted until its slide-down animation finishes."""
+    """A phone shade (down from the top) must stay mounted until it has slid back up out of view."""
     assert (
-        "visible: Ui.controlCenter || (!narrow && slide.x < width) || (narrow && slide.y < win.height - 1)"
+        "visible: Ui.controlCenter || (!narrow && slide.x < width) || (narrow && slide.y > -slide.height + 1)"
         in SIDEBAR
     )
 
