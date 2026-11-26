@@ -9,8 +9,8 @@ No lifecycle verb exists here: starting, stopping or creating anything stays in
 the shell's Containers window. Missing tools and absent sockets give empty
 lists, never invented machines. All reads run as the person; one JSON answer.
 
-Test overrides: SHANI_KVM_PATH, SHANI_MODULES_FILE, SHANI_VIRSH, SHANI_LXC,
-SHANI_LXD, SHANI_LXD_SOCKET, SHANI_MACHINECTL.
+Test overrides: SHANI_KVM_PATH, SHANI_MODULES_FILE, SHANI_SYSTEM_VIRSH, SHANI_SYSTEM_LXC,
+SHANI_SYSTEM_LXD, SHANI_LXD_SOCKET, SHANI_SYSTEM_MACHINECTL.
 """
 
 from __future__ import annotations
@@ -120,10 +120,10 @@ def _machinectl(text: str) -> list[dict]:
 def inventory() -> dict:
     """What the three runtimes report, each in its own command's words."""
     tools = {
-        "virsh": _cmd("SHANI_VIRSH", "virsh"),
-        "lxc": _cmd("SHANI_LXC", "lxc-ls"),
-        "lxd": _cmd("SHANI_LXD", "lxc"),
-        "machinectl": _cmd("SHANI_MACHINECTL", "machinectl"),
+        "virsh": _cmd("SHANI_SYSTEM_VIRSH", "virsh"),
+        "lxc": _cmd("SHANI_SYSTEM_LXC", "lxc-ls"),
+        "lxd": _cmd("SHANI_SYSTEM_LXD", "lxc"),
+        "machinectl": _cmd("SHANI_SYSTEM_MACHINECTL", "machinectl"),
     }
     out = {
         "have": {

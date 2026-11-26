@@ -30,7 +30,7 @@ export SHANI_SYSTEM_BG_TOOL=/work/bridge/system_background.py
 # Firmware, checks and root-only maintenance.
 export SHANI_FWUPDMGR=/work/dev/fake-fwupdmgr.py FAKE_FWUPDMGR="$FS/firmware"
 export SHANI_SYSTEM_HEALTH=/work/dev/fake-shani-health.py FAKE_SHANI_HEALTH="$FS/health"
-export SHANI_PKEXEC="" SHANI_DEPLOY=/work/dev/fake-system-root.py
+export SHANI_SYSTEM_PKEXEC="" SHANI_DEPLOY=/work/dev/fake-system-root.py
 export SHANI_HEALTH=/work/dev/fake-system-root.py SHANI_RESET=/work/dev/fake-system-root.py
 export SHANI_REPORT_DIR="$FS/reports" FAKE_SYSTEM_ROOT="$FS/root"
 mkdir -p "$FS/firmware" "$FS/health" "$FS/root"
@@ -62,7 +62,7 @@ target = "/tmp/fake-system/bin-%s/systemctl" % which
 os.execv(target, ["systemctl"] + args)
 SH
 chmod +x "$FS/systemctl"
-export SHANI_SYSTEMCTL="$FS/systemctl"
+export SHANI_SYSTEM_SYSTEMCTL="$FS/systemctl"
 export FAKE_SYSTEM_NET="$FS/net" SHANI_RESOLV_CONF="$FS/net/resolv.conf" \
        SHANI_CADDYFILE="$FS/net/Caddyfile" SHANI_CLOUDFLARED_DIR="$FS/net/cloudflared-config" \
        SHANI_EXIM_CONF="$FS/net/exim.conf" SHANI_SYSCTL_FILE="$FS/net/ip_forward"
@@ -90,8 +90,8 @@ printf 'TOTP/T30 alice - 123456 6 30\n' > "$FS/users.oath"
 
 # Virtualization readiness and inventory.
 export FAKE_SYSTEM_VIRT="$FS/virt" SHANI_KVM_PATH="$FS/kvm" SHANI_MODULES_FILE="$FS/modules" \
-       SHANI_VIRSH="$FS/bin-net/virsh" SHANI_LXC="$FS/bin-net/lxc" \
-       SHANI_LXD="$FS/bin-net/lxd" SHANI_MACHINECTL="$FS/bin-net/machinectl" \
+       SHANI_SYSTEM_VIRSH="$FS/bin-net/virsh" SHANI_SYSTEM_LXC="$FS/bin-net/lxc" \
+       SHANI_SYSTEM_LXD="$FS/bin-net/lxd" SHANI_SYSTEM_MACHINECTL="$FS/bin-net/machinectl" \
        SHANI_LXD_SOCKET="$FS/lxd.socket"
 printf 'kvm 16384 1 - Live 0xffffffff\nkvm_intel 4096 0 - Live 0xffffffff\n' > "$FS/modules"
 : > "$FS/lxd.socket"

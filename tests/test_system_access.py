@@ -27,7 +27,7 @@ def setup(tmp_path, commands=("systemctl", "ssh-keygen")):
         {
             "FAKE_SYSTEM_ACCESS": str(tmp_path),
             "PATH": str(bin_dir) + ":" + os.environ["PATH"],
-            "SHANI_SYSTEMCTL": "systemctl",
+            "SHANI_SYSTEM_SYSTEMCTL": "systemctl",
             "SHANI_NSSWITCH": str(etc / "nsswitch.conf"),
             "SHANI_KRB5_CONF": str(etc / "krb5.conf"),
             "SHANI_KRB5_CCACHE": str(tmp_path / "krb5cc_*"),

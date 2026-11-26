@@ -19,7 +19,7 @@ token, key or password is never copied into an answer.
     system_net.py mail          {"relay","host","detail","error"}
 
 Every external tool, file and directory has a SHANI_* override for tests:
-SHANI_RESOLV_CONF, SHANI_RESOLVECTL, SHANI_SYSTEMCTL, SHANI_SS, SHANI_SYSCTL_FILE,
+SHANI_RESOLV_CONF, SHANI_RESOLVECTL, SHANI_SYSTEM_SYSTEMCTL, SHANI_SS, SHANI_SYSCTL_FILE,
 SHANI_AVAHI_BROWSE, SHANI_CADDYFILE, SHANI_CADDY, SHANI_CLOUDFLARED_DIR,
 SHANI_CLOUDFLARED and SHANI_EXIM_CONF. Status queries get five seconds each.
 """
@@ -39,7 +39,7 @@ TIMEOUT = 5
 
 RESOLV_CONF = os.environ.get("SHANI_RESOLV_CONF", "/etc/resolv.conf")
 RESOLVECTL = shlex.split(os.environ.get("SHANI_RESOLVECTL", "resolvectl"))
-SYSTEMCTL = shlex.split(os.environ.get("SHANI_SYSTEMCTL", "systemctl"))
+SYSTEMCTL = shlex.split(os.environ.get("SHANI_SYSTEM_SYSTEMCTL", "systemctl"))
 SS = shlex.split(os.environ.get("SHANI_SS", "ss"))
 SYSCTL_FILE = os.environ.get("SHANI_SYSCTL_FILE", "/proc/sys/net/ipv4/ip_forward")
 AVAHI_BROWSE = shlex.split(os.environ.get("SHANI_AVAHI_BROWSE", "avahi-browse"))

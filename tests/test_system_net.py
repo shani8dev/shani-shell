@@ -32,7 +32,7 @@ def env(tmp_path):
         PATH="%s:%s" % (tmp_path, os.environ["PATH"]),
         SHANI_RESOLV_CONF=str(tmp_path / "resolv.conf"),
         SHANI_RESOLVECTL="resolvectl",
-        SHANI_SYSTEMCTL="systemctl",
+        SHANI_SYSTEM_SYSTEMCTL="systemctl",
         SHANI_SS="ss",
         SHANI_SYSCTL_FILE=str(tmp_path / "ip_forward"),
         SHANI_AVAHI_BROWSE="avahi-browse",

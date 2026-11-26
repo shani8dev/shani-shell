@@ -11,7 +11,7 @@ asks why before it asks for a password. The calling page says what will happen;
 this script never reads the bundle it asks shani-health to write, only reports
 the folder it was written to. Reset accepts exactly two booleans on stdin:
 unknown keys and values that are not booleans are refused before any command
-runs. SHANI_PKEXEC / SHANI_DEPLOY / SHANI_HEALTH / SHANI_RESET / SHANI_REPORT_DIR.
+runs. SHANI_SYSTEM_PKEXEC / SHANI_DEPLOY / SHANI_HEALTH / SHANI_RESET / SHANI_REPORT_DIR.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PKEXEC = shlex.split(os.environ.get("SHANI_PKEXEC", "pkexec"))
+PKEXEC = shlex.split(os.environ.get("SHANI_SYSTEM_PKEXEC", "pkexec"))
 DEPLOY = os.environ.get("SHANI_DEPLOY", "/usr/local/bin/shani-deploy")
 HEALTH = os.environ.get("SHANI_HEALTH", "/usr/local/bin/shani-health")
 RESET = os.environ.get("SHANI_RESET", "/usr/local/bin/shani-reset")

@@ -18,7 +18,7 @@ secret is returned. Service states are systemctl's own words ("active",
 first "domain = realm" line; cache is the credential cache file's path when one
 exists; available LSM names are the known names named by the kernel.
 
-Test overrides: SHANI_SYSTEMCTL, SHANI_NSSWITCH, SHANI_KRB5_CONF,
+Test overrides: SHANI_SYSTEM_SYSTEMCTL, SHANI_NSSWITCH, SHANI_KRB5_CONF,
 SHANI_KRB5_CCACHE, SHANI_SYSTEM_PAM_DIR, SHANI_PKCS11_CONF, SHANI_PKCS11_MAP,
 SHANI_POLKIT_DIR, SHANI_SUDOERS, SHANI_SSHD_CONF, SHANI_LSM_FILE,
 SHANI_SYSTEM_SSH_KEYGEN, SHANI_AUTHORIZED_KEYS, SHANI_OATH_FILE.
@@ -81,7 +81,7 @@ def _last_line(text: str, fallback: str) -> str:
 
 
 def _state(unit: str) -> str:
-    r, err = _run(_cmd("SHANI_SYSTEMCTL", "systemctl"), "is-active", unit)
+    r, err = _run(_cmd("SHANI_SYSTEM_SYSTEMCTL", "systemctl"), "is-active", unit)
     if err or r is None:
         return "unknown"
     value = r.stdout.strip().splitlines()
@@ -93,7 +93,7 @@ def directory() -> dict:
     """Directory services and the name-service switches that use them."""
     out = {"sssd": "unknown", "slapd": "unknown", "nsswitch": "", "error": ""}
     switches: dict[str, str] = {}
-    systemctl = _cmd("SHANI_SYSTEMCTL", "systemctl")
+    systemctl = _cmd("SHANI_SYSTEM_SYSTEMCTL", "systemctl")
     if shutil.which(systemctl[0] if systemctl else ""):
         out["sssd"] = _state("sssd.service")
         out["slapd"] = _state("slapd.service")

@@ -26,7 +26,7 @@ def setup(tmp_path, commands=("systemctl", "ausearch", "ananicy-cpp")):
             "PATH": str(bin_dir) + ":" + os.environ["PATH"],
             "SHANI_CRONTAB_ROOT": str(tmp_path / "etc"),
             "SHANI_ANANICY": "ananicy-cpp",
-            "SHANI_SYSTEMCTL": "systemctl",
+            "SHANI_SYSTEM_SYSTEMCTL": "systemctl",
             "SHANI_INTERRUPTS": str(tmp_path / "interrupts"),
             "SHANI_AUSEARCH": "ausearch",
         }

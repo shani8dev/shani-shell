@@ -11,7 +11,7 @@ the extra user field in /etc/crontab; IRQ lines are a sample of the counters;
 audit records are parsed, not judged. All reads run as the person; ausearch is
 called through pkexec only because the audit log needs root to be read.
 
-Test overrides: SHANI_CRONTAB_ROOT, SHANI_ANANICY, SHANI_SYSTEMCTL,
+Test overrides: SHANI_CRONTAB_ROOT, SHANI_ANANICY, SHANI_SYSTEM_SYSTEMCTL,
 SHANI_INTERRUPTS, SHANI_AUSEARCH.
 """
 
@@ -82,7 +82,7 @@ def priority() -> dict:
     if not installed:
         return out
     r, err = _run(
-        _cmd("SHANI_SYSTEMCTL", "systemctl"), "is-active", "ananicy-cpp.service"
+        _cmd("SHANI_SYSTEM_SYSTEMCTL", "systemctl"), "is-active", "ananicy-cpp.service"
     )
     if err:
         out["error"] = err
