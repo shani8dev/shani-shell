@@ -94,7 +94,7 @@ def test_backup_uses_settings_section_and_setting_row_and_keeps_actions():
     assert 'Tr.t("Backups to another drive")' in s
     assert 'Tr.t("Shani Backup is not installed.")' in s
     assert "Backup.refresh()" in s
-    assert "Backup.open(modelData.open)" in s
+    assert "Backup.open(modelData.tab)" in s
     assert "Ui.closeAll()" in s
 
 

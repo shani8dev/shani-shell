@@ -18,8 +18,8 @@ BUSY = (ROOT / "shani/Common/BusyNote.qml").read_text(encoding="utf-8")
 MIGRATED = [
     (
         "Backup/BackupPanel.qml",
-        'Backup.running || Backup.restoring !== ""',
-        'Backup.restoring !== "" ? Tr.t("Restoring %1…", Backup.restoring) : Tr.t("Backing up your home…")',
+        'Backup.busyOp !== "" || Backup.copyBusy',
+        'Backup.running ? Tr.t("Backing up your home…")',
         ["align: Text.AlignHCenter", "Layout.fillWidth: true"],
     ),
     (

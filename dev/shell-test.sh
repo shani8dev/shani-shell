@@ -2034,8 +2034,7 @@ else
     result printers-listed SKIP "no cupsd in this image"
 fi
 
-# ---- Settings > Backup: what Shani Backup says, and Open goes to its page ---------------
-rm -f /tmp/backup-opened
+# ---- Settings > Backup: what Shani Backup says, and Open stays in the shell -------------
 ipc settingsCategory backup
 waitfor "'2 snapshots on this disk · latest today' in d['backupSummary'] and 'every day at 21:15' in d['backupSummary']" 5 \
     && result settings-backup-summary PASS "$(q "['backupSummary']")" || result settings-backup-summary FAIL "$(q "['backupSummary']")"
@@ -2044,9 +2043,10 @@ ipc closeAll
 ipc launcher "earlier versions"
 waitfor "d['topResult'] == 'Earlier versions of my files'" 4
 wtype -k Return
-# the effect itself, not a fixed sleep: a loaded run starts the program later than 0.8 s
-k=0; until grep -q "^open home$" /tmp/backup-opened 2>/dev/null || [ $k -ge 16 ]; do sleep 0.25; k=$((k+1)); done
-grep -q "^open home$" /tmp/backup-opened 2>/dev/null && result launcher-opens-earlier-versions PASS || result launcher-opens-earlier-versions FAIL "$(q "['topResult']") / $(cat /tmp/backup-opened 2>&1)"
+# the shell's own Backup window opens; no GTK app is started
+waitfor "d['backupShown'] and d['backupTab'] == 'home'" 5 \
+    && result launcher-opens-earlier-versions PASS || result launcher-opens-earlier-versions FAIL "$(q "['topResult'], d['backupShown'], d['backupTab']")"
+ipc backupClose
 
 # ---- automations: sound to HDMI turns Do not disturb on, once ---------------------------
 pactl set-default-sink speakers; sleep 0.5

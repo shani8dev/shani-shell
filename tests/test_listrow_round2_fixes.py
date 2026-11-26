@@ -43,19 +43,20 @@ def test_listrow_gives_every_row_a_name_and_keyboard_activation():
 
 def test_backup_snapshot_rows_use_listrow_and_keep_both_restore_actions():
     p = read(BACKUP)
-    row = section(p, "delegate: ListRow {", "// footer")
+    row = section(
+        p,
+        "delegate: ListRow {",
+        "Text {\n                            Layout.fillWidth: true",
+    )
     assert "delegate: Rectangle" not in p
     assert "rowArea" not in row
     assert 'icon: "document-open-recent"' in row
     assert "title: modelData.displayDate" in row
-    assert (
-        'subtitle: modelData.size > 0 ? Backup.formatBytes(modelData.size) + " · " + modelData.name : modelData.name'
-        in row
-    )
+    assert "subtitle: modelData.subtitle" in row
     # restore is destructive: only the explicit buttons fire it
     assert "interactive: false" in row
-    assert 'Backup.restoreFromSnapshot(modelData.name, "all")' in row
-    assert 'Backup.restoreFromSnapshot(modelData.name, "files")' in row
+    assert "Restore a file" in row
+    assert "Restore a folder" in row
 
 
 def test_contacts_duplicate_rows_use_listrow_and_merge_on_click():
