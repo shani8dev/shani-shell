@@ -9,6 +9,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/ToolPath.js" as ToolPath
 
 ColumnLayout {
     id: page
@@ -28,12 +29,13 @@ ColumnLayout {
         pics.running = true;
         fingers.running = true;
         u2fProbe.running = true;
+        cfgRead.running = true;
         SshKeys.refresh();
     }
 
     // ---- a security key (pam-u2f): registered in ~/.config/Yubico/u2f_keys, as the person ----
     // Shown when a key is plugged in or one is already registered (bridge/u2f.py).
-    readonly property string u2fTool: Quickshell.env("SHANI_U2F_TOOL") || "/usr/lib/shani-shell/u2f.py"
+    readonly property string u2fTool: ToolPath.of(Quickshell.env("SHANI_U2F_TOOL"), "u2f.py")
     property var u2f: ({ key: false, keys: [], registered: 0 })
     readonly property bool u2fShown: u2f.key || u2f.registered > 0
     property string u2fState: ""            // "", "touch", "done", "failed: …"
@@ -50,6 +52,192 @@ ColumnLayout {
     function u2fDo(cmd) { u2fState = ""; u2fRun.command = ["python3", page.u2fTool, cmd]; u2fRun.running = true; }
     // a key plugged in or out while the page is open
     Connections { target: Plugged; function onKeyRevChanged() { if (page.active) u2fProbe.running = true; } }
+
+    // ---- FIDO2 and one-time-password settings: read and change them here ----
+    // config returns stable keys and codes; all words are chosen in this page.
+    // The bridge runs the administrator step itself, so this page only sends
+    // JSON on stdin and never puts a setting or a confirmation in argv.
+    property var u2fConfig: ({ fido2: ({}), yubico: ({}), registered: 0, ykman: ({}) })
+    property bool cfgLoaded: false
+    property string cfgReadError: ""
+    property string cfgNote: ""
+    property bool cfgNoteOk: true
+    property string cfgNeedsConfirm: ""
+    property string cfgConfirmTarget: ""     // "fido2" | "yubico"
+    property string cfgConfirmFlag: ""       // "alwaysok" | "nouserok", while asking
+    property string cfgConfirmText: ""
+    property bool fidoCustomAuthfile: false
+    property bool yubicoCustomAuthfile: false
+    property bool yubicoCustomPath: false
+    readonly property string ownAuthfile: page.home + "/.config/Yubico/u2f_keys"
+    readonly property var onOffOptions: [
+        { label: Tr.t("Off"), value: false },
+        { label: Tr.t("On"), value: true }
+    ]
+    readonly property var chalrespOptions: [
+        { label: Tr.t("YubiKey device"), value: "/dev/yubikey" },
+        { label: Tr.t("USB device one"), value: "/dev/hidraw0" },
+        { label: Tr.t("USB device two"), value: "/dev/hidraw1" },
+        { label: Tr.t("Another path…"), value: "__custom" }
+    ]
+    readonly property bool cfgBusy: cfgRead.running || cfgWrite.running
+
+    function cfgValue(target, key) {
+        const t = page.u2fConfig[target];
+        const v = t && t.values ? t.values[key] : undefined;
+        return v === undefined || v === null ? "" : String(v);
+    }
+    function cfgFlag(target, flag) {
+        const t = page.u2fConfig[target];
+        return !!(t && Array.isArray(t.flags) && t.flags.indexOf(flag) >= 0);
+    }
+    function flagWord(flag) {
+        return flag === "alwaysok" ? Tr.t("always allow")
+             : flag === "nouserok" ? Tr.t("allow without a key")
+             : flag === "debug" ? Tr.t("extra logging")
+             : flag;
+    }
+    function fidoFacts() {
+        const f = page.u2fConfig.fido2 || {};
+        const v = f.values || {};
+        const flags = f.flags || [];
+        return [
+            { icon: "auth-smartcard", title: Tr.t("Keys registered"), value: String(page.u2fConfig.registered || 0) },
+            { icon: "dialog-ok", title: Tr.t("FIDO2 sign-in"), value: f.available ? Tr.t("Available") : Tr.t("Not set up") },
+            { icon: "dialog-password", title: Tr.t("Key file"), value: v.authfile || Tr.t("Not set") },
+            { icon: "folder", title: Tr.t("Key file entries"), value: String(f.authfileCount || 0) },
+            { icon: "web-browser", title: Tr.t("Origin"), value: v.origin || Tr.t("Not set") },
+            { icon: "application-x-executable", title: Tr.t("Application ID"), value: v.appid || Tr.t("Not set") },
+            { icon: "preferences-system", title: Tr.t("Options on"), value: flags.length ? flags.map(x => page.flagWord(x)).join(", ") : Tr.t("None") },
+            { icon: "folder", title: Tr.t("Settings file"), value: f.path || "" }
+        ].filter(row => row.value !== "");
+    }
+    function yubicoFacts() {
+        const y = page.u2fConfig.yubico || {};
+        const v = y.values || {};
+        const flags = y.flags || [];
+        const yk = page.u2fConfig.ykman || {};
+        return [
+            { icon: "dialog-ok", title: Tr.t("One-time-password sign-in"), value: y.available ? Tr.t("Available") : Tr.t("Not set up") },
+            { icon: "preferences-system", title: Tr.t("Mode"), value: y.mode || v.mode || Tr.t("Not set") },
+            { icon: "dialog-password", title: Tr.t("Identity"), value: v.id || Tr.t("Not set") },
+            { icon: "drive-harddisk", title: Tr.t("Challenge-response file"), value: v.chalresp_path || Tr.t("Not set") },
+            { icon: "preferences-system", title: Tr.t("Options on"), value: flags.length ? flags.map(x => page.flagWord(x)).join(", ") : Tr.t("None") },
+            { icon: "application-x-executable", title: Tr.t("Key manager"), value: yk.available ? (yk.version || Tr.t("Available")) : Tr.t("Not installed") },
+            { icon: "folder", title: Tr.t("Settings file"), value: y.path || "" }
+        ].filter(row => row.value !== "");
+    }
+    function syncCfgFields() {
+        const fa = page.cfgValue("fido2", "authfile");
+        const ya = page.cfgValue("yubico", "authfile");
+        const cp = page.cfgValue("yubico", "chalresp_path");
+        page.fidoCustomAuthfile = fa !== "" && fa !== page.ownAuthfile;
+        page.yubicoCustomAuthfile = ya !== "" && ya !== page.ownAuthfile;
+        page.yubicoCustomPath = cp !== "" && ["/dev/yubikey", "/dev/hidraw0", "/dev/hidraw1"].indexOf(cp) < 0;
+        fidoOrigin.text = page.cfgValue("fido2", "origin");
+        fidoAppid.text = page.cfgValue("fido2", "appid");
+        fidoAuthfileCustom.text = fa;
+        yubicoId.text = page.cfgValue("yubico", "id");
+        yubicoAuthfileCustom.text = ya;
+        yubicoPathCustom.text = cp;
+    }
+    function writeConfig(target, settings, confirm) {
+        page.cfgNote = "";
+        page.cfgNoteOk = true;
+        page.cfgNeedsConfirm = "";
+        cfgWrite.reply = ({});
+        cfgWrite.target = target;
+        cfgWrite.payload = JSON.stringify({ target: target, settings: settings, confirm: confirm || "" });
+        cfgWrite.command = ["python3", page.u2fTool, "config-set"];
+        cfgWrite.running = true;
+    }
+    function flagObject(flag, on) {
+        const o = {};
+        o[flag] = on;
+        return o;
+    }
+    function setFlag(target, flag, on) {
+        if (page.cfgFlag(target, flag) === on) return;
+        if (on) {
+            page.cfgConfirmTarget = target;
+            page.cfgConfirmFlag = flag;
+            page.cfgConfirmText = "";
+            page.cfgNeedsConfirm = "";
+            cfgConfirmInput.text = "";
+        } else {
+            page.writeConfig(target, page.flagObject(flag, false), "");
+        }
+    }
+    function cfgCanConfirm() {
+        return page.cfgConfirmFlag !== "" && page.cfgConfirmText === page.cfgConfirmFlag;
+    }
+    function cfgApplyConfirm() {
+        if (!page.cfgCanConfirm()) return;
+        const target = page.cfgConfirmTarget;
+        const flag = page.cfgConfirmFlag;
+        const typed = page.cfgConfirmText;
+        page.cfgConfirmTarget = "";
+        page.cfgConfirmFlag = "";
+        page.cfgConfirmText = "";
+        cfgConfirmInput.text = "";
+        page.writeConfig(target, page.flagObject(flag, true), typed);
+    }
+    function cfgCancelConfirm() {
+        page.cfgConfirmTarget = "";
+        page.cfgConfirmFlag = "";
+        page.cfgConfirmText = "";
+        cfgConfirmInput.text = "";
+    }
+    Process {
+        id: cfgRead
+        command: ["python3", page.u2fTool, "config"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text); } catch (e) {}
+                if (r.fido2 && r.yubico) {
+                    page.u2fConfig = r;
+                    page.cfgLoaded = true;
+                    page.cfgReadError = "";
+                    page.syncCfgFields();
+                } else {
+                    page.cfgLoaded = false;
+                    page.cfgReadError = Tr.t("Could not read sign-in key settings.");
+                }
+            }
+        }
+    }
+    Process {
+        id: cfgWrite
+        stdinEnabled: true
+        property string payload: ""
+        property string target: ""
+        property var reply: ({})
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { cfgWrite.reply = JSON.parse(text); } catch (e) { cfgWrite.reply = ({}); }
+            }
+        }
+        stderr: StdioCollector { id: cfgWriteErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => {
+            stdinEnabled = true;
+            const r = cfgWrite.reply || {};
+            const label = cfgWrite.target === "fido2" ? Tr.t("FIDO2") : Tr.t("One-time-password");
+            if (code === 0 && r.ok === true) {
+                page.cfgNoteOk = true;
+                page.cfgNote = Tr.t("%1 settings saved.", label);
+                page.cfgNeedsConfirm = "";
+                page.cfgCancelConfirm();
+                if (r.config && r.config.fido2) page.u2fConfig = r.config;
+                cfgRead.running = true;   // a new read after the privileged write
+            } else {
+                page.cfgNoteOk = false;
+                page.cfgNote = String(r.error || cfgWriteErr.text.trim().split("\n").pop() || Tr.t("Could not save sign-in key settings."));
+                page.cfgNeedsConfirm = r.needsConfirm ? String(r.needsConfirm) : "";
+            }
+        }
+    }
 
     // ---- fingerprints (fprintd): what is enrolled, enrolling one, removing them ----
     property bool hasReader: false
@@ -430,6 +618,276 @@ ColumnLayout {
         Button { visible: page.u2f.key; kind: "primary"; text: page.u2f.registered > 0 ? Tr.t("Register another key") : Tr.t("Register this key"); onClicked: page.u2fDo("register") }
         Button { visible: page.u2f.registered > 0; kind: "danger"; text: Tr.t("Remove my keys"); onClicked: page.u2fDo("remove") }
     }
+    }
+
+    // ---- the sign-in modules themselves: how each key is checked -----------
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Sign-in with a key")
+        hint: Tr.t("How this system checks a security key when you sign in. Saving a change may ask for an administrator's password.")
+
+        BusyNote {
+            Layout.fillWidth: true
+            visible: page.cfgBusy
+            note: Tr.t("Working with key settings…")
+            iconSize: Theme.px(16)
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.cfgReadError !== ""
+            tone: "warn"
+            text: page.cfgReadError
+            Button { flat: true; text: Tr.t("Try again"); onClicked: cfgRead.running = true }
+        }
+
+        // FIDO2: current state, then each value and flag the person may change
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("FIDO2")
+            color: Theme.text
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.weight: Font.Medium
+            Accessible.name: text
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: page.cfgLoaded && !page.cfgBusy
+            spacing: Theme.px(2)
+            Repeater {
+                model: page.fidoFacts()
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    icon: modelData.icon
+                    title: modelData.title
+                    subtitle: modelData.value
+                    interactive: false
+                }
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: page.cfgLoaded && !page.cfgBusy
+            spacing: Theme.px(8)
+            Picks {
+                label: Tr.t("Key file")
+                options: [
+                    { label: Tr.t("This account's key file"), value: page.ownAuthfile },
+                    { label: Tr.t("Another file…"), value: "__custom" }
+                ]
+                current: page.cfgValue("fido2", "authfile")
+                onPicked: v => {
+                    if (v === "__custom") page.fidoCustomAuthfile = true;
+                    else { page.fidoCustomAuthfile = false; page.writeConfig("fido2", { authfile: v }, ""); }
+                }
+            }
+            TextField {
+                id: fidoAuthfileCustom
+                visible: page.fidoCustomAuthfile
+                Layout.fillWidth: true
+                label: Tr.t("Key file path")
+                placeholder: Tr.t("Path to a key file")
+                onAccepted: if (text.trim()) page.writeConfig("fido2", { authfile: text.trim() }, "")
+                Accessible.name: Tr.t("Key file path")
+            }
+            TextField {
+                id: fidoOrigin
+                Layout.fillWidth: true
+                label: Tr.t("Origin")
+                placeholder: Tr.t("Address the key is bound to")
+                onAccepted: if (text.trim()) page.writeConfig("fido2", { origin: text.trim() }, "")
+                Accessible.name: Tr.t("Origin")
+            }
+            TextField {
+                id: fidoAppid
+                Layout.fillWidth: true
+                label: Tr.t("Application ID")
+                placeholder: Tr.t("Application ID the key is bound to")
+                onAccepted: if (text.trim()) page.writeConfig("fido2", { appid: text.trim() }, "")
+                Accessible.name: Tr.t("Application ID")
+            }
+            Picks {
+                label: Tr.t("Always allow")
+                options: page.onOffOptions
+                current: page.cfgFlag("fido2", "alwaysok")
+                onPicked: v => page.setFlag("fido2", "alwaysok", v)
+            }
+            Picks {
+                label: Tr.t("Allow without a key")
+                options: page.onOffOptions
+                current: page.cfgFlag("fido2", "nouserok")
+                onPicked: v => page.setFlag("fido2", "nouserok", v)
+            }
+            Picks {
+                label: Tr.t("Extra logging")
+                options: page.onOffOptions
+                current: page.cfgFlag("fido2", "debug")
+                onPicked: v => {
+                    if (page.cfgFlag("fido2", "debug") !== v) page.writeConfig("fido2", { debug: v }, "");
+                }
+            }
+        }
+
+        // Yubico OTP: the same shape, with a mode and a two-step path
+        Text {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.px(8)
+            text: Tr.t("One-time-password key")
+            color: Theme.text
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.weight: Font.Medium
+            Accessible.name: text
+        }
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("The one-time password value itself is never shown.")
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+            Accessible.name: text
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: page.cfgLoaded && !page.cfgBusy
+            spacing: Theme.px(2)
+            Repeater {
+                model: page.yubicoFacts()
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    icon: modelData.icon
+                    title: modelData.title
+                    subtitle: modelData.value
+                    interactive: false
+                }
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: page.cfgLoaded && !page.cfgBusy
+            spacing: Theme.px(8)
+            Picks {
+                label: Tr.t("Mode")
+                options: [
+                    { label: Tr.t("Client"), value: "client" },
+                    { label: Tr.t("Challenge-response"), value: "challenge-response" }
+                ]
+                current: page.cfgValue("yubico", "mode")
+                onPicked: v => page.writeConfig("yubico", { mode: v }, "")
+            }
+            TextField {
+                id: yubicoId
+                Layout.fillWidth: true
+                label: Tr.t("Identity")
+                placeholder: Tr.t("Identity used to match the key")
+                onAccepted: if (text.trim()) page.writeConfig("yubico", { id: text.trim() }, "")
+                Accessible.name: Tr.t("Identity")
+            }
+            Picks {
+                label: Tr.t("Challenge-response file")
+                options: page.chalrespOptions
+                current: page.cfgValue("yubico", "chalresp_path")
+                onPicked: v => {
+                    if (v === "__custom") page.yubicoCustomPath = true;
+                    else { page.yubicoCustomPath = false; page.writeConfig("yubico", { chalresp_path: v }, ""); }
+                }
+            }
+            TextField {
+                id: yubicoPathCustom
+                visible: page.yubicoCustomPath
+                Layout.fillWidth: true
+                label: Tr.t("Challenge-response path")
+                placeholder: Tr.t("Path used for challenge-response")
+                onAccepted: if (text.trim()) page.writeConfig("yubico", { chalresp_path: text.trim() }, "")
+                Accessible.name: Tr.t("Challenge-response path")
+            }
+            Picks {
+                label: Tr.t("Key file")
+                options: [
+                    { label: Tr.t("This account's key file"), value: page.ownAuthfile },
+                    { label: Tr.t("Another file…"), value: "__custom" }
+                ]
+                current: page.cfgValue("yubico", "authfile")
+                onPicked: v => {
+                    if (v === "__custom") page.yubicoCustomAuthfile = true;
+                    else { page.yubicoCustomAuthfile = false; page.writeConfig("yubico", { authfile: v }, ""); }
+                }
+            }
+            TextField {
+                id: yubicoAuthfileCustom
+                visible: page.yubicoCustomAuthfile
+                Layout.fillWidth: true
+                label: Tr.t("Key file path")
+                placeholder: Tr.t("Path to a key file")
+                onAccepted: if (text.trim()) page.writeConfig("yubico", { authfile: text.trim() }, "")
+                Accessible.name: Tr.t("Key file path")
+            }
+            Picks {
+                label: Tr.t("Always allow")
+                options: page.onOffOptions
+                current: page.cfgFlag("yubico", "alwaysok")
+                onPicked: v => page.setFlag("yubico", "alwaysok", v)
+            }
+        }
+
+        // one shared confirmation row for every guarded flag
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: page.cfgConfirmFlag !== ""
+            spacing: Theme.px(6)
+            Text {
+                Layout.fillWidth: true
+                text: Tr.t("Turning this on changes how sign-in checks your key. Type %1 to confirm.", page.cfgConfirmFlag)
+                color: Theme.dim
+                wrapMode: Text.Wrap
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                Accessible.name: text
+            }
+            TextField {
+                id: cfgConfirmInput
+                Layout.fillWidth: true
+                label: Tr.t("Type %1 to confirm", page.cfgConfirmFlag)
+                placeholder: Tr.t("Type %1 to confirm", page.cfgConfirmFlag)
+                onTextChanged: page.cfgConfirmText = text
+                onAccepted: if (page.cfgCanConfirm()) page.cfgApplyConfirm()
+                Accessible.name: Tr.t("Type %1 to confirm", page.cfgConfirmFlag)
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Item { Layout.fillWidth: true }
+                Button { flat: true; text: Tr.t("Cancel"); onClicked: page.cfgCancelConfirm() }
+                Button {
+                    kind: "primary"
+                    text: Tr.t("Turn on")
+                    enabled: page.cfgCanConfirm() && !page.cfgBusy
+                    onClicked: page.cfgApplyConfirm()
+                    Accessible.name: Tr.t("Confirm turning on %1", page.cfgConfirmFlag)
+                }
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: page.cfgNeedsConfirm !== ""
+            text: Tr.t("Type %1 to confirm this change.", page.cfgNeedsConfirm)
+            color: Theme.amber
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
+            Accessible.name: text
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.cfgNote !== ""
+            tone: page.cfgNoteOk ? "ok" : "error"
+            text: page.cfgNote
+        }
     }
 
     // ---- SSH keys: what can sign in to this machine over SSH ----------------

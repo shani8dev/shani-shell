@@ -3,7 +3,7 @@
 # dev/fake-* stand-ins the pages' bridge commands already support, and fixture
 # files under /tmp/fake-system. Nothing here writes to the real machine.
 FS=/tmp/fake-system
-mkdir -p "$FS/bin-net" "$FS/bin-access" "$FS/bin-bg" "$FS/access" "$FS/virt" "$FS/bg" "$FS/cron/cron.d" "$FS/cron/cron.hourly" "$FS/cron/cron.daily" "$FS/pam" "$FS/polkit" "$FS/reports"
+mkdir -p "$FS/bin-net" "$FS/bin-access" "$FS/bin-bg" "$FS/bin-nfs" "$FS/bin-smb" "$FS/access" "$FS/virt" "$FS/bg" "$FS/cron/cron.d" "$FS/cron/cron.hourly" "$FS/cron/cron.daily" "$FS/pam" "$FS/polkit" "$FS/reports" "$FS/usershares"
 : > "$FS/kvm"
 
 # One stand-in file, several tool names (the bridges pass the path directly).
@@ -11,9 +11,11 @@ for t in flatpak snap ostree lspci glxinfo; do ln -sf /work/dev/fake-system-info
 ln -sf /work/dev/fake-system-info.py "$FS/bin-net/shani-etc-changes"
 for t in mdadm pvs vgs lvs btrfs compsize smartctl; do ln -sf /work/dev/fake-system-disks.py "$FS/bin-net/$t"; done
 for t in resolvectl systemctl ss avahi-browse caddy cloudflared; do ln -sf /work/dev/fake-system-net.py "$FS/bin-net/$t"; done
-for t in systemctl ssh-keygen; do ln -sf /work/dev/fake-system-access.py "$FS/bin-access/$t"; done
+for t in systemctl ssh-keygen pcsc_scan oathtool; do ln -sf /work/dev/fake-system-access.py "$FS/bin-access/$t"; done
 for t in systemctl ausearch; do ln -sf /work/dev/fake-system-bg.py "$FS/bin-bg/$t"; done
 for t in virsh lxc lxd machinectl; do ln -sf /work/dev/fake-system-virt.py "$FS/bin-net/$t"; done
+for t in exportfs; do ln -sf /work/dev/fake-system-nfs.py "$FS/bin-nfs/$t"; done
+for t in testparm pdbedit ss systemctl; do ln -sf /work/dev/fake-system-smb.py "$FS/bin-smb/$t"; done
 
 # The shell's pages reach their bridge modules through these overrides.
 export SHANI_SYSTEM_FIRMWARE_TOOL=/work/bridge/system_firmware.py
@@ -24,6 +26,8 @@ export SHANI_SYSTEM_MACHINE_TOOL=/work/bridge/system_machine.py
 export SHANI_SYSTEM_DISKS_TOOL=/work/bridge/system_disks.py
 export SHANI_SYSTEM_NET_TOOL=/work/bridge/system_net.py
 export SHANI_SYSTEM_ACCESS_TOOL=/work/bridge/system_access.py
+export SHANI_SYSTEM_SHARING_TOOL=/work/bridge/system_nfs.py
+export SHANI_SYSTEM_SMB_TOOL=/work/bridge/system_smb.py
 export SHANI_SYSTEM_VIRT_TOOL=/work/bridge/system_virt.py
 export SHANI_SYSTEM_BG_TOOL=/work/bridge/system_background.py
 
@@ -34,6 +38,17 @@ export SHANI_SYSTEM_PKEXEC="" SHANI_DEPLOY=/work/dev/fake-system-root.py
 export SHANI_HEALTH=/work/dev/fake-system-root.py SHANI_RESET=/work/dev/fake-system-root.py
 export SHANI_REPORT_DIR="$FS/reports" FAKE_SYSTEM_ROOT="$FS/root"
 mkdir -p "$FS/firmware" "$FS/health" "$FS/root"
+
+# A pkexec stand-in for the bridges that stage a config and hand text + digest
+# to shani-admin.py. It logs the exact stdin and runs the helper stand-in.
+mkdir -p /tmp/fake-bin
+cat > /tmp/fake-bin/pkexec <<'SH'
+#!/bin/sh
+printf '%s\n' "$*" >> /tmp/fake-system/pkexec-calls
+tee /tmp/fake-system/pkexec-stdin | exec "$@"
+SH
+chmod +x /tmp/fake-bin/pkexec
+: > "$FS/pkexec-calls"
 
 # Versions, graphics, /etc changes and persistence.
 export SHANI_SYSTEM_FLATPAK="$FS/bin-net/flatpak" SHANI_SYSTEM_SNAP="$FS/bin-net/snap"
@@ -75,7 +90,10 @@ export FAKE_SYSTEM_ACCESS="$FS/access" SHANI_NSSWITCH="$FS/nsswitch" \
        SHANI_POLKIT_DIR="$FS/polkit" SHANI_SUDOERS="$FS/sudoers" \
        SHANI_SSHD_CONF="$FS/sshd.conf" SHANI_LSM_FILE="$FS/lsm" \
        SHANI_SYSTEM_SSH_KEYGEN="$FS/bin-access/ssh-keygen" SHANI_AUTHORIZED_KEYS="$FS/authorized_keys" \
-       SHANI_OATH_FILE="$FS/users.oath"
+       SHANI_OATH_FILE="$FS/users.oath" SHANI_PCSC_SCAN="$FS/bin-access/pcsc_scan" \
+       SHANI_OATHTOOL="$FS/bin-access/oathtool" SHANI_PKCS11_MAP_FILE="$FS/subject_mapping" \
+       SHANI_PAM_U2F_CONF="$FS/pam_u2f.conf" SHANI_PAM_YUBICO_CONF="$FS/pam_yubico.conf" \
+       SHANI_SSHD=/work/dev/fake-sshd.py SHANI_VISUDO=/work/dev/fake-visudo.py
 printf 'passwd: files sss\ngroup: files sss\nshadow: files sss\n' > "$FS/nsswitch"
 printf '[libdefaults]\n default_realm = EXAMPLE.LAN\n[domain_realm]\n .example.lan = EXAMPLE.LAN\n' > "$FS/krb5.conf"
 printf 'auth sufficient pam_krb5.so\n' > "$FS/pam/system-auth"
@@ -87,6 +105,20 @@ printf 'PasswordAuthentication no\nPubkeyAuthentication yes\n' > "$FS/sshd.conf"
 printf 'capability,yama,landlock\n' > "$FS/lsm"
 printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyForTests alice@laptop\n' > "$FS/authorized_keys"
 printf 'TOTP/T30 alice - 123456 6 30\n' > "$FS/users.oath"
+printf '@include common-auth\n' > "$FS/pam/system-login"
+printf 'auth sufficient pam_oath.so usersfile=%s\n' "$FS/users.oath" > "$FS/pam/common-auth"
+
+# Access and sharing files the depth pages read. Nothing here holds a secret.
+export SHANI_EXPORTS_FILE="$FS/exports" SHANI_EXPORTFS="$FS/bin-nfs/exportfs" \
+       FAKE_SYSTEM_NFS="$FS/nfs" SHANI_SMB_CONF="$FS/smb.conf" \
+       SHANI_SMB_DROPIN="$FS/smb-dropin.conf" SHANI_TESTPARM="$FS/bin-smb/testparm" \
+       SHANI_PDBEDIT="$FS/bin-smb/pdbedit" SHANI_SS="$FS/bin-smb/ss" \
+       SHANI_USERSHARE_DIR="$FS/usershares" FAKE_SYSTEM_SMB="$FS/smb"
+mkdir -p "$FS/nfs" "$FS/smb"
+printf '# Managed by this system\n/data 192.168.1.0/24(ro,sync,root_squash)\n' > "$FS/exports"
+printf '[global]\n   workgroup = HOME\n' > "$FS/smb.conf"
+printf 'auth sufficient pam_u2f.so origin=https://example.lan\n' > "$FS/pam_u2f.conf"
+printf 'auth sufficient pam_yubico.so mode=client id=1234\n' > "$FS/pam_yubico.conf"
 
 # Virtualization readiness and inventory.
 export FAKE_SYSTEM_VIRT="$FS/virt" SHANI_KVM_PATH="$FS/kvm" SHANI_MODULES_FILE="$FS/modules" \

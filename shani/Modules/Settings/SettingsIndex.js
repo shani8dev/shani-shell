@@ -357,6 +357,16 @@ var entries = [
     // A section inside the Security category, not a settings.json key: search
     // lands on the page and flashes its "Encryption and boot" section.
     { key: "encryptionBoot", label: "Encryption and boot", cat: "security", hint: "is the disk encrypted, does it unlock with the TPM, Secure Boot and recovery keys", words: "encryption encrypted disk tpm unlock secure boot recovery key luks header pin pcrlock" },
+    // Sections on the access, sharing and account pages: not settings.json keys,
+    // but a search still lands on the right category and flashes the section.
+    { key: "networkFolders", label: "Network folders (NFS)", cat: "sharing", hint: "folders shared over the network, and the ownership warnings on each export", words: "nfs export share network folder ownership squash client" },
+    { key: "sambaShares", label: "Shared folders for this computer (Samba)", cat: "sharing", hint: "validated shares, accounts, ports and guest access that is always refused", words: "samba smb share folder guest password network testparm" },
+    { key: "remoteRules", label: "Remote login", cat: "sharing", hint: "which directives the SSH drop-in records, and the lines it keeps as they are", words: "sshd ssh remote login password root forwarding rules" },
+    { key: "commandGrants", label: "Who can run commands as another user", cat: "security", hint: "one row per grant, checked with visudo before and after saving", words: "sudo grant nopasswd root command rule privilege" },
+    { key: "systemHosts", label: "Host names", cat: "security", hint: "the hosts file; the three system addresses are kept", words: "hosts address localhost loopback name resolution" },
+    { key: "cardReaders", label: "Card readers", cat: "adminaccess", hint: "reader state, card sign-in and subject-to-account mappings", words: "smartcard card reader pkcs11 mapping sign in" },
+    { key: "signInCodes", label: "Sign-in codes", cat: "adminaccess", hint: "one-time codes used at sign-in; the shared secret is never shown", words: "oath totp one time code sign in token pam" },
+    { key: "securityKeys", label: "Sign-in with a key", cat: "account", hint: "FIDO2 and one-time-password key settings with guarded options", words: "security key fido2 u2f yubico otp challenge response origin" },
 ];
 
 // every key, grouped by category: for “N customised” and “Reset this section”
