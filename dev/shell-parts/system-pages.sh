@@ -12,7 +12,7 @@ page() {
     if waitfor "d.get('systemCat') == '$cat' and ($want)" 10; then
         result "system-page-$cat" PASS
     else
-        result "system-page-$cat" FAIL "$(q "['systemCat']") $(q "str(d.get('systemState', {}).get('$key'))[:160]")"
+        result "system-page-$cat" FAIL "cat=$(q "['systemCat']") state=$(q "['systemState'].get('$key')")"
     fi
     shot "system-$cat" 0.6
 }

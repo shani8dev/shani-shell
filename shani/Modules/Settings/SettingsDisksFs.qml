@@ -81,9 +81,11 @@ ColumnLayout {
                 try { r = JSON.parse(text); } catch (e) { r = { error: Tr.t("This section could not be read") }; }
                 const o = Object.assign({}, page.results); o[reader.verb] = r; page.results = o;
                 page.publish();
-                page.next();
             }
         }
+        // start the next read only after this one has exited: restarting a
+        // Process from onStreamFinished raced its collector and lost rows.
+        onExited: code => page.next()
     }
 
     SettingsSection {
