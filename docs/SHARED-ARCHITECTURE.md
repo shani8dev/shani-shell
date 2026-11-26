@@ -240,3 +240,15 @@ Add a line when you finish a piece (date, repo, what, commit).
   engine: contract-matched Agent.Inventory, a bounded bridge read, ten
   read-only Settings pages, and a `systemctl --user` switch with no GTK app
   (2ee10b3, fa245c4).
+- 2026-11-26 shani-shell: gaps 3 and 17-24 of the inventory closed. Every
+  ShaniOS-only tool call is a `shanios_*` function in its bridge (rule 1 and
+  the packaging split): `bootinfo.py` probes sbctl/EFI/MOK and parses
+  pkexec `--verify-existing` SGR rows; `system_disks.py` parses btrfs
+  `fi show`/`fi df`, the never-scrubbed state and the smartd schedule;
+  `system_health.py` reads `--storage-info` (honest on empty stdout) and
+  ausearch with an auditd/log-state verdict; `system_net.py` reads fail2ban
+  jails and banned addresses; `ups.py` stages seven bounded upsmon.conf keys
+  with content on stdin and a SHA-256 expect. Settings renders all of it;
+  a null update check is no longer claimed as "up to date". Rejecting
+  stand-ins, contract tests and a nested-shell live part cover each flow
+  (a6639f0, 9ed59a0, 6c69c03).
