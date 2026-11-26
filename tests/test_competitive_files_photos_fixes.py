@@ -24,8 +24,9 @@ def test_files_sort_direction_is_a_click_away():
     the service's own same-key setSort() toggle, which persists the choice."""
     s = read(FILES)
     assert 'Files.sortDesc ? "view-sort-ascending" : "view-sort-descending"' in s
-    assert "onClicked: Files.setSort(Files.sortKey)" in s
-    assert 'Tr.t("Sort direction: %1 (click to reverse)"' in s
+    # in the toolbar's More menu (one tap on every width), kept open to tap again
+    assert "keep: true, run: () => Files.setSort(Files.sortKey)" in s
+    assert 'Tr.t("Sort: largest / newest first")' in s and 'Tr.t("Sort: smallest / oldest first")' in s
 
 
 def test_files_ctrl_h_toggles_hidden_files():

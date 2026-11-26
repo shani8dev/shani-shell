@@ -110,7 +110,8 @@ def test_filter_button_lives_beside_the_category_chips():
     for line in (
         "Files.searchPath(win.deepWords)",
         "win.typed += event.text.toLowerCase()",
-        'tip: Tr.t("Keyboard shortcuts (Ctrl+/)")',
+        # the toolbar's More menu holds the shortcuts sheet now
+        'label: Tr.t("Keyboard shortcuts"), icon: "help-faq", danger: false, run: () => win.toggleShortcuts()',
     ):
         assert line in PANEL
 

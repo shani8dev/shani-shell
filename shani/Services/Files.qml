@@ -926,6 +926,15 @@ Singleton {
     // ---- free space on the drive of the folder on screen -----------------------------
     property real freeBytes: -1
     onPathChanged: if (root.path.startsWith("/")) run(["free", root.path], r => { root.freeBytes = r.free !== undefined ? r.free : -1; }); else root.freeBytes = -1
+    // the home folder's drive, for the phone's Files home (Modules/Files/FilesHome.qml)
+    property real homeFree: -1
+    property real homeTotal: -1
+    function loadHomeFree() {
+        run(["free", root.home], r => {
+            root.homeFree = r.free !== undefined ? r.free : -1;
+            root.homeTotal = r.total !== undefined ? r.total : -1;
+        });
+    }
 
     // ---- tabs: each its own folder; the one on screen is Files.path ------------------
     property var tabs: []                    // the other tabs' folders; [] = one tab (no tab bar)

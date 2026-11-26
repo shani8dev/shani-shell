@@ -264,7 +264,7 @@ def test_bookmark_shortcut_and_split_controls_are_wired():
     for line in (
         "if (control && !alt && event.key === Qt.Key_D) {",
         "Files.toggleBookmark();",
-        'tip: Tr.t("Bookmark this folder (Ctrl+D)")',
+        'label: Files.isBookmarked(Files.path) ? Tr.t("Remove bookmark") : Tr.t("Bookmark this folder")',
         'tip: Tr.t("Swap panes")',
         "onClicked: Files.swapSplit()",
         "win.openInSplit(e.path)",
@@ -375,9 +375,10 @@ def test_grid_caption_setting_reaches_the_tiles():
 
 def test_new_controls_have_accessible_names():
     for line in (
-        'Accessible.name: Files.splitActive ? Tr.t("Close split view")',
+        'label: Files.splitActive ? Tr.t("Close split view") : Tr.t("Split view")',
         'Accessible.name: Tr.t("Swap panes")',
-        'Accessible.name: Tr.t("Bookmark this folder")',
-        'Accessible.name: Tr.t("Keyboard shortcuts")',
+        # in the toolbar's More menu: each row is named by its label (KeyFocus name)
+        'Tr.t("Bookmark this folder"), icon:',
+        'label: Tr.t("Keyboard shortcuts"), icon: "help-faq"',
     ):
         assert line in PANEL

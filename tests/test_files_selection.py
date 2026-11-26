@@ -51,7 +51,7 @@ def test_set_paths_prunes_stale_selection_but_keeps_job_paths():
 def test_view_cycle_is_only_grid_and_list():
     panel = read("shani/Modules/Files/FilesPanel.qml")
     service = read("shani/Services/Files.qml")
-    assert 'const views = ["grid", "list"]' in panel
+    assert 'Files.setViewMode(Files.viewMode === "grid" ? "list" : "grid")' in panel
     assert '"columns"' not in panel and '"columns"' not in service
     # a persisted legacy "columns" resolves to grid, never a blank pane
     assert 'Settings.data.filesViewMode === "list" ? "list" : "grid"' in service

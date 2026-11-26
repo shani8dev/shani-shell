@@ -27,6 +27,9 @@ AppWindow {
     property var openWithPaths: []
     appName: "Files"
     sidePane: placesPane
+    // on a phone the toolbar is the app's one bar (docs/DESIGN.md): no window
+    // header above it - the phone's own bar has back, home and the app switcher
+    header: !compact
     Connections { target: Files; function onPathChanged() { placesPane.open = false; } }
     // a phone shows one folder at a time: a split pane opened on a wide window
     // closes when the window narrows, and the toggle is not offered there
@@ -601,30 +604,47 @@ AppWindow {
             spacing: Theme.px(10)
 
             // ---- the toolbar ----------------------------------------------------
-            // a Flow, so the every-day actions and the title wrap on a phone
-            // instead of running off the side of the window
-            Flow {
+            // One row on every width (docs/DESIGN.md). Wide: back, forward, up,
+            // the folder, search, view, sort and the everyday actions. Narrow (a
+            // phone): back, the folder, search, view and More; search, when
+            // opened, takes the whole row. The rarer actions live in More (⋮).
+            RowLayout {
+                id: toolbar
                 Layout.fillWidth: true
-                spacing: Theme.px(6)
+                spacing: Theme.space(1)
+                readonly property bool searching: win.compact && (win.searchOpen || searchBox.text !== "")
+                readonly property int btn: Math.max(Theme.px(32), Theme.touchTarget)
 
-                IconButton { icon: "go-previous"; size: Theme.px(30); tip: Tr.t("Back"); enabled: Files.canBack; onClicked: Files.back() }
-                IconButton { visible: !win.compact; icon: "go-next"; size: Theme.px(30); tip: Tr.t("Forward"); enabled: Files.canForward; onClicked: Files.forward() }
-                IconButton { icon: "go-up"; size: Theme.px(30); tip: Tr.t("Up"); enabled: Files.canUp; onClicked: Files.up() }
+                IconButton {
+                    visible: !win.homeShown
+                    icon: "go-previous"; size: toolbar.btn
+                    tip: toolbar.searching ? Tr.t("Close search") : Tr.t("Back")
+                    enabled: toolbar.searching || Files.canBack || (win.compact && !win.homeShown)
+                    onClicked: toolbar.searching ? win.closeSearch() : (Files.canBack ? Files.back() : win.showHome = true)
+                }
+                IconButton { visible: !win.compact; icon: "go-next"; size: toolbar.btn; tip: Tr.t("Forward"); enabled: Files.canForward; onClicked: Files.forward() }
+                IconButton { visible: !win.compact; icon: "go-up"; size: toolbar.btn; tip: Tr.t("Up"); enabled: Files.canUp; onClicked: Files.up() }
 
-                Icon { name: "folder"; size: Theme.px(20); color: Theme.accent }
-                Text {
-                    width: Math.min(Theme.px(200), win.width - Theme.px(80))
-                    height: Math.max(Theme.px(30), Theme.touchTarget)
-                    verticalAlignment: Text.AlignVCenter
-                    text: Files.placeTitle(Files.path)
-                    color: Theme.text
-                    elide: Text.ElideMiddle
-                    font.family: Theme.font
-                    font.pixelSize: Theme.fontTitle * Theme.fontScale
-                    font.weight: Font.DemiBold
+                RowLayout {
+                    visible: !toolbar.searching
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.space(1)
+                    spacing: Theme.space(2)
+                    Icon { visible: !win.homeShown; name: Files.isTrash ? "user-trash" : "folder"; size: Theme.px(20); color: Theme.accent }
+                    Text {
+                        Layout.fillWidth: true
+                        text: win.homeShown ? Tr.t("Files") : Files.placeTitle(Files.path)
+                        color: Theme.text
+                        elide: Text.ElideMiddle
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("heading")
+                        font.weight: Font.DemiBold
+                        Accessible.role: Accessible.Heading
+                        Accessible.name: text
+                    }
                 }
                 Button {
-                    visible: win.networkPathHost() !== "" || win.desktopSelected
+                    visible: !win.compact && (win.networkPathHost() !== "" || win.desktopSelected)
                     text: Tr.t("Network tools")
                     flat: true
                     Accessible.name: Tr.t("Check host in Network Tools")
@@ -633,7 +653,9 @@ AppWindow {
 
                 TextField {
                     id: searchBox
-                    width: win.compact ? Theme.px(120) : Theme.px(210)
+                    visible: !win.compact || toolbar.searching
+                    Layout.fillWidth: win.compact
+                    Layout.preferredWidth: win.compact ? -1 : Theme.px(220)
                     placeholder: Tr.t("Search this folder")
                     label: Tr.t("Search this folder")
                     onTextChanged: { Files.searchText = text; dir.query = Files.searchDeep ? "" : text; deepTimer.restart(); }
@@ -641,75 +663,61 @@ AppWindow {
                 }
                 // through the folders under this one too (the words then search a tree, not a folder)
                 IconButton {
+                    visible: !win.compact || toolbar.searching
                     icon: "folder-saved-search"
-                    size: Theme.px(30)
+                    size: toolbar.btn
                     on: Files.searchDeep
                     tip: Files.searchDeep ? Tr.t("Searching the folders inside too") : Tr.t("Search the folders inside too")
                     onClicked: { Files.setSearchDeep(!Files.searchDeep); dir.query = Files.searchDeep ? "" : searchBox.text; deepTimer.restart(); }
                 }
                 IconButton {
+                    visible: win.compact && !toolbar.searching && !win.homeShown
+                    icon: "system-search"; size: toolbar.btn; tip: Tr.t("Search this folder")
+                    onClicked: win.openSearch()
+                }
+                IconButton {
+                    visible: !toolbar.searching && !win.homeShown
                     icon: Files.viewMode === "grid" ? "view-list" : "view-grid"
-                    size: Theme.px(30)
-                    tip: Tr.t("Change view")
-                    onClicked: {
-                        const views = ["grid", "list"];
-                        Files.setViewMode(views[(views.indexOf(Files.viewMode) + 1) % views.length]);
-                    }
-                }
-                IconButton {
-                    icon: "view-sort-descending"
-                    size: Theme.px(30)
-                    tip: Tr.t("Sort by %1").arg(win.sortLabel())
-                    onClicked: {
-                        const order = ["name", "size", "mtime", "btime", "type"];
-                        Files.setSort(order[(order.indexOf(Files.sortKey) + 1) % order.length]);
-                    }
-                }
-                // the sort key button above cycles keys; this one reverses them.
-                // setSort with the current key is the service's own toggle, so the
-                // choice is kept in Settings like every other sort change.
-                IconButton {
-                    icon: Files.sortDesc ? "view-sort-ascending" : "view-sort-descending"
-                    size: Theme.px(30)
-                    tip: Tr.t("Sort direction: %1 (click to reverse)", Files.sortDesc ? Tr.t("descending") : Tr.t("ascending"))
-                    onClicked: Files.setSort(Files.sortKey)
-                }
-                IconButton {
-                    icon: Files.showHidden ? "view-reveal" : "view-conceal"
-                    size: Theme.px(30)
-                    tip: Tr.t("Show hidden files")
-                    onClicked: Files.toggleHidden()
+                    size: toolbar.btn
+                    tip: Files.viewMode === "grid" ? Tr.t("Show as a list") : Tr.t("Show as a grid")
+                    onClicked: Files.setViewMode(Files.viewMode === "grid" ? "list" : "grid")
                 }
                 IconButton {
                     visible: !win.compact
-                    icon: Files.splitActive ? "view-close" : "view-dual"
-                    size: Theme.px(30)
-                    tip: Files.splitActive ? Tr.t("Close split view") : Tr.t("Split view (Ctrl+Alt+N)")
-                    onClicked: Files.toggleSplit()
-                    Accessible.name: Files.splitActive ? Tr.t("Close split view") : Tr.t("Open split view")
+                    icon: "view-sort-descending"
+                    size: toolbar.btn
+                    tip: Tr.t("Sort by %1").arg(win.sortLabel())
+                    onClicked: win.nextSort()
                 }
-                IconButton { icon: "edit-paste"; size: Theme.px(30); tip: Tr.t("Paste here (Ctrl+V)"); onClicked: Files.pasteHere(Files.path) }
-                IconButton { icon: "edit-undo"; size: Theme.px(30); tip: Files.undoLabel ? Tr.t("Undo: %1 (Ctrl+Z)", Files.undoLabel) : Tr.t("Nothing to undo"); enabled: Files.undoLabel !== ""; onClicked: Files.undo() }
+                IconButton { visible: !win.compact; icon: "edit-paste"; size: toolbar.btn; tip: Tr.t("Paste here (Ctrl+V)"); onClicked: Files.pasteHere(Files.path) }
+                IconButton { visible: !win.compact; icon: "edit-undo"; size: toolbar.btn; tip: Files.undoLabel ? Tr.t("Undo: %1 (Ctrl+Z)", Files.undoLabel) : Tr.t("Nothing to undo"); enabled: Files.undoLabel !== ""; onClicked: Files.undo() }
+                IconButton { visible: !win.compact; icon: "folder-new"; size: toolbar.btn; tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
                 ConfirmButton {
                     id: emptyTrashConfirm
-                    visible: Files.isTrash
+                    visible: Files.isTrash && !toolbar.searching
                     icon: "user-trash-full"
-                    size: Theme.px(30)
+                    size: toolbar.btn
                     tip: Tr.t("Empty the trash")
                     armedText: Tr.t("Click again: everything in the trash is deleted for good")
                     interval: 4000
                     onConfirmed: Files.emptyTrash()
                 }
-                IconButton { icon: "folder-new"; size: Theme.px(30); tip: Tr.t("New folder"); onClicked: win.openNewFolder() }
-                IconButton { icon: Files.isBookmarked(Files.path) ? "user-bookmarks" : "bookmark-new"; size: Theme.px(30); tip: Tr.t("Bookmark this folder (Ctrl+D)"); onClicked: Files.toggleBookmark(); Accessible.name: Tr.t("Bookmark this folder") }
-                IconButton { icon: "edit-clear-all"; size: Theme.px(30); tip: Tr.t("Tidy this folder: files into folders by kind"); onClicked: Tidy.plan(Files.path) }
-                IconButton { icon: "help-faq"; size: Theme.px(30); tip: Tr.t("Keyboard shortcuts (Ctrl+/)"); onClicked: win.toggleShortcuts(); Accessible.name: Tr.t("Keyboard shortcuts") }
+                IconButton {
+                    id: moreBtn
+                    visible: !toolbar.searching && !win.homeShown
+                    icon: "view-more"
+                    size: toolbar.btn
+                    tip: Tr.t("More")
+                    accessibleName: Tr.t("More actions for this folder")
+                    onClicked: win.openMenu({ folderMenu: true }, moreBtn.mapToItem(win.contentItem, moreBtn.width - Theme.px(230), moreBtn.height))
+                }
             }
 
             // search categories: the chips feed the listing's extension filters; a row
             // that scrolls sideways when it is wider than the window (a phone)
             Flickable {
                 id: catScroll
+                visible: !win.homeShown
                 Layout.fillWidth: true
                 Layout.preferredHeight: catRow.implicitHeight
                 contentWidth: catRow.implicitWidth
@@ -721,12 +729,6 @@ AppWindow {
                 id: catRow
                 width: Math.max(implicitWidth, catScroll.width)
                 spacing: Theme.px(6)
-                Text {
-                    text: Tr.t("Show:")
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
-                }
                 Repeater {
                     model: win.searchCategories
                     Choice {
@@ -801,8 +803,18 @@ AppWindow {
                 IconButton { icon: "go-up"; size: Theme.px(30); tip: Tr.t("Up"); enabled: Files.splitPath !== "" && Files.splitPath !== "/"; onClicked: { Files.splitPath = FilePaths.parentOf(Files.splitPath); splitDir.reload(); } }
             }
 
+            // ---- a phone's home: where Files opens on a narrow window -------------
+            FilesHome {
+                visible: win.homeShown
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                onOpened: path => win.leaveHome(path)
+                onSearchRequested: { win.leaveHome(Files.home); Files.setSearchDeep(true); win.openSearch(); }
+            }
+
             // ---- the body -------------------------------------------------------
             RowLayout {
+                visible: !win.homeShown
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: Theme.px(10)
@@ -1135,8 +1147,9 @@ AppWindow {
                             }
                     }
 
-                    // the path, as the parts that lead to it
+                    // the path, as the parts that lead to it (a phone's toolbar names the folder)
                     Rectangle {
+                        visible: !win.compact
                         Layout.fillWidth: true
                         implicitHeight: Math.max(Theme.px(32), Theme.touchTarget + Theme.px(4))
                         radius: Theme.radiusSmall
@@ -1281,7 +1294,10 @@ AppWindow {
                             anchors.margins: Theme.px(6)
                             visible: Files.viewMode === "grid"
                             model: win.visibleEntries
-                            cellWidth: Math.min(Math.round(124 * Files.zoom), Math.max(width - Theme.px(8), Theme.touchTarget * 2))
+                            // the columns share the width evenly (no ragged gap on the right);
+                            // a phone takes a smaller base, so three fit across
+                            readonly property real baseCell: Math.round((win.compact ? 100 : 124) * Files.zoom)
+                            cellWidth: Math.max(Theme.touchTarget * 2, Math.floor(width / Math.max(1, Math.floor(width / baseCell))))
                             cellHeight: Math.round(112 * Files.zoom)
                             boundsBehavior: Flickable.StopAtBounds
                             clip: true
@@ -3874,6 +3890,18 @@ AppWindow {
         return Tr.t("name");
     }
 
+    property bool searchOpen: false
+    // a phone opens on its home (FilesHome); a folder opened from anywhere leaves it
+    property bool showHome: true
+    readonly property bool homeShown: compact && showHome
+    function leaveHome(path) { showHome = false; if (path !== Files.path) Files.open(path); }
+    Connections { target: Files; function onPathChanged() { if (win.compact) win.showHome = false; } }
+    function openSearch() { searchOpen = true; searchBox.input.forceActiveFocus(); }
+    function closeSearch() { searchBox.text = ""; searchOpen = false; }
+    function nextSort() {
+        const order = ["name", "size", "mtime", "btime", "type"];
+        Files.setSort(order[(order.indexOf(Files.sortKey) + 1) % order.length]);
+    }
     function openMenu(entry, point) {
         if (!entry)
             return;
@@ -3927,6 +3955,30 @@ AppWindow {
             if (i < count - 1)
                 items.push({ label: Tr.t("Close tabs to the right"), icon: "tab-close-right", danger: false, run: () => Files.closeTabsToRight(i) });
             items.push({ label: Tr.t("Close tab"), icon: "window-close", danger: false, run: () => Files.closeTab(i) });
+            return items;
+        }
+        if (e.folderMenu) {
+            // the toolbar's More (⋮): what a narrow window has no room for, and the rarer actions everywhere
+            if (compact) {
+                items.push({ label: Tr.t("Refresh"), icon: "view-refresh", danger: false, run: () => win.refresh() });
+                if (Files.canUp)
+                    items.push({ label: Tr.t("Up one folder"), icon: "go-up", danger: false, run: () => Files.up() });
+                items.push({ label: Tr.t("New folder"), icon: "folder-new", danger: false, run: () => win.openNewFolder() });
+                items.push({ label: Tr.t("Paste here"), icon: "edit-paste", danger: false, run: () => Files.pasteHere(Files.path) });
+                if (Files.undoLabel !== "")
+                    items.push({ label: Tr.t("Undo: %1", Files.undoLabel), icon: "edit-undo", danger: false, run: () => Files.undo() });
+                items.push({ label: Tr.t("Sort by %1").arg(win.sortLabel()), icon: "view-sort-descending", danger: false, keep: true, run: () => win.nextSort() });
+                if (win.networkPathHost() !== "" || win.desktopSelected)
+                    items.push({ label: Tr.t("Network tools"), icon: "network-workgroup", danger: false, run: () => win.checkNetworkHost() });
+            }
+            items.push({ label: Files.sortDesc ? Tr.t("Sort: largest / newest first") : Tr.t("Sort: smallest / oldest first"), icon: Files.sortDesc ? "view-sort-ascending" : "view-sort-descending", danger: false, keep: true, run: () => Files.setSort(Files.sortKey) });
+            items.push({ label: Files.showHidden ? Tr.t("Hide hidden files") : Tr.t("Show hidden files"), icon: Files.showHidden ? "view-conceal" : "view-reveal", danger: false, run: () => Files.toggleHidden() });
+            items.push({ label: Files.isBookmarked(Files.path) ? Tr.t("Remove bookmark") : Tr.t("Bookmark this folder"), icon: Files.isBookmarked(Files.path) ? "user-bookmarks" : "bookmark-new", danger: false, run: () => Files.toggleBookmark() });
+            items.push({ label: Tr.t("Tidy this folder"), icon: "edit-clear-all", danger: false, run: () => Tidy.plan(Files.path) });
+            if (!compact) {
+                items.push({ label: Files.splitActive ? Tr.t("Close split view") : Tr.t("Split view"), icon: Files.splitActive ? "view-close" : "view-dual", danger: false, run: () => Files.toggleSplit() });
+                items.push({ label: Tr.t("Keyboard shortcuts"), icon: "help-faq", danger: false, run: () => win.toggleShortcuts() });
+            }
             return items;
         }
         if (e.pathMenu) {
