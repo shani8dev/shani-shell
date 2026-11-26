@@ -179,12 +179,13 @@ if [ "${SHANI_ONLINE:-}" != 1 ]; then
 fi
 # Live TV: the shell's M3U reader, used by the Media Player > Live TV page
 export SHANI_LIVETV_TOOL=/work/bridge/live-tv.py
-# Podman and Distrobox stood in for (dev/fake-podman.py, by the name it is run as):
-# the Containers window's listing and actions, with nothing pulled or started
+# Podman, Distrobox and the systemd tools stood in for (by the name each is run
+# as): the Containers window's listing and actions, with nothing pulled or booted
 mkdir -p /tmp/fake-podman/bin
-ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/podman
-ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/distrobox
+for t in podman distrobox; do ln -sf /work/dev/fake-podman.py /tmp/fake-podman/bin/$t; done
+for t in machinectl importctl systemd-vmspawn; do ln -sf /work/dev/fake-machinectl.py /tmp/fake-podman/bin/$t; done
 export FAKE_PODMAN=/tmp/fake-podman SHANI_PODMAN=/tmp/fake-podman/bin/podman SHANI_DISTROBOX=/tmp/fake-podman/bin/distrobox
+export SHANI_MACHINECTL=/tmp/fake-podman/bin/machinectl SHANI_IMPORTCTL=/tmp/fake-podman/bin/importctl SHANI_VMSPAWN=/tmp/fake-podman/bin/systemd-vmspawn
 # udisks2 stood in for on the session bus (tests/fixtures/fake_udisks.py): a USB
 # stick and the computer's own disk; a write lands in /tmp/fake-udisks/sdb.img
 mkdir -p /tmp/fake-udisks
