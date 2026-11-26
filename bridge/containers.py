@@ -17,8 +17,28 @@ your home folder, its apps in your menu.
     containers.py box-upgrade <name>    its own packages updated (distrobox upgrade)
     containers.py box-remove <name>     the toolbox and what it put in the menu
 
-All as you (rootless): no administrator password. Opening one in a terminal is the
-shell's (xdg-terminal-exec distrobox enter NAME). SHANI_PODMAN / SHANI_DISTROBOX (tests).
+    containers.py container-run <name> <image> [--ports P] [--volumes V] [--env E] [--command C]
+    containers.py container-shell <name>       a terminal command for a shell inside
+    containers.py logs-follow <name>           log lines as they arrive (JSON lines)
+    containers.py container-pause|container-resume|container-kill <name>
+    containers.py container-rename <name> <new> / container-commit <name> <image>
+    containers.py container-stats <name> / container-inspect <name>   readable details
+    containers.py image-search <term> / image-pull <image>
+    containers.py pod-list / pod-start|pod-stop|pod-remove <name>
+    containers.py volume-list / volume-create|volume-remove <name> / volume-prune
+    containers.py box-install <box> <file> / box-clone <box> <new>
+    containers.py box-create-options <name> <image> [home] [nvidia] [hooks=TEXT]
+    containers.py box-details <name>
+    containers.py machines-list
+    containers.py machine-start|machine-poweroff|machine-reboot|machine-remove <name>
+    containers.py machine-shell <name>         a terminal command for a machine shell
+    containers.py machine-image-pull <url> <name> <tar|raw>
+    containers.py machine-image-clone|machine-image-rename|machine-image-remove <name> [new]
+    containers.py vmspawn-boot <file>          a terminal command to boot a disk image
+
+All as you (rootless) where possible: no administrator password for your own
+containers. Opening one in a terminal is the shell's. SHANI_PODMAN, SHANI_DISTROBOX,
+SHANI_MACHINECTL, SHANI_IMPORTCTL and SHANI_VMSPAWN point at the tools (tests).
 """
 
 from __future__ import annotations
@@ -30,6 +50,10 @@ import shlex
 import shutil
 import subprocess
 import sys
+
+from containers_boxes import COMMANDS as BOX_COMMANDS, run as box_run
+from containers_machines import COMMANDS as MACHINE_COMMANDS, run as machine_run
+from containers_podman import COMMANDS as POD_COMMANDS, run as pod_run
 
 PODMAN = shlex.split(os.environ.get("SHANI_PODMAN", "podman"))
 DISTROBOX = shlex.split(os.environ.get("SHANI_DISTROBOX", "distrobox"))
@@ -252,6 +276,12 @@ def main(argv: list[str]) -> int:
                 if rr and rr.returncode == 0
                 else (_err(rr, "not removed") if rr else {"error": "not a name"})
             )
+        elif cmd in POD_COMMANDS:
+            return pod_run(cmd, args)
+        elif cmd in BOX_COMMANDS:
+            return box_run(cmd, args)
+        elif cmd in MACHINE_COMMANDS:
+            return machine_run(cmd, args)
         else:
             print(__doc__.strip().split("\n\n")[1], file=sys.stderr)
             return 2
