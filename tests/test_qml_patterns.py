@@ -463,7 +463,7 @@ def test_round4_image_recheck_fixes_are_wired():
         "shani/Modules/Island/Island.qml": ['kind: "plain"'],
         "shani/Modules/Share/ShareSheet.qml": ["property int sel: -1"],
         "shani/Modules/Osd/Osd.qml": ['Tr.t("Microphone off")'],
-        "shani/Modules/Chronoa/ChronoaPanel.qml": ["Theme.type(\"body\")"],
+        "shani/Modules/Chronoa/ChronoaPanel.qml": ['Theme.type("body")'],
         "shani/Common/Choice.qml": [
             "font.weight: root.selected ? Font.DemiBold : Font.Normal"
         ],
@@ -482,8 +482,8 @@ def test_no_deferrals_round5_are_wired():
     checks = {
         "shani/Modules/Files/FilesPanel.qml": ["Layout.minimumWidth: Theme.px(190)"],
         "shani/Modules/Kundali/KundaliPanel.qml": [
-            'Text { text: Tr.t("Latitude")',
-            'Text { text: Tr.t("Longitude")',
+            'label: Tr.t("Latitude")',
+            'label: Tr.t("Longitude")',
         ],
         "shani/Modules/ControlCenter/SidebarDetails.qml": ["No VPN configured"],
         "shani/Modules/ControlCenter/SidebarTiles.qml": ["Region or window"],
@@ -497,7 +497,7 @@ def test_no_deferrals_round5_are_wired():
         ],
         "shani/Modules/Settings/SettingsPrinters.qml": ['kind: "danger"'],
         "shani/Modules/Osk/Keyboard.qml": [
-            'accessibleName: Tr.t("Write by hand")',   # the ✎ in the top bar
+            'accessibleName: Tr.t("Write by hand")',  # the ✎ in the top bar
             'label: Osk.languages.length > 1 ? "LANG "',
             "property string accessibleName",
         ],

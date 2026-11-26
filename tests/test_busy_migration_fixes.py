@@ -7,7 +7,9 @@ MODULES = ROOT / "shani/Modules"
 NET = (MODULES / "NetTools.qml").read_text()
 DB = (MODULES / "DatabaseBrowser.qml").read_text()
 SCANNER = (MODULES / "Scanner/ScannerPanel.qml").read_text()
-STARTUP = (MODULES / "Settings" / "SettingsStartup.qml").read_text()   # the Startup manager, merged
+STARTUP = (
+    MODULES / "Settings" / "SettingsStartup.qml"
+).read_text()  # the Startup manager, merged
 KUNDALI = (MODULES / "Kundali/KundaliPanel.qml").read_text()
 RECORDER = (MODULES / "VoiceRecorder/VoiceRecorderPanel.qml").read_text()
 BUSY = (ROOT / "shani/Common/BusyNote.qml").read_text()
@@ -73,11 +75,12 @@ def test_startup_busy_row_uses_busy_note():
 
 
 def test_kundali_busy_row_uses_busy_note():
+    # the days-ahead card owns its busy note; main loading is shown on the button
     _busy_row(
         KUNDALI,
-        "visible: win.loading",
-        'note: Tr.t("Loading…")',
-        "iconSize: Theme.px(24)",
+        "visible: win.ahead === null",
+        'note: Tr.t("Working it out…")',
+        "iconSize: Theme.px(16)",
     )
 
 

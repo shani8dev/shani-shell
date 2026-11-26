@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services as Services
+import qs.Modules.Kundali
 
 AppWindow {
     id: win
@@ -246,6 +247,28 @@ AppWindow {
         return (c.day || []).map(p => Object.assign({ part: Tr.t("Day") }, p))
             .concat((c.night || []).map(p => Object.assign({ part: Tr.t("Night") }, p)));
     }
+    function rawMinutes(text) {
+        const s = String(text || "0");
+        const shift = s.endsWith("+1") ? 1440 : (s.endsWith("-1") ? -1440 : 0);
+        const parts = (shift ? s.slice(0, -2) : s).split(":");
+        return shift + Number(parts[0]) * 60 + Number(parts[1]);
+    }
+    function timelineRows() {
+        const rows = ((win.times || {}).muhurtas || []).map(p =>
+            ({ start: p.start, end: p.end, name: p.name, tone: p.auspicious ? "ok" : "warn" }));
+        choghadiyaRows().forEach(p => rows.push({ start: p.start, end: p.end, name: p.name,
+            tone: p.nature === "good" ? "ok" : (p.nature === "bad" ? "error" : "neutral") }));
+        ((win.times || {}).horas || []).forEach(p => rows.push({ start: p.start, end: p.end,
+            name: p.lord, tone: "accent" }));
+        return rows;
+    }
+    readonly property var daySpan: {
+        const rows = win.timelineRows();
+        if (rows.length === 0) return [0, 1440];
+        let lo = Infinity, hi = 0;
+        rows.forEach(p => { lo = Math.min(lo, win.rawMinutes(p.start)); hi = Math.max(hi, win.rawMinutes(p.end)); });
+        return [Math.max(0, lo - 15), hi + 15];
+    }
     // a time after midnight carries +1 in the bridge; say it in plain words
     function clock(text) {
         const s = String(text || "–");
@@ -375,6 +398,55 @@ AppWindow {
               + Tr.t("Separation: %1°", data.angular_separation);
         if (data.type) r += "\n" + Tr.t("Type: %1", data.type) + " · " + Tr.t("Magnitude: %1", data.magnitude);
         return r;
+    }
+
+    // one row of a day's timeline: the width of each span comes from the bar,
+    // never from the labels inside it (that would feed back into the layout)
+    component PeriodBar: ColumnLayout {
+        id: bar
+        property string label: ""
+        property var periods: []
+        Layout.fillWidth: true
+        spacing: Theme.space(1)
+        Text {
+            Layout.fillWidth: true
+            text: bar.label
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.type("small")
+        }
+        Item {
+            id: strip
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.px(20)
+            Row {
+                anchors.fill: parent
+                Repeater {
+                    model: bar.periods
+                    Rectangle {
+                        required property var modelData
+                        readonly property real length: win.rawMinutes(modelData.end) - win.rawMinutes(modelData.start)
+                        width: Math.max(1, strip.width * length / Math.max(1, win.daySpan[1] - win.daySpan[0]))
+                        height: strip.height
+                        color: Theme.alpha(Theme.toneColor(modelData.tone), 0.55)
+                        border.color: Theme.toneColor(modelData.tone)
+                        border.width: 1
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: (modelData.name || "") + " " + win.clock(modelData.start) + "–" + win.clock(modelData.end)
+                        Text {
+                            anchors.centerIn: parent
+                            visible: parent.width > Theme.px(70)
+                            text: modelData.name || ""
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("small")
+                            elide: Text.ElideRight
+                            Accessible.ignored: true
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // a block of the engine's text: readable, selectable, copyable
@@ -776,6 +848,18 @@ AppWindow {
             title: Tr.t("Times of the day")
             subtitle: Tr.t("What to avoid, what is good, and the planetary hours")
             spacing: Theme.space(3)
+            PeriodBar {
+                label: Tr.t("Muhurtas")
+                periods: (win.times || {}).muhurtas || []
+            }
+            PeriodBar {
+                label: Tr.t("Choghadiya")
+                periods: win.choghadiyaRows()
+            }
+            PeriodBar {
+                label: Tr.t("Planetary hours")
+                periods: (win.times || {}).horas || []
+            }
             Text {
                 Layout.fillWidth: true
                 text: Tr.t("Muhurtas")
@@ -1168,7 +1252,7 @@ AppWindow {
             icon: "view-calendar-week"
             title: Tr.t("The days ahead")
             subtitle: Tr.t("Traditional indications from this chart, not certainties: the Moon's place from the birth Moon, the day's star, and the periods")
-            BusyNote { visible: win.ahead === null; note: Tr.t("Working it out…") }
+            BusyNote { visible: win.ahead === null; note: Tr.t("Working it out…"); iconSize: Theme.px(16) }
             // now: the periods running, Saturn and Jupiter from the birth Moon
             Flow {
                 Layout.fillWidth: true
