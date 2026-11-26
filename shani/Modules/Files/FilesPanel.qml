@@ -28,6 +28,9 @@ AppWindow {
     appName: "Files"
     sidePane: placesPane
     Connections { target: Files; function onPathChanged() { placesPane.open = false; } }
+    // a phone shows one folder at a time: a split pane opened on a wide window
+    // closes when the window narrows, and the toggle is not offered there
+    onCompactChanged: { if (win.compact && Files.splitActive) Files.toggleSplit(); }
     visible: Ui.files
     onGone: Files.hide()
     margins: 0
@@ -598,7 +601,9 @@ AppWindow {
             spacing: Theme.px(10)
 
             // ---- the toolbar ----------------------------------------------------
-            RowLayout {
+            // a Flow, so the every-day actions and the title wrap on a phone
+            // instead of running off the side of the window
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
 
@@ -608,7 +613,9 @@ AppWindow {
 
                 Icon { name: "folder"; size: Theme.px(20); color: Theme.accent }
                 Text {
-                    Layout.maximumWidth: Theme.px(200)
+                    width: Math.min(Theme.px(200), win.width - Theme.px(80))
+                    height: Math.max(Theme.px(30), Theme.touchTarget)
+                    verticalAlignment: Text.AlignVCenter
                     text: Files.placeTitle(Files.path)
                     color: Theme.text
                     elide: Text.ElideMiddle
@@ -624,11 +631,9 @@ AppWindow {
                     onClicked: win.checkNetworkHost()
                 }
 
-                Item { Layout.fillWidth: true }
-
                 TextField {
                     id: searchBox
-                    Layout.preferredWidth: win.compact ? Theme.px(120) : Theme.px(210)
+                    width: win.compact ? Theme.px(120) : Theme.px(210)
                     placeholder: Tr.t("Search this folder")
                     label: Tr.t("Search this folder")
                     onTextChanged: { Files.searchText = text; dir.query = Files.searchDeep ? "" : text; deepTimer.restart(); }
@@ -676,6 +681,7 @@ AppWindow {
                     onClicked: Files.toggleHidden()
                 }
                 IconButton {
+                    visible: !win.compact
                     icon: Files.splitActive ? "view-close" : "view-dual"
                     size: Theme.px(30)
                     tip: Files.splitActive ? Tr.t("Close split view") : Tr.t("Split view (Ctrl+Alt+N)")
@@ -767,13 +773,15 @@ AppWindow {
             }
             }
 
-            // split pane toolbar
-            RowLayout {
-                visible: Files.splitActive
+            // split pane toolbar: a second pane is not offered on a phone
+            Flow {
+                visible: Files.splitActive && !win.compact
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Text {
-                    Layout.maximumWidth: Theme.px(200)
+                    width: Math.min(Theme.px(200), win.width - Theme.px(80))
+                    height: Math.max(Theme.px(30), Theme.touchTarget)
+                    verticalAlignment: Text.AlignVCenter
                     text: Files.splitPath === "" ? Tr.t("Split") : Files.baseName(Files.splitPath) || "/"
                     color: Theme.text
                     elide: Text.ElideMiddle
@@ -781,7 +789,6 @@ AppWindow {
                     font.pixelSize: Theme.fontTitle * Theme.fontScale
                     font.weight: Font.DemiBold
                 }
-                Item { Layout.fillWidth: true }
                 IconButton {
                     icon: Files.splitViewMode === "grid" ? "view-list" : "view-grid"
                     size: Theme.px(30)
@@ -822,7 +829,7 @@ AppWindow {
                         delegate: Rectangle {
                             required property var modelData
                             Layout.fillWidth: true
-                            height: Theme.px(30)
+                            height: Math.max(Theme.px(30), Theme.touchTarget)
                             radius: Theme.px(8)
                             color: Files.path === modelData.path ? Theme.accentSoft
                                  : (placeArea.containsMouse ? Theme.hover : "transparent")
@@ -925,7 +932,7 @@ AppWindow {
                                 id: devRow
                                 required property var modelData
                                 Layout.fillWidth: true
-                                height: Theme.px(30)
+                                height: Math.max(Theme.px(30), Theme.touchTarget)
                                 radius: Theme.px(8)
                                 color: modelData.path && Files.path.startsWith(modelData.path) ? Theme.accentSoft
                                      : (devArea.containsMouse ? Theme.hover : "transparent")
@@ -1041,149 +1048,174 @@ AppWindow {
                     spacing: Theme.px(8)
 
                     // tabs: shown once there are two (Ctrl+T); each its own folder
-                    RowLayout {
+                    Flickable {
+                        id: tabScroll
                         Layout.fillWidth: true
+                        Layout.preferredHeight: tabStrip.implicitHeight
                         visible: Files.tabs.length > 1
-                        spacing: Theme.px(4)
-                        Repeater {
-                            model: Files.tabPaths
-                            Rectangle {
-                                id: tabChip
-                                required property string modelData
-                                required property int index
-                                readonly property bool on: index === Files.tabIndex
-                                Layout.preferredWidth: Math.min(Theme.px(180), tabRow.implicitWidth + Theme.px(16))
-                                implicitHeight: Theme.px(30)
-                                radius: Theme.radiusSmall
-                                color: on ? Theme.accentSoft : (tabArea.containsMouse ? Theme.hover : Theme.surface1)
-                                border.width: on ? 1 : 0
-                                border.color: Theme.accentLine
-                                FileDropArea { id: tabDrop; anchors.fill: parent; dest: tabChip.modelData.startsWith("/") ? tabChip.modelData : "" }
-                                // a dragged tab moves among the others, Finder/Dolphin style
-                                Item {
-                                    id: tabDrag
-                                    width: 1; height: 1
-                                    Drag.active: tabArea.drag.active
-                                    Drag.dragType: Drag.Automatic
-                                    Drag.supportedActions: Qt.MoveAction
-                                    Drag.mimeData: ({ "text/x-shani-tab": String(tabChip.index) })
-                                }
-                                DropArea {
-                                    anchors.fill: parent
-                                    keys: ["text/x-shani-tab"]
-                                    onEntered: d => d.accept(Qt.MoveAction)
-                                    onDropped: d => {
-                                        const from = parseInt(String(d.getData("text/x-shani-tab") || ""), 10);
-                                        if (!isNaN(from) && from !== tabChip.index) Files.moveTab(from, tabChip.index);
-                                        d.acceptProposedAction();
+                        contentWidth: tabStrip.implicitWidth
+                        contentHeight: height
+                        flickableDirection: Flickable.HorizontalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+                        RowLayout {
+                            id: tabStrip
+                            width: Math.max(implicitWidth, tabScroll.width)
+                            spacing: Theme.px(4)
+                            Repeater {
+                                model: Files.tabPaths
+                                Rectangle {
+                                    id: tabChip
+                                    required property string modelData
+                                    required property int index
+                                    readonly property bool on: index === Files.tabIndex
+                                    Layout.preferredWidth: Math.min(win.compact ? Theme.px(120) : Theme.px(180), tabRow.implicitWidth + Theme.px(16))
+                                    implicitHeight: Math.max(Theme.px(30), Theme.touchTarget)
+                                    radius: Theme.radiusSmall
+                                    color: on ? Theme.accentSoft : (tabArea.containsMouse ? Theme.hover : Theme.surface1)
+                                    border.width: on ? 1 : 0
+                                    border.color: Theme.accentLine
+                                    FileDropArea { id: tabDrop; anchors.fill: parent; dest: tabChip.modelData.startsWith("/") ? tabChip.modelData : "" }
+                                    // a dragged tab moves among the others, Finder/Dolphin style
+                                    Item {
+                                        id: tabDrag
+                                        width: 1; height: 1
+                                        Drag.active: tabArea.drag.active
+                                        Drag.dragType: Drag.Automatic
+                                        Drag.supportedActions: Qt.MoveAction
+                                        Drag.mimeData: ({ "text/x-shani-tab": String(tabChip.index) })
                                     }
-                                }
-                                MouseArea {
-                                    id: tabArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                                    drag.target: tabDrag
-                                    onReleased: { tabDrag.x = 0; tabDrag.y = 0; }
-                                    onClicked: mouse => {
-                                        if (mouse.button === Qt.MiddleButton) Files.closeTab(tabChip.index);
-                                        else if (mouse.button === Qt.RightButton)
-                                            win.openTabMenu(tabChip.index, tabArea.mapToItem(win, mouse.x, mouse.y));
-                                        else Files.switchTab(tabChip.index);
+                                    DropArea {
+                                        anchors.fill: parent
+                                        keys: ["text/x-shani-tab"]
+                                        onEntered: d => d.accept(Qt.MoveAction)
+                                        onDropped: d => {
+                                            const from = parseInt(String(d.getData("text/x-shani-tab") || ""), 10);
+                                            if (!isNaN(from) && from !== tabChip.index) Files.moveTab(from, tabChip.index);
+                                            d.acceptProposedAction();
+                                        }
                                     }
-                                }
-                                RowLayout {
-                                    id: tabRow
-                                    anchors.fill: parent
-                                    anchors.leftMargin: Theme.px(10)
-                                    anchors.rightMargin: Theme.px(2)
-                                    spacing: Theme.px(4)
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: Files.placeTitle(tabChip.modelData)
-                                        elide: Text.ElideMiddle
-                                        color: Theme.text
-                                        font.family: Theme.font
-                                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                                    MouseArea {
+                                        id: tabArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                        drag.target: tabDrag
+                                        onReleased: { tabDrag.x = 0; tabDrag.y = 0; }
+                                        onClicked: mouse => {
+                                            if (mouse.button === Qt.MiddleButton) Files.closeTab(tabChip.index);
+                                            else if (mouse.button === Qt.RightButton)
+                                                win.openTabMenu(tabChip.index, tabArea.mapToItem(win, mouse.x, mouse.y));
+                                            else Files.switchTab(tabChip.index);
+                                        }
                                     }
-                                    IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("Close this tab"); onClicked: Files.closeTab(tabChip.index) }
+                                    RowLayout {
+                                        id: tabRow
+                                        anchors.fill: parent
+                                        anchors.leftMargin: Theme.px(10)
+                                        anchors.rightMargin: Theme.px(2)
+                                        spacing: Theme.px(4)
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: Files.placeTitle(tabChip.modelData)
+                                            elide: Text.ElideMiddle
+                                            color: Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        }
+                                        IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("Close this tab"); onClicked: Files.closeTab(tabChip.index) }
+                                    }
+                                    Accessible.role: Accessible.PageTab
+                                    Accessible.name: Tr.t("Tab %1: %2", tabChip.index + 1, Files.placeTitle(tabChip.modelData))
+                                    Accessible.onPressAction: Files.switchTab(tabChip.index)
                                 }
-                                Accessible.role: Accessible.PageTab
-                                Accessible.name: Tr.t("Tab %1: %2", tabChip.index + 1, Files.placeTitle(tabChip.modelData))
-                                Accessible.onPressAction: Files.switchTab(tabChip.index)
                             }
-                        }
-                        IconButton { icon: "list-add"; size: Theme.px(26); tip: Tr.t("New tab (Ctrl+T)"); onClicked: Files.newTab(Files.path) }
-                        Item { Layout.fillWidth: true }
+                            IconButton { icon: "list-add"; size: Theme.px(26); tip: Tr.t("New tab (Ctrl+T)"); onClicked: Files.newTab(Files.path) }
+                            Item { Layout.fillWidth: true }
+                            }
                     }
 
                     // the path, as the parts that lead to it
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: Theme.px(32)
+                        implicitHeight: Math.max(Theme.px(32), Theme.touchTarget + Theme.px(4))
                         radius: Theme.radiusSmall
                         color: Theme.surface1
                         border.width: 1
                         border.color: Theme.stroke
-                        Row {
-                            id: crumbs
+                        Flickable {
+                            id: crumbsScroll
                             anchors.left: parent.left
                             anchors.right: pathBox.visible ? pathBox.left : parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
                             anchors.rightMargin: Theme.px(6)
                             anchors.leftMargin: Theme.px(8)
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 2
-                            Repeater {
-                                model: win.crumbsModel
-                                delegate: Row {
-                                    required property var modelData
-                                    required property int index
-                                    spacing: 2
-                                    Text {
-                                        text: modelData.name
-                                        color: index === win.crumbsModel.length - 1 ? Theme.text : Theme.dim
-                                        font.family: Theme.font
-                                        font.pixelSize: Theme.px(12) * Theme.fontScale
-                                        font.weight: index === win.crumbsModel.length - 1 ? Font.DemiBold : Font.Normal
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: mouse => {
-                                                if (mouse.button === Qt.RightButton)
-                                                    win.openPathMenu(modelData.path, mapToItem(win, mouse.x, mouse.y));
-                                                else Files.open(modelData.path);
+                            contentWidth: crumbs.implicitWidth
+                            contentHeight: height
+                            flickableDirection: Flickable.HorizontalFlick
+                            boundsBehavior: Flickable.StopAtBounds
+                            clip: true
+                            Row {
+                                id: crumbs
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
+                                Repeater {
+                                    model: win.crumbsModel
+                                    delegate: Row {
+                                        required property var modelData
+                                        required property int index
+                                        spacing: 2
+                                        Text {
+                                            text: modelData.name
+                                            height: Math.max(Theme.px(20), Theme.touchTarget)
+                                            verticalAlignment: Text.AlignVCenter
+                                            color: index === win.crumbsModel.length - 1 ? Theme.text : Theme.dim
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                            font.weight: index === win.crumbsModel.length - 1 ? Font.DemiBold : Font.Normal
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: mouse => {
+                                                    if (mouse.button === Qt.RightButton)
+                                                        win.openPathMenu(modelData.path, mapToItem(win, mouse.x, mouse.y));
+                                                    else Files.open(modelData.path);
+                                                }
                                             }
+                                            // keys and a controller: a folder up the path, as the click
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: modelData.name
+                                            KeyFocus { onActivated: Files.open(modelData.path) }
                                         }
-                                        // keys and a controller: a folder up the path, as the click
-                                        Accessible.role: Accessible.Button
-                                        Accessible.name: modelData.name
-                                        KeyFocus { onActivated: Files.open(modelData.path) }
-                                    }
-                                    // the little arrow lists this folder's siblings
-                                    Text {
-                                        text: "▾"
-                                        color: Theme.dim
-                                        font.family: Theme.font
-                                        font.pixelSize: Theme.px(9) * Theme.fontScale
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        Accessible.role: Accessible.Button
-                                        Accessible.name: Tr.t("Folders next to %1").arg(modelData.name)
-                                        Accessible.onPressAction: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
+                                        // the little arrow lists this folder's siblings
+                                        Text {
+                                            text: "▾"
+                                            height: Math.max(Theme.px(20), Theme.touchTarget)
+                                            verticalAlignment: Text.AlignVCenter
+                                            color: Theme.dim
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(9) * Theme.fontScale
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: Tr.t("Folders next to %1").arg(modelData.name)
+                                            Accessible.onPressAction: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) }
+                                            }
+                                            // keys and a controller: Enter / Space lists the siblings, as the click
+                                            KeyFocus { name: Tr.t("Folders next to %1").arg(modelData.name); onActivated: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) } }
                                         }
-                                        // keys and a controller: Enter / Space lists the siblings, as the click
-                                        KeyFocus { name: Tr.t("Folders next to %1").arg(modelData.name); onActivated: { win.crumbMenuSplit = false; win.openCrumbMenu(modelData.path, mapToItem(win, 0, 0)) } }
-                                    }
-                                    Text {
-                                        visible: index < win.crumbsModel.length - 1
-                                        text: "›"
-                                        color: Theme.faint
-                                        font.family: Theme.font
-                                        font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        Text {
+                                            visible: index < win.crumbsModel.length - 1
+                                            text: "›"
+                                            color: Theme.faint
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                                        }
                                     }
                                 }
                             }
@@ -1249,7 +1281,7 @@ AppWindow {
                             anchors.margins: Theme.px(6)
                             visible: Files.viewMode === "grid"
                             model: win.visibleEntries
-                            cellWidth: Math.round(124 * Files.zoom)
+                            cellWidth: Math.min(Math.round(124 * Files.zoom), Math.max(width - Theme.px(8), Theme.touchTarget * 2))
                             cellHeight: Math.round(112 * Files.zoom)
                             boundsBehavior: Flickable.StopAtBounds
                             clip: true
@@ -1395,7 +1427,7 @@ AppWindow {
                                 required property var modelData
                                 required property int index
                                 width: list.width
-                                height: Theme.px(32)
+                                height: Math.max(Theme.px(32), Theme.touchTarget)
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: Theme.px(6)
@@ -1549,9 +1581,9 @@ AppWindow {
                     }
                 }
 
-                // the split pane
+                // the split pane: wide windows only
                 ColumnLayout {
-                    visible: Files.splitActive
+                    visible: Files.splitActive && !win.compact
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: Theme.px(8)
@@ -1600,6 +1632,8 @@ AppWindow {
                                     // the arrow lists this folder's siblings in the split pane
                                     Text {
                                         text: "▾"
+                                        height: Math.max(Theme.px(20), Theme.touchTarget)
+                                        verticalAlignment: Text.AlignVCenter
                                         color: Theme.dim
                                         font.family: Theme.font
                                         font.pixelSize: Theme.px(9) * Theme.fontScale
@@ -1758,8 +1792,8 @@ AppWindow {
                 // the preview of what is chosen
                 Rectangle {
                     id: preview
-                    Layout.preferredWidth: Theme.px(230)
-                    Layout.minimumWidth: Theme.px(190)   // keep the empty state readable
+                    Layout.preferredWidth: Math.min(Theme.px(230), win.width * 0.3)
+                    Layout.maximumWidth: Theme.px(230)   // keep the empty state readable
                     Layout.fillHeight: true
                     visible: Files.showPreview && !Files.splitActive && !win.compact
                     radius: Theme.radiusSmall
@@ -1851,7 +1885,7 @@ AppWindow {
         z: 20
         strong: true
         radius: Theme.px(12)
-        width: Theme.px(230)
+        width: Math.min(Theme.px(230), win.width - Theme.px(24))
         height: menuCol.implicitHeight + 12
         x: Math.min(Math.max(8, win.menuX), win.width - width - 8)
         y: Math.min(Math.max(8, win.menuY), win.height - height - 8)
@@ -1866,7 +1900,7 @@ AppWindow {
                     required property var modelData
                     required property int index
                     width: menuCol.width
-                    height: Theme.px(30)
+                    height: Math.max(Theme.px(30), Theme.touchTarget)
                     radius: Theme.px(8)
                     color: menuArea.containsMouse ? Theme.hover : "transparent"
                     Row {
@@ -1914,7 +1948,7 @@ AppWindow {
         z: 21
         strong: true
         radius: Theme.px(12)
-        width: Theme.px(230)
+        width: Math.min(Theme.px(230), win.width - Theme.px(24))
         height: Math.min(crumbCol.implicitHeight + 12, Theme.px(360))
         x: Math.min(Math.max(8, win.crumbMenuX), win.width - width - 8)
         y: Math.min(Math.max(8, win.crumbMenuY + Theme.px(16)), win.height - height - 8)
@@ -1931,7 +1965,7 @@ AppWindow {
                     delegate: Rectangle {
                         required property var modelData
                         width: crumbCol.width
-                        height: Theme.px(30)
+                        height: Math.max(Theme.px(30), Theme.touchTarget)
                         radius: Theme.px(8)
                         color: crumbArea.containsMouse ? Theme.hover : "transparent"
                         Row {
@@ -1973,7 +2007,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(420)
+        width: Math.min(Theme.px(420), win.width - Theme.px(24))
         height: matchCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -2023,7 +2057,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(420)
+        width: Math.min(Theme.px(420), win.width - Theme.px(24))
         height: linkCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -2074,7 +2108,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(420)
+        width: Math.min(Theme.px(420), win.width - Theme.px(24))
         height: renameCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -2190,7 +2224,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(360)
+        width: Math.min(Theme.px(360), win.width - Theme.px(24))
         height: Theme.px(118)
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -2228,7 +2262,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(460)
+        width: Math.min(Theme.px(460), win.width - Theme.px(24))
         height: batchCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -2490,7 +2524,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(560)
+        width: Math.min(Theme.px(560), win.width - Theme.px(24))
         height: syncCol.implicitHeight + 28
         anchors.centerIn: parent
         readonly property var a: Files.syncAsk || ({})
@@ -2555,7 +2589,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(420)
+        width: Math.min(Theme.px(420), win.width - Theme.px(24))
         height: propsCol.implicitHeight + 28
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -3526,7 +3560,7 @@ AppWindow {
         z: 29
         strong: true
         radius: Theme.px(12)
-        width: Theme.px(390)
+        width: Math.min(Theme.px(390), win.width - Theme.px(24))
         height: filterCol.implicitHeight + Theme.px(20)
         x: Math.min(Math.max(8, filterBtn.mapToItem(win.contentItem, 0, filterBtn.height).x), win.width - width - 8)
         y: Math.min(filterBtn.mapToItem(win.contentItem, 0, filterBtn.height).y + Theme.px(4), win.height - height - 8)
@@ -3669,7 +3703,7 @@ AppWindow {
         strong: true
         solid: true
         radius: Theme.px(12)
-        width: Theme.px(430)
+        width: Math.min(Theme.px(430), win.width - Theme.px(24))
         height: Math.min(Theme.px(520), win.height - Theme.px(40))
         anchors.centerIn: parent
         focus: visible
