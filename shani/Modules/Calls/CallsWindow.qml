@@ -93,10 +93,10 @@ AppWindow {
     // backspace at the caret (or the whole selection), not always the last digit
     function deleteDigit() {
         if (number.selectionStart !== number.selectionEnd) {
-            number.remove(number.selectionStart, number.selectionEnd - number.selectionStart);
+            number.input.remove(number.input.selectionStart, number.input.selectionEnd - number.input.selectionStart);
             return;
         }
-        if (number.cursorPosition > 0) number.remove(number.cursorPosition - 1, 1);
+        if (number.input.cursorPosition > 0) number.input.remove(number.input.cursorPosition - 1, 1);
     }
 
     function pasteNumber() {
@@ -493,7 +493,7 @@ AppWindow {
                                     selected: false
                                     // a tap fills the pad: put the caret at the end and focus it so
                                     // Enter calls and typing continues without a Tab
-                                    onClicked: { number.text = modelData.number; number.cursorPosition = number.text.length; number.forceActiveFocus(); }
+                                    onClicked: { number.text = modelData.number; number.input.cursorPosition = number.text.length; number.forceActiveFocus(); }
                                     extra: RowLayout {
                                         Button { text: Tr.t("Call"); flat: true; onClicked: { win.line = modelData.line || win.line; number.text = modelData.number; win.call() } }
                                     }

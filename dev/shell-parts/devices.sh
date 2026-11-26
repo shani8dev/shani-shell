@@ -368,8 +368,8 @@ waitfor "d['devicesShown'] == False" 6 && result devices-closes PASS \
     || result devices-closes FAIL "$(q "['devicesShown']")"
 
 # ---- Settings > Background: the phone tools' own switches ---------------------
-ipc settingsCategory phoneBackground
-waitfor "d['settingsOpen'] and d['settingsCat'] == 'phoneBackground'" 8 \
+ipc settingsCategory background
+waitfor "d['settingsOpen'] and d['settingsCat'] == 'background'" 8 \
     && result devices-background-opens PASS \
     || result devices-background-opens FAIL "$(q "['settingsOpen'], d['settingsCat']")"
 waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] >= 2" 10 \

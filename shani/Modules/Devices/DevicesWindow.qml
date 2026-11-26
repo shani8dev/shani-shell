@@ -44,6 +44,14 @@ AppWindow {
     property string linkUrl: ""
     property string appId: ""
     property string sendPath: ""
+    property string backupFolder: ""
+    property string restoreFolder: ""
+    property string photoFolder: ""
+    property string backupKind: "all"
+    property string pairKind: "bluetooth"
+    property string pairValue: ""
+    property string copyDest: "Music"
+    property string tetherKind: "usb"
     // the shell's picker keeps its last answer; a pick made from the keyboard
     // (or from the test harness) reaches this window the same way
     readonly property string pickedFile: Ui.filePicker && Ui.filePicker.lastPicked && Ui.filePicker.lastPicked.length
@@ -62,16 +70,13 @@ AppWindow {
     property string nfcResult: ""
     property string irResult: ""
 
-    // the phone link
-    property string linkAddress: ""
-
     // lines
     property string accountAddress: ""
     property string accountName: ""
     property string landlineHost: ""
     property string landlineCode: ""
 
-    function refreshAll() { Devices.refresh(); Lines.refresh(); Mirror.refresh(); PhoneTools.refresh(); }
+    function refreshAll() { Devices.refresh(); Lines.refresh(); Mirror.refresh(); PhoneTools.refresh(); AndroidTools.refresh(); }
     onVisibleChanged: if (visible) refreshAll()
     Component.onCompleted: refreshAll()
 
@@ -184,24 +189,56 @@ AppWindow {
         return s;              // an honest message from the bridge
     }
     function castingOn() { return Devices.screenState === "on"; }
-    // the phone link: a dot says ready or waiting, the row below says which phone
-    function linkReady() { return !!(PhoneTools.link && PhoneTools.link.paired); }
+    // the phone link: Bluetooth pairing or Wi-Fi debugging, both built into Android
+    readonly property var androidState: AndroidTools.result["state"] || {}
+    readonly property var androidBackup: AndroidTools.result["backup"] || {}
+    readonly property var androidPhotos: AndroidTools.result["import-photos"] || {}
+    readonly property var androidAuto: AndroidTools.result["auto-import"] || {}
+    readonly property var androidContacts: (AndroidTools.result["contacts"] || {}).contacts || []
+    readonly property var androidRestore: AndroidTools.result["restore"] || {}
+    readonly property var androidCopy: AndroidTools.result["copy"] || {}
+    readonly property var androidInstall: AndroidTools.result["install"] || {}
+    readonly property var androidTether: AndroidTools.result["tether"] || {}
+    readonly property var androidFind: AndroidTools.result["find"] || {}
+    readonly property var androidPair: AndroidTools.result["pair"] || {}
+    readonly property var androidNote: AndroidTools.note || ""
+
+    function linkReady() { return !!win.androidState.paired; }
     function linkStatusText() {
-        const l = PhoneTools.link || {};
-        if (l.paired) return Tr.t("Ready");
-        if (l.status) return String(l.status);
-        return Tr.t("Not connected");
+        if (win.linkReady()) return Tr.t("Ready");
+        return win.androidNote !== "" ? win.androidNote : Tr.t("Not connected");
     }
-    function linkNote() {
-        const l = PhoneTools.link || {};
-        return l.note || PhoneTools.note || "";
+    function defaultBackupFolder() {
+        const home = Quickshell.env("HOME") || "/home";
+        return home + "/Phone backups/" + (win.phoneName || win.androidState.name || Tr.t("Phone"));
     }
-    function pairLink() {
-        const addr = win.linkAddress.trim();
-        if (addr === "") { PhoneTools.say(Tr.t("Enter the phone's address first")); return; }
-        win.clearResults();
-        PhoneTools.linkAction("pair", addr);
-        win.linkAddress = "";
+    function chosenBackupFolder() { return win.backupFolder.trim() !== "" ? win.backupFolder.trim() : win.defaultBackupFolder(); }
+    function chosenPhotoFolder() {
+        const home = Quickshell.env("HOME") || "/home";
+        return win.photoFolder.trim() !== "" ? win.photoFolder.trim()
+            : home + "/Pictures/" + (win.phoneName || win.androidState.name || Tr.t("Phone"));
+    }
+    function startBackup() { AndroidTools.run("backup", [win.chosenBackupFolder(), win.backupKind]); }
+    function startRestore() { AndroidTools.run("restore", [win.restoreFolder.trim() !== "" ? win.restoreFolder.trim() : win.chosenBackupFolder()]); }
+    function importContacts() { AndroidTools.run("restore", [win.restoreFolder.trim() !== "" ? win.restoreFolder.trim() : win.chosenBackupFolder(), "vcf"]); }
+    function importNewPhotos() { AndroidTools.run("import-photos", [win.chosenPhotoFolder()]); }
+    function pairPhone() {
+        const value = win.pairValue.trim();
+        if (value === "") { AndroidTools.say(Tr.t("Enter the address first")); return; }
+        if (win.pairKind === "wifi") {
+            const parts = value.split(" ");
+            if (parts.length < 2) { AndroidTools.say(Tr.t("Enter the address and the pairing code")); return; }
+            AndroidTools.run("pair", ["wifi", parts[0], parts.slice(1).join(" ")]);
+        } else {
+            AndroidTools.run("pair", ["bluetooth", value]);
+        }
+        win.pairValue = "";
+    }
+    function openCalendarAccounts() {
+        Ui.closeAll();
+        Ui.calendar = true;
+        Ui.calendarView = "agenda";
+        Agenda.loadAccounts();
     }
 
     // a new action clears both result rows first: a tag can never sit under IR
@@ -347,8 +384,7 @@ AppWindow {
                             label: Tr.t("How to connect")
                             options: [
                                 { label: Tr.t("Android phone"), value: "android" },
-                                { label: Tr.t("Bluetooth device"), value: "bluetooth" },
-                                { label: Tr.t("Phone link"), value: "phone" }
+                                { label: Tr.t("Bluetooth device"), value: "bluetooth" }
                             ]
                             current: win.connectKind
                             onPicked: v => win.connectKind = v
@@ -511,28 +547,313 @@ AppWindow {
                     }
                     SettingsSection {
                         Layout.fillWidth: true
-                        title: Tr.t("Send a file")
+                        title: Tr.t("Back up the phone")
+                        hint: Tr.t("Copy what is new since last time, with no app on the phone")
+                        FolderPicker {
+                            value: win.backupFolder
+                            label: Tr.t("Where to keep the backup")
+                            placeholder: win.defaultBackupFolder()
+                            onPicked: path => win.backupFolder = path
+                        }
+                        Picks {
+                            label: Tr.t("What to copy")
+                            options: [
+                                { label: Tr.t("Everything"), value: "all" },
+                                { label: Tr.t("Photos and videos"), value: "photos" },
+                                { label: Tr.t("Downloads"), value: "downloads" },
+                                { label: Tr.t("Documents"), value: "documents" },
+                                { label: Tr.t("Contacts"), value: "contacts" },
+                                { label: Tr.t("Texts and call log"), value: "messages" }
+                            ]
+                            current: win.backupKind
+                            onPicked: v => win.backupKind = v
+                        }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
-                            Button { text: Tr.t("Choose a file"); onClicked: win.chooseFile() }
-                            Text {
-                                Layout.fillWidth: true
-                                elide: Text.ElideMiddle
-                                text: win.chosenFile !== "" ? win.chosenFile.split("/").pop() : Tr.t("No file chosen")
-                                color: Theme.dim
-                                font.family: Theme.font
-                                font.pixelSize: Theme.px(12) * Theme.fontScale
-                            }
                             Button {
                                 kind: "primary"
-                                text: Tr.t("Send")
-                                enabled: !Devices.busy
+                                text: Tr.t("Back up now")
+                                enabled: !AndroidTools.busy
+                                onClicked: win.startBackup()
+                            }
+                            Button {
+                                text: Tr.t("Stop")
+                                kind: "danger"
+                                visible: AndroidTools.busy
+                                onClicked: AndroidTools.run("cancel", [])
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                        BusyNote {
+                            Layout.fillWidth: true
+                            visible: AndroidTools.busy
+                            note: Tr.t("Copying from the phone…")
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: String(win.androidBackup.summary || "") !== ""
+                            text: String(win.androidBackup.summary || "")
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                        Button {
+                            text: Tr.t("Keep this folder with Backup")
+                            flat: true
+                            onClicked: Ui.openSettings("backup")
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Put things back")
+                        hint: Tr.t("Choose the backup folder, then send files or import contacts")
+                        FolderPicker {
+                            value: win.restoreFolder
+                            label: Tr.t("Backup folder")
+                            placeholder: win.chosenBackupFolder()
+                            onPicked: path => win.restoreFolder = path
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(6)
+                            Button {
+                                text: Tr.t("Put files back")
+                                enabled: !AndroidTools.busy
+                                onClicked: win.startRestore()
+                            }
+                            Button {
+                                text: Tr.t("Import contacts to the phone")
+                                enabled: !AndroidTools.busy
+                                onClicked: win.importContacts()
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: String(win.androidRestore.note || "") !== ""
+                            text: String(win.androidRestore.note || "")
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("New photos")
+                        hint: Tr.t("Only photos you have not brought over yet")
+                        FolderPicker {
+                            value: win.photoFolder
+                            label: Tr.t("Put them in")
+                            placeholder: win.chosenPhotoFolder()
+                            onPicked: path => win.photoFolder = path
+                        }
+                        SwitchRow {
+                            Layout.fillWidth: true
+                            text: Tr.t("Every time this phone connects")
+                            hint: Tr.t("Bring over new photos once each time it connects")
+                            checked: !!win.androidAuto.on
+                            enabled: !AndroidTools.busy
+                            onToggled: on => AndroidTools.run("auto-import", [on ? "on" : "off"])
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(6)
+                            Button {
+                                kind: "primary"
+                                text: Tr.t("Import new photos")
+                                enabled: !AndroidTools.busy
+                                onClicked: win.importNewPhotos()
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: String(win.androidPhotos.note || "") !== ""
+                            text: String(win.androidPhotos.note || "")
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Contacts")
+                        hint: Tr.t("The phone's address book, kept apart from this computer's")
+                        Repeater {
+                            model: win.androidContacts
+                            ListRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                icon: "contact-new"
+                                title: modelData.name || Tr.t("Contact")
+                                subtitle: (modelData.number || "").toString()
+                                interactive: false
+                            }
+                        }
+                        EmptyState {
+                            visible: win.androidContacts.length === 0
+                            icon: "contact-new"
+                            title: Tr.t("No contacts read yet")
+                            subtitle: Tr.t("Back up the phone to bring them here")
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(6)
+                            Button {
+                                text: Tr.t("Choose a contacts file")
                                 onClicked: {
-                                    if (win.chosenFile === "") { Devices.say(Tr.t("Choose a file first")); return; }
-                                    Devices.android("file", win.selectedSerial, win.chosenFile);
+                                    if (!Ui.filePicker) return;
+                                    Ui.filePicker.open({
+                                        "mode": "open", "title": Tr.t("Choose a contacts file"),
+                                        "onPicked": paths => { if (paths && paths.length) AndroidTools.run("contacts", ["send", paths[0]]); }
+                                    });
                                 }
                             }
+                            Item { Layout.fillWidth: true }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: Tr.t("Two-way sync needs a shared account. Add a CardDAV account in Calendar > Accounts to keep both in step.")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Copy to the phone")
+                        hint: Tr.t("Send a file or an app, with a cable or over Bluetooth")
+                        Button { text: Tr.t("Choose a file"); onClicked: win.chooseFile() }
+                        Text {
+                            Layout.fillWidth: true
+                            elide: Text.ElideMiddle
+                            text: win.chosenFile !== "" ? win.chosenFile.split("/").pop() : Tr.t("No file chosen")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                        }
+                        Picks {
+                            label: Tr.t("Folder on the phone")
+                            options: [
+                                { label: Tr.t("Music"), value: "Music" },
+                                { label: Tr.t("Downloads"), value: "Download" },
+                                { label: Tr.t("Documents"), value: "Documents" },
+                                { label: Tr.t("Pictures"), value: "Pictures" }
+                            ]
+                            current: win.copyDest
+                            onPicked: v => win.copyDest = v
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(6)
+                            Button {
+                                kind: "primary"
+                                text: Tr.t("Send file")
+                                enabled: win.chosenFile !== "" && !AndroidTools.busy
+                                onClicked: AndroidTools.run("copy", [win.chosenFile, win.copyDest])
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: String(win.androidCopy.note || "") !== ""
+                            text: String(win.androidCopy.note || "")
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                        Button {
+                            text: Tr.t("Choose an app file")
+                            onClicked: {
+                                if (!Ui.filePicker) return;
+                                Ui.filePicker.open({
+                                    "mode": "open", "title": Tr.t("Choose an app file"),
+                                    "onPicked": paths => { if (paths && paths.length) AndroidTools.run("install", [paths[0]]); }
+                                });
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: String(win.androidInstall.result || "") !== ""
+                            text: String(win.androidInstall.result || "")
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("The phone's internet")
+                        hint: Tr.t("Share the phone's connection with this computer")
+                        Picks {
+                            label: Tr.t("How to connect")
+                            options: [
+                                { label: Tr.t("Cable"), value: "usb" },
+                                { label: Tr.t("Bluetooth"), value: "bt" }
+                            ]
+                            current: win.tetherKind
+                            onPicked: v => win.tetherKind = v
+                        }
+                        Button {
+                            kind: "primary"
+                            text: Tr.t("Use the phone's internet")
+                            enabled: !AndroidTools.busy
+                            onClicked: AndroidTools.run("tether", [win.tetherKind])
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: String(win.androidTether.note || "") !== ""
+                            text: String(win.androidTether.note || "")
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Calendar")
+                        hint: Tr.t("Android keeps its calendar in an account")
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: Tr.t("Add the same Google or CalDAV account in Calendar > Accounts. The phone's calendar is not copied directly.")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(11) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                        Button {
+                            text: Tr.t("Open Calendar accounts")
+                            onClicked: win.openCalendarAccounts()
                         }
                     }
                 }
@@ -728,23 +1049,23 @@ AppWindow {
                     }
                 }
 
-                // ---- the phone link: pair, find, and the phones within reach ----
+                // ---- the phone link: Bluetooth and Wi-Fi debugging, both built into Android ----
                 ColumnLayout {
                     visible: win.tab === "phone"
                     Layout.fillWidth: true
                     spacing: Theme.px(8)
-                    onVisibleChanged: if (visible) { Phone.search(); PhoneTools.refresh(); }
+                    onVisibleChanged: if (visible) { AndroidTools.refresh(); }
 
                     SettingsSection {
                         Layout.fillWidth: true
                         title: Tr.t("Phone link")
-                        hint: Tr.t("Send files to your phone over the same Wi-Fi, with its share settings open")
+                        hint: Tr.t("Pair by Bluetooth or with the pairing code Android shows for Wi-Fi debugging")
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(8)
                             Rectangle {
-                                width: Theme.px(10)
-                                height: Theme.px(10)
+                                Layout.preferredWidth: Theme.px(10)
+                                Layout.preferredHeight: Theme.px(10)
                                 radius: Theme.px(5)
                                 color: win.linkReady() ? Theme.success : Theme.faint
                                 Accessible.name: win.linkStatusText()
@@ -756,51 +1077,85 @@ AppWindow {
                                 color: win.linkReady() ? Theme.success : Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: Theme.px(12) * Theme.fontScale
+                                Accessible.name: text
                             }
                         }
                         ListRow {
                             Layout.fillWidth: true
                             interactive: false
                             icon: "phone"
-                            title: (PhoneTools.link && PhoneTools.link.name) || Tr.t("No phone paired")
-                            subtitle: (PhoneTools.link && PhoneTools.link.address) || ""
-                            trailing: Phone.batteryText(Phone.phone)
+                            title: String(win.androidState.name || "") || Tr.t("No phone paired")
+                            subtitle: String(win.androidState.address || win.androidState.serial || "")
+                            trailing: String(win.androidState.via || "")
                         }
                         BusyNote {
                             Layout.fillWidth: true
-                            visible: PhoneTools.busy
+                            visible: AndroidTools.busy
                             note: Tr.t("Working…")
                         }
                         Text {
                             Layout.fillWidth: true
-                            visible: win.linkNote() !== ""
+                            visible: win.androidNote !== ""
                             wrapMode: Text.Wrap
-                            text: win.linkNote()
+                            text: win.androidNote
                             color: Theme.dim
                             font.family: Theme.font
                             font.pixelSize: Theme.px(12) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
                         }
                     }
 
                     SettingsSection {
                         Layout.fillWidth: true
                         title: Tr.t("Pair a phone")
-                        hint: Tr.t("Open your phone's share settings, then pair it here")
+                        hint: Tr.t("No app goes on the phone: use its own Bluetooth or Wi-Fi debugging settings")
+                        Picks {
+                            label: Tr.t("How to pair")
+                            options: [
+                                { label: Tr.t("Bluetooth address"), value: "bluetooth" },
+                                { label: Tr.t("Wi-Fi debugging code"), value: "wifi" }
+                            ]
+                            current: win.pairKind
+                            onPicked: v => win.pairKind = v
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: win.pairKind === "bluetooth"
+                            text: Tr.t("On the phone, turn on Bluetooth and make it visible. Its address is shown there.")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            visible: win.pairKind === "wifi"
+                            text: Tr.t("On the phone, turn on Wi-Fi debugging. It shows an address and a pairing code or QR to enter here.")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(10) * Theme.fontScale
+                            Accessible.role: Accessible.StatusBar
+                            Accessible.name: text
+                        }
                         TextField {
                             Layout.fillWidth: true
-                            label: Tr.t("Phone address")
-                            placeholder: Tr.t("Address shown on the phone, if asked for")
-                            text: win.linkAddress
-                            onTextChanged: win.linkAddress = text
+                            label: win.pairKind === "wifi" ? Tr.t("Address and pairing code") : Tr.t("Bluetooth address")
+                            placeholder: win.pairKind === "wifi" ? Tr.t("For example 192.168.1.4:5555 123456") : Tr.t("For example 0C:52:34:9A:1B:2C")
+                            text: win.pairValue
+                            onTextChanged: win.pairValue = text
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
                             Button {
                                 kind: "primary"
-                                text: Tr.t("Pair another phone")
-                                enabled: !PhoneTools.busy
-                                onClicked: win.pairLink()
+                                text: Tr.t("Pair this phone")
+                                enabled: !AndroidTools.busy && win.pairValue.trim() !== ""
+                                onClicked: win.pairPhone()
                             }
                             Item { Layout.fillWidth: true }
                         }
@@ -812,87 +1167,61 @@ AppWindow {
                             armedText: Tr.t("Tap again to forget")
                             kind: "danger"
                             Accessible.name: Tr.t("Forget this phone")
-                            enabled: !PhoneTools.busy
-                            onConfirmed: PhoneTools.linkAction("forget")
+                            enabled: !AndroidTools.busy && win.linkReady()
+                            onConfirmed: AndroidTools.run("forget", [])
                         }
                     }
 
                     SettingsSection {
                         Layout.fillWidth: true
                         title: Tr.t("Find a phone")
-                        hint: Tr.t("Let the phone see this computer, then look for it here")
+                        hint: Tr.t("Look for nearby phones over Bluetooth and phones already reachable by cable")
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
                             Button {
                                 text: Tr.t("Look for phones")
-                                enabled: !PhoneTools.busy
-                                onClicked: { PhoneTools.linkAction("find"); Phone.search(); }
+                                enabled: !AndroidTools.busy
+                                onClicked: AndroidTools.run("find", [])
                             }
                             Item { Layout.fillWidth: true }
                         }
                         SwitchRow {
                             Layout.fillWidth: true
                             text: Tr.t("Make this computer findable")
-                            hint: Tr.t("Announce this computer so a phone can pair with it")
-                            checked: !!(PhoneTools.link && PhoneTools.link.findable)
-                            enabled: !PhoneTools.busy
-                            onToggled: on => PhoneTools.linkAction("findable", on ? "on" : "off")
+                            hint: Tr.t("Let a nearby phone see this computer while pairing")
+                            checked: false
+                            enabled: !AndroidTools.busy
+                            onToggled: on => AndroidTools.run("findable", [on ? "on" : "off"])
                         }
                     }
 
                     SettingsSection {
                         Layout.fillWidth: true
                         title: Tr.t("Phones nearby")
-                        hint: Tr.t("Phones this computer can reach right now")
+                        hint: Tr.t("Phones found just now")
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(4)
                             Repeater {
-                                model: Phone.devices
-                                ColumnLayout {
-                                    id: nearPhone
+                                model: Array.isArray(win.androidFind.devices) ? win.androidFind.devices : []
+                                ListRow {
                                     required property var modelData
                                     Layout.fillWidth: true
-                                    spacing: Theme.px(2)
-                                    ListRow {
-                                        Layout.fillWidth: true
-                                        icon: "phone"
-                                        title: nearPhone.modelData.name
-                                        subtitle: nearPhone.modelData.paired
-                                            ? (nearPhone.modelData.reachable ? Tr.t("Connected") : Tr.t("Paired, not nearby"))
-                                            : Tr.t("Nearby")
-                                        trailing: Phone.batteryText(nearPhone.modelData)
-                                        selected: nearPhone.modelData.paired && nearPhone.modelData.reachable
-                                        onClicked: if (!nearPhone.modelData.paired) Phone.pair(nearPhone.modelData.id)
-                                        ConfirmButton {
-                                            visible: nearPhone.modelData.paired
-                                            icon: "edit-delete"
-                                            size: Theme.px(22)
-                                            tip: Tr.t("Unpair %1", nearPhone.modelData.name)
-                                            Accessible.name: Tr.t("Unpair %1", nearPhone.modelData.name)
-                                            kind: "danger"
-                                            enabled: !PhoneTools.busy
-                                            onConfirmed: Phone.unpair(nearPhone.modelData.id)
-                                        }
-                                    }
-                                    RowLayout {
-                                        visible: nearPhone.modelData.paired && nearPhone.modelData.reachable
-                                        Layout.leftMargin: Theme.px(40)
-                                        spacing: Theme.px(6)
-                                        Button { text: Tr.t("Ring"); onClicked: Phone.ring(nearPhone.modelData.id) }
-                                        Button { text: Tr.t("Ping"); onClicked: Phone.ping(nearPhone.modelData.id) }
-                                        Button { text: Tr.t("Send clipboard"); onClicked: Phone.sendClipboard(nearPhone.modelData.id) }
-                                    }
+                                    icon: "phone"
+                                    title: modelData.name || Tr.t("Phone")
+                                    subtitle: modelData.address || ""
+                                    trailing: modelData.kind || ""
+                                    onClicked: { win.pairKind = modelData.kind === "wifi" ? "wifi" : "bluetooth"; win.pairValue = modelData.address || ""; }
                                 }
                             }
                             EmptyState {
-                                visible: Phone.devices.length === 0
+                                visible: !(win.androidFind.devices || []).length
                                 icon: "phone"
                                 title: Tr.t("No phone found yet")
-                                subtitle: Tr.t("Open the share settings on your phone, then look for phones")
+                                subtitle: Tr.t("Turn on Bluetooth or connect a cable, then look for phones")
                                 actionText: Tr.t("Look for phones")
-                                onAction: { PhoneTools.linkAction("find"); Phone.search(); }
+                                onAction: AndroidTools.run("find", [])
                             }
                         }
                     }

@@ -40,18 +40,19 @@ ColumnLayout {
             columnSpacing: Theme.px(8)
             Repeater {
                 model: [
-                    { label: Tr.t("Take a photo"), key: "shutter" },
-                    { label: Tr.t("Previous"), key: "previous" },
-                    { label: Tr.t("Play or pause"), key: "play_pause" },
-                    { label: Tr.t("Next"), key: "next" },
-                    { label: Tr.t("Volume down"), key: "volume_down" },
-                    { label: Tr.t("Volume up"), key: "volume_up" }
+                    { label: Tr.t("Take a photo"), name: Tr.t("Take a photo"), key: "shutter" },
+                    { label: Tr.t("Previous"), name: Tr.t("Previous on the phone"), key: "previous" },
+                    { label: Tr.t("Play or pause"), name: Tr.t("Play or pause on the phone"), key: "play_pause" },
+                    { label: Tr.t("Next"), name: Tr.t("Next on the phone"), key: "next" },
+                    { label: Tr.t("Volume down"), name: Tr.t("Volume down on the phone"), key: "volume_down" },
+                    { label: Tr.t("Volume up"), name: Tr.t("Volume up on the phone"), key: "volume_up" }
                 ]
                 Button {
                     required property var modelData
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.px(52)
                     text: modelData.label
+                    Accessible.name: modelData.name
                     kind: "outline"
                     onClicked: PhoneTools.remoteAction("press", modelData.key)
                 }

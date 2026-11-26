@@ -23,6 +23,7 @@ ColumnLayout {
         visible: root.playing
         Layout.fillWidth: true
         text: root.title
+        Accessible.name: root.title
         color: Theme.text
         font.family: Theme.font
         font.pixelSize: Theme.px(18) * Theme.fontScale
@@ -33,6 +34,7 @@ ColumnLayout {
         visible: root.detail !== ""
         Layout.fillWidth: true
         text: root.detail
+        Accessible.name: root.detail
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: Theme.px(12) * Theme.fontScale
