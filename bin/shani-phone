@@ -1,0 +1,17 @@
+#!/usr/bin/python3
+"""Start the shell's phone service with its engine package on sys.path.
+
+The engines live in /usr/lib/shani-shell/phone; service.py imports them as
+``phone.<engine>``, so the parent directory, not the package itself, must be
+first on sys.path. A D-Bus activation file and a systemd user unit both run
+this one launcher.
+"""
+
+import sys
+
+sys.path.insert(0, "/usr/lib/shani-shell")
+
+from phone.service import main  # noqa: E402
+
+if __name__ == "__main__":
+    main()

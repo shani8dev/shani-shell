@@ -143,8 +143,30 @@ L=/work/out/logs
 weston --backend=headless-backend.so --shell=kiosk-shell.so --width="${SHANI_WIDTH:-1920}" --height="${SHANI_SCREEN:-1080}" \
     --socket=wayland-parent --idle-time=0 --no-config >$L/weston.log 2>&1 &
 sleep 1.5
+# The phone service ships as a D-Bus-activated user service. Install the real
+# activation file here and stand in for its launcher with this checkout's
+# engines: a call to dev.shani.Shell.Phone then starts it exactly as it would
+# on an installed system. SHANI_PHONE_NO_DEVICES keeps the private test bus
+# from borrowing any real hardware.
+install -Dm644 /work/data/dbus/dev.shani.Shell.Phone.service \
+    /usr/share/dbus-1/services/dev.shani.Shell.Phone.service
+cat > /usr/bin/shani-phone <<'LAUNCHER'
+#!/usr/bin/python3
+# the installed launcher's shape, with this checkout's engine package
+import os
+import sys
+
+os.environ["SHANI_PHONE_NO_DEVICES"] = "1"
+if os.path.exists("/tmp/shani-dbus-address"):
+    os.environ["DBUS_SESSION_BUS_ADDRESS"] = open("/tmp/shani-dbus-address").read().strip()
+sys.path.insert(0, "/work/bridge")
+from phone.service import main
+main()
+LAUNCHER
+chmod +x /usr/bin/shani-phone
 DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address=1 | head -1)
 export DBUS_SESSION_BUS_ADDRESS
+printf '%s' "$DBUS_SESSION_BUS_ADDRESS" > /tmp/shani-dbus-address
 
 # a system bus with the real daemons the shell's services talk to; no
 # hardware behind them, but their D-Bus APIs are the real ones

@@ -1,0 +1,19 @@
+[Unit]
+Description=Phone service for the desktop shell (dev.shani.Shell.Phone)
+Documentation=https://github.com/shani8dev/shani-shell
+# One owner of the landline, the watch and the other phone devices. The shell,
+# Chronoa and any panel are clients of this bus name; nothing starts a second
+# engine in its own process. On the niri image the older shani-link package is
+# not installed, so no other process can own the line.
+After=graphical-session.target pipewire.service
+PartOf=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=dev.shani.Shell.Phone
+ExecStart=/usr/bin/shani-phone
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

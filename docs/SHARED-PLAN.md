@@ -13,6 +13,10 @@ add a line to the plan's Status section when you finish something:
 - Every call to an OS command is covered by `tests/test_os_cli_contract.py`; extend it when you add one.
 - Start and keep `docs/CAPABILITY-INVENTORY.md` (phase 1): capability, where it is implemented, which copy is best.
 - Phase 0 (the Varlink spike) is driven from here: a QML client over Quickshell `Socket`, and one Settings page drawn from a registry description.
-- Phase 2 prerequisite: the shell's phone service has no unit or D-Bus activation file; shipping one fixes calls on installed niri systems.
+- Phase 2 prerequisite done: `data/systemd/shani-phone.service`,
+  `data/dbus/dev.shani.Shell.Phone.service` and `bin/shani-phone` ship so the
+  shell's phone service is activated on first use on installed niri systems.
+  Keep one owner of the landline: once Chronoa stops depending on shani-link,
+  that package is not installed on niri.
 - Never add GTK, and never launch a GTK app to do something the shell should do.
 - Rule 10: every engine gets a shell part that uses it. Work the gaps in `docs/CAPABILITY-INVENTORY.md` in its order (gen-efi/TPM2 first, then Chronoa's panels, Backup, the Cassini depth comparison, System tools).
