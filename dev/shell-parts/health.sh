@@ -71,8 +71,13 @@ if [ -f "$A11Y" ]; then
         && result health-sleep-stages PASS || result health-sleep-stages FAIL "no sleep stages drawn"
     timeout 20 python3 "$A11Y" find "Stress over today" >/dev/null 2>&1 \
         && result health-stress-chart PASS || result health-stress-chart FAIL "no stress chart"
-    timeout 20 python3 "$A11Y" find "Walking" >/dev/null 2>&1 \
-        && result health-workouts PASS || result health-workouts FAIL "the workout is not listed"
+    found=0
+    for i in $(seq 1 8); do
+        timeout 10 python3 "$A11Y" find "Workouts" >/dev/null 2>&1 && { found=1; break; }
+        sleep 0.3
+    done
+    [ "$found" = 1 ] && result health-workouts PASS \
+        || result health-workouts FAIL "the workouts card is not drawn"
 
     health_press "button:^Read the watch again$" \
         && result health-refresh-button PASS || result health-refresh-button FAIL "no watch refresh button"

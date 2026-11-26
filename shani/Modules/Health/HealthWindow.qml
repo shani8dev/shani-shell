@@ -253,6 +253,8 @@ AppWindow {
                 objectName: "health-activity"
                 visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
+                Layout.preferredHeight: Theme.px(170)
+                clip: true
                 radius: Theme.radiusSmall
                 color: Theme.surface1
                 border.width: 1
