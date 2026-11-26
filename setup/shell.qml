@@ -308,15 +308,15 @@ ShellRoot {
             write(JSON.stringify({
                 username: root.username, fullname: root.fullname.trim(), password: root.password,
                 locale: root.locale, keymap: root.keymap, keymapSwitch: "grp:win_space_toggle",
-                timezone: root.timezone, hostname: root.hostname
+                timezone: root.timezone, hostname: root.hostname,
+                // the desktop choices made here, carried into the new account
+                shell: { chronoaEnabled: root.chronoaOn, largeText: Settings.data.largeText,
+                         highContrast: Settings.data.highContrast }
             }) + "\n");
             stdinEnabled = false;          // EOF: the helper reads the whole object
         }
     }
     function finish() {
-        // write Chronoa setting (chronoaOn is false if user chose Off)
-        Quickshell.execDetached(["sh", "-c",
-            'gsettings set com.shani.desktop.shell chronoa-enabled "' + (chronoaOn ? "true" : "false") + '" 2>/dev/null || true', "sh"]);
         status = "working";
         applyProc.stdinEnabled = true;
         applyProc.running = true;
@@ -352,6 +352,9 @@ ShellRoot {
             if (key === "keymap") root.keymap = value.split(",");
             else if (key === "username") { root.usernameEdited = true; root.username = value; }
             else if (key === "hostname") { root.hostnameEdited = true; root.hostname = value; }
+            // the access choices live in Settings, as their buttons set them
+            else if (key === "largeText" || key === "highContrast") Settings.data[key] = value === "true";
+            else if (typeof root[key] === "boolean") root[key] = value === "true";
             else root[key] = value;
         }
     }

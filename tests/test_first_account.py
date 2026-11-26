@@ -7,6 +7,7 @@ with the account database seen through a stand-in.
 from __future__ import annotations
 
 import importlib.util
+import json
 import pwd
 from pathlib import Path
 
@@ -80,3 +81,61 @@ def test_a_refused_password_takes_the_account_back(monkeypatch):
     monkeypatch.setattr(fa.pwd, "getpwall", lambda: [])
     assert fa.apply(GOOD) == {"ok": False, "error": "bad password"}
     assert calls[-1] == ["userdel", "-r", "asha"]
+
+
+def _home(monkeypatch, tmp_path):
+    owned = []
+    monkeypatch.setattr(fa.pwd, "getpwnam", lambda name: pwd.struct_passwd(
+        (name, "x", 1000, 1000, "", str(tmp_path / name), "/bin/bash")))
+    monkeypatch.setattr(fa.os, "chown", lambda p, u, g, follow_symlinks=True: owned.append((Path(p), u, g)))
+    return owned
+
+
+def test_the_wizards_desktop_choices_reach_the_new_account(monkeypatch, tmp_path):
+    """The wizard runs as `greeter`: its own settings file is not the person's.
+
+    It used to write the Chronoa choice to a GSettings schema that does not
+    exist, and large text / high contrast only into greeter's own file.
+    """
+    owned = _home(monkeypatch, tmp_path)
+    assert fa.seed_shell_settings("asha", {"chronoaEnabled": False, "largeText": True,
+                                           "highContrast": False}) == ""
+    target = tmp_path / "asha/.config/shani-shell/settings.json"
+    assert json.loads(target.read_text()) == {"chronoaEnabled": False, "largeText": True,
+                                              "highContrast": False}
+    assert (target, 1000, 1000) in owned, "the person could not change their own settings"
+    assert (target.parent, 1000, 1000) in owned and (target.parent.parent, 1000, 1000) in owned
+
+
+def test_only_known_true_false_choices_are_carried(monkeypatch, tmp_path):
+    _home(monkeypatch, tmp_path)
+    fa.seed_shell_settings("asha", {"chronoaEnabled": True, "lockAfter": 0, "largeText": "yes",
+                                    "path": "/etc/shadow"})
+    target = tmp_path / "asha/.config/shani-shell/settings.json"
+    assert json.loads(target.read_text()) == {"chronoaEnabled": True}
+
+
+def test_a_settings_file_from_skel_is_left_alone(monkeypatch, tmp_path):
+    _home(monkeypatch, tmp_path)
+    target = tmp_path / "asha/.config/shani-shell/settings.json"
+    target.parent.mkdir(parents=True)
+    target.write_text('{"blur": false}')
+    assert fa.seed_shell_settings("asha", {"chronoaEnabled": False}) == ""
+    assert target.read_text() == '{"blur": false}'
+
+
+def test_apply_passes_the_choices_on(monkeypatch):
+    seen = []
+    monkeypatch.setattr(fa, "run", lambda cmd, stdin=None: "")
+    monkeypatch.setattr(fa.pwd, "getpwall", lambda: [entry("root", 0)])
+    monkeypatch.setattr(fa, "listed", lambda cmd: {"mr_IN.UTF-8", "Asia/Kolkata"})
+    monkeypatch.setattr(fa, "extra_groups", list)
+    monkeypatch.setattr(fa, "seed_shell_settings", lambda user, prefs: seen.append((user, prefs)) or "")
+    assert fa.apply({**GOOD, "shell": {"chronoaEnabled": False}})["ok"] is True
+    assert seen == [("asha", {"chronoaEnabled": False})]
+
+
+def test_the_wizard_sends_its_choices_and_no_gsettings():
+    src = (Path(__file__).resolve().parents[1] / "setup/shell.qml").read_text()
+    assert "gsettings" not in src
+    assert "shell: { chronoaEnabled: root.chronoaOn" in src

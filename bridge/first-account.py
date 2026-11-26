@@ -15,8 +15,11 @@ Input, one JSON object on stdin:
   {"username": "asha", "fullname": "Asha Patil", "password": "…",
    "locale": "mr_IN.UTF-8", "keymap": ["us", "in+marathi"],
    "keymapSwitch": "grp:win_space_toggle", "timezone": "Asia/Kolkata",
-   "hostname": "asha-laptop"}
-Only username and password are required. Output, one JSON object:
+   "hostname": "asha-laptop",
+   "shell": {"chronoaEnabled": true, "largeText": false, "highContrast": false}}
+"shell" holds the wizard's choices for the desktop; they become the new
+account's first ~/.config/shani-shell/settings.json (only the keys in
+SHELL_KEYS, only true/false). Only username and password are required. Output, one JSON object:
   {"ok": true, "warnings": [...]}   or   {"ok": false, "error": "..."}
 
 The account joins `wheel` (an administrator, as the first account must be);
@@ -27,10 +30,12 @@ shani-user-setup.path sees the new passwd entry and adds the rest — groups,
 from __future__ import annotations
 
 import json
+import os
 import pwd
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 USERNAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 HOSTNAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,62}$")
@@ -93,6 +98,33 @@ def validate(req: dict) -> str:
     return ""
 
 
+#: the wizard's desktop choices that are carried into the new account
+SHELL_KEYS = ("chronoaEnabled", "largeText", "highContrast")
+
+
+def seed_shell_settings(user: str, prefs) -> str:
+    """Write the new account's first shell settings; '' or what went wrong."""
+    if not isinstance(prefs, dict):
+        return ""
+    data = {k: prefs[k] for k in SHELL_KEYS if isinstance(prefs.get(k), bool)}
+    if not data:
+        return ""
+    try:
+        ent = pwd.getpwnam(user)
+        config = Path(ent.pw_dir) / ".config"
+        folder = config / "shani-shell"
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / "settings.json"
+        if target.exists() or target.is_symlink():
+            return ""            # /etc/skel brought one: that is the machine's choice
+        target.write_text(json.dumps(data, indent=1) + "\n")
+        for path in (config, folder, target):
+            os.chown(path, ent.pw_uid, ent.pw_gid, follow_symlinks=False)
+    except (KeyError, OSError) as e:
+        return f"desktop choices: {e}"
+    return ""
+
+
 def run(cmd: list[str], stdin: str | None = None) -> str:
     """Run a step; its error text, or "" on success."""
     try:
@@ -147,6 +179,7 @@ def apply(req: dict) -> dict:
             warnings.append(f"unknown time zone {tz}")
     if req.get("hostname"):
         warnings.append(run(["hostnamectl", "hostname", req["hostname"]]))
+    warnings.append(seed_shell_settings(user, req.get("shell")))
     return {"ok": True, "warnings": [w for w in warnings if w]}
 
 

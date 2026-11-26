@@ -99,6 +99,9 @@ getent passwd shani >/dev/null && result setup-waits-for-a-valid-form FAIL || re
 call set password2 shani-test
 shot 84-setup-account 0.5
 call next            # account -> chronoa
+# the choices made in the wizard belong to the new account, not to `greeter`
+call set chronoaOn false
+call set largeText true
 # the Chronoa page is last: its Next is finish(), which writes the account
 call next
 shot 85-setup-chronoa 0.5
@@ -113,6 +116,14 @@ grep -q '^shani:\$' /etc/shadow && result setup-sets-password PASS || result set
 # the shell's own first, the Flatpak after it
 [ -f "/home/shani/.config/mimeapps.list" ] && grep -q "^image/jpeg=dev.shani.ImageViewer.desktop" "/home/shani/.config/mimeapps.list" \
     && result setup-home-has-default-apps PASS || result setup-home-has-default-apps FAIL "$(ls -a /home/shani/.config 2>&1 | tr '\n' ' ')"
+SET=/home/shani/.config/shani-shell/settings.json
+python3 - "$SET" <<'PY' && result setup-choices-reach-account PASS || result setup-choices-reach-account FAIL "$(cat "$SET" 2>&1)"
+import json, sys
+d = json.load(open(sys.argv[1]))
+sys.exit(0 if d.get("chronoaEnabled") is False and d.get("largeText") is True else 1)
+PY
+[ "$(stat -c %U "$SET" 2>/dev/null)" = shani ] && [ "$(stat -c %U /home/shani/.config/shani-shell 2>/dev/null)" = shani ] \
+    && result setup-choices-owned-by-account PASS || result setup-choices-owned-by-account FAIL "$(ls -la /home/shani/.config/shani-shell 2>&1)"
 LOG=/work/out/logs/greetd.log
 python3 - "$LOG" <<'PY' && result setup-signs-in PASS || result setup-signs-in FAIL "$(cat $LOG)"
 import json, sys
