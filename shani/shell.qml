@@ -605,6 +605,19 @@ ShellRoot {
         function passwordGeneratorClose() { Ui.passwords = false; }
         function passwordGeneratorToggle() { const was = Ui.passwords; Ui.closeAll(); if (!was) { Ui.passwordsTab = "generator"; Ui.passwords = true; } }
         function kundaliOpen() { Ui.closeAll(); Ui.kundali = true; }
+        // a birth chart at once: date YYYY-MM-DD, time HH:MM, latitude, longitude,
+        // the place's zone (Area/City; "" = this computer's) and its name
+        function kundaliChart(date: string, time: string, lat: string, lon: string, zone: string, name: string) {
+            Ui.closeAll();
+            Ui.kundaliBirth = { date: date, time: time, lat: Number(lat), lon: Number(lon), zone: zone, name: name };
+            Ui.kundali = true;
+        }
+        // the panchang of a day at a place (the same hand-over, as a day)
+        function kundaliPanchang(date: string, lat: string, lon: string, zone: string, name: string) {
+            Ui.closeAll();
+            Ui.kundaliBirth = { mode: "panchang", date: date, time: "12:00", lat: Number(lat), lon: Number(lon), zone: zone, name: name };
+            Ui.kundali = true;
+        }
         function kundaliClose() { Ui.kundali = false; }
         function kundaliToggle() { const was = Ui.kundali; Ui.closeAll(); Ui.kundali = !was; }
         function voiceRecorderRecord() { VoiceRecorder.start(); }

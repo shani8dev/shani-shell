@@ -22,21 +22,39 @@ out=$(python3 "$TOOL" panchang 2024-01-01 2>&1); rc=$?
 [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -q '"error": "missing' \
     && result kundali-missing-args PASS || result kundali-missing-args FAIL "$out"
 
-# the window offers every section as a chip beside the chart
+# the window opens
 ipc kundaliOpen
 waitfor "d['kundali']" 6 && result kundali-opens PASS || result kundali-opens FAIL "$(q "['kundali']")"
+shot kundali-sections 0.8
+ipc kundaliClose
+
+# a birth charted at once (IPC kundaliChart): Pune, 1 January 1990, 12:00 there
+ipc kundaliChart 1990-01-01 12:00 18.5204 73.8567 Asia/Kolkata Pune
+waitfor "d['kundali']" 6 && result kundali-chart-opens PASS || result kundali-chart-opens FAIL "$(q "['kundali']")"
+shot kundali-chart 4
+# every section is a tab beside the chart (once there is one, the birth form
+# folds away and the tabs are on screen)
+labels='Chart|Dasha periods|Ashtakavarga|Planetary dignity|Aspects|Nakshatra details|Eclipses'
 if [ -f "$A11Y" ]; then
-    timeout 20 python3 "$A11Y" press "radio button:^Kundali$" >/dev/null 2>&1
-    for label in Chart "Dasha periods" Ashtakavarga "Planetary dignity" Aspects "Nakshatra details" Eclipses; do
+    printf '%s\n' "$labels" | tr '|' '\n' | while read -r label; do
         timeout 20 python3 "$A11Y" find "radio button:^$label$" >/dev/null 2>&1 \
-            && result "kundali-chip-${label// /-}" PASS \
-            || result "kundali-chip-${label// /-}" FAIL "no chip: $label"
+            && result "kundali-chip-$(printf %s "$label" | tr ' ' -)" PASS \
+            || result "kundali-chip-$(printf %s "$label" | tr ' ' -)" FAIL "no chip: $label"
     done
+    timeout 20 python3 "$A11Y" press "radio button:^Ashtakavarga$" >/dev/null 2>&1; shot kundali-ashtakavarga 2.5
+    timeout 20 python3 "$A11Y" press "radio button:^Every calculation$" >/dev/null 2>&1
+    timeout 20 python3 "$A11Y" press "radio button:^Strength$" >/dev/null 2>&1
+    timeout 20 python3 "$A11Y" press "radio button:^Shadbala$" >/dev/null 2>&1; shot kundali-calculation 3
 else
-    for label in Chart "Dasha periods" Ashtakavarga "Planetary dignity" Aspects "Nakshatra details" Eclipses; do
-        result "kundali-chip-${label// /-}" SKIP "no accessibility client"
+    printf '%s\n' "$labels" | tr '|' '\n' | while read -r label; do
+        result "kundali-chip-$(printf %s "$label" | tr ' ' -)" SKIP "no accessibility client"
     done
 fi
-shot kundali-sections 0.3
+ipc kundaliClose
+
+# the day's panchang, as the calendar asks for it
+ipc kundaliPanchang 2026-10-19 18.5204 73.8567 Asia/Kolkata Pune
+waitfor "d['kundali']" 6 && result kundali-panchang-opens PASS || result kundali-panchang-opens FAIL "$(q "['kundali']")"
+shot kundali-panchang 4
 ipc kundaliClose
 ipc closeAll

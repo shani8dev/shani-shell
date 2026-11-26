@@ -31,47 +31,36 @@ def body_of(text, signature):
 
 
 def test_editing_an_input_drops_the_chart_that_input_made():
-    """A result computed for 1990-01-01 must not sit under a freshly typed date."""
+    """The chart belongs to the inputs that made it (the window redesign kept
+    this: every date, time, place and mode change clears what was shown)."""
     t = kundali()
     clear = body_of(t, "function clearResult()")
-    assert 'win.result = ""' in clear
-    assert "win.error = false" in clear
-    assert "win.copied = false" in clear
-    calc = body_of(t, "function calculate()")
-    assert "win.clearResult()" in calc, "a new calculation does not reset the card"
-    # every editable field, and both modes, must invalidate the old result
-    for prop in ("dateInput", "timeInput", "latInput", "lonInput"):
-        line = next(
-            l for l in t.splitlines() if f"onTextChanged: {{ win.{prop} = text;" in l
-        )
-        assert "win.clearResult()" in line, line
-    assert t.count("win.clearResult() }") >= 4
-    assert 'onClicked: { win.mode = "panchang"; win.clearResult() }' in t
-    assert 'onClicked: { win.mode = "kundali"; win.clearResult() }' in t
+    for line in ("win.chart = null", "win.day = null", 'win.error = ""', "win.copied = false", "win.chartCopied = false"):
+        assert line in clear, line
+    assert "win.clearResult()" in body_of(t, "function calculate()"), "a new calculation does not reset the card"
+    assert 'onPicked: date => { win.dateInput = date; win.clearResult(); }' in t
+    assert 'onPicked: time => { win.timeInput = time; win.clearResult(); }' in t
+    assert 'win.mode = index === 1 ? "panchang" : "kundali"; win.clearResult();' in t
+    assert "win.clearResult();" in t[t.index("function pickPlace(r)"):t.index("function useThisComputer()")]
 
 
 def test_the_result_can_be_copied_without_selecting_it_by_mouse():
-    """A read-only TextEdit is not a copy affordance for keyboard/AT users."""
     t = kundali()
-    assert 'Tr.t("Copy result")' in t, "no copy button"
-    assert "wl-copy" in t and "win.result" in t, "copy does not carry the chart"
-    line = next(l for l in t.splitlines() if "enabled: win.result" in l)
-    assert 'win.result !== "" && !win.error' in line, line
-    assert 'win.copied ? Tr.t("Copied") : Tr.t("Copy result")' in t
-    assert 'Accessible.name: win.copied ? Tr.t("Copied")' in t
+    assert 'Tr.t("Copy chart")' in t and 'Tr.t("Copy result")' in t, "no copy button"
+    assert "wl-copy" in t and "(win.chart || {}).text" in t, "copy does not carry the chart"
+    assert 'visible: win.mode === "kundali" && win.chart !== null && win.error === ""' in t
+    assert 'Accessible.name: win.chartCopied ? Tr.t("Copied") : Tr.t("Copy chart")' in t
 
 
 def test_an_error_is_not_styled_or_announced_as_a_chart():
-    """'The calculation failed' must read as an error, not as a normal result."""
+    """An error is a banner of its own (tone error), never drawn in the
+    chart's place; a failed or unreadable answer says so."""
     t = kundali()
-    assert "property bool error: false" in t
-    assert "color: win.error ? Theme.danger : Theme.text" in t
-    assert 'Accessible.name: win.error ? Tr.t("Calculation error")' in t
-    # all three failure paths set the flag; a successful parse clears it
-    assert "if (code !== 0) {" in t and t.count("win.error = true") == 3
-    assert "const data = JSON.parse(text);" in t
-    assert "win.error = false;\n                    if (data.error)" in t
-    assert 'win.result = Tr.t("The result could not be read")' in t
+    assert 'property string error: ""' in t
+    assert 'tone: "error"' in t and 'title: Tr.t("Could not compute")' in t
+    assert "if (d.error) { win.error = d.error; return; }" in t
+    assert 'win.error = Tr.t("The result could not be read")' in t
+    assert "is the Kundali helper installed?" in t
 
 
 def test_the_step_count_comes_from_the_service_not_a_literal_four():

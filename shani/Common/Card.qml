@@ -44,10 +44,13 @@ Rectangle {
         anchors.margins: root.padding
         spacing: Theme.space(4)
 
-        RowLayout {
+        // narrow, the actions go under the title instead of over it
+        GridLayout {
             Layout.fillWidth: true
             visible: root.title !== "" || root.icon !== "" || actionRow.children.length > 0
-            spacing: Theme.space(3)
+            columns: root.compact ? 2 : 3
+            columnSpacing: Theme.space(3)
+            rowSpacing: Theme.space(2)
 
             Rectangle {
                 visible: root.icon !== ""
@@ -85,7 +88,9 @@ Rectangle {
             }
             RowLayout {
                 id: actionRow
-                Layout.alignment: Qt.AlignVCenter
+                Layout.columnSpan: root.compact ? 2 : 1
+                Layout.alignment: root.compact ? Qt.AlignLeft : Qt.AlignVCenter
+                visible: children.length > 0
                 spacing: Theme.space(2)
             }
         }

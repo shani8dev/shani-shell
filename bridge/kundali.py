@@ -71,7 +71,9 @@ def panchang(date_str, lat, lon):
     if astro is None:
         return {"error": "Astronomy module not available"}
     stamp = _stamp(date_str)
-    result = astro.compute_panchang(stamp, lat, lon)
+    # the full panchang: the five limbs and the month, paksha, season and eras
+    full = getattr(astro, "compute_full_panchang", None)
+    result = full(stamp, lat, lon) if full else astro.compute_panchang(stamp, lat, lon)
     result["text"] = kundali_engine.compute(
         {
             "action": "panchang",
@@ -97,6 +99,13 @@ def kundali(datetime_str, lat, lon):
             for p in chart.get("planets", [])
         ]
         chart["navamsa_ascendant"] = astro.SIGNS[int(astro.varga_longitude(chart["ascendant"], "D9") / 30) % 12]
+        # every divisional chart: the ascendant's and each planet's sign
+        sign = lambda lon, d: astro.SIGNS[int(astro.varga_longitude(lon, d) / 30) % 12]
+        chart["vargas_all"] = {
+            d: {"ascendant": sign(chart["ascendant"], d),
+                "planets": {p["name"]: sign(p["sidereal_longitude"], d) for p in chart.get("planets", [])}}
+            for d in ("D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12", "D16", "D20", "D24", "D27", "D30", "D40", "D45", "D60")
+        }
     chart["text"] = kundali_engine.compute(
         {
             "action": "kundali",

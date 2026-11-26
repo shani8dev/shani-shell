@@ -93,3 +93,16 @@ def test_the_window_reads_the_birth_time_as_local_time():
     assert 'new Date(win.dateInput + "T" + time + ":00")' in fn and "toISOString()" in fn
     assert qml.count("win.birthArg()") >= 4 and '":00Z"' not in qml.replace('time + ":00Z"', "")
     assert 'Tr.t("Local time, %1"' in qml
+
+
+@pytest.mark.parametrize("when", ["1990-01-01T06:30:00Z", "1975-07-21T18:00:00Z", "2020-12-21T18:20:00Z"])
+def test_ashtakavarga_has_every_planets_bindus(when):
+    """Only the Sun's and the Moon's tables were there: the Sarvashtakavarga
+    summed to ~97. Each planet's Bhinnashtakavarga has a fixed total whatever
+    the chart (Sun 48, Moon 49, Mars 39, Mercury 54, Jupiter 56, Venus 52,
+    Saturn 39), and the Sarvashtakavarga 337."""
+    c = a.compute_full_chart_v2(when, 18.5204, 73.8567)
+    av = a.ashtakavarga_full(c["planets"], int(c["ascendant"] / 30) % 12)
+    totals = {k: sum(v) for k, v in av["bhinna"].items()}
+    assert totals == {"Sun": 48, "Moon": 49, "Mars": 39, "Mercury": 54, "Jupiter": 56, "Venus": 52, "Saturn": 39}
+    assert sum(av["sarva"]) == 337 and sum(c["ashtakavarga"]["sarva"]) == 337

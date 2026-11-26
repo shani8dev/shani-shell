@@ -38,12 +38,34 @@ AppWindow {
     property string varga: "D1"
     property string section: "chart"        // the chart's sections (data, drawn below)
     property string sectionText: ""
+    property var sectionData: null
+    property bool editing: true            // the birth form; folds into one line once a chart is made
+    property string chartStyle: "north"     // north | south
+    readonly property var vargaNames: ({
+        D1: Tr.t("Rashi: the birth chart"), D2: Tr.t("Hora: wealth"), D3: Tr.t("Drekkana: siblings"),
+        D4: Tr.t("Chaturthamsha: home and fortune"), D7: Tr.t("Saptamsha: children"), D9: Tr.t("Navamsha: marriage and dharma"),
+        D10: Tr.t("Dashamsha: career"), D12: Tr.t("Dwadashamsha: parents"), D16: Tr.t("Shodashamsha: vehicles and comforts"),
+        D20: Tr.t("Vimshamsha: spiritual life"), D24: Tr.t("Chaturvimshamsha: learning"), D27: Tr.t("Saptavimshamsha: strength"),
+        D30: Tr.t("Trimshamsha: misfortune"), D40: Tr.t("Khavedamsha: maternal line"), D45: Tr.t("Akshavedamsha: paternal line"),
+        D60: Tr.t("Shashtiamsha: past karma")
+    })
+    function vargaAscendant() {
+        const v = ((win.chart || {}).vargas_all || {})[win.varga];
+        return v ? v.ascendant : ((win.chart || {}).ascendant_sign || "");
+    }
+    function vargaPlanets() {
+        const ps = ((win.chart || {}).planets || []).filter(p => ["Uranus", "Neptune", "Pluto"].indexOf(p.name) < 0);
+        const v = ((win.chart || {}).vargas_all || {})[win.varga];
+        if (!v || win.varga === "D1") return ps;
+        return ps.map(p => ({ name: p.name, retrograde: p.retrograde, sign: v.planets[p.name] || "" }));
+    }
     property string group: "chart"          // every other calculation, by group
     property string calc: ""
     property string calcText: ""
     property bool calcBusy: false
     property int horaryHouse: 7
     property bool copied: false
+    property bool chartCopied: false
 
     readonly property var sections: [
         ["chart", Tr.t("Chart")],
@@ -112,6 +134,7 @@ AppWindow {
         win.sectionText = "";
         win.calcText = "";
         win.copied = false;
+        win.chartCopied = false;
     }
 
     // ---- running the bridge --------------------------------------------------
@@ -127,7 +150,8 @@ AppWindow {
     function showSection(id) {
         win.section = id;
         win.sectionText = "";
-        if (id === "chart" || !win.chart) return;
+        win.sectionData = null;
+        if (id === "chart" || id === "all" || !win.chart) return;
         sectionProc.command = ["python3", win.scriptPath, "details", id, win.birthArg(), String(win.place.lat), String(win.place.lon)];
         sectionProc.running = true;
     }
@@ -141,6 +165,12 @@ AppWindow {
         if (id === "horary") args.push(String(win.horaryHouse));
         calcProc.command = args;
         calcProc.running = true;
+    }
+    function stepDay(n) {
+        const d = new Date(win.dateInput + "T12:00:00");
+        d.setDate(d.getDate() + n);
+        win.dateInput = Qt.formatDate(d, "yyyy-MM-dd");
+        win.calculate();
     }
     function pickPlace(r) {
         win.place = { name: r.name || "", region: r.region || "", country: r.country || "",
@@ -165,10 +195,22 @@ AppWindow {
     }
 
     // The calendar opens this with a day in mind: the panchang of that day.
-    onVisibleChanged: if (visible && Ui.kundaliDate) {
-        win.mode = "panchang";
-        win.dateInput = Ui.kundaliDate;
-        win.calculate();
+    // A script, Chronoa or the tests open it with a birth: that chart.
+    onVisibleChanged: {
+        if (!visible) return;
+        if (Ui.kundaliBirth) {
+            const b = Ui.kundaliBirth;
+            Ui.kundaliBirth = null;
+            win.mode = b.mode === "panchang" ? "panchang" : "kundali";
+            win.dateInput = b.date;
+            win.timeInput = b.time || "12:00";
+            win.place = { name: b.name || "", region: "", country: "", lat: b.lat, lon: b.lon, timezone: b.zone || "" };
+            win.calculate();
+        } else if (Ui.kundaliDate) {
+            win.mode = "panchang";
+            win.dateInput = Ui.kundaliDate;
+            win.calculate();
+        }
     }
 
     Process {
@@ -179,8 +221,8 @@ AppWindow {
                 try {
                     const d = JSON.parse(text);
                     if (d.error) { win.error = d.error; return; }
-                    if (win.mode === "panchang") win.day = d;
-                    else { win.chart = d; win.showSection(win.section); if (win.calc) win.runCalc(win.calc); }
+                    if (win.mode === "panchang") { win.day = d; win.editing = false; }
+                    else { win.chart = d; win.editing = false; win.showSection(win.section); if (win.calc) win.runCalc(win.calc); }
                 } catch (e) { win.error = Tr.t("The result could not be read"); }
             }
         }
@@ -189,7 +231,7 @@ AppWindow {
     Process {
         id: sectionProc
         stdout: StdioCollector { onStreamFinished: {
-            try { const d = JSON.parse(text); win.sectionText = d.error ? Tr.t("Could not compute: %1").arg(d.error) : win.renderSection(d); }
+            try { const d = JSON.parse(text); win.sectionData = d.error ? null : d; win.sectionText = d.error ? Tr.t("Could not compute: %1").arg(d.error) : win.renderSection(d); }
             catch (e) { win.sectionText = Tr.t("The result could not be read"); }
         } }
     }
@@ -252,30 +294,64 @@ AppWindow {
         }
     }
 
+    // the planets' colours in the drawings: one hue each, calm, the same everywhere
+    readonly property var planetTint: ({
+        Sun: Theme.amber, Moon: Theme.blue, Mars: Theme.danger, Mercury: Theme.success, Jupiter: Theme.amber,
+        Venus: Theme.accent, Saturn: Theme.dim, Rahu: Theme.faint, Ketu: Theme.faint
+    })
+    readonly property var moon: ((win.chart || {}).planets || []).find(p => p.name === "Moon") || {}
+    readonly property var dashaNow: (win.chart ? win.dashaRows() : []).find(d => d.current) || null
+
     AppPage {
         anchors.fill: parent
-        title: win.mode === "panchang" ? Tr.t("Panchang") : Tr.t("Kundali")
+        title: win.mode === "panchang" ? Tr.t("Panchang") : (win.place.name !== "" && !win.editing && win.chart ? Tr.t("Kundali for %1", win.place.name) : Tr.t("Kundali"))
         subtitle: win.mode === "panchang" ? Tr.t("The day's tithi, nakshatra, yoga and karana, for a place")
                                           : Tr.t("A birth chart, sidereal with Lahiri ayanamsa, worked out on this computer")
         Keys.onEscapePressed: Ui.kundali = false
+        actions: [
+            SegmentedTabs {
+                options: [Tr.t("Birth chart"), Tr.t("Panchang")]
+                segmentWidth: Theme.px(110)
+                currentIndex: win.mode === "panchang" ? 1 : 0
+                onActivated: index => { win.mode = index === 1 ? "panchang" : "kundali"; win.clearResult(); win.editing = true; }
+            }
+        ]
 
-        SegmentedTabs {
-            options: [Tr.t("Birth chart"), Tr.t("Panchang")]
-            currentIndex: win.mode === "panchang" ? 1 : 0
-            onActivated: index => { win.mode = index === 1 ? "panchang" : "kundali"; win.clearResult(); }
-        }
-
-        // ---- when and where ---------------------------------------------------
+        // ---- the birth, folded into one line once there is a chart --------------
         Card {
             Layout.fillWidth: true
+            visible: !win.editing
+            icon: "x-office-calendar"
+            title: win.mode === "panchang" ? Qt.formatDate(new Date(win.dateInput + "T12:00:00"), "dddd, d MMMM yyyy")
+                                           : Qt.formatDate(new Date(win.dateInput + "T12:00:00"), "d MMMM yyyy") + " · " + win.timeInput
+            subtitle: win.placeTitle + " · " + win.zoneLabel
+            actions: [
+                // a day back, a day on: the panchang is read day by day
+                IconButton { visible: win.mode === "panchang"; icon: "go-previous"; tip: Tr.t("The day before"); onClicked: win.stepDay(-1) },
+                IconButton { visible: win.mode === "panchang"; icon: "go-next"; tip: Tr.t("The day after"); onClicked: win.stepDay(1) },
+                // the whole chart as text, for a message or a note (no mouse selection needed)
+                Button {
+                    visible: win.mode === "kundali" && win.chart !== null && win.error === ""
+                    text: win.chartCopied ? Tr.t("Copied") : Tr.t("Copy chart")
+                    Accessible.name: win.chartCopied ? Tr.t("Copied") : Tr.t("Copy chart")
+                    onClicked: { Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", (win.chart || {}).text || ""]); win.chartCopied = true; }
+                },
+                Button { text: win.mode === "panchang" ? Tr.t("Change day or place") : Tr.t("Edit birth details"); onClicked: win.editing = true }
+            ]
+        }
+
+        // ---- when and where (the form) ------------------------------------------
+        Card {
+            Layout.fillWidth: true
+            visible: win.editing
             icon: "x-office-calendar"
             title: win.mode === "panchang" ? Tr.t("Which day, and where") : Tr.t("When and where you were born")
             subtitle: Tr.t("Times are read in the place's own time zone, summer time included")
 
             GridLayout {
                 Layout.fillWidth: true
-                columns: width > Theme.px(620) && win.mode === "kundali" ? 2 : 1
-                columnSpacing: Theme.space(6)
+                columns: width > Theme.px(640) && win.mode === "kundali" ? 2 : 1
+                columnSpacing: Theme.space(8)
                 rowSpacing: Theme.space(4)
                 DatePicker {
                     Layout.fillWidth: true
@@ -386,159 +462,334 @@ AppWindow {
             text: win.error
         }
 
-        // ---- the day -------------------------------------------------------------
-        TileGrid {
-            Layout.fillWidth: true
-            visible: win.mode === "panchang" && win.day !== null
-            minTileWidth: Theme.px(170)
-            maxColumns: 5
-            StatTile { icon: "weather-clear-night"; label: Tr.t("Tithi"); value: (win.day || {}).tithi || "" }
-            StatTile { icon: "x-office-calendar"; label: Tr.t("Vara"); value: (win.day || {}).vara || "" }
-            StatTile { icon: "starred"; label: Tr.t("Nakshatra"); value: (win.day || {}).nakshatra || "" }
-            StatTile { icon: "emblem-favorite"; label: Tr.t("Yoga"); value: (win.day || {}).yoga || "" }
-            StatTile { icon: "view-calendar-day"; label: Tr.t("Karana"); value: (win.day || {}).karana || "" }
-        }
-
-        // ---- the birth chart -------------------------------------------------------
-        TileGrid {
-            Layout.fillWidth: true
-            visible: win.mode === "kundali" && win.chart !== null
-            minTileWidth: Theme.px(180)
-            readonly property var moon: ((win.chart || {}).planets || []).find(p => p.name === "Moon") || {}
-            StatTile { icon: "go-up"; label: Tr.t("Rising sign"); value: (win.chart || {}).ascendant_sign || ""; detail: Tr.t("Ascendant, %1°", Math.floor(((win.chart || {}).ascendant || 0) % 30)) }
-            StatTile { icon: "weather-clear-night"; label: Tr.t("Moon sign"); value: parent.moon.sign || ""; detail: ((parent.moon.nakshatra || {}).nakshatra || "") }
-            StatTile { icon: "starred"; label: Tr.t("Ayanamsa"); value: ((win.chart || {}).ayanamsa || 0).toFixed ? Number((win.chart || {}).ayanamsa).toFixed(3) + "°" : ""; detail: (win.chart || {}).ayanamsa_name || "" }
-        }
-
+        // ---- the day ------------------------------------------------------------------
+        // the Vedic date first, the way a printed panchang heads its page
         Card {
             Layout.fillWidth: true
-            visible: win.mode === "kundali" && win.chart !== null
-            icon: "view-grid"
-            title: win.varga === "D9" ? Tr.t("Navamsa chart (D9)") : Tr.t("Birth chart (D1)")
-            subtitle: Tr.t("North Indian style: the houses stay put, the first at the top; numbers are signs, ᴿ is retrograde")
-            actions: [ SegmentedTabs { options: [Tr.t("D1"), Tr.t("D9")]; segmentWidth: Theme.px(56); currentIndex: win.varga === "D9" ? 1 : 0; onActivated: index => win.varga = index === 1 ? "D9" : "D1" } ]
-            KundaliChart {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: Math.min(Theme.px(420), parent.width)
-                Layout.preferredHeight: Layout.preferredWidth
-                ascendantSign: win.varga === "D9" ? ((win.chart || {}).navamsa_ascendant || "") : ((win.chart || {}).ascendant_sign || "")
-                planets: {
-                    const ps = ((win.chart || {}).planets || []).filter(p => ["Uranus", "Neptune", "Pluto"].indexOf(p.name) < 0);
-                    if (win.varga !== "D9") return ps;
-                    const nav = (win.chart || {}).navamsa || [];
-                    return ps.map(p => ({ name: p.name, retrograde: p.retrograde, sign: (nav.find(n => n.name === p.name) || {}).sign || "" }));
+            visible: win.mode === "panchang" && win.day !== null
+            icon: "weather-clear-night"
+            tint: Theme.blue
+            title: [(win.day || {}).masa, (win.day || {}).paksha, String((win.day || {}).tithi || "").split(" (")[0]].filter(s => s).join(" ")
+            subtitle: [(win.day || {}).vikram_year ? Tr.t("Vikram %1", win.day.vikram_year) : "",
+                       (win.day || {}).shaka_year ? Tr.t("Shaka %1", win.day.shaka_year) : "",
+                       (win.day || {}).ritu ? Tr.t("%1 ritu", win.day.ritu) : "",
+                       (win.day || {}).ayana || ""].filter(s => s).join(" · ")
+        }
+        Card {
+            Layout.fillWidth: true
+            visible: win.mode === "panchang" && win.day !== null
+            icon: "view-list-details"
+            title: Tr.t("The five limbs")
+            subtitle: Qt.formatDate(new Date(win.dateInput + "T12:00:00"), "dddd, d MMMM yyyy") + " · " + win.placeTitle
+            spacing: 0
+            Repeater {
+                model: [
+                    { k: Tr.t("Tithi"), v: (win.day || {}).tithi, d: (win.day || {}).paksha ? Tr.t("%1 paksha", win.day.paksha) : "" },
+                    { k: Tr.t("Nakshatra"), v: (win.day || {}).nakshatra, d: (win.day || {}).nakshatra_lord ? Tr.t("Lord: %1", win.day.nakshatra_lord) : "" },
+                    { k: Tr.t("Yoga"), v: (win.day || {}).yoga, d: "" },
+                    { k: Tr.t("Karana"), v: (win.day || {}).karana, d: "" },
+                    { k: Tr.t("Vara"), v: (win.day || {}).vara, d: "" }
+                ]
+                GridLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.space(1)
+                    Layout.bottomMargin: Theme.space(1)
+                    // narrow, the name of the limb sits above its value
+                    columns: width < Theme.px(480) ? 1 : 2
+                    columnSpacing: Theme.space(4)
+                    rowSpacing: 0
+                    Text {
+                        Layout.preferredWidth: Theme.px(120)
+                        text: modelData.k
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("body")
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData.v || "–"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.DemiBold }
+                        Text { visible: modelData.d !== ""; text: modelData.d; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                    }
                 }
             }
         }
 
-        Card {
+        // ---- what to look at: the chart, its sections, every calculation ---------------
+        // a row that wraps: every tab stays on screen, a phone's too
+        Flow {
+            Layout.fillWidth: true
+            visible: win.mode === "kundali"
+            spacing: Theme.space(2)
+            Repeater {
+                model: win.sections.concat([["all", Tr.t("Every calculation")]])
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: win.section === modelData[0]
+                    onClicked: win.showSection(modelData[0])
+                }
+            }
+        }
+
+        // ---- the chart at a glance -----------------------------------------------------
+        TileGrid {
             Layout.fillWidth: true
             visible: win.mode === "kundali" && win.chart !== null
-            icon: "starred"
-            title: Tr.t("Planets")
+            minTileWidth: Theme.px(width < Theme.px(600) ? 140 : 190)
+            StatTile {
+                icon: "go-up"; label: Tr.t("Rising sign"); tint: Theme.accent
+                value: (win.chart || {}).ascendant_sign || ""
+                detail: Tr.t("Ascendant at %1°", Math.floor(((win.chart || {}).ascendant || 0) % 30))
+            }
+            StatTile {
+                icon: "weather-clear-night"; label: Tr.t("Moon sign"); tint: Theme.blue
+                value: win.moon.sign || ""
+                detail: ((win.moon.nakshatra || {}).nakshatra || "") + ((win.moon.nakshatra || {}).pada ? " · " + Tr.t("pada %1", win.moon.nakshatra.pada) : "")
+            }
+            StatTile {
+                icon: "media-playback-start"; label: Tr.t("Period now"); tint: Theme.success
+                value: win.dashaNow ? Tr.t("%1 dasha", win.dashaNow.lord) : "–"
+                detail: win.dashaNow ? Tr.t("until %1", Math.floor(win.dashaNow.to)) : ""
+                progress: win.dashaNow ? (new Date().getFullYear() - win.dashaNow.from) / (win.dashaNow.to - win.dashaNow.from) : -1
+            }
+            StatTile {
+                icon: "starred"; label: Tr.t("Retrograde"); tint: Theme.amber
+                value: String(((win.chart || {}).planets || []).filter(p => p.retrograde && p.name !== "Rahu" && p.name !== "Ketu").length)
+                detail: ((win.chart || {}).planets || []).filter(p => p.retrograde && p.name !== "Rahu" && p.name !== "Ketu").map(p => p.name).join(", ")
+            }
+        }
+
+        // the chart: drawn, beside its planets
+        GridLayout {
+            Layout.fillWidth: true
+            visible: win.mode === "kundali" && win.chart !== null && win.section === "chart"
+            columns: width > Theme.px(860) ? 2 : 1
+            columnSpacing: Theme.space(5)
+            rowSpacing: Theme.space(5)
+
+            Card {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                icon: "view-grid"
+                title: Tr.t("Chart %1", win.varga)
+                subtitle: win.vargaNames[win.varga] || ""
+                actions: [ SegmentedTabs { options: [Tr.t("North"), Tr.t("South")]; segmentWidth: Theme.px(64); currentIndex: win.chartStyle === "south" ? 1 : 0; onActivated: index => win.chartStyle = index === 1 ? "south" : "north" } ]
+                KundaliChart {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: Math.min(Theme.px(440), parent.width)
+                    Layout.preferredHeight: Layout.preferredWidth
+                    style: win.chartStyle
+                    tints: win.planetTint
+                    ascendantSign: win.vargaAscendant()
+                    planets: win.vargaPlanets()
+                }
+                // every divisional chart: D1 to D60
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.space(1)
+                    Repeater {
+                        model: ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12", "D16", "D20", "D24", "D27", "D30", "D40", "D45", "D60"]
+                        Choice {
+                            required property string modelData
+                            text: modelData
+                            selected: win.varga === modelData
+                            Accessible.name: win.vargaNames[modelData] || modelData
+                            onClicked: win.varga = modelData
+                        }
+                    }
+                }
+            }
+
+            Card {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                icon: "starred"
+                title: Tr.t("Planets")
+                subtitle: Tr.t("Sign and degree, nakshatra, and how well placed")
+                spacing: 0
+                Repeater {
+                    model: ((win.chart || {}).planets || []).filter(p => ["Uranus", "Neptune", "Pluto"].indexOf(p.name) < 0)
+                    RowLayout {
+                        id: prow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.max(Theme.px(44), Theme.touchTarget)
+                        spacing: Theme.space(3)
+                        Rectangle {
+                            implicitWidth: Theme.px(10); implicitHeight: implicitWidth; radius: width / 2
+                            color: win.planetTint[prow.modelData.name] || Theme.dim
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+                            Text {
+                                text: prow.modelData.name
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: Theme.type("body")
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: Tr.t("%1 %2°%3′", prow.modelData.sign, prow.modelData.degree, String(prow.modelData.minute).padStart(2, "0"))
+                                      + ((prow.modelData.nakshatra || {}).nakshatra ? " · " + prow.modelData.nakshatra.nakshatra : "")
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.type("small")
+                            }
+                        }
+                        StatusPill { visible: !!prow.modelData.retrograde && ["Rahu", "Ketu"].indexOf(prow.modelData.name) < 0; tone: "warn"; text: Tr.t("retrograde") }
+                        StatusPill {
+                            visible: !!prow.modelData.dignity && prow.modelData.dignity !== "Neutral"
+                            readonly property string d: String(prow.modelData.dignity || "").toLowerCase()
+                            tone: d.indexOf("exalt") >= 0 || d.indexOf("own") >= 0 || d.indexOf("moola") >= 0 ? "ok"
+                                : d.indexOf("debil") >= 0 || d.indexOf("enemy") >= 0 ? "error" : "neutral"
+                            text: prow.modelData.dignity || ""
+                        }
+                    }
+                }
+            }
+        }
+
+        // the Vimshottari periods, as a line through the years
+        Card {
+            Layout.fillWidth: true
+            visible: win.mode === "kundali" && win.chart !== null && (win.section === "chart" || win.section === "dasha")
+            icon: "view-calendar-timeline"
+            title: Tr.t("Vimshottari dasha")
+            subtitle: win.dashaNow ? Tr.t("Now in %1, until %2", win.dashaNow.lord, Math.floor(win.dashaNow.to)) : Tr.t("The great periods of life, from birth")
+            Item {
+                Layout.fillWidth: true
+                implicitHeight: Theme.px(64)
+                readonly property var rows: win.chart ? win.dashaRows() : []
+                readonly property real span: rows.length ? rows[rows.length - 1].to - rows[0].from : 1
+                Repeater {
+                    model: parent.rows
+                    Item {
+                        required property var modelData
+                        required property int index
+                        readonly property var line: parent
+                        x: (modelData.from - parent.rows[0].from) / parent.span * parent.width
+                        width: Math.max(2, (modelData.to - modelData.from) / parent.span * parent.width - 2)
+                        height: parent.height
+                        Rectangle {
+                            width: parent.width
+                            height: Theme.px(22)
+                            radius: Theme.radiusSmall
+                            color: modelData.current ? Theme.accent : Theme.alpha(win.planetTint[modelData.lord] || Theme.dim, 0.35)
+                            border.width: modelData.current ? 0 : 1
+                            border.color: Theme.cardBorder
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: Tr.t("%1 dasha, %2 to %3", modelData.lord, Math.floor(modelData.from), Math.floor(modelData.to))
+                        }
+                        Text {
+                            y: Theme.px(26)
+                            width: parent.width
+                            visible: parent.width > Theme.px(34)
+                            elide: Text.ElideRight
+                            text: modelData.lord
+                            color: modelData.current ? Theme.accent : Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("caption")
+                            font.weight: modelData.current ? Font.DemiBold : Font.Normal
+                        }
+                        Text {
+                            y: Theme.px(42)
+                            width: parent.width
+                            visible: parent.width > Theme.px(34)
+                            text: String(Math.floor(modelData.from))
+                            color: Theme.faint
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("caption")
+                        }
+                    }
+                }
+            }
+        }
+
+        // ashtakavarga: the points in each sign, as bars
+        Card {
+            Layout.fillWidth: true
+            visible: win.section === "ashtakavarga" && win.sectionData !== null && win.chart !== null
+            icon: "view-statistics"
+            title: Tr.t("Ashtakavarga")
+            subtitle: Tr.t("Points in each sign: 28 and more is strong, under 25 weak")
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.px(200)
+                spacing: Theme.space(2)
+                Repeater {
+                    model: (win.sectionData || {}).rows || []
+                    ColumnLayout {
+                        id: bar
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: Theme.space(1)
+                        readonly property real pts: Number(modelData.points) || 0
+                        Item { Layout.fillHeight: true }
+                        Text { Layout.alignment: Qt.AlignHCenter; text: String(bar.pts); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("caption"); font.weight: Font.DemiBold }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.max(4, bar.pts / 45 * Theme.px(150))
+                            radius: Theme.radiusSmall
+                            color: bar.pts >= 28 ? Theme.success : bar.pts < 25 ? Theme.danger : Theme.amber
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: Tr.t("%1: %2 points", bar.modelData.sign, bar.pts)
+                        }
+                        Text { Layout.alignment: Qt.AlignHCenter; text: String(bar.modelData.sign).slice(0, 3); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
+                    }
+                }
+            }
+        }
+
+        // the other sections: their rows
+        Card {
+            Layout.fillWidth: true
+            visible: win.chart !== null && ["dignity", "aspects", "nakshatra", "eclipse"].indexOf(win.section) >= 0
+            icon: "view-list-details"
+            title: (win.sections.find(s => s[0] === win.section) || ["", ""])[1]
             spacing: 0
             Repeater {
-                model: (win.chart || {}).planets || []
+                model: win.section === "dignity" ? ((win.sectionData || {}).planets || [])
+                     : win.section === "aspects" ? ((win.sectionData || {}).aspects || []) : []
                 ListRow {
                     required property var modelData
                     Layout.fillWidth: true
                     interactive: false
                     icon: "starred"
-                    title: modelData.name + (modelData.retrograde ? "  ·  " + Tr.t("retrograde") : "")
-                    subtitle: Tr.t("%1 %2°%3′", modelData.sign, modelData.degree, String(modelData.minute).padStart(2, "0"))
-                              + ((modelData.nakshatra || {}).nakshatra ? " · " + modelData.nakshatra.nakshatra : "")
-                    trailing: modelData.dignity || ""
+                    title: win.section === "dignity" ? modelData.name : modelData.planet1 + " – " + modelData.planet2
+                    subtitle: win.section === "dignity" ? modelData.sign : modelData.aspect
+                    trailing: win.section === "dignity" ? modelData.dignity : Tr.t("orb %1°", modelData.orb)
                 }
             }
+            ResultText { visible: (win.section === "nakshatra" || win.section === "eclipse") && win.sectionText !== ""; text: win.sectionText }
         }
 
+        // ---- every other calculation ------------------------------------------------
         Card {
             Layout.fillWidth: true
-            visible: win.mode === "kundali" && win.chart !== null
-            icon: "view-calendar-timeline"
-            title: Tr.t("Vimshottari dasha")
-            subtitle: Tr.t("The great periods from birth; the one running now is marked")
-            spacing: 0
-            Repeater {
-                model: win.chart ? win.dashaRows() : []
-                ListRow {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    interactive: false
-                    selected: modelData.current
-                    icon: modelData.current ? "media-playback-start" : "x-office-calendar"
-                    title: modelData.lord
-                    subtitle: Math.floor(modelData.from) + " – " + Math.floor(modelData.to)
-                    trailing: modelData.current ? Tr.t("now") : ""
-                }
-            }
-        }
-
-        // ---- the chart's sections --------------------------------------------------
-        Card {
-            Layout.fillWidth: true
-            visible: win.mode === "kundali"
-            icon: "view-list-details"
-            title: Tr.t("Chart details")
-            Flickable {
-                Layout.fillWidth: true
-                Layout.preferredHeight: secRow.implicitHeight
-                contentWidth: secRow.implicitWidth
-                flickableDirection: Flickable.HorizontalFlick
-                boundsBehavior: Flickable.StopAtBounds
-                clip: true
-                Row {
-                    id: secRow
-                    spacing: Theme.space(2)
-                    Repeater {
-                        model: win.sections
-                        Choice {
-                            required property var modelData
-                            text: modelData[1]
-                            selected: win.section === modelData[0]
-                            onClicked: win.showSection(modelData[0])
-                        }
-                    }
-                }
-            }
-            ResultText { visible: win.section !== "chart" && win.sectionText !== ""; text: win.sectionText }
-            Text {
-                visible: win.chart === null
-                text: Tr.t("Make the chart first: its sections appear here")
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: Theme.type("small")
-            }
-        }
-
-        // ---- every other calculation ----------------------------------------------
-        Card {
-            Layout.fillWidth: true
-            visible: win.mode === "kundali"
+            visible: win.mode === "kundali" && win.section === "all"
             icon: "accessories-calculator"
             title: Tr.t("Every calculation")
             subtitle: Tr.t("Strength, other dashas, special points, yogas, timing and more, for this birth")
-            Flickable {
+            Flow {
                 Layout.fillWidth: true
-                Layout.preferredHeight: groupRow.implicitHeight
-                contentWidth: groupRow.implicitWidth
-                flickableDirection: Flickable.HorizontalFlick
-                boundsBehavior: Flickable.StopAtBounds
-                clip: true
-                Row {
-                    id: groupRow
-                    spacing: Theme.space(2)
-                    Repeater {
-                        model: win.groups
-                        Choice {
-                            required property var modelData
-                            text: modelData.label
-                            selected: win.group === modelData.id
-                            onClicked: { win.group = modelData.id; win.calc = ""; win.calcText = ""; }
-                        }
+                spacing: Theme.space(2)
+                Repeater {
+                    model: win.groups
+                    Choice {
+                        required property var modelData
+                        text: modelData.label
+                        selected: win.group === modelData.id
+                        onClicked: { win.group = modelData.id; win.calc = ""; win.calcText = ""; }
                     }
                 }
             }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.stroke }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.space(2)
@@ -554,8 +805,9 @@ AppWindow {
                 }
             }
             // a horary question is about one house
-            RowLayout {
+            Flow {
                 visible: win.calc === "horary"
+                Layout.fillWidth: true
                 spacing: Theme.space(2)
                 Text { text: Tr.t("The question is about house"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Repeater {
@@ -578,13 +830,22 @@ AppWindow {
                     onClicked: { Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", win.calcText]); win.copied = true; }
                 }
             }
-            Text {
+            EmptyState {
+                Layout.fillWidth: true
                 visible: win.chart === null
-                text: Tr.t("Make the chart first, then pick a calculation")
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: Theme.type("small")
+                icon: "accessories-calculator"
+                title: Tr.t("Make the chart first")
+                subtitle: Tr.t("Then pick a calculation")
             }
+        }
+
+        // nothing yet: say what happens
+        EmptyState {
+            Layout.fillWidth: true
+            visible: win.mode === "kundali" && win.chart === null && !win.loading && win.error === "" && win.section !== "all"
+            icon: "starred"
+            title: Tr.t("Your chart appears here")
+            subtitle: Tr.t("Pick the date, time and place of birth, then Make the chart")
         }
     }
 }

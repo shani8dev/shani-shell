@@ -61,6 +61,7 @@ Singleton {
     property bool models: false            // the Models app (Modules/Models): AI model discovery/download
     property bool studio: false            // the Studio app (Modules/Studio): AI app builder
     property string kundaliDate: ""       // the day the calendar asked about (YYYY-MM-DD)
+    property var kundaliBirth: null       // a birth to chart at once: { date, time, lat, lon, zone, name } (IPC kundaliChart)
     property bool weather: false             // the Weather app (Modules/Weather)
     property bool tasks: false               // the Tasks app (Modules/Tasks)
     property bool dictionary: false          // the offline Dictionary/Thesaurus app

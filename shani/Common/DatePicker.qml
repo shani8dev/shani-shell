@@ -15,6 +15,14 @@ ColumnLayout {
     spacing: Theme.px(6)
 
     property date current: new Date()
+    // a value set from outside (a saved birth date, a date the app knows)
+    // shows its own month, not today's
+    onValueChanged: {
+        const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(String(value || ""));
+        if (m && (+m[1] !== current.getFullYear() || +m[2] - 1 !== current.getMonth()))
+            current = new Date(+m[1], +m[2] - 1, 1);
+    }
+    Component.onCompleted: valueChanged()
     readonly property date month: new Date(current.getFullYear(), current.getMonth(), 1)
     readonly property bool sundayFirst: Settings.data.weekStartsOn === "sunday"
     readonly property int lead: Month.lead(month, sundayFirst)
