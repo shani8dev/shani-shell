@@ -11,6 +11,7 @@ Annotate	71-annotate annotate
 ArchivesWindow	app-archive-manager app-archives-zip archive-compress archive-password	
 AssistiveTouch	assistive-touch	
 AuthenticatorWindow	app-authenticator app-authenticator-codes	
+BackgroundServices	background-page	the phone, watch and music switches with no window open
 BackupPanel	backup-panel	
 Bar	board-bar desktop-rest phone-bar	
 Calculator	app-calculator	

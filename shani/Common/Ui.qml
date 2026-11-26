@@ -144,6 +144,7 @@ Singleton {
     property var printersFound: []                 // Settings > Printers adding: what ippfind found, for the tests
     property string backupSummary: ""              // Settings > Backup, for the tests
     property bool backup: false                    // the Backup panel (Modules/Backup/BackupPanel)
+    property bool backgroundServices: false        // the Background app (Modules/Background/BackgroundServices)
     property string settingsCat: ""                // the settings category open
     property string settingsSection: ""            // a part of it to scroll to, once (openSettings)
     property bool settingsOpen: false              // the Settings window (Modules/Settings)
@@ -394,6 +395,7 @@ Singleton {
         messages = false;
         devices = false;
         backup = false;
+        backgroundServices = false;
         // newer apps and views added after the first closeApps() pass — without
         // these, "empty desktop" and Back leave them on screen
         dictionary = false;

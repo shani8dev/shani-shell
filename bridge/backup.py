@@ -16,14 +16,25 @@ import re
 import shlex
 import subprocess
 import sys
+from datetime import datetime
 
 BACKUP = shlex.split(os.environ.get("SHANI_BACKUP_TOOL", "shani-backup"))
 PKEXEC = shlex.split(os.environ.get("SHANI_BACKUP_PKEXEC", "pkexec"))
+# A user timer needs no root. SHANI_SYSTEMCTL_USER names that tool; the harness
+# already points SHANI_SYSTEMCTL at its stand-in, so it works there too.
+SYSTEMCTL_USER = shlex.split(
+    os.environ.get("SHANI_SYSTEMCTL_USER")
+    or os.environ.get("SHANI_SYSTEMCTL", "systemctl")
+)
+HOME_TIMER = "shani-backup-home.timer"
+STALE_AFTER_DAYS = 3
+FIND_LIMIT = 60
 
 USAGE = (
     "usage: backup.py list | backup | restore <target> <snapshot> | "
     "snapshot-list <path> | snapshot-create <source> <destination> [--readonly] | "
     "snapshot-delete <path> | home-list | home-snapshot | home-remove <name> | "
+    "home-timer state|on|off | disk-usage <path> | find-file <name> | "
     "schedule on|off|at [HH:MM]"
 )
 
@@ -56,8 +67,31 @@ def backup_call(args: list[str], privileged: bool = False, timeout: int = 120) -
     return {"ok": False, "error": _error(r)}
 
 
+def backup_status(backups: list, now=None) -> dict:
+    """Plain codes from backup times: is the newest one old, and when was it."""
+    stamps = []
+    for item in backups or []:
+        text = item.get("time") if isinstance(item, dict) else ""
+        if not text:
+            continue
+        try:
+            when = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        stamps.append((when, str(text)))
+    if not stamps:
+        return {"stale": True, "newest": ""}
+    newest_when, newest = max(stamps, key=lambda pair: pair[0])
+    reference = now or datetime.now(newest_when.tzinfo)
+    age = (reference - newest_when).total_seconds() / 86400
+    return {"stale": age >= STALE_AFTER_DAYS, "newest": newest}
+
+
 def list_backups() -> dict:
-    return backup_call(["backups", "--json"])
+    data = backup_call(["backups", "--json"])
+    if data.get("ok") is not False:
+        data.update(backup_status(data.get("backups")))
+    return data
 
 
 def _progress(segment: str, state: dict) -> None:
@@ -182,6 +216,139 @@ def schedule(mode: str, value: str = "") -> dict:
     return {"ok": False, "error": "Unknown schedule mode"}
 
 
+def systemctl_user(args: list[str], timeout: int = 20) -> dict:
+    """Run `systemctl --user <args>`; return its output as plain data."""
+    prefix = list(SYSTEMCTL_USER)
+    if "--user" not in prefix:
+        prefix.append("--user")
+    try:
+        r = subprocess.run(
+            [*prefix, *args], capture_output=True, text=True, timeout=timeout
+        )
+    except FileNotFoundError:
+        return {"ok": False, "error": "systemctl is not available", "output": ""}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "output": ""}
+    return {
+        "ok": r.returncode == 0,
+        "output": (r.stdout or "").strip(),
+        "error": _error(r) if r.returncode != 0 else "",
+        "code": r.returncode,
+    }
+
+
+def home_timer_state() -> dict:
+    """Read the daily snapshot timer: enabled, active and its next run."""
+    r = systemctl_user(["show", HOME_TIMER])
+    if not r["ok"]:
+        return {"ok": False, "error": r["error"] or "Could not read the timer"}
+    props = {}
+    for line in r["output"].splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            props[key.strip()] = value.strip()
+    unit_state = props.get("UnitFileState", "")
+    active_state = props.get("ActiveState", "")
+    next_run = ""
+    for key in ("NextElapseUSecRealtime", "NextElapseUSecMonotonic"):
+        try:
+            micros = int(props.get(key, "0") or 0)
+        except ValueError:
+            continue
+        if micros > 0:
+            next_run = datetime.fromtimestamp(micros / 1_000_000).strftime(
+                "%Y-%m-%d %H:%M"
+            )
+            break
+    return {
+        "ok": True,
+        "enabled": unit_state.split("-")[0] == "enabled",
+        "active": active_state == "active",
+        "next": next_run,
+    }
+
+
+def home_timer(on: bool) -> dict:
+    """Enable or disable the daily snapshot timer for this user."""
+    verb = "enable" if on else "disable"
+    r = systemctl_user([verb, "--now", HOME_TIMER])
+    if not r["ok"]:
+        return {"ok": False, "error": r["error"] or f"Could not {verb} the timer"}
+    return {"ok": True, "output": r["output"] or verb + "d"}
+
+
+def disk_usage(path: str, statvfs=os.statvfs) -> dict:
+    """Space on the filesystem that holds the snapshots, in bytes."""
+    if not path or not isinstance(path, str):
+        return {"ok": False, "error": "Give a folder to check"}
+    try:
+        v = statvfs(path)
+    except OSError as exc:
+        return {"ok": False, "error": str(exc)}
+    total = v.f_blocks * v.f_frsize
+    free = v.f_bavail * v.f_frsize
+    used = (v.f_blocks - v.f_bfree) * v.f_frsize
+    return {
+        "ok": True,
+        "total": total,
+        "free": free,
+        "used": used,
+        "low": bool(total and free / total < 0.10),
+    }
+
+
+def find_in_snapshots(query: str, paths=None, walk=os.walk, stat=os.lstat) -> dict:
+    """Names in any snapshot, newest first, one row per size/mtime signature."""
+    needle = (query or "").strip().lower()
+    if len(needle) < 2:
+        return {"ok": False, "error": "Type at least two letters", "results": []}
+    if paths is None:
+        listed = home_list()
+        if listed.get("ok") is False:
+            return {**listed, "results": []}
+        paths = [
+            s.get("path", "")
+            for s in listed.get("snapshots", [])
+            if isinstance(s, dict)
+        ]
+    results, seen, truncated = [], set(), False
+    # shortcut: different files with one size and mtime collapse, add the inode
+    # and relative path to the key when that matters
+    for base in paths:
+        if not base:
+            continue
+        for root, dirs, files in walk(base):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for name in files + dirs:
+                if needle not in name.lower():
+                    continue
+                path = os.path.join(root, name)
+                try:
+                    info = stat(path)
+                except OSError:
+                    continue
+                signature = (info.st_size, int(info.st_mtime))
+                if signature in seen:
+                    continue
+                seen.add(signature)
+                results.append(
+                    {
+                        "name": name,
+                        "path": path,
+                        "size": info.st_size,
+                        "mtime": int(info.st_mtime),
+                    }
+                )
+                if len(results) >= FIND_LIMIT:
+                    truncated = True
+                    break
+            if truncated:
+                break
+        if truncated:
+            break
+    return {"ok": True, "results": results, "truncated": truncated}
+
+
 def _usage() -> int:
     print(USAGE, file=sys.stderr)
     return 2
@@ -220,6 +387,14 @@ def main(argv: list[str]) -> int:
         result = home_snapshot()
     elif op == "home-remove" and len(args) == 1:
         result = home_remove(args[0])
+    elif op == "home-timer" and args in (["state"], ["on"], ["off"]):
+        result = (
+            home_timer_state() if args[0] == "state" else home_timer(args[0] == "on")
+        )
+    elif op == "disk-usage" and len(args) == 1:
+        result = disk_usage(args[0])
+    elif op == "find-file" and len(args) == 1:
+        result = find_in_snapshots(args[0])
     elif (
         op == "schedule"
         and args

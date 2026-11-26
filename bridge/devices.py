@@ -15,6 +15,9 @@ machine with no phone backends still gets an answer instead of a traceback.
         supplies the mode when none is given.
     devices.py fm <start|stop|state|tune> [frequency]  {ok,error,state,frequency}
         SHANI_FM runs a stand-in that answers each verb with JSON.
+    devices.py fm <bands|volume|decode|scan> [value]  {ok,error,text}
+        The same FM engine's plain-word report; value is a volume or a file.
+        SHANI_FM answers these verbs with plain text (or a non-zero status).
     devices.py nfc <read|write> [text]         {ok,error,text}
         SHANI_NFC runs a stand-in for nfc-list and nfc-mfultralight.
     devices.py ir <list|send> [code]           {ok,error,codes}
@@ -55,6 +58,33 @@ NOT_INSTALLED = "the phone backends are not installed"
 SCREEN_MODES = ("auto", "usb", "wifi", "bluetooth")
 SCREEN_STATE = "device-screen.json"
 FM_STATE = "device-fm.json"
+
+#: The radio's read-only reports and one setting, beside start/tune/stop/state.
+#: These are the verbs that go straight to fm_radio.run with named arguments.
+FM_REPORT_ACTIONS = ("bands", "volume", "decode", "scan")
+
+#: How the engine says it could not do the work, in its own plain words. A
+#: report is otherwise shown as-is: the UI never invents a radio answer.
+_FM_TROUBLE = (
+    "nothing was received",
+    "nothing was tuned",
+    "nothing was changed",
+    "nothing was done",
+    "decode what",
+    "scan what",
+    "which frequency",
+    "is not a volume",
+    "outside 0-100",
+    "must be one of",
+    "could not",
+    "too few",
+    "too short",
+    "not playing",
+    "not installed",
+    "not understood",
+    "refused",
+    "did not answer",
+)
 
 #: A short-lived bridge process cannot keep fm_radio's play list alive, so the
 #: tuner runs in its own process; SIGTERM ends it and atexit stops the radio.
@@ -622,8 +652,65 @@ def _fm_answer_from(said: str, fallback: str = "") -> dict:
     }
 
 
+def _fm_volume(raw: str) -> tuple[str, str]:
+    """A percent the engine accepts, or a plain reason why it cannot."""
+    text = str(raw or "").strip().rstrip("%")
+    try:
+        value = float(text)
+    except ValueError:
+        return "", "give a volume from 0 to 100"
+    if not 0.0 <= value <= 100.0:
+        return "", "give a volume from 0 to 100"
+    return text, ""
+
+
+def fm_report(verb: str, value: str = "") -> dict:
+    """The radio's own report, as {ok, error, text} - no UI words in here.
+
+    Bands, volume, decode and scan go to the one FM engine with named
+    arguments. SHANI_FM gets the same verbs, so a live check sees the same
+    call the real radio would.
+    """
+    verb = str(verb or "").strip().lower()
+    if verb not in FM_REPORT_ACTIONS:
+        return {
+            "ok": False,
+            "error": "fm needs bands, volume, decode or scan",
+            "text": "",
+        }
+    value = str(value or "").strip()
+    args = {"action": verb}
+    if verb == "volume":
+        value, why = _fm_volume(value)
+        if why:
+            return {"ok": False, "error": why, "text": ""}
+        args["volume"] = value
+    if verb in ("decode", "scan"):
+        if not value:
+            return {"ok": False, "error": "pick a recording first", "text": ""}
+        args["file"] = value
+    override = _override("SHANI_FM")
+    if override:
+        got = _standalone(override, [verb] + ([value] if value else []))
+        if "error" in got:
+            return {"ok": False, "error": got["error"], "text": ""}
+        said = got.get("out", "")
+    else:
+        mod = _module("phone.fm_radio")
+        if mod is None:
+            return {"ok": False, "error": NOT_INSTALLED, "text": ""}
+        try:
+            said = str(mod.run(args) or "")
+        except Exception as exc:  # noqa: BLE001 - an engine failure is an answer
+            return {"ok": False, "error": str(exc)[:160], "text": ""}
+    why = said if any(phrase in said.lower() for phrase in _FM_TROUBLE) else ""
+    return {"ok": not why, "error": why, "text": said}
+
+
 def cmd_fm(verb: str, frequency: str = "") -> dict:
     verb = str(verb or "").strip().lower()
+    if verb in FM_REPORT_ACTIONS:
+        return fm_report(verb, frequency)
     override = _override("SHANI_FM")
     if override:
         if verb not in ("start", "tune", "stop", "state"):

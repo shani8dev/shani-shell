@@ -145,5 +145,79 @@ Flickable {
                 font.pixelSize: Theme.px(10) * Theme.fontScale
             }
         }
+
+        Text {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.px(6)
+            Layout.leftMargin: Theme.px(10)
+            text: Tr.t("Radio volume")
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.px(13) * Theme.fontScale
+            font.weight: Font.DemiBold
+        }
+        Flow {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.px(10)
+            Layout.rightMargin: Theme.px(10)
+            // a Flow has no height of its own in a ColumnLayout: without this
+            // the chips collapse or overlap the section below
+            height: Math.max(childrenRect.height, Math.max(Theme.px(28), Theme.touchTarget))
+            spacing: Theme.px(6)
+            Repeater {
+                model: [100, 75, 50, 25, 10]
+                Choice {
+                    required property var modelData
+                    text: modelData + "%"
+                    selected: Devices.fmVolume === String(modelData)
+                    onClicked: Devices.fm("volume", String(modelData))
+                }
+            }
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.px(6)
+            Layout.leftMargin: Theme.px(10)
+            Layout.rightMargin: Theme.px(10)
+            height: Math.max(childrenRect.height, Math.max(Theme.px(36), Theme.touchTarget))
+            spacing: Theme.px(6)
+            Button {
+                text: Tr.t("Play a recording")
+                flat: true
+                onClicked: FilePicker.open({
+                    mode: "open",
+                    title: Tr.t("A recording to play"),
+                    filters: ["wav"],
+                    onPicked: paths => { if (paths.length) Devices.fm("decode", paths[0]); }
+                })
+            }
+            Button {
+                text: Tr.t("Find stations")
+                flat: true
+                onClicked: FilePicker.open({
+                    mode: "open",
+                    title: Tr.t("A whole-band recording"),
+                    filters: ["wav"],
+                    onPicked: paths => { if (paths.length) Devices.fm("scan", paths[0]); }
+                })
+            }
+            Button {
+                text: Tr.t("Bands")
+                flat: true
+                onClicked: Devices.fm("bands")
+            }
+        }
+
+        InfoBanner {
+            visible: Devices.fmReport !== ""
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.px(10)
+            Layout.rightMargin: Theme.px(10)
+            Layout.bottomMargin: Theme.px(10)
+            tone: Devices.fmReportError ? "error" : "ok"
+            title: Devices.fmReportError ? Tr.t("The radio could not do that") : Tr.t("The radio says")
+            text: Devices.fmReport
+        }
     }
 }

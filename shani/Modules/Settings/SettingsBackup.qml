@@ -63,7 +63,7 @@ ColumnLayout {
         visible: page.installed
         Layout.fillWidth: true
         title: Tr.t("Daily backup")
-        hint: Tr.t("A copy of your home folder is made every day while you are signed in.")
+        hint: Tr.t("A copy of your home folder is made on the backup drive every day while you are signed in.")
         SwitchRow {
             Layout.fillWidth: true
             text: Tr.t("Back up every day")
@@ -71,6 +71,14 @@ ColumnLayout {
             checked: Backup.scheduleOn
             enabled: Backup.busyOp === ""
             onToggled: on => Backup.setSchedule(on)
+        }
+        SwitchRow {
+            Layout.fillWidth: true
+            text: Tr.t("Keep a daily copy")
+            hint: Backup.timerHint()
+            checked: Backup.timerEnabled
+            enabled: Backup.timerKnown && Backup.busyOp === ""
+            onToggled: on => Backup.setHomeTimer(on)
         }
         Picks {
             label: Tr.t("At")
@@ -102,7 +110,7 @@ ColumnLayout {
         InfoBanner {
             Layout.fillWidth: true
             tone: "info"
-            text: Tr.t("Before each update a snapshot of your home is taken automatically. Shani Backup has no switch to turn that off.")
+            text: Tr.t("Before each update, an earlier copy of your home is made automatically. The updater's settings control this; there is no switch here.")
         }
     }
 

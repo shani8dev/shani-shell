@@ -5,11 +5,26 @@
 A11Y=${A11Y:-/testbed/lib/a11y_client.py}
 STATE=/tmp/shani-backup-fake.json
 CALLS=/tmp/shani-backup-calls.log
+SCALLS=/tmp/fake-compose/calls
 click() { timeout 20 python3 "$A11Y" press "$1" >/dev/null 2>&1; }
 seen()  { timeout 20 python3 "$A11Y" find "$1" >/dev/null 2>&1; }
+# press a control by any name the window may give it
+press() {
+    for label in "$@"; do
+        timeout 12 python3 "$A11Y" press "$label" >/dev/null 2>&1 && return 0
+    done
+    return 1
+}
 
 # ---- seeding: the stand-in's real --json state, plus files inside a snapshot ----
-rm -f "$CALLS"
+rm -f "$CALLS" "$SCALLS"
+python3 - <<'PY'
+import json, time
+with open('/tmp/fake-compose/units.json', 'w') as f:
+    json.dump({'shani-backup-home.timer': {
+        'enabled': True, 'active': True, 'next': int((time.time() + 3600) * 1e6),
+    }}, f)
+PY
 cat > "$STATE" <<'JSON'
 {"repository":"/run/media/root/USB","reachable":true,"set_up":true,
  "schedule":{"on":true,"time":"21:15"},
@@ -18,9 +33,10 @@ cat > "$STATE" <<'JSON'
                    {"name":"manual-2026-11-25_10-00-00","path":"/home/.snapshots/root/manual-2026-11-25_10-00-00","whole":false}],
  "snapshots":["/home/.snapshots/root/daily-2026-11-26"],"error":null}
 JSON
-mkdir -p /home/.snapshots/root/daily-2026-11-26 /tmp/backup-restore /tmp/backup-restore2
+mkdir -p /home/.snapshots/root/daily-2026-11-26 /tmp/backup-restore /tmp/backup-restore2 /tmp/backup-restore3
 printf 'home note from yesterday\n' > /home/.snapshots/root/daily-2026-11-26/notes.txt
 printf 'the file now\n' > /tmp/backup-restore/notes.txt
+printf 'the file now\n' > /tmp/backup-restore3/notes.txt
 
 ipc backupClose; sleep 0.4
 ipc backupOpen
@@ -28,6 +44,10 @@ waitfor "d['backupShown'] and d['backupAvailable'] and d['backupHomeCount'] == 2
     && result backup-panel-lists-home-snapshots PASS "$(q "['backupHomeCount'], d['backupVersions']")" \
     || result backup-panel-lists-home-snapshots FAIL "$(q "['backupShown'], d['backupAvailable'], d['backupHomeCount'], d['backupTab']")"
 shot backup-home-tab 0.5
+
+# ---- space on the disk that holds the earlier copies --------------------------
+seen "Space on this disk:" \
+    && result backup-disk-meter PASS || result backup-disk-meter FAIL "no space meter in the home tab"
 
 # ---- home snapshots: a snapshot taken now, and a file restored from one --------
 click "button:^Take a snapshot now$"
@@ -68,6 +88,8 @@ waitfor "d['backupTab'] == 'backups' and d['backupCount'] == 1 and d['backupDriv
     && result backup-panel-lists-drive-backups PASS "$(q "['backupCount'], d['backupRepository']")" \
     || result backup-panel-lists-drive-backups FAIL "$(q "['backupTab'], d['backupCount'], d['backupDriveSetUp']")"
 shot backup-drive-tab 0.5
+seen "A test restore worked" \
+    && result backup-restore-test-shown PASS || result backup-restore-test-shown FAIL "no restore-test words"
 click "button:^Back up now to the backup drive$"
 waitfor "not d['backupRunning'] and d['backupLastAction'] == 'backup'" 8 \
     && result backup-now-finishes PASS "$(q "['backupNote']")" \
@@ -108,8 +130,14 @@ shot backup-restore-done 0.4
 # ---- snapshots: create, delete, the daily switch and its time -----------------
 ipc backupTab snapshots
 waitfor "d['backupTab'] == 'snapshots'" 5 || result backup-snapshots-tab FAIL "$(q "['backupTab']")"
-seen "Before each update, a snapshot" \
+seen "Before each update, an earlier copy" \
     && result backup-preupdate-explained PASS || result backup-preupdate-explained FAIL "no plain-words note"
+click "check box:^Keep a daily copy$"
+retry 6 grep -q 'systemctl --user disable --now shani-backup-home.timer' "$SCALLS" \
+    && result backup-timer-off PASS || result backup-timer-off FAIL "$(cat "$SCALLS" 2>/dev/null)"
+click "check box:^Keep a daily copy$"
+retry 6 grep -q 'systemctl --user enable --now shani-backup-home.timer' "$SCALLS" \
+    && result backup-timer-on PASS || result backup-timer-on FAIL "$(cat "$SCALLS" 2>/dev/null)"
 click "check box:^Back up every day$"
 waitfor "not d['backupScheduleOn']" 6 && result backup-schedule-off PASS || result backup-schedule-off FAIL "$(q "['backupScheduleOn']")"
 click "check box:^Back up every day$"
@@ -155,5 +183,60 @@ JSON
 ipc backupClose; sleep 0.4; ipc backupOpen
 waitfor "d['backupError'] != ''" 6 && result backup-error-in-plain-words PASS "$(q "['backupError']")" \
     || result backup-error-in-plain-words FAIL "$(q "['backupError']")"
+
+# ---- find a file across earlier copies, pick it, restore into a folder --------
+cat > "$STATE" <<'JSON'
+{"repository":"/run/media/root/USB","reachable":true,"set_up":true,
+  "schedule":{"on":true,"time":"21:15"},"backups":[],
+  "home_snapshots":[{"name":"daily-2026-11-26","path":"/home/.snapshots/root/daily-2026-11-26","whole":false}],
+  "snapshots":[],"error":null}
+JSON
+ipc backupClose; sleep 0.4; ipc backupOpen
+ipc backupTab home
+waitfor "d['backupHomeCount'] == 1 and d['backupTab'] == 'home'" 6
+sleep 1
+focused=0
+for i in 1 2 3 4 5; do
+    press "text field:^Part of the file name$" "text:^Part of the file name$" && { focused=1; break; }
+    sleep 0.5
+done
+[ "$focused" = 1 ] && wtype "notes" \
+    || result backup-find-file-focus FAIL "could not focus the name field"
+sleep 0.5
+click "button:^Find it$"
+seen "Restore the file notes.txt from an earlier copy" \
+    && result backup-find-file-result PASS || result backup-find-file-result FAIL "no result to pick"
+shot backup-find-file 0.5
+click "button:^Restore the file notes.txt from an earlier copy$"
+waitfor "d['pickerShown']" 6 \
+    && result backup-find-file-pick PASS "$(q "['pickerPath']")" \
+    || result backup-find-file-pick FAIL "$(q "['pickerShown'], d['pickerPath']")"
+ipc filePickerGo /tmp/backup-restore3
+sleep 0.8
+ipc filePickerAccept
+waitfor "d['backupLastAction'] == 'copy-from-snapshot'" 8 \
+    && result backup-find-file-restore PASS "$(q "['backupNote']")" \
+    || result backup-find-file-restore FAIL "$(q "['backupLastAction'], d['backupError']")"
+[ -s '/tmp/backup-restore3/notes (2).txt' ] \
+    && grep -q 'home note from yesterday' '/tmp/backup-restore3/notes (2).txt' \
+    && result backup-find-file-keeps-current PASS \
+    || result backup-find-file-keeps-current FAIL "$(ls /tmp/backup-restore3 2>&1)"
+
+# ---- an old newest backup and a failed restore test, in plain words -----------
+cat > "$STATE" <<'JSON'
+{"repository":"/run/media/root/USB","reachable":true,"set_up":true,
+  "schedule":{"on":true,"time":"21:15"},
+  "backups":[{"id":"old01","time":"2026-11-01T10:00:00+00:00","paths":["/root"],"size":1}],
+  "home_snapshots":[],"snapshots":[],"error":null,
+  "restore_test":{"ok":false,"at":1,"snapshot":"old01","file":""}}
+JSON
+ipc backupClose; sleep 0.4; ipc backupOpen
+ipc backupTab backups
+waitfor "d['backupTab'] == 'backups' and d['backupCount'] == 1" 6
+seen "The test restore did not work" \
+    && result backup-failed-restore-test PASS || result backup-failed-restore-test FAIL "no failure words"
+seen "Nothing recent has been saved" \
+    && result backup-stale-backup PASS || result backup-stale-backup FAIL "no stale-backup words"
+shot backup-stale 0.5
 ipc backupClose
-rm -f "$STATE" "$CALLS"
+rm -f "$STATE" "$CALLS" "$SCALLS"

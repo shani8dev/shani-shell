@@ -71,6 +71,27 @@ json.dump({"accounts": [{"id": "calltest01", "name": "Test line",
           open(p, "w"))
 PY
 
+# ---- the line's service is started by D-Bus activation ----------------------
+# The shipped data/dbus file and the systemd user unit both name this bus
+# name. session.sh installs the activation file against the private bus; no
+# part of the session starts the service by hand. A plain method call must
+# therefore bring it up and answer with the seeded line, and only one process
+# may own the line. SHANI_PHONE_NO_DEVICES keeps it off real hardware.
+SERVICE=dev.shani.Shell.Phone
+CALLS_PATH=/dev/shani/Shell/Phone/Calls
+before=absent
+busctl --user status "$SERVICE" >/dev/null 2>&1 && before=present
+activated=$(timeout 40 gdbus call --session --dest "$SERVICE" \
+    --object-path "$CALLS_PATH" --method "$SERVICE.Calls.Lines" 2>&1)
+arc=$?
+[ "$arc" = 0 ] && printf '%s' "$activated" | grep -q 'sip-calltest01' \
+    && result calls-service-activates PASS "owner was $before before the call" \
+    || result calls-service-activates FAIL "$activated"
+owners=$(busctl --user list --no-pager 2>/dev/null | grep -c '^dev\.shani\.Shell\.Phone' || true)
+[ "$owners" = 1 ] \
+    && result calls-service-single-owner PASS "$(busctl --user status "$SERVICE" --no-pager 2>/dev/null | tail -1)" \
+    || result calls-service-single-owner FAIL "$owners owners of $SERVICE"
+
 # one history row, moved aside at the end: link-apps.sh still expects an empty
 # history, and the full suite sources every part in one session.
 rm -f "$CALLS_BACKUP"

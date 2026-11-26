@@ -186,6 +186,7 @@ ShellRoot {
     LazyLoader { active: Ui.tasks; source: "Modules/Tasks/TasksWindow.qml" }
     LazyLoader { active: Ui.contacts; source: "Modules/Contacts/ContactsWindow.qml" }
     LazyLoader { active: Ui.health; source: "Modules/Health/HealthWindow.qml" }
+    LazyLoader { active: Ui.backgroundServices; source: "Modules/Background/BackgroundServices.qml" }
     LazyLoader { active: QuickLook.shown; source: "Modules/QuickLook/QuickLookSheet.qml" }
     LazyLoader { active: WritingTools.shown; source: "Modules/WritingTools/WritingToolsSheet.qml" }
     LazyLoader { active: Ui.photos; source: "Modules/Photos/PhotosWindow.qml" }
@@ -511,6 +512,8 @@ ShellRoot {
         function windowLayoutsOpen() { Ui.closeAll(); Ui.windowLayouts = true; }
         function windowLayoutsClose() { Ui.windowLayouts = false; }
         function windowLayoutsToggle() { const was = Ui.windowLayouts; Ui.closeAll(); Ui.windowLayouts = !was; }
+        function backgroundOpen() { Ui.closeAll(); Ui.backgroundServices = true; }
+        function backgroundClose() { Ui.backgroundServices = false; }
         function backupOpen() { Ui.closeAll(); Ui.backup = true; }
         function backupClose() { Ui.backup = false; }
         function backupTab(tab: string) { Backup.tab = tab; }
@@ -1299,7 +1302,7 @@ ShellRoot {
                 androidContacts: AndroidTools.result["contacts"] || {}, androidCopy: AndroidTools.result["copy"] || {},
                 androidInstall: AndroidTools.result["install"] || {}, androidTether: AndroidTools.result["tether"] || {},
                 androidFind: AndroidTools.result["find"] || {}, androidPair: AndroidTools.result["pair"] || {},
-                backgroundSwitches: PhoneTools.switches.length, backgroundOn: PhoneTools.switches.filter(s => s.on).length,
+                backgroundShown: Ui.backgroundServices, backgroundSwitches: PhoneTools.switches.length, backgroundOn: PhoneTools.switches.filter(s => s.on).length,
                 incoming: Link.incoming.name || Link.incoming.number || "", incomingId: Link.incoming.id || "", incomingLine: Link.incoming.line || "",
                 devicesShown: Ui.devices, devicesCount: new Set(Link.devices.map(d => d.id)
                     .concat(Devices.devices.map(d => d.id || d.serial || d.name),

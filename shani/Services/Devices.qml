@@ -20,6 +20,9 @@ Singleton {
     property string screenState: ""      // "" | "on" | "off"
     property string fmState: ""          // "" | "on" | "off"
     property real fmFrequency: 0         // the radio's tuned frequency
+    property string fmVolume: ""         // the last volume the radio accepted
+    property string fmReport: ""         // the radio's own words: bands, volume, decode, scan
+    property bool fmReportError: false
     property string nfcText: ""          // the last tag read
     property var irCodes: []             // remotes, or a remote's buttons
     property string irRemote: ""         // the remote whose buttons are listed
@@ -163,6 +166,16 @@ Singleton {
             root.note = job.act === "start" ? Tr.t("The phone is showing this screen")
                 : job.act === "stop" ? Tr.t("Screen sharing stopped") : "";
         } else if (what === "fm") {
+            const verb = job.act;
+            // reports answer in the radio's own words; they never say whether
+            // a station is playing, so they must not touch the tuner's state
+            if (verb === "bands" || verb === "volume" || verb === "decode" || verb === "scan") {
+                root.fmReport = String((data && data.text) || "");
+                root.fmReportError = !!failed;
+                if (!failed && verb === "volume") root.fmVolume = job.arg1;
+                root.note = failed || Tr.t("Radio answered");
+                return;
+            }
             if (failed) { root.note = failed; root.fmState = String((data && data.state) || "off"); return; }
             root.fmState = String((data && data.state) || "off");
             const f = Number(data && data.frequency);

@@ -28,6 +28,7 @@ AppWindow {
         }
     }
     property string customTime: ""
+    property string findQuery: ""
     property string snapshotName: ""
     property string snapshotSource: "/"
     property string restoreTarget: ""
@@ -94,6 +95,7 @@ AppWindow {
                 note: Backup.running ? Tr.t("Backing up your home…")
                     : Backup.busyOp === "restore" ? Tr.t("Restoring your backup…")
                     : Backup.copyBusy ? Tr.t("Restoring the file…")
+                    : Backup.busyOp === "find-file" ? Tr.t("Searching earlier copies…")
                     : Backup.busyOp === "home-snapshot" || Backup.busyOp === "snapshot-create" ? Tr.t("Taking a snapshot…")
                     : Backup.busyOp === "snapshot-delete" || Backup.busyOp === "home-remove" ? Tr.t("Removing the snapshot…")
                     : Tr.t("Working…")
@@ -155,6 +157,39 @@ AppWindow {
                                 onClicked: Backup.openPath(Backup.snapshots[0].path)
                                 Accessible.name: Tr.t("Open the newest snapshot in Files")
                             }
+                        }
+
+                        RowLayout {
+                            visible: Backup.diskKnown
+                            Layout.fillWidth: true
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: Tr.t("Space on this disk: %1 free of %2",
+                                           Backup.formatBytes(Backup.diskFree), Backup.formatBytes(Backup.diskTotal))
+                                Accessible.name: text
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                            }
+                            Rectangle {
+                                Layout.preferredWidth: Theme.px(120)
+                                implicitHeight: Theme.px(8)
+                                radius: Theme.px(4)
+                                color: Theme.surface2
+                                Rectangle {
+                                    width: parent.width * Backup.diskPercent() / 100
+                                    height: parent.height
+                                    radius: parent.radius
+                                    color: Backup.diskLow ? Theme.amber : Theme.accent
+                                }
+                            }
+                        }
+                        InfoBanner {
+                            visible: Backup.diskKnown && Backup.diskLow
+                            Layout.fillWidth: true
+                            tone: "warn"
+                            text: Tr.t("This disk is nearly full. Remove an earlier copy you no longer need.")
                         }
 
                         EmptyState {
@@ -243,6 +278,83 @@ AppWindow {
                                 }
                             }
                         }
+                        SettingsSection {
+                            Layout.fillWidth: true
+                            title: Tr.t("Find a file")
+                            hint: Tr.t("Search your earlier copies by part of a name. Pick a result, then choose where a copy should go.")
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.px(8)
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        label: Tr.t("Part of the file name")
+                                        placeholder: Tr.t("For example, notes.txt")
+                                        text: win.findQuery
+                                        onTextChanged: win.findQuery = text
+                                        onAccepted: { if (win.findQuery.trim().length >= 2) Backup.findFile(win.findQuery.trim()); }
+                                    }
+                                    Button {
+                                        text: Tr.t("Find it")
+                                        enabled: win.findQuery.trim().length >= 2 && Backup.busyOp === ""
+                                        busy: Backup.busyOp === "find-file"
+                                        onClicked: Backup.findFile(win.findQuery.trim())
+                                        Accessible.name: Tr.t("Find it")
+                                    }
+                                }
+                                Text {
+                                    visible: Backup.findSearched && Backup.findResults.length === 0 && Backup.error === "" && !Backup.busyOp
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                    text: Tr.t("Nothing by that name in any earlier copy. Try a shorter name.")
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                                Text {
+                                    visible: Backup.findTruncated
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                    text: Tr.t("Showing the first 60 matches. Type more of the name to narrow it down.")
+                                    color: Theme.faint
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                                }
+                                ListView {
+                                    visible: Backup.findResults.length > 0
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: Math.min(contentHeight, Theme.px(180))
+                                    clip: true
+                                    reuseItems: true
+                                    model: Backup.findResults
+                                    delegate: ListRow {
+                                        required property var modelData
+                                        width: ListView.view.width
+                                        icon: "edit-find"
+                                        title: modelData.name
+                                        subtitle: modelData.path + (modelData.size ? " · " + Backup.formatBytes(modelData.size) : "")
+                                        interactive: false
+                                        Button {
+                                            text: Tr.t("Restore this file")
+                                            kind: "outline"
+                                            flat: true
+                                            enabled: Backup.busyOp === "" && !Backup.copyBusy
+                                            onClicked: {
+                                                Backup.findPick = modelData.path;
+                                                FilePicker.open({ mode: "folder", title: Tr.t("Where should this file go?"),
+                                                    startPath: Backup.snapshots.length ? Backup.snapshots[0].path : "",
+                                                    onPicked: dests => {
+                                                        if (dests.length) Backup.restoreFromHome(Backup.findPick, dests[0]);
+                                                    }});
+                                            }
+                                            Accessible.name: Tr.t("Restore the file %1 from an earlier copy", modelData.name)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
@@ -276,6 +388,29 @@ AppWindow {
                                 onClicked: Backup.openPath(Backup.repository)
                                 Accessible.name: Tr.t("Open the backup drive in Files")
                             }
+                        }
+
+                        InfoBanner {
+                            visible: Backup.driveSetUp && Backup.restoreTest !== null && Backup.restoreTest.ok === true
+                            Layout.fillWidth: true
+                            tone: "ok"
+                            title: Tr.t("A test restore worked")
+                            text: Backup.restoreTest && Backup.restoreTest.file
+                                ? Tr.t("A file was read back from the backup: %1", Backup.restoreTest.file)
+                                : Tr.t("A file was read back from the backup.")
+                        }
+                        InfoBanner {
+                            visible: Backup.driveSetUp && Backup.restoreTest !== null && Backup.restoreTest.ok !== true
+                            Layout.fillWidth: true
+                            tone: "warn"
+                            title: Tr.t("The test restore did not work")
+                            text: Tr.t("A recent check could not read a file back from the backup. Try backing up again.")
+                        }
+                        InfoBanner {
+                            visible: Backup.stale && Backup.backups.length > 0
+                            Layout.fillWidth: true
+                            tone: "warn"
+                            text: Tr.t("The newest backup is from %1. Nothing recent has been saved.", Backup.day(Backup.newest))
                         }
 
                         // progress comes from the command's own status lines
@@ -405,8 +540,22 @@ AppWindow {
 
                         SettingsSection {
                             Layout.fillWidth: true
+                            title: Tr.t("Daily copy on this disk")
+                            hint: Tr.t("An earlier version of your home is kept on this disk each day. This is separate from the copy on another drive.")
+                            SwitchRow {
+                                Layout.fillWidth: true
+                                text: Tr.t("Keep a daily copy")
+                                hint: Backup.timerHint()
+                                checked: Backup.timerEnabled
+                                enabled: Backup.timerKnown && Backup.busyOp === ""
+                                onToggled: on => Backup.setHomeTimer(on)
+                            }
+                        }
+
+                        SettingsSection {
+                            Layout.fillWidth: true
                             title: Tr.t("Daily backup")
-                            hint: Tr.t("A copy of your home folder is made every day while you are signed in.")
+                            hint: Tr.t("A copy of your home folder is made on the backup drive every day while you are signed in.")
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: Theme.px(8)
@@ -448,7 +597,7 @@ AppWindow {
                                 InfoBanner {
                                     Layout.fillWidth: true
                                     tone: "info"
-                                    text: Tr.t("Before each update, a snapshot of your home is taken automatically.")
+                                    text: Tr.t("Before each update, an earlier copy of your home is made automatically. The updater's settings control this; there is no switch here.")
                                 }
                             }
                         }

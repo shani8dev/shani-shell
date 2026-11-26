@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=dev.shani.Shell.Phone
+Exec=/usr/bin/shani-phone
+SystemdService=shani-phone.service
