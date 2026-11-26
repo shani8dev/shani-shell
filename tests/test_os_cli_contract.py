@@ -9,8 +9,10 @@ so the button could never work on an installed system.
 
 This reads the bridges, finds each command line built from a constant that
 names an OS command (or the *_ARGS default beside it), and checks every
-option and subcommand word against the real script's parser in the
-shani-deploy checkout beside this repo. Skipped where there is none.
+option and subcommand word against the real command's parser in the checkout
+beside this repo. Python parsers are read as argparse parsers, so a word in
+a help string is not mistaken for an option. Skipped per command where the
+source is not checked out.
 """
 
 import ast
@@ -22,11 +24,17 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = Path(os.environ.get("SHANI_DEPLOY_SCRIPTS", ROOT.parent / "shani-deploy" / "scripts"))
+SCRIPTS = Path(
+    os.environ.get("SHANI_DEPLOY_SCRIPTS", ROOT.parent / "shani-deploy" / "scripts")
+)
+BACKUP_CLI = Path(
+    os.environ.get(
+        "SHANI_BACKUP_CLI",
+        ROOT.parent / "shani-backup" / "src" / "shani_backup" / "cli.py",
+    )
+)
 
-pytestmark = pytest.mark.skipif(not SCRIPTS.is_dir(), reason="no shani-deploy beside this repo")
-
-# installed name -> source file in shani-deploy/scripts (the PKGBUILD drops ".sh")
+# installed name -> source file: shani-deploy's scripts/, or shani-backup's package
 COMMANDS = {
     "shani-deploy": "shani-deploy.sh",
     "shani-health": "shani-health.sh",
@@ -34,7 +42,21 @@ COMMANDS = {
     "shani-etc-changes": "shani-etc-changes",
     "shani-upgrade-adviser": "shani-upgrade-adviser.sh",
     "gen-efi": "gen-efi.sh",
+    "shani-backup": "cli.py",
 }
+
+
+def source_path(command):
+    """The real parser's source, or None when this checkout is not beside us."""
+    path = BACKUP_CLI if command == "shani-backup" else SCRIPTS / COMMANDS[command]
+    return path if path.is_file() else None
+
+
+def _head_name(node):
+    head = node.elts[0]
+    if isinstance(head, ast.Starred) and isinstance(head.value, ast.Name):
+        return head.value.id
+    return head.id if isinstance(head, ast.Name) else None
 
 
 def _command_in(text):
@@ -47,21 +69,30 @@ def _command_in(text):
 def _env_default(node):
     """'x' from os.environ.get("NAME", "x"), wrapped or not in shlex.split()."""
     for n in ast.walk(node):
-        if (isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "get" and len(n.args) == 2
-                and isinstance(n.args[1], ast.Constant) and isinstance(n.args[1].value, str)):
+        if (
+            isinstance(n, ast.Call)
+            and getattr(n.func, "attr", "") == "get"
+            and len(n.args) == 2
+            and isinstance(n.args[1], ast.Constant)
+            and isinstance(n.args[1].value, str)
+        ):
             env = n.args[0].value if isinstance(n.args[0], ast.Constant) else ""
             return str(env), n.args[1].value
     return None, None
 
 
-def bridge_calls():
+def bridge_calls(root=ROOT):
     """(bridge file, command, [words]) for every command line the bridges build."""
     calls = []
-    for path in sorted((ROOT / "bridge").glob("*.py")):
+    for path in sorted((Path(root) / "bridge").glob("*.py")):
         tree = ast.parse(path.read_text())
         consts, args_defaults = {}, []
         for node in tree.body:
-            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+            ):
                 env, default = _env_default(node.value)
                 if default is None:
                     continue
@@ -72,48 +103,137 @@ def bridge_calls():
                     args_defaults.append(default)
         if not consts:
             continue
+        command = next(iter(consts.values()))
         # a module's *_ARGS default goes with its one command
         if len(set(consts.values())) == 1:
             for default in args_defaults:
-                calls.append((path.name, next(iter(consts.values())), shlex.split(default)))
+                calls.append((path.name, command, shlex.split(default)))
+        # A helper that builds [BACKUP, *args] is called with literal args;
+        # command lines are built there, not beside the constant.
+        runners = {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and any(
+                isinstance(n, ast.List) and n.elts and _head_name(n) in consts
+                for n in ast.walk(node)
+            )
+        }
         for node in ast.walk(tree):
-            if not isinstance(node, ast.List) or not node.elts:
-                continue
-            head = node.elts[0]
-            name = head.value.id if isinstance(head, ast.Starred) and isinstance(head.value, ast.Name) else \
-                head.id if isinstance(head, ast.Name) else None
-            if name in consts:
-                words = [e.value for e in node.elts[1:] if isinstance(e, ast.Constant) and isinstance(e.value, str)]
-                calls.append((path.name, consts[name], words))
+            if isinstance(node, ast.List) and node.elts and _head_name(node) in consts:
+                words = [
+                    e.value
+                    for e in node.elts[1:]
+                    if isinstance(e, ast.Constant) and isinstance(e.value, str)
+                ]
+                calls.append((path.name, consts[_head_name(node)], words))
+            elif (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in runners
+                and node.args
+                and isinstance(node.args[0], ast.List)
+            ):
+                words = [
+                    e.value
+                    for e in ast.walk(node.args[0])
+                    if isinstance(e, ast.Constant) and isinstance(e.value, str)
+                ]
+                calls.append((path.name, command, words))
     return calls
+
+
+def _argparse_words(text):
+    """Options and subcommands the script actually gives to argparse."""
+    words = set()
+    for node in ast.walk(ast.parse(text)):
+        if (
+            not isinstance(node, ast.Call)
+            or not isinstance(node.func, ast.Attribute)
+            or node.func.attr not in ("add_parser", "add_argument")
+        ):
+            continue
+        if (
+            node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        ):
+            words.add(node.args[0].value)
+        for kw in node.keywords:
+            if kw.arg == "choices":
+                for item in ast.walk(kw.value):
+                    if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                        words.add(item.value)
+    return words
 
 
 def accepts(command, word):
     """Whether the command's own parser knows this option or subcommand."""
-    text = (SCRIPTS / COMMANDS[command]).read_text(errors="ignore")
+    path = source_path(command)
+    if path is None:
+        pytest.skip(f"no {command} parser beside this repo")
+    text = path.read_text(errors="ignore")
     if text.startswith("#!/usr/bin/env python") or text.startswith("#!/usr/bin/python"):
-        return re.search(r"""["']""" + re.escape(word) + r"""["']""", text) is not None
+        return word in _argparse_words(text)
     # a bash case label: `--json)`, `-c|--cleanup)`, `tpm2-status)`
-    return re.search(r"(^|[\s|(])" + re.escape(word) + r"(\)|\|)", text, re.M) is not None
+    return (
+        re.search(r"(^|[\s|(])" + re.escape(word) + r"(\)|\|)", text, re.M) is not None
+    )
 
 
 def test_the_scan_finds_the_known_calls():
     found = {(f, c) for f, c, _ in bridge_calls()}
     assert ("system_maintenance.py", "shani-deploy") in found
     assert ("system_health.py", "shani-health") in found
+    assert ("backup.py", "shani-backup") in found
 
 
 def test_a_made_up_option_is_caught():
-    # the negative control: the check cannot pass everything
+    if source_path("shani-deploy") is None:
+        pytest.skip("no shani-deploy scripts beside this repo")
     assert not accepts("shani-deploy", "--yes")
     assert accepts("shani-deploy", "--cleanup")
 
 
-def test_every_option_the_bridges_pass_is_accepted():
+def test_the_backup_parser_is_read_as_argparse():
+    if source_path("shani-backup") is None:
+        pytest.skip("no shani-backup checkout beside this repo")
+    assert not accepts("shani-backup", "--yes")
+    assert accepts("shani-backup", "--json")
+    assert accepts("shani-backup", "snapshot")
+
+
+def test_a_made_up_backup_option_in_a_bridge_list_is_caught(tmp_path):
+    if source_path("shani-backup") is None:
+        pytest.skip("no shani-backup checkout beside this repo")
+    folder = tmp_path / "bridge"
+    folder.mkdir()
+    (folder / "probe.py").write_text(
+        "import os, shlex\n"
+        'BACKUP = shlex.split(os.environ.get("SHANI_BACKUP_TOOL", "shani-backup"))\n'
+        "def listing():\n"
+        '    return [BACKUP, "home", "--yes", "--json"]\n'
+        "def run(args):\n"
+        "    return [BACKUP, *args]\n"
+        "def restore():\n"
+        '    return run(["restore", "--yes", "--json"])\n'
+    )
+    found = bridge_calls(tmp_path)
+    assert ("probe.py", "shani-backup", ["home", "--yes", "--json"]) in found
+    assert ("probe.py", "shani-backup", ["restore", "--yes", "--json"]) in found
+    assert not accepts("shani-backup", "--yes")
+
+
+@pytest.mark.parametrize("command", sorted(COMMANDS))
+def test_every_option_the_bridges_pass_is_accepted(command):
+    if source_path(command) is None:
+        pytest.skip(f"no {command} parser beside this repo")
     wrong = []
-    for bridge, command, words in bridge_calls():
+    for bridge, used, words in bridge_calls():
+        if used != command:
+            continue
         for word in words:
             if word.startswith("-") or re.fullmatch(r"[a-z][a-z0-9-]+", word):
                 if not accepts(command, word):
-                    wrong.append(f"{bridge}: {command} {word}")
+                    wrong.append(f"{bridge}: {used} {word}")
     assert wrong == []
