@@ -46,7 +46,7 @@ Singleton {
     // ---- saved locations: several places, searched and picked in the window --
     property var places: []                // [{ name, lat, lon }]
     property int activePlace: 0
-    property var searchResults: []         // [{ name, lat, lon, country }]
+    property var searchResults: []         // [{ name, lat, lon, country, region, timezone }]
     property string searchError: ""
     property bool searchBusy: false
     property int forecastDays: 7           // open-meteo allows up to 16
@@ -145,7 +145,8 @@ Singleton {
                 root.searchBusy = false;
                 try {
                     const rs = (JSON.parse(text) || {}).results || [];
-                    root.searchResults = rs.map(r => ({ name: r.name, lat: r.latitude, lon: r.longitude, country: r.country || "" }));
+                    root.searchResults = rs.map(r => ({ name: r.name, lat: r.latitude, lon: r.longitude, country: r.country || "",
+                                                         region: r.admin1 || "", timezone: r.timezone || "" }));
                     root.searchError = root.searchResults.length ? "" : Tr.t("No city found");
                 } catch (e) { root.searchError = Tr.t("City search failed"); }
             }

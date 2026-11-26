@@ -83,14 +83,13 @@ def test_retrograde_follows_the_sky():
 def test_the_window_reads_the_birth_time_as_local_time():
     """The window appended "Z" to the typed time: an Indian birth at 10:00
     was computed as 10:00 UTC (15:30 IST) - the rising sign about three signs
-    off. It builds a local Date and sends its UTC instant, and says which
-    zone it read the time in."""
+    off. A searched place sends its clock time with its zone ("@Asia/Kolkata",
+    converted by the bridge with that day's rules); this computer's place
+    sends the local Date's UTC instant. The zone is shown."""
     qml = (ROOT / "shani/Modules/Kundali/KundaliPanel.qml").read_text()
-    fn = qml[qml.index("function birthInstant()"):]
+    fn = qml[qml.index("function birthArg()"):]
     fn = fn[:fn.index("\n    }")]
-    assert 'new Date(win.dateInput + "T" + (win.timeInput || "12:00") + ":00")' in fn
-    assert "toISOString()" in fn
-    calc = qml[qml.index("function calculate()"):]
-    calc = calc[:calc.index("\n    }")]
-    assert calc.count("win.birthInstant()") == 2 and ':00Z"' not in calc
-    assert 'Tr.t("Local time, %1", win.zoneLabel)' in qml
+    assert '"@" + win.place.timezone' in fn
+    assert 'new Date(win.dateInput + "T" + time + ":00")' in fn and "toISOString()" in fn
+    assert qml.count("win.birthArg()") >= 4 and '":00Z"' not in qml.replace('time + ":00Z"', "")
+    assert 'Tr.t("Local time, %1"' in qml

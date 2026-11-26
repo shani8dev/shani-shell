@@ -47,6 +47,25 @@ ColumnLayout {
         IconButton { icon: "go-next"; tip: Tr.t("Next month"); size: Theme.px(26); onClicked: current = new Date(current.getFullYear(), current.getMonth() + 1, 1) }
     }
 
+    // years by click: a birth date is decades back (-10, -1, the year, +1, +10)
+    RowLayout {
+        Layout.alignment: Qt.AlignHCenter
+        spacing: Theme.px(4)
+        Button { text: "−10"; flat: true; Accessible.name: Tr.t("Ten years back"); onClicked: current = new Date(current.getFullYear() - 10, current.getMonth(), 1) }
+        Button { text: "−1"; flat: true; Accessible.name: Tr.t("A year back"); onClicked: current = new Date(current.getFullYear() - 1, current.getMonth(), 1) }
+        Text {
+            text: String(root.current.getFullYear())
+            color: Theme.text
+            font.family: Theme.font
+            font.pixelSize: Theme.type("body")
+            font.weight: Font.DemiBold
+            Accessible.role: Accessible.StaticText
+            Accessible.name: Tr.t("Year %1", text)
+        }
+        Button { text: "+1"; flat: true; Accessible.name: Tr.t("A year on"); onClicked: current = new Date(current.getFullYear() + 1, current.getMonth(), 1) }
+        Button { text: "+10"; flat: true; Accessible.name: Tr.t("Ten years on"); onClicked: current = new Date(current.getFullYear() + 10, current.getMonth(), 1) }
+    }
+
     // reach a distant month/year directly, without clicking through dozens of months
     RowLayout {
         Layout.fillWidth: true
