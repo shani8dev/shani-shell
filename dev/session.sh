@@ -100,6 +100,8 @@ export SHANI_FACE_TOOL=/work/bridge/face.py SHANI_FACE_SOCK=/tmp/lh.sock SHANI_F
 # a magnetometer for the compass tile (monitor-sensor's own words, then waiting)
 export SHANI_HANDWRITING_TOOL=/work/bridge/handwriting.py
 export SHANI_COMPASS_CMD='echo "Compass heading changed: 90.0"; exec sleep 6011'
+# an accelerometer: write a way to hold it into /tmp/accel ("left-up"...) and it says so
+export SHANI_ACCEL_CMD='while :; do if [ -f /tmp/accel ]; then echo "    Accelerometer orientation changed: $(cat /tmp/accel)"; rm -f /tmp/accel; fi; sleep 0.3; done'
 printf '#!/bin/sh\ntest -e /tmp/face-match\n' > /usr/local/bin/fake-face && chmod +x /usr/local/bin/fake-face
 printf 'auth sufficient pam_exec.so quiet /usr/local/bin/fake-face\nauth requisite pam_deny.so\n' > /etc/pam.d/shani-lock-biometric
 # the desktop package's input-method default (English + Hindi phonetic)

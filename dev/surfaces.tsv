@@ -36,6 +36,7 @@ Dim	-	a whole-screen fade to black: the idle part checks d.dimmed, a picture sho
 DiskUsagePanel	app-disk-usage diskusage-dupes	
 DisksWindow	app-disks	
 DisplayConfirm	85-display-confirm display-confirm	
+PhoneNav	desktop	
 Dock	26-dock-menu 26a-dock-badge 26c-dock-progress 26e-dock-workspaces 26o-dock-stepped-aside dock-menu	
 EdgeStrips	-	invisible input strips along the screen edges (gestures): nothing is drawn
 FeedsWindow	app-feeds	

@@ -80,6 +80,9 @@ PanelWindow {
         for (const i of [sel, now]) if (i >= 0 && mine.indexOf(i) < 0) mine.push(i);
         return mine;
     }
+    // a layout made for a kind of screen is drawn as that screen (a phone upright,
+    // a board with its bar below); the others as this screen
+    function drawnAs(preset) { return preset && preset.made ? preset.made : kindNow; }
     function step(d) {
         const at = Math.max(0, shown.indexOf(sel));
         tryOn(shown[(at + d + shown.length * 3) % shown.length]);
@@ -321,6 +324,7 @@ PanelWindow {
             spacing: Theme.px(24)
             ColumnLayout {
                 Layout.fillWidth: true
+                Layout.fillHeight: true
                 Layout.alignment: Qt.AlignTop
                 spacing: Theme.px(14)
                 Text { text: Tr.t("Screen and layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(20) * Theme.fontScale; font.weight: Font.DemiBold }
@@ -343,8 +347,27 @@ PanelWindow {
                 }
                 Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.kindNotes[root.kindNow] || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Text { text: Tr.t("Layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }
-                GridLayout {
+                // the layouts scroll inside the card when they are more than fit (all of them);
+                // the choice of which to show stays in view below
+                Flickable {
+                    id: gridScroll
                     Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.preferredHeight: layoutGrid.implicitHeight
+                    Layout.minimumHeight: Theme.px(180)
+                    clip: true
+                    contentHeight: layoutGrid.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    // a tile chosen by the keys scrolls into view
+                    function reveal(item) {
+                        if (!item) return;
+                        const y = item.mapToItem(layoutGrid, 0, 0).y;
+                        if (y < contentY) contentY = y;
+                        else if (y + item.height > contentY + height) contentY = y + item.height - height;
+                    }
+                GridLayout {
+                    id: layoutGrid
+                    width: gridScroll.width
                     columns: 3
                     rowSpacing: Theme.px(12)
                     columnSpacing: Theme.px(12)
@@ -373,7 +396,7 @@ PanelWindow {
                                 width: parent.width - 16
                                 spacing: Theme.px(8)
                                 Item { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625
-                                    Mini { anchors.centerIn: parent; height: parent.height; width: root.kindNow === "phone" ? height * 0.5 : parent.width; s: tile.preset.set; kind: root.kindNow } }
+                                    Mini { anchors.centerIn: parent; height: parent.height; width: root.drawnAs(tile.preset) === "phone" ? height * 0.5 : parent.width; s: tile.preset.set; kind: root.drawnAs(tile.preset) } }
                                 RowLayout {
                                     spacing: Theme.px(6)
                                     Icon { name: tile.preset.icon; size: Theme.px(16); color: tile.chosen ? Theme.accent : Theme.text }
@@ -385,8 +408,10 @@ PanelWindow {
                                 }
                             }
                             MouseArea { id: ta; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.tryOn(tile.pi) }
+                            onChosenChanged: if (chosen) gridScroll.reveal(tile)
                         }
                     }
+                }
                 }
                 // which layouts: the ones for this screen, the familiar ones, or all
                 Flow {
@@ -406,7 +431,7 @@ PanelWindow {
                 Layout.fillHeight: true
                 spacing: Theme.px(12)
                 Item { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625
-                    Mini { anchors.centerIn: parent; height: parent.height; width: root.kindNow === "phone" ? height * 0.5 : parent.width; s: root.p.set; kind: root.kindNow } }
+                    Mini { anchors.centerIn: parent; height: parent.height; width: root.drawnAs(root.p) === "phone" ? height * 0.5 : parent.width; s: root.p.set; kind: root.drawnAs(root.p) } }
                 Text { text: root.p.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(17) * Theme.fontScale; font.weight: Font.DemiBold }
                 Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale }
                 Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.weight: Font.Medium }

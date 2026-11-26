@@ -20,6 +20,15 @@ PY
     waitfor "not d['barOverlap']" 5 && result phone-bar-fits PASS \
         || result phone-bar-fits FAIL "the clusters meet at this width"
     shot phone-bar 0.4
+    # held another way with auto-rotate off: a rotate button is offered (the
+    # navigation bar's), not a turn; it goes again when nobody takes it
+    settings '{"formFactors": {"winit": "phone"}, "autoRotate": false}'
+    sleep 1; echo left-up > /tmp/accel
+    waitfor "d['rotateSuggest'] == 'left-up'" 6 && result phone-rotate-offered PASS \
+        || result phone-rotate-offered FAIL "$(q "['rotateSuggest']")"
+    shot phone-rotate-offer 0.3
+    waitfor "d['rotateSuggest'] == ''" 10 && result phone-rotate-offer-goes PASS \
+        || result phone-rotate-offer-goes FAIL "$(q "['rotateSuggest']")"
     # one app at a time: niri opens every window maximised on a phone, the bar kept
     # above it as a phone's status bar. The rule is read back from the file the shell
     # writes, checked with niri's own parser, and then with a real window - as wide
@@ -40,8 +49,9 @@ def query(what):
 window = next(w for w in query("windows") if w["app_id"] == "fs-test")
 screen = next(iter(query("outputs").values()))["logical"]
 width, height = window["layout"]["tile_size"]
-# the whole width, and the height but the bar's: the status bar stays in view
-assert width >= screen["width"] * 0.95 and screen["height"] * 0.8 <= height < screen["height"] - 20, (window, screen)
+# the whole width; the height between the status bar above and the dock and the
+# navigation bar below - those stay in view, the window is not over them
+assert width >= screen["width"] * 0.95 and screen["height"] * 0.6 <= height < screen["height"] - 60, (window, screen)
 PY
     niri msg action close-window --id "$(niri msg -j windows | python3 -c 'import json,sys
 print(next((w["id"] for w in json.load(sys.stdin) if w["app_id"] == "fs-test"), ""))' 2>/dev/null)" 2>/dev/null
