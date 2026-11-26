@@ -53,6 +53,9 @@ export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_C
 # the file manager's backend: the listing, the watch and the trash
 export SHANI_FILES_TOOL=/work/bridge/files.py SHANI_FILES_JOB_DELAY_FILE=/tmp/files-job-delay
 export SHANI_REPORT_TOOL=/work/bridge/system-report.py SHANI_HEALTH_TOOL=/work/bridge/health-check.py
+# Settings > System: stand-ins for fwupd, shani-health, mdadm, lvs, resolvectl…
+# and the bridge tools that read them (dev/fake-system-env.sh is a harness part).
+. /work/dev/fake-system-env.sh
 # Settings > Power > what can wake this computer: the bridge reads a stand-in
 # /sys (dev/shell-parts/wake-sources.sh makes it), and the administrator
 # actions are recorded, not run (dev/fake-admin.sh; the real one: dev/admin-test.sh)
@@ -225,7 +228,7 @@ mkdir -p /usr/share/backgrounds/shani && cp /work/assets/shani-dark.jpg /work/as
 mkdir -p /usr/share/shani && cp /work/data/whats-new.md /usr/share/shani/ && printf '0.0.0-test\n' > /etc/shani-version
 # idle off from the start (the tests drive the shell over IPC, which is not input).
 # More for this run: SHANI_SETTINGS_EXTRA, JSON merged over it (python3, when here).
-printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true, "dockPinned": ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "dev.shani.cassini", "shani-chronoa", "org.gnome.TextEditor"]}' > "$SHANI_SHELL_SETTINGS"
+printf '{"dimAfter": 0, "lockAfter": 0, "screenOffAfter": 0, "lockAfterBattery": 0, "screenOffAfterBattery": 0, "startHintsDone": true, "dockPinned": ["org.gnome.Nautilus", "com.vivaldi.Vivaldi", "foot", "shani-chronoa", "org.gnome.TextEditor"]}' > "$SHANI_SHELL_SETTINGS"
 if [ -n "${SHANI_SETTINGS_EXTRA:-}" ] && command -v python3 >/dev/null 2>&1; then
     python3 -c 'import json, sys; d = json.loads(sys.argv[1]); d.update(json.loads(sys.argv[2])); print(json.dumps(d))' \
         "$(cat "$SHANI_SHELL_SETTINGS")" "$SHANI_SETTINGS_EXTRA" > "$SHANI_SHELL_SETTINGS"

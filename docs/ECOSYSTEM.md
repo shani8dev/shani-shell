@@ -51,18 +51,18 @@ ShaniOS package (native or a Flatpak of the niri profile) covers it.
 | Write an image to USB | — | — | Boot Maker | USB Creator | — | USB Image Writer | — | — | — | **Files** (write an image) · Impression |
 | Task manager | System Monitor | System Monitor | System Monitor | System Monitor | — | — | Activity Monitor | Task Manager | — | **System Monitor** |
 | Logs | Logs | KSystemLog | Log Viewer | Log Viewer | — | — | Console | Event Viewer | — | **Logs** |
-| Device info | (Settings) | Info Center | Device Manager | Device Manager | — | System Reports | System Information | System Information | — | Settings › About · Cassini |
+| Device info | (Settings) | Info Center | Device Manager | Device Manager | — | System Reports | System Information | System Information | — | Settings › About · the old system manager |
 | Fonts | Fonts | Font Management | Font Manager | Font Viewer | — | — | Font Book | Fonts | — | **Fonts** · Font Viewer |
 | Characters, emoji | Characters | KCharSelect | — | — | — | — | Character Viewer | Character Map | — | **Characters** · launcher ":" |
 | Passwords, keys | Passwords and Keys | KWalletManager, Kleopatra | — | GPG | — | — | Passwords | Credential Manager | Passwords | **Passwords** · Seahorse |
-| Two-factor codes | Authenticator¹ | Keysmith | — | — | — | — | Passwords | Authenticator | Authenticator | **Authenticator** (keyring) · Cassini for sign-in codes |
+| Two-factor codes | Authenticator¹ | Keysmith | — | — | — | — | Passwords | Authenticator | Authenticator | **Authenticator** (keyring) · the old system manager for sign-in codes |
 | Software | Software | Discover | App Store | Software Center | Store | Software Manager | App Store | Store | Play | GNOME Software · Warehouse |
-| Updates | Software | Discover | Update | Updater | Updater | Update Manager | Software Update | Windows Update | System update | Cassini · shani-deploy |
+| Updates | Software | Discover | Update | Updater | Updater | Update Manager | Software Update | Windows Update | System update | the old system manager · shani-deploy |
 | Backup | Backups¹ | — | Clone | Backup | — | Timeshift | Time Machine | Backup | Backup | shani-backup |
 | Send to a nearby device | — | KDE Connect | Cooperation | IP Messenger | — | Warpinator | AirDrop | Nearby Share | Quick Share | **Nearby Share** (LocalSend) · shani-link (KDE Connect, paired phone) · Bluetooth |
 | Remote desktop | Connections | KRDC | — | — | — | — | Screen Sharing | Remote Desktop | — | Connections |
 | Virtual machines | Boxes | — | — | — | — | — | — | Hyper-V | — | Boxes |
-| Clean up storage | — | Sweeper | System Cleaner (Defender) | OS Manager | — | — | Storage | Disk Cleanup | Files (clean) | **Settings › Storage** (your space) · Cassini Maintenance (the system's) |
+| Clean up storage | — | Sweeper | System Cleaner (Defender) | OS Manager | — | — | Storage | Disk Cleanup | Files (clean) | **Settings › Storage** (your space) · the old system manager Maintenance (the system's) |
 | Screen time | (Settings) | — | — | — | — | — | Screen Time | Family | Digital Wellbeing | **Settings › Screen time** |
 | Colour picker | — | KColorChooser | Picker | — | — | — | Digital Color Meter | PowerToys | — | **Color Picker** |
 | Measure the screen | — | KRuler | — | — | — | — | — | PowerToys | — | **Screen Ruler** |
@@ -188,7 +188,7 @@ surface (Magnifier, Live Captions, Lens, Characters, dictation).
 Filled 2026-11-12: a music and video library (in the Media Player), two-factor
 codes (Authenticator), nearby sharing (Nearby, LocalSend's protocol; and
 shani-link's KDE Connect link, now two-way), and storage clean-up (Settings › Storage). Before building
-each, Cassini, Chronoa and shani-link were checked for one already: Cassini's
+each, the old system manager, Chronoa and shani-link were checked for one already: the old system manager's
 TOTP page is codes for signing in to *this computer* (pam_oath) and its
 Maintenance cleans the *system*; shani-link spoke KDE Connect but its file
 sending had never worked against the protocol. Each new one hands over to

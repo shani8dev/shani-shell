@@ -21,7 +21,8 @@ the codes, not the secrets. Exit 2 when there is no Secret Service, 3 on bad
 input (a URI that is not a TOTP one, a secret that is not base32).
 
 This is for the person's accounts on websites and apps. One-time codes for
-signing in to this computer (pam_oath) are Cassini's (Security > TOTP).
+signing in to this computer (pam_oath) are reported in Settings > Privacy &
+security > Sign-in & access.
 """
 
 from __future__ import annotations

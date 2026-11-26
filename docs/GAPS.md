@@ -543,7 +543,7 @@ our code and the upstream source/docs.
 - **[fixed]** Search Flathub as you type (was Enter / Find only).
 - **[built — mass pass]** Ratings / reviews (ODRS) and popularity.
 - **[built — mass pass]** Featured / editorial discovery (Explore starts at a plain category grid).
-- **[open]** apt / dpkg / Snap apps alongside Flatpak (OS updates deliberately go to Cassini).
+- **[open]** apt / dpkg / Snap apps alongside Flatpak (OS updates deliberately go to the old system manager).
 - **[open]** Version history / per-update changelog.
 - **[built — mass pass]** Screenshot gallery and age / content rating (first screenshot only).
 - **[open]** Repository / remote management.
@@ -569,7 +569,7 @@ our code and the upstream source/docs.
 - **[open]** Removable-media defaults (what opens on inserting a disc or USB).
 - **[open]** Per-device Wacom detail — button remap, pressure curve, tablet area, monitor mapping.
 - **[open]** Per-monitor wallpaper / scale assignment.
-- **[open]** Hardware-driver / firmware section inside Settings (currently a Cassini handoff).
+- **[open]** Hardware-driver / firmware section inside Settings (currently a the old system manager handoff).
 
 ### Media Player → VLC
 
@@ -687,7 +687,7 @@ still missing; **[bug]** a real defect found while verifying.
   a table and one partition; create/delete/resize/move/flags are still absent.
 - **[was wrong] Terminal remote shell integration** — kitty's ssh-kitten is an
   emulator feature; our Terminal is an SSH manager that delegates to foot.
-- **[was wrong] Software apt/dpkg/Snap** — OS updates deliberately go to Cassini.
+- **[was wrong] Software apt/dpkg/Snap** — OS updates deliberately go to the old system manager.
 - **[was wrong] Online accounts / ICC profiles / Wacom button remap / firmware
   in Settings** — GOA daemon, niri colour management and niri input-stack work;
   out of scope or blocked by the compositor, not by our UI.
@@ -1347,7 +1347,7 @@ windows was possible in this container.
 - **[bug→fixed] Three Settings quick-op chips were fake** — "Backup now" and
   "Update check" only `echo`ed to `/tmp/quick-op.log`, and "System info" showed
   hardcoded `Memory: 477 MB · CPU: 54 ms/s`. They now call the real Backup and
-  Cassini services and read `SysStats`.
+  the old system manager services and read `SysStats`.
 - **[open, i18n]** The greeter and setup wizard have no translation path —
   two disconnected catalog systems (`setup/strings.js` vs `shani/i18n/`), and
   `tools/i18n.py` scans only `shani/**/*.qml`. English plural suffixes are

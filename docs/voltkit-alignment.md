@@ -23,7 +23,7 @@ They are different layers (app vs shell, GTK4 vs QML), but voltkit's integration
 | **Asset Compressor** (PNG/JPEG/WebP/MP4, `oxipng`/`jpegoptim`/`cwebp`/`ffmpeg`, metadata stripped, `name.min.ext`, never touches originals) | `src/modules/compress.rs` | None found | **Gap** |
 | **Text Expansion** (snippet picker `Super+Shift+E`, `{arg:NAME}` forms, typed triggers opt-in via evdev+uinput + `input` group, clipboard copy/paste/restore) | `src/modules/snippets.rs`, `src/expander.rs` | Launcher has actions/files/calculator/emoji/clipboard/web typing; no snippet system | **Gap** — the launcher's ranked list is the natural home |
 | **Keep Awake** (Inhibit portal, 30 min–4h or until off, survives closing the app) | `src/modules/awake.rs`, Inhibit portal | **Focus modes** (Work/Sleep/Personal) + caffeine tile in the Sidebar (`README.md`) | **Aligned conceptually** — voltkit = portal Inhibit; shani = focus modes; both keep the machine from sleeping/locking |
-| **Hosts & Environment** (`/etc/hosts` toggle, `environment.d` session vars, backups, system entries protected) | `src/modules/hosts.rs`, `src/modules/envvars.rs` | `Settings > …` covers wallpaper/bar/dock/blur/reduce motion/night-light/idle; no hosts/env editor found | **Gap** — likely Cassini/system-settings territory rather than shell |
+| **Hosts & Environment** (`/etc/hosts` toggle, `environment.d` session vars, backups, system entries protected) | `src/modules/hosts.rs`, `src/modules/envvars.rs` | `Settings > …` covers wallpaper/bar/dock/blur/reduce motion/night-light/idle; no hosts/env editor found | **Gap** — likely the old system manager/system-settings territory rather than shell |
 | **Blur / glass** | None (plain GTK4/libadwaita) | **Required**: `ext-background-effect-v1` per-surface region (`SHANI_BLUR=1`, `dev/niri/protocol.kdl`), measured 90× flatter, bounded to the card (RMSE 0 vs desktop); `Common/Glass.qml` card primitive; `reduceTransparency` makes opaque | **shani-shell leads** |
 | **Companion / approvals in place** | Notifications only | **Island** (mascot in the bar) + **ChronoaPanel** (one button per exact approval option, expiry drawn, `✓ Allow for this session`) | **shani-shell leads** (AI-native) |
 | **Turn stream / per-turn approval** | None | `dev.shani.chronoa.Agent` contract (Turn/Approve/Event) via the bridge, `bridge/turn_filter.py` (claim/take/see, MAX_KNOWN=64, MAX_UNCLAIMED=8, MAX_HELD=64), per-turn `contextvars.ContextVar` resolver | **shani-shell leads** |
@@ -77,7 +77,7 @@ They are different layers (app vs shell, GTK4 vs QML), but voltkit's integration
 
 ## Recommended next steps for shani-shell
 
-1. **Hosts & Environment editor** — voltkit's hosts/env editor (`/etc/hosts` toggle, `environment.d` vars). Needs root; likely Cassini/system-settings territory rather than shell.
+1. **Hosts & Environment editor** — voltkit's hosts/env editor (`/etc/hosts` toggle, `environment.d` vars). Needs root; likely the old system manager/system-settings territory rather than shell.
 2. **Screen ruler service** — the Ruler QML service + panel is wired but uses `grim` for capture; could add a `niri msg pick-color`-style direct color pick to the Color service for a faster path.
 3. **`voltkit doctor`-style per-feature tool check** — `bin/shani-doctor.py` was added this session; wire it into Settings or first boot.
 4. **Man-page gating** — if the shell gains CLI surface beyond `qs -c shani ipc call`, gate CI on regenerated man pages like voltkit (`cargo test` fails until regenerated).
