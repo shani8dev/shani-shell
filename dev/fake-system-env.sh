@@ -91,9 +91,7 @@ export FAKE_SYSTEM_ACCESS="$FS/access" SHANI_NSSWITCH="$FS/nsswitch" \
        SHANI_SSHD_CONF="$FS/sshd.conf" SHANI_LSM_FILE="$FS/lsm" \
        SHANI_SYSTEM_SSH_KEYGEN="$FS/bin-access/ssh-keygen" SHANI_AUTHORIZED_KEYS="$FS/authorized_keys" \
        SHANI_OATH_FILE="$FS/users.oath" SHANI_PCSC_SCAN="$FS/bin-access/pcsc_scan" \
-       SHANI_OATHTOOL="$FS/bin-access/oathtool" SHANI_PKCS11_MAP_FILE="$FS/subject_mapping" \
-       SHANI_PAM_U2F_CONF="$FS/pam_u2f.conf" SHANI_PAM_YUBICO_CONF="$FS/pam_yubico.conf" \
-       SHANI_SSHD=/work/dev/fake-sshd.py SHANI_VISUDO=/work/dev/fake-visudo.py
+       SHANI_OATHTOOL="$FS/bin-access/oathtool"
 printf 'passwd: files sss\ngroup: files sss\nshadow: files sss\n' > "$FS/nsswitch"
 printf '[libdefaults]\n default_realm = EXAMPLE.LAN\n[domain_realm]\n .example.lan = EXAMPLE.LAN\n' > "$FS/krb5.conf"
 printf 'auth sufficient pam_krb5.so\n' > "$FS/pam/system-auth"
@@ -109,9 +107,7 @@ printf '@include common-auth\n' > "$FS/pam/system-login"
 printf 'auth sufficient pam_oath.so usersfile=%s\n' "$FS/users.oath" > "$FS/pam/common-auth"
 
 # Access and sharing files the depth pages read. Nothing here holds a secret.
-export SHANI_EXPORTS_FILE="$FS/exports" SHANI_EXPORTFS="$FS/bin-nfs/exportfs" \
-       FAKE_SYSTEM_NFS="$FS/nfs" SHANI_SMB_CONF="$FS/smb.conf" \
-       SHANI_SMB_DROPIN="$FS/smb-dropin.conf" SHANI_TESTPARM="$FS/bin-smb/testparm" \
+export FAKE_SYSTEM_NFS="$FS/nfs" SHANI_SMB_CONF="$FS/smb.conf" \
        SHANI_PDBEDIT="$FS/bin-smb/pdbedit" SHANI_SS="$FS/bin-smb/ss" \
        SHANI_USERSHARE_DIR="$FS/usershares" FAKE_SYSTEM_SMB="$FS/smb"
 mkdir -p "$FS/nfs" "$FS/smb"

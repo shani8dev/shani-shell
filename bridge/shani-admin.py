@@ -585,7 +585,9 @@ def guest(req: dict) -> dict:
     return {}
 
 
-SSHD_DROPIN = Path("/etc/ssh/sshd_config.d/50-shani-shell.conf")
+SSHD_DROPIN = Path(
+    os.environ.get("SHANI_SSHD_DROPIN", "/etc/ssh/sshd_config.d/50-shani-shell.conf")
+)
 SSHD_TOOL = os.environ.get("SHANI_SSHD", "sshd")
 SYSTEMCTL_TOOL = os.environ.get("SHANI_SYSTEMCTL", "systemctl")
 VISUDO_TOOL = os.environ.get("SHANI_VISUDO", "visudo")
