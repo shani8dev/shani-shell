@@ -64,6 +64,10 @@ Singleton {
         root.say(Tr.t("Measuring…"));
         root.run("spot", [String(kind || "hr")]);
     }
+    function findWatch() {
+        root.say(Tr.t("Ringing the watch…"));
+        root.run("find-watch", []);
+    }
     function say(message) { root.note = message || ""; }
 
     // "Mon 24" for a YYYY-MM-DD day, never a UTC-shifted Date.
@@ -141,6 +145,9 @@ Singleton {
                 root.note = label + ": " + root.reading(data);
                 root.refresh();
             }
+        } else if (what === "find-watch") {
+            root.note = data && data.error ? data.error
+                : (data && data.note ? data.note : Tr.t("The watch was told to ring"));
         }
     }
 

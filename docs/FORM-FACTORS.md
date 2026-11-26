@@ -23,7 +23,7 @@ between upstream device support, replay tests and Shani hardware verification.
 | Board | Bottom bar; dock above it; the tools (the Ring) by a swipe in from the left or right edge and the apps from the bottom, as Promethean, SMART, ViewSonic and BenQ panels reach theirs from either side; whiteboard pages/PDF; pen pressure/eraser/palm handling; guest account integration | Real pens and simultaneous users; reach of all controls, including the Island; guest isolation checks; cast receiver |
 | TV | Ten-foot home; remote/controller navigation; EDID size/name detection | Real remotes/CEC and TVs; overscan; mixed laptop/TV setup; gamescope desktop integration |
 | Projector | Told by its EDID name (projector, beamer, "PJ", Optoma) or chosen; bigger shell, no rail; Presenting offered as for any new screen; the Focus layout suits it | Real projectors' EDIDs, keystone/overscan, mirrored versus extended presenting |
-| Phone | Compact bar/launcher, bottom Quick Settings shade, bounded notifications/lock cards, compact Settings, dial/messages/contacts via Phone | Whole-app portrait layouts, safe areas, landscape/keyboard occlusion, native modem/audio testing, suspend/wake and mixed-output policy |
+| Phone | Compact bar/launcher, bottom Quick Settings shade, bounded notifications/lock cards, compact Settings, native dial/messages/contacts windows | Whole-app portrait layouts, safe areas, landscape/keyboard occlusion, native modem/audio testing, suspend/wake and mixed-output policy |
 
 ## Shared foundation
 
@@ -137,10 +137,10 @@ The phone checks cover a 412×915 nested output: actual output dimensions,
 fullscreen width and height, launcher/search, shade, lock/unlock and restoration
 of desktop rules. They are smoke tests, not proof that every app is phone-ready.
 
-Calls, messages and contacts reuse **Phone**, rather than a second address
-book or dialer in the shell. Launcher actions open its phone/messages/contacts
-pages; addressed actions prefill a destination rather than silently calling.
-Read `shani-shell`'s own tests and permissions before changing those routes.
+Calls, messages and contacts are shell apps over one address book and call
+history. Launcher actions open the Calls, Messages and Contacts windows;
+addressed actions prefill a destination rather than silently calling.
+Read the shell's own tests and permissions before changing those routes.
 
 ### Screen and lifecycle work still missing
 

@@ -25,8 +25,18 @@ AppWindow {
     property string dialed: ""              // the number being called
     property string callSearch: ""          // recents filter, lowercased
     property bool missedOnly: false
+    property var suggestions: []            // contacts matching what is typed
+    property bool held: false               // the live call is on hold
+    property string dtmfDigits: ""          // digits sent to the live call's keypad
 
     onVisibleChanged: if (visible) { Link.refresh(); if (Ui.callsNumber !== "") { number.text = Ui.callsNumber; Ui.callsNumber = ""; } }
+
+    Connections {
+        target: Modem
+        function onCallChanged() {
+            if (Modem.call === null) { win.held = false; win.dtmfDigits = ""; }
+        }
+    }
 
     // ---- the dial pad -------------------------------------------------------
     // The pad is the same shape a car's is: 3 columns of digits, the number
@@ -42,7 +52,7 @@ AppWindow {
         Glass {
             visible: Modem.call !== null
             Layout.fillWidth: true
-            Layout.preferredHeight: Theme.px(104)
+            Layout.preferredHeight: Theme.px(220)
             solid: true
             ColumnLayout {
                 anchors { fill: parent; margins: Theme.px(10) }
@@ -85,6 +95,55 @@ AppWindow {
                         text: Tr.t("Hang up")
                         kind: "danger"
                         onClicked: Modem.hangup()
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    Button {
+                        Layout.fillWidth: true
+                        text: win.held ? Tr.t("Resume") : Tr.t("Hold")
+                        checked: win.held
+                        enabled: Modem.call !== null
+                        onClicked: { win.held = !win.held; Modem.callctl("hold", win.held); }
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("Swap")
+                        enabled: Modem.waitingCall !== null
+                        onClicked: Modem.callctl("swap")
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: Tr.t("End")
+                        kind: "danger"
+                        onClicked: Link.hangup()
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: win.dtmfDigits !== ""
+                    text: win.dtmfDigits
+                    color: Theme.accent
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(12) * Theme.fontScale
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 3
+                    rowSpacing: Theme.px(2)
+                    columnSpacing: Theme.px(4)
+                    Repeater {
+                        model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"]
+                        Button {
+                            required property string modelData
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.px(30)
+                            kind: "outline"
+                            text: modelData
+                            // shortcut: the modem bridge has no DTMF verb, wire tones when it gains one
+                            onClicked: win.dtmf(modelData)
+                        }
                     }
                 }
             }
@@ -148,8 +207,40 @@ AppWindow {
             id: number
             Layout.fillWidth: true
             placeholder: Tr.t("A number")
+            label: Tr.t("A number")
+            Accessible.name: Tr.t("A number")
+            onTextChanged: { win.suggestions = win.matchesFor(text); Link.match(text); }
             onAccepted: win.call()
             // Enter is Call; typing must not dial on its own
+        }
+
+        // people pick a contact; no need to type a whole number from memory
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: win.suggestions.length > 0
+            spacing: Theme.px(2)
+            Repeater {
+                model: win.suggestions
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    icon: "contact-new"
+                    title: modelData.name || Tr.t("Contact")
+                    subtitle: (modelData.numbers || []).join(" · ")
+                    selected: false
+                    onClicked: win.pickNumber((modelData.numbers || [])[0])
+                }
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: Tr.t("Line") + ": " + (win.line || Tr.t("None")) + " · "
+                  + (Link.lines.length > 0 || Link.state === "ready" ? Tr.t("Ready") : Tr.t("Not ready"))
+            color: Theme.dim
+            wrapMode: Text.Wrap
+            font.family: Theme.font
+            font.pixelSize: Theme.px(11) * Theme.fontScale
         }
 
         // the line to call on, when there is more than one
@@ -216,6 +307,32 @@ AppWindow {
 
         Item { Layout.fillHeight: true }
     }
+
+    // the address book is already in Link.contacts; search name and digits so a
+    // pasted number with spaces still finds its contact
+    function matchesFor(text) {
+        const raw = String(text || "").trim();
+        if (raw === "") return [];
+        const q = raw.toLowerCase();
+        const d = raw.replace(/\D/g, "");
+        return Link.contacts.filter(c => {
+            if (String(c.name || "").toLowerCase().indexOf(q) >= 0) return true;
+            return (c.numbers || []).some(n => {
+                const s = String(n);
+                return s.toLowerCase().indexOf(q) >= 0
+                    || (d.length >= 3 && s.replace(/\D/g, "").indexOf(d) >= 0);
+            });
+        }).slice(0, 6);
+    }
+
+    function pickNumber(n) {
+        number.text = String(n || "");
+        number.cursorPosition = number.text.length;
+        win.suggestions = [];
+        number.forceActiveFocus();
+    }
+
+    function dtmf(digit) { win.dtmfDigits += digit }
 
     function call() {
         const n = number.text.trim();

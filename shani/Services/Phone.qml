@@ -42,31 +42,21 @@ Singleton {
             + (dev.charging ? " · " + Tr.t("charging") : "");
     }
 
-    // Phone pages (phone-app, dev.shani.Shell.Phone.App): the Phone page
-    // holds the dial pad, Messages, Contacts, Music, Files and Remote. The
-    // dial pad also dials the landline and the SIM modem, so these work even
-    // when no KDE Connect phone is paired - Phone.available only gates the
-    // phone's own ring/ping/share above. --dial prefills the pad and never
-    // dials until Call is pressed; --message opens Messages addressed to the
-    // number; opening the page alone lands on the Calls tab (recents first).
+    // Phone actions land in the shell's own apps: the Calls dial pad (which
+    // also dials the landline and the SIM modem, with no phone paired), the
+    // Messages composer and the Contacts address book. A number only fills
+    // the pad or the composer; nothing is dialled or sent until the person
+    // presses Call or Send. Phone.available gates the device actions above.
     function openDial(number) {
-        const n = (number || "").trim();
-        if (!n)
-            Quickshell.execDetached(["phone-app", "--page", "phone"]);
-        else
-            Quickshell.execDetached(["phone-app", "--page", "phone", "--dial=" + n]);
+        Ui.callsNumber = (number || "").trim();
+        Ui.calls = true;
     }
     function openMessages(number) {
-        const n = (number || "").trim();
-        Quickshell.execDetached(["phone-app", "--page", "phone", "--message=" + n]);
+        Ui.messagesNumber = (number || "").trim();
+        Ui.messages = true;
     }
-    // the address book: vCard files of its own, with the phone's contacts beside
-    function openContacts() {
-        Quickshell.execDetached(["phone-app", "--page", "contacts"]);
-    }
-    function openRecentCalls() {
-        Quickshell.execDetached(["phone-app", "--page", "phone"]);
-    }
+    function openContacts() { Ui.contacts = true; }
+    function openRecentCalls() { Ui.calls = true; }
     function openPhone() { openDial(""); }
 
     Process {

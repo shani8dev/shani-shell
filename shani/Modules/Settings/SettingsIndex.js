@@ -315,6 +315,12 @@ var entries = [
     { key: "cloudSync", label: "Cloud sync", cat: "network", hint: "background rclone sync with progress", words: "cloud sync rclone remote backup upload download", link: "cloudSyncOpen" },
     { key: "irc", label: "IRC", cat: "network", hint: "chat on IRC networks", words: "irc chat server channel nick message", link: "ircOpen" },
     { key: "health", label: "Health", cat: "personal", hint: "steps, sleep and workouts stored locally", words: "health fitness steps sleep workouts heart rate", link: "healthOpen" },
+    { key: "phoneLines", label: "Phone lines", cat: "phone", hint: "the mobile modem, the landline and SIP accounts", words: "phone lines calls dial sim mobile modem landline sip account" },
+    { key: "sipAccounts", label: "Internet calling accounts", cat: "phone", hint: "add, edit or remove an internet calling account", words: "internet calling sip account username server password transport" },
+    { key: "landlineSetup", label: "Landline", cat: "phone", hint: "set up the landline on your network", words: "landline phone setup code network line" },
+    { key: "devicesApp", label: "Devices", cat: "devices", hint: "paired phones, gadgets and your screen on a phone", words: "devices phone gadget android bluetooth pair screen windows", link: "devicesOpen" },
+    { key: "fmRadio", label: "FM radio", cat: "devices", hint: "listen to local radio through the aerial", words: "fm radio frequency station aerial gadget" },
+    { key: "nfcReader", label: "NFC reader", cat: "devices", hint: "read and write nearby tags", words: "nfc tag read write nearby gadget" },
     { key: "about", label: "About", cat: "about", hint: "this machine — model, CPU, GPU, memory, kernel, compositor", words: "about machine info system kernel cpu memory gpu" },
 ];
 
@@ -334,6 +340,8 @@ var groups = {
     search: ["searchFiles", "searchInside", "searchProviders", "searchCalc", "searchFolders", "webSearch", "launcherIgnoreMouse", "launcherHideNavLabels"],
     backup: [],
     sharing: [],
+    phone: [],
+    devices: [],
     printers: [],
     firewall: [],
     boot: [],

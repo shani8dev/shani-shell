@@ -43,6 +43,8 @@ Singleton {
         { id: "chronoa", label: "Chronoa", words: "chronoa assistant ai island model voice wake word", icon: "face-smile-big" },
         { id: "storage", label: "Storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", icon: "drive-harddisk" },
         { id: "screentime", label: "Screen time", words: "screen time wellbeing digital break reminder limit usage apps today week focus", icon: "preferences-desktop-screensaver" },
+        { id: "phone", label: "Phone", words: "phone calls dial pad sim mobile modem landline sip account line", icon: "call-start" },
+        { id: "devices", label: "Devices", words: "devices phone gadget android bluetooth pair nfc infrared remote radio fm screen", icon: "smartphone" },
         { id: "modules", label: "Kernel modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", icon: "application-x-addon" }
     ]
     // A leading word + colon is an operator only when that word is one of ours:
