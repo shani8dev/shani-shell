@@ -672,17 +672,18 @@ PY
     echo '{"modem": {"path": "/m/0", "state": "registered", "locked": "", "operator": "Jio", "signal": 63, "number": "+9198", "voice": true, "messaging": true}}' > /tmp/modem-ask
     sleep 1.5
     echo '{"sms": {"path": "/s/1", "from": "+919811111111", "text": "Your code is 482913", "time": ""}}' > /tmp/modem-ask
-    waitfor "'+919811111111' in d['notificationSummaries']" 10
+    waitfor "d['smsTo'] == '+919811111111' and d['modemDialog'] == 'sms'" 10
     sleep 0.5; capture_current notification-sms 0.5   # with Reply / Copy actions
     echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "ringing-in", "incoming": true}}' > /tmp/modem-ask
-    # ringing is shani-shell's notification (hints category call.incoming); the
-    # shell never rings itself, so without it the Island's call activity below
-    # can never appear (the same notification shell-test.sh sends here)
-    notify-send -a "Phone" -h string:category:call.incoming -u critical -A answer=Answer -A decline=Decline "Call from +919844444444" "on your mobile" &
-    call_pid=$!
-    waitfor "d['islandActivity'].startswith('Call from +919844444444')" 10
-    sleep 0.5; capture_current modem-call 0.5         # island activity + call notification
-    kill "$call_pid" 2>/dev/null || true
+    # a ring is the shell's own card, driven by the phone backend's call state
+    python3 - <<'PY'
+import json, pathlib, time
+p = pathlib.Path("/root/.local/state/shani-shell"); p.mkdir(parents=True, exist_ok=True)
+(p / "incoming-call.json").write_text(json.dumps({"id": "r1", "name": "Asha Patil", "number": "+919844444444", "line": "modem", "when": int(time.time())}))
+PY
+    waitfor "d['incoming'].startswith('Asha Patil')" 10
+    sleep 0.5; capture_current modem-call 0.5         # the call card and the call
+    python3 -c 'import pathlib; pathlib.Path("/root/.local/state/shani-shell/incoming-call.json").unlink(missing_ok=True)'
     echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask
     sleep 1
     ipc_line textMessage +919822222222; sleep 1.2

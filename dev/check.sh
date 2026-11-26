@@ -71,9 +71,9 @@ box() {
     tb=; [ -d "$TESTBED" ] && tb="-v $(cd "$TESTBED" && pwd):/testbed:ro"
     # shellcheck disable=SC2086
     # IPC_LOCK: the keyring daemon locks its memory (secrets never reach swap) or will not start
-    # CHRONOA=real: the real shani-chronoa (and shani-shell, its phone skills) from
-    # beside this repo, on the host network for the model on 127.0.0.1:8765
-    ch=; [ "${CHRONOA:-}" = real ] && ch="-e CHRONOA=real --network=host -v $(cd "$REPO/../shani-chronoa" && pwd):/chronoa:ro -v $(cd "$REPO/../shani-shell" && pwd):/link:ro"
+    # CHRONOA=real: the real shani-chronoa from beside this repo, on the host
+    # network for the model on 127.0.0.1:8765. Phone backends ship in this tree.
+    ch=; [ "${CHRONOA:-}" = real ] && ch="-e CHRONOA=real --network=host -v $(cd "$REPO/../shani-chronoa" && pwd):/chronoa:ro"
     # SHANI_ONLINE=1: the real web services where the suite has stand-ins (Maps)
     on=; [ "${SHANI_ONLINE:-}" = 1 ] && on="-e SHANI_ONLINE=1"
     # SHANI_FORM_FACTOR=tv|handheld|tablet|board|phone|laptop: every screen is that

@@ -1803,20 +1803,25 @@ ipc closeAll
 # ---- the SIM modem (a stand-in for bridge/modem.py; tests/test_modem.py runs the real one) --
 rm -f /tmp/modem-answers
 echo '{"modem": {"path": "/m/0", "state": "locked", "locked": "sim-pin", "operator": "", "signal": 0, "number": "", "voice": true, "messaging": true}}' > /tmp/modem-ask
-waitfor "d['modem'] == 'locked/sim-pin/' and 'The SIM card is locked' in d['notificationSummaries']" 5 && result sim-locked-asks PASS || result sim-locked-asks FAIL "$(q "['modem']")"
+waitfor "d['modem'] == 'locked/sim-pin/' and d['modemDialog'] == 'pin'" 5 && result sim-locked-asks PASS || result sim-locked-asks FAIL "$(q "['modem'], ['modemDialog']")"
 echo '{"modem": {"path": "/m/0", "state": "registered", "locked": "", "operator": "Jio", "signal": 63, "number": "", "voice": true, "messaging": true}}' > /tmp/modem-ask
 waitfor "d['modem'] == 'registered/unlocked/Jio'" 4
 echo '{"sms": {"path": "/s/1", "from": "+919811111111", "text": "Your code is 482913", "time": ""}}' > /tmp/modem-ask
-waitfor "'+919811111111' in d['notificationSummaries']" 4 && result sms-notifies PASS || result sms-notifies FAIL
+waitfor "d['smsTo'] == '+919811111111' and d['modemDialog'] == 'sms'" 4 && result sms-notifies PASS || result sms-notifies FAIL
 shot 95-sms 0.4
-# a modem call rings once - shani-shell's notification - not a second one from the shell
+# a modem call rings once, on the shell's own card - never as a notification
 n0=$(q "['notificationSummaries'].count('Call from +919844444444')")
 echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "ringing-in", "incoming": true}}' > /tmp/modem-ask
-sleep 1.5
-[ "$(q "['notificationSummaries'].count('Call from +919844444444')")" = "$n0" ] && result call-rings-once PASS || result call-rings-once FAIL "the shell rang too"
-notify-send -a "Phone" -h string:category:call.incoming -u critical -A answer=Answer -A decline=Decline "Call from +919844444444" "on your mobile" &
-waitfor "d['islandActivity'].startswith('Call from +919844444444')" 4 && result call-ringing-on-island PASS || result call-ringing-on-island FAIL "$(q "['islandActivity']")"
+python3 - <<'PY'
+import json, pathlib, time
+p = pathlib.Path("/root/.local/state/shani-shell"); p.mkdir(parents=True, exist_ok=True)
+(p / "incoming-call.json").write_text(json.dumps({"id": "m1", "name": "Asha Patil", "number": "+919844444444", "line": "modem", "when": int(time.time())}))
+PY
+waitfor "d['incoming'] == 'Asha Patil'" 5 && result call-rings-on-card PASS || result call-rings-on-card FAIL "$(q "['incoming']")"
+[ "$(q "['notificationSummaries'].count('Call from +919844444444')")" = "$n0" ] && result call-rings-once PASS || result call-rings-once FAIL "the shell posted a call notification too"
 shot 96-call-ringing 0.3
+ipc callAction m1 answer
+waitfor "d['incomingId'] == ''" 4 && result call-card-answers PASS || result call-card-answers FAIL "$(q "['incomingId']")"
 echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask
 waitfor "d['modemCall'] == ''" 4
 ipc textMessage "+919822222222"
@@ -1964,14 +1969,16 @@ ls /root/Pictures/Screenshots/Drawing*.png >/dev/null 2>&1 && result annotate-sa
 wtype -k Escape
 waitfor "not d['annotate']" 3 && result annotate-closes PASS || result annotate-closes FAIL
 
-# ---- a call from any app (Chronoa's phone, a VoIP app): carried on the Island -----------
-rm -f /tmp/call-answer
-( a=$(notify-send -a Phone -u critical -h string:category:call.incoming -A answer=Answer -A decline=Decline "Asha Patil" "Calling on your phone"); echo "$a" > /tmp/call-answer ) &
-waitfor "d['islandActivity'].startswith('Asha Patil')" 5 && result island-carries-incoming-call PASS "$(q "['islandActivity']")" || result island-carries-incoming-call FAIL "$(q "['islandActivity']")"
-ipc answerCall
-for i in $(seq 1 12); do [ -s /tmp/call-answer ] && break; sleep 0.25; done
-[ "$(cat /tmp/call-answer 2>/dev/null)" = answer ] && result island-answers-call PASS || result island-answers-call FAIL "$(cat /tmp/call-answer 2>&1)"
-waitfor "not d['islandActivity'].startswith('Asha Patil')" 4 && result island-call-ends PASS || result island-call-ends FAIL "$(q "['islandActivity']")"
+# ---- an incoming call on a phone line: the shell's own card -----------------------------
+rm -f /tmp/phone-call-actions
+python3 - <<'PY'
+import json, pathlib, time
+p = pathlib.Path("/root/.local/state/shani-shell"); p.mkdir(parents=True, exist_ok=True)
+(p / "incoming-call.json").write_text(json.dumps({"id": "p1", "name": "Asha Patil", "number": "9844444444", "line": "phone", "when": int(time.time())}))
+PY
+waitfor "d['incoming'].startswith('Asha Patil')" 5 && result phone-incoming-card PASS "$(q "['incoming']")" || result phone-incoming-card FAIL "$(q "['incoming']")"
+ipc callAction p1 decline
+waitfor "d['incomingId'] == ''" 4 && result phone-card-declines PASS || result phone-card-declines FAIL "$(q "['incomingId']")"
 
 # ---- replying from a notification (the "inline-reply" action; Chronoa's phone texts) ---
 # the app keeps its connection and waits for NotificationReplied, as Chronoa does
