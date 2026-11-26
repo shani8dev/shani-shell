@@ -23,6 +23,12 @@ ColumnLayout {
     Component.onCompleted: if (active) load()
     onBusyChanged: publish()
 
+    // the mark follows the result: passed, needs attention, failed, or just information
+    function statusIcon(s) {
+        const l = statusLabel(s);
+        return l === Tr.t("Passed") ? "dialog-ok" : l === Tr.t("Needs attention") ? "dialog-warning"
+             : l === Tr.t("Failed") ? "dialog-error" : "dialog-information";
+    }
     function statusLabel(s) {
         const v = String(s || "").toLowerCase();
         if (["ok", "pass", "passed", "good", "healthy"].indexOf(v) >= 0) return Tr.t("Passed");
@@ -93,7 +99,7 @@ ColumnLayout {
             ListRow {
                 required property var modelData
                 Layout.fillWidth: true
-                icon: "dialog-ok"
+                icon: page.statusIcon(modelData.status)
                 title: modelData.title || modelData.key || Tr.t("Check")
                 subtitle: [page.statusLabel(modelData.status), modelData.detail].filter(x => x).join("  ·  ")
                 interactive: false
