@@ -34,6 +34,18 @@ export SHANI_AUDIO="python3 $PHONE_TOOLS_FAKE audio"
 export SHANI_AUDIO_LOG=/tmp/fake-phone-audio-devices
 python3 "$PHONE_TOOLS_FAKE" seed
 
+# The shell's AndroidTools bridge inherits PATH from session.sh, not the
+# overrides exported here, so its `bluetoothctl scan on` would wait for a
+# controller the container has not got. Hand that bridge the same stand-in as
+# the direct bridge calls below, then put the daemon back for the rest of the
+# suite: this part runs inside shell-test.sh too.
+BT_SHIM=/tmp/fake-bin/bluetoothctl
+cat > "$BT_SHIM" <<'SHIM'
+#!/bin/sh
+exec python3 /work/dev/fake-phone-devices.py "$@"
+SHIM
+chmod +x "$BT_SHIM"
+
 waitlog() {
     pattern=$1; file=$2; i=0
     until grep -Eq "$pattern" "$file" 2>/dev/null || [ "$i" -ge 24 ]; do
@@ -239,29 +251,34 @@ if [ -f "$A11Y" ]; then
 
     press "button:^Look for phones$" \
         && result devices-phone-link-find-button PASS || result devices-phone-link-find-button FAIL "no find button"
-    waitfor "len(d['androidFind'].get('devices', [])) >= 1" 25 \
-        && result devices-phone-link-finds PASS || result devices-phone-link-finds FAIL "$(q "['androidFind']")"
+    # one queued bridge job at a time: read the answer, not the click
+    waitfor "not d['androidBusy'] and len(d['androidFind'].get('devices', [])) >= 1" 45 \
+        && result devices-phone-link-finds PASS || result devices-phone-link-finds FAIL "$(q "['androidFind'], d['androidNote']")"
     timeout 20 python3 "$A11Y" find "Pixel 7" >/dev/null 2>&1 \
         && result devices-phone-link-nearby PASS || result devices-phone-link-nearby FAIL "the found phone has no row"
 
+    waitfor "not d['androidBusy']" 15
     press "switch:^Make this computer findable$" "check box:^Make this computer findable$" \
         && result devices-phone-link-findable-switch PASS || result devices-phone-link-findable-switch FAIL "no findable switch"
 
-    # forgetting is deliberate: the second press is the confirmation
+    # Forgetting is deliberate: ConfirmButton keeps its accessible name when
+    # armed, so the confirmation is a second press of that same control.
+    waitfor "not d['androidBusy'] and d['phoneLinkPaired']" 15
     press "button:^Forget this phone$" \
         && result devices-phone-link-forget-button PASS || result devices-phone-link-forget-button FAIL "no forget button"
-    press "button:^Tap again to forget$"
-    waitfor "not d['phoneLinkPaired']" 8 \
+    press "button:^Forget this phone$"
+    waitfor "not d['phoneLinkPaired']" 20 \
         && result devices-phone-link-forgets PASS || result devices-phone-link-forgets FAIL "$(q "['phoneLinkPaired'], d['androidNote']")"
     timeout 20 python3 "$A11Y" find "No phone paired" >/dev/null 2>&1 \
         && result devices-phone-link-empty PASS || result devices-phone-link-empty FAIL "no empty row after forget"
 
     # leave a paired phone behind for the rest of the suite
+    waitfor "not d['androidBusy']" 15
     press "radio button:^Wi-Fi debugging code$"
     press "text:^Address and pairing code$" "text field:^Address and pairing code$" "text:^Phone address$"
     wtype "192.168.1.42:5555 123456"
     press "button:^Pair this phone$"
-    waitfor "d['phoneLinkPaired']" 8
+    waitfor "not d['androidBusy'] and d['phoneLinkPaired']" 20
 else
     for n in phone-link-tab phone-link-paired phone-link-dot phone-link-address \
              phone-link-pair-button phone-link-pairs phone-link-find-button \
@@ -276,14 +293,16 @@ fi
 ipc devicesClose; sleep 0.4; ipc devicesOpen; sleep 0.6
 press "radio button:^Android phone$" "radio button:^Android$" 2>/dev/null || true
 if [ -f "$A11Y" ]; then
+    waitfor "not d['androidBusy']" 15
     press "button:^Back up now$" \
         && result android-backup-button PASS || result android-backup-button FAIL "no backup button"
-    waitfor "d['androidBackup'].get('summary','').startswith('Copied 9')" 40 \
+    waitfor "not d['androidBusy'] and d['androidBackup'].get('summary','').startswith('Copied 9')" 40 \
         && result android-backup-copies PASS || result android-backup-copies FAIL "$(q "['androidBackup']")"
     shot android-backup 0.3
     # a second backup copies nothing: the manifest remembers name, size and date
+    waitfor "not d['androidBusy']" 15
     press "button:^Back up now$"
-    waitfor "d['androidBackup'].get('summary','').startswith('Copied 0')" 40 \
+    waitfor "not d['androidBusy'] and d['androidBackup'].get('summary','').startswith('Copied 0')" 40 \
         && result android-backup-incremental PASS || result android-backup-incremental FAIL "$(q "['androidBackup']")"
 
     press "button:^Import new photos$" \
@@ -300,10 +319,17 @@ if [ -f "$A11Y" ]; then
         && result android-restore-contacts PASS || result android-restore-contacts FAIL "$(q "['androidRestore']")"
     shot android-restore 0.3
 
-    press "switch:^Every time this phone connects$" \
+    # the switch is below the fold; keyboard focus scrolls it into view
+    waitfor "not d['androidBusy']" 15
+    i=0
+    until timeout 20 python3 "$A11Y" find "check box:^Every time this phone connects$" >/dev/null 2>&1 \
+        || [ "$i" -ge 40 ]; do
+        wtype -k Tab; sleep 0.2; i=$((i + 1))
+    done
+    press "check box:^Every time this phone connects$" \
         && result android-auto-switch PASS || result android-auto-switch FAIL "no auto-import switch"
-    waitfor "d['androidAuto'].get('on') == True" 8 \
-        && result android-auto-on PASS || result android-auto-on FAIL "$(q "['androidAuto']")"
+    waitfor "d['androidAutoImport'].get('on') == True" 15 \
+        && result android-auto-on PASS || result android-auto-on FAIL "$(q "['androidAutoImport']")"
 
     press "button:^Use the phone's internet$" \
         && result android-tether-button PASS || result android-tether-button FAIL "no tether button"
@@ -374,9 +400,10 @@ waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] >= 2" 10 \
     && result devices-background-switches PASS \
     || result devices-background-switches FAIL "$(q "['backgroundSwitches'], d['backgroundOn']")"
 if [ -f "$A11Y" ]; then
-    # the switches sit below the page's summary
-    for i in 1 2; do wtype -k Page_Down; sleep 0.2; done
-    timeout 20 python3 "$A11Y" find "Phone and watch, with no window open" >/dev/null 2>&1 \
+    # the section's title is plain text with no accessible name; its first
+    # switch is the named way to know the section is drawn
+    for i in 1 2 3 4 5 6; do wtype -k Page_Up; sleep 0.15; done
+    timeout 20 python3 "$A11Y" find "check box:^Receive files$" >/dev/null 2>&1 \
         && result devices-background-section PASS || result devices-background-section FAIL "no phone section"
     before=$(q "['backgroundOn']")
     press "switch:^Receive files$" "check box:^Receive files$" \
@@ -401,3 +428,4 @@ waitfor "'sip-devtest01' in str(d['lines']) and 'Test line' in str(d['sipAccount
     && result devices-sip-in-settings PASS \
     || result devices-sip-in-settings FAIL "$(q "['lines'], d['sipAccounts']")"
 ipc closeAll
+rm -f "$BT_SHIM"
