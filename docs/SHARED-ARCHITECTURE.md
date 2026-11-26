@@ -156,3 +156,7 @@ Add a line when you finish a piece (date, repo, what, commit).
   `shani-deploy --yes` fix (e5a8d23).
 - 2026-11-26 shani-chronoa-extras: split from `apps/shani-sysadmin` with
   history (rule 7); public.
+- 2026-11-26 shani-shell: Backup consumes every `shani-backup` command through
+  `bridge/backup.py` (backup with progress, restore, backups, btrfs snapshots,
+  schedule, home snapshots), with a rejecting stand-in, an argparse contract
+  test and a live part (rules 4, 5, 10; f2064d6, e204613, d4a9a04).
