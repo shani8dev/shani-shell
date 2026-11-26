@@ -41,12 +41,13 @@ AppWindow {
         anchors.fill: parent
         spacing: Theme.px(8)
 
-        RowLayout {
+        // two fields and a button wrap instead of running off a 412 px window
+        Flow {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             TextField {
                 id: feedField
-                Layout.fillWidth: true
+                width: win.compact ? parent.width - Theme.px(92) : Math.min(Theme.px(260), parent.width - Theme.px(100))
                 placeholder: Tr.t("Feed address")
                 Accessible.name: Tr.t("Add a podcast feed")
                 onAccepted: { Podcasts.addFeed(feedField.text); feedField.text = ""; }
@@ -58,7 +59,7 @@ AppWindow {
             }
             TextField {
                 id: searchField
-                Layout.fillWidth: true
+                width: win.compact ? parent.width : Math.min(Theme.px(260), parent.width - Theme.px(100))
                 placeholder: Tr.t("Search podcasts")
                 Accessible.name: Tr.t("Search podcasts")
                 onAccepted: Podcasts.searchFeeds(searchField.text)
