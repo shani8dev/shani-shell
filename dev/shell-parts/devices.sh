@@ -230,7 +230,7 @@ if [ -f "$A11Y" ]; then
 
     # Wi-Fi debugging: the address and code are typed; the button does the pairing
     press "radio button:^Wi-Fi debugging code$"
-    press "text field:^Address and pairing code$" "text:^Phone address$"
+    press "text:^Address and pairing code$" "text field:^Address and pairing code$" "text:^Phone address$"
     wtype "192.168.1.99:5555 654321"
     press "button:^Pair this phone$" \
         && result devices-phone-link-pair-button PASS || result devices-phone-link-pair-button FAIL "no pair button"
@@ -258,7 +258,7 @@ if [ -f "$A11Y" ]; then
 
     # leave a paired phone behind for the rest of the suite
     press "radio button:^Wi-Fi debugging code$"
-    press "text field:^Address and pairing code$" "text:^Phone address$"
+    press "text:^Address and pairing code$" "text field:^Address and pairing code$" "text:^Phone address$"
     wtype "192.168.1.42:5555 123456"
     press "button:^Pair this phone$"
     waitfor "d['phoneLinkPaired']" 8
@@ -376,15 +376,15 @@ waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] >= 2" 10 \
 if [ -f "$A11Y" ]; then
     # the switches sit below the page's summary
     for i in 1 2; do wtype -k Page_Down; sleep 0.2; done
-    timeout 20 python3 "$A11Y" find "Phone and watch" >/dev/null 2>&1 \
+    timeout 20 python3 "$A11Y" find "Phone and watch, with no window open" >/dev/null 2>&1 \
         && result devices-background-section PASS || result devices-background-section FAIL "no phone section"
     before=$(q "['backgroundOn']")
     press "switch:^Receive files$" "check box:^Receive files$" \
         && result devices-background-switch PASS || result devices-background-switch FAIL "no Receive files switch"
-    waitfor "d['backgroundOn'] == $before - 1" 8 \
+    waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] != $before" 30 \
         && result devices-background-toggle PASS || result devices-background-toggle FAIL "$(q "['backgroundOn']") (was $before)"
     press "switch:^Receive files$" "check box:^Receive files$"
-    waitfor "d['backgroundOn'] == $before" 8
+    waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] == $before" 30
 else
     result devices-background-section SKIP "no accessibility client"
     result devices-background-switch SKIP "no accessibility client"

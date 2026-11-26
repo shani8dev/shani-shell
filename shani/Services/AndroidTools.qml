@@ -49,6 +49,9 @@ Singleton {
         changed[what] = value;
         root.result = changed;
         root.note = String(value.error || "");
+        // these commands change what the bridge reports on the next state read
+        if (what === "pair" || what === "forget" || what === "tether" || what === "auto-import")
+            root.refresh();
     }
 
     Process {
