@@ -61,17 +61,17 @@ ColumnLayout {
     Process {
         id: reader
         property string verb: ""
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let r = {};
-                try { r = JSON.parse(text); } catch (e) { r = { error: Tr.t("This section could not be read") }; }
-                const o = Object.assign({}, page.results); o[reader.verb] = r; page.results = o;
-                page.publish();
-            }
+        stdout: StdioCollector { id: readOut }
+        // The shell's own reader pattern: read the collector after exit, then
+        // start the next verb. Parsing in onStreamFinished raced the collector
+        // and lost rows for fast commands.
+        onExited: code => {
+            let r = {};
+            try { r = JSON.parse(readOut.text) || {}; } catch (e) { r = { error: Tr.t("This section could not be read") }; }
+            const o = Object.assign({}, page.results); o[reader.verb] = r; page.results = o;
+            page.publish();
+            page.next();
         }
-        // start the next read only after this one has exited: restarting a
-        // Process from onStreamFinished raced its collector and lost rows.
-        onExited: code => page.next()
     }
 
     SettingsSection {

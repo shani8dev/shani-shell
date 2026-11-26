@@ -64,6 +64,8 @@ shell already does them; reads stay with the user where possible.
 | `access.py` (passwordless sudo) | Privacy & security › Security | existing | `sudoers-set` writes the one drop-in `sudo` reads, with `visudo -c` before and after. |
 | `hosts_env.py` | Privacy & security › Security | extended | Hosts editing existed; added a read-only list of `environment.d` variables and the note that a change applies to new sessions. |
 | `setup.py` | Privacy & security › Users & groups | existing | First-account state is shown where accounts are managed. |
+| `userspace_crypto.py` | Privacy & security › Security | extended | Read-only list of fscrypt, gocryptfs and ecryptfs state; the Encryption page remains the block layer's, and these three are filesystem encryption. |
+| `tpm2_boot.py` | Privacy & security › Security | extended | Boot-time TOTP (`tpm2-totp`) is reported separately from sign-in TOTP; no secret is shown and the NV index is never read here. |
 
 ## 3. New admin and rare pages (read first, then one or two actions)
 

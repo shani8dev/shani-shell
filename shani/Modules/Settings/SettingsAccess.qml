@@ -30,21 +30,34 @@ ColumnLayout {
         keys: ["sshkeys", "totp"], kernel: ["lsm"]
     })
     property var results: ({})
-    property int i: -1
+    property int done: 0
     property bool busy: false
 
     onActiveChanged: if (active) load()
     Component.onCompleted: if (active) load()
 
-    function load() { page.i = -1; page.results = ({}); page.next(); }
-    function next() {
-        page.i++;
-        if (page.i >= page.verbs.length) { page.busy = false; page.publish(); return; }
+    function load() {
+        page.results = ({});
+        page.done = 0;
         page.busy = true;
-        reader.verb = page.verbs[page.i];
-        reader.command = ["python3", page.tool, reader.verb];
-        reader.running = false;
-        reader.running = true;
+        publish();
+        directoryProc.running = false; directoryProc.running = true;
+        kerberosProc.running = false; kerberosProc.running = true;
+        smartcardProc.running = false; smartcardProc.running = true;
+        privilegesProc.running = false; privilegesProc.running = true;
+        sudoersProc.running = false; sudoersProc.running = true;
+        sshdProc.running = false; sshdProc.running = true;
+        lsmProc.running = false; lsmProc.running = true;
+        sshkeysProc.running = false; sshkeysProc.running = true;
+        totpProc.running = false; totpProc.running = true;
+    }
+    function store(verb, text) {
+        let r = {};
+        try { r = JSON.parse(text) || {}; } catch (e) { r = { error: Tr.t("This section could not be read") }; }
+        const o = Object.assign({}, page.results); o[verb] = r; page.results = o;
+        page.done = page.done + 1;
+        if (page.done >= page.verbs.length) page.busy = false;
+        publish();
     }
     function yn(x) { return x ? Tr.t("yes") : Tr.t("no"); }
     function labelFor(v) {
@@ -141,19 +154,66 @@ ColumnLayout {
     }
 
     Process {
-        id: reader
-        property string verb: ""
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let r = {};
-                try { r = JSON.parse(text); } catch (e) { r = { error: Tr.t("This section could not be read") }; }
-                const o = Object.assign({}, page.results); o[reader.verb] = r; page.results = o;
-                page.publish();
-            }
-        }
-        // start the next read only after this one has exited: restarting a
-        // Process from onStreamFinished raced its collector and lost rows.
-        onExited: code => page.next()
+        id: directoryProc
+        command: ["python3", page.tool, "directory"]
+        stdout: StdioCollector { id: directoryOut }
+        onExited: code => page.store("directory", directoryOut.text)
+    }
+
+    Process {
+        id: kerberosProc
+        command: ["python3", page.tool, "kerberos"]
+        stdout: StdioCollector { id: kerberosOut }
+        onExited: code => page.store("kerberos", kerberosOut.text)
+    }
+
+    Process {
+        id: smartcardProc
+        command: ["python3", page.tool, "smartcard"]
+        stdout: StdioCollector { id: smartcardOut }
+        onExited: code => page.store("smartcard", smartcardOut.text)
+    }
+
+    Process {
+        id: privilegesProc
+        command: ["python3", page.tool, "privileges"]
+        stdout: StdioCollector { id: privilegesOut }
+        onExited: code => page.store("privileges", privilegesOut.text)
+    }
+
+    Process {
+        id: sudoersProc
+        command: ["python3", page.tool, "sudoers"]
+        stdout: StdioCollector { id: sudoersOut }
+        onExited: code => page.store("sudoers", sudoersOut.text)
+    }
+
+    Process {
+        id: sshdProc
+        command: ["python3", page.tool, "sshd"]
+        stdout: StdioCollector { id: sshdOut }
+        onExited: code => page.store("sshd", sshdOut.text)
+    }
+
+    Process {
+        id: lsmProc
+        command: ["python3", page.tool, "lsm"]
+        stdout: StdioCollector { id: lsmOut }
+        onExited: code => page.store("lsm", lsmOut.text)
+    }
+
+    Process {
+        id: sshkeysProc
+        command: ["python3", page.tool, "sshkeys"]
+        stdout: StdioCollector { id: sshkeysOut }
+        onExited: code => page.store("sshkeys", sshkeysOut.text)
+    }
+
+    Process {
+        id: totpProc
+        command: ["python3", page.tool, "totp"]
+        stdout: StdioCollector { id: totpOut }
+        onExited: code => page.store("totp", totpOut.text)
     }
 
     SettingsSection {

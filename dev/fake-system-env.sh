@@ -10,7 +10,7 @@ mkdir -p "$FS/bin-net" "$FS/bin-access" "$FS/bin-bg" "$FS/access" "$FS/virt" "$F
 for t in flatpak snap ostree lspci glxinfo; do ln -sf /work/dev/fake-system-info.py "$FS/bin-net/$t"; done
 ln -sf /work/dev/fake-system-info.py "$FS/bin-net/shani-etc-changes"
 for t in mdadm pvs vgs lvs btrfs compsize smartctl; do ln -sf /work/dev/fake-system-disks.py "$FS/bin-net/$t"; done
-for t in resolvectl ss avahi-browse caddy cloudflared; do ln -sf /work/dev/fake-system-net.py "$FS/bin-net/$t"; done
+for t in resolvectl systemctl ss avahi-browse caddy cloudflared; do ln -sf /work/dev/fake-system-net.py "$FS/bin-net/$t"; done
 for t in systemctl ssh-keygen; do ln -sf /work/dev/fake-system-access.py "$FS/bin-access/$t"; done
 for t in systemctl ausearch; do ln -sf /work/dev/fake-system-bg.py "$FS/bin-bg/$t"; done
 for t in virsh lxc lxd machinectl; do ln -sf /work/dev/fake-system-virt.py "$FS/bin-net/$t"; done

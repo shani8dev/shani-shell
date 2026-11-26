@@ -23,21 +23,30 @@ ColumnLayout {
     ]
     property var verbs: ["raid", "lvm", "btrfs", "compression", "smart"]
     property var results: ({})
-    property int i: -1
+    property int done: 0
     property bool busy: false
 
     onActiveChanged: if (active) load()
     Component.onCompleted: if (active) load()
 
-    function load() { page.i = -1; page.results = ({}); page.next(); }
-    function next() {
-        page.i++;
-        if (page.i >= page.verbs.length) { page.busy = false; page.publish(); return; }
+    function load() {
+        page.results = ({});
+        page.done = 0;
         page.busy = true;
-        reader.verb = page.verbs[page.i];
-        reader.command = ["python3", page.tool, reader.verb];
-        reader.running = false;
-        reader.running = true;
+        publish();
+        raidProc.running = false; raidProc.running = true;
+        lvmProc.running = false; lvmProc.running = true;
+        btrfsProc.running = false; btrfsProc.running = true;
+        compressionProc.running = false; compressionProc.running = true;
+        smartProc.running = false; smartProc.running = true;
+    }
+    function store(verb, text) {
+        let r = {};
+        try { r = JSON.parse(text) || {}; } catch (e) { r = { error: Tr.t("This section could not be read") }; }
+        const o = Object.assign({}, page.results); o[verb] = r; page.results = o;
+        page.done = page.done + 1;
+        if (page.done >= page.verbs.length) page.busy = false;
+        publish();
     }
     function publish() {
         const o = Object.assign({}, Ui.systemState || {});
@@ -73,19 +82,38 @@ ColumnLayout {
     }
 
     Process {
-        id: reader
-        property string verb: ""
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let r = {};
-                try { r = JSON.parse(text); } catch (e) { r = { error: Tr.t("This section could not be read") }; }
-                const o = Object.assign({}, page.results); o[reader.verb] = r; page.results = o;
-                page.publish();
-            }
-        }
-        // start the next read only after this one has exited: restarting a
-        // Process from onStreamFinished raced its collector and lost rows.
-        onExited: code => page.next()
+        id: raidProc
+        command: ["python3", page.tool, "raid"]
+        stdout: StdioCollector { id: raidOut }
+        onExited: code => page.store("raid", raidOut.text)
+    }
+
+    Process {
+        id: lvmProc
+        command: ["python3", page.tool, "lvm"]
+        stdout: StdioCollector { id: lvmOut }
+        onExited: code => page.store("lvm", lvmOut.text)
+    }
+
+    Process {
+        id: btrfsProc
+        command: ["python3", page.tool, "btrfs"]
+        stdout: StdioCollector { id: btrfsOut }
+        onExited: code => page.store("btrfs", btrfsOut.text)
+    }
+
+    Process {
+        id: compressionProc
+        command: ["python3", page.tool, "compression"]
+        stdout: StdioCollector { id: compressionOut }
+        onExited: code => page.store("compression", compressionOut.text)
+    }
+
+    Process {
+        id: smartProc
+        command: ["python3", page.tool, "smart"]
+        stdout: StdioCollector { id: smartOut }
+        onExited: code => page.store("smart", smartOut.text)
     }
 
     SettingsSection {
