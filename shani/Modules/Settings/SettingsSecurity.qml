@@ -24,6 +24,23 @@ ColumnLayout {
     property string sudoersNote: ""
     property bool sudoersNoteOk: false
     property bool sudoersBusy: false
+    // Parsed view of the same drop-in, beside the raw editor below.
+    readonly property string accessTool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_ACCESS_TOOL"), "system_access.py")
+    property var sudoersRows: []
+    property var sudoersOther: []
+    property var sudoersUnreadable: []
+    property var rowsSnapshot: []
+    // Grant form: every value has a click path; typing is only for a custom name.
+    property var commonCommands: ["ALL", "/usr/bin/systemctl", "/usr/bin/journalctl", "/usr/bin/mount", "/usr/bin/umount"]
+    property string selectedWho: "root"
+    property string customWho: ""
+    readonly property string grantWho: page.customWho.trim() !== "" ? page.customWho.trim() : page.selectedWho
+    property string grantRunas: "ALL"
+    property string grantTag: "PASSWD"
+    property var grantCommands: []
+    property string customCommand: ""
+    readonly property bool grantValid: page.whoError() === "" && page.commandError() === "" && page.grantCommands.length > 0
+    readonly property bool rowsAllowAll: page.sudoersRows.some(r => r && r.warning === "all_commands")
     property string aaNote: ""
     property bool aaBusy: false
     property bool auditdOn: false
@@ -66,6 +83,61 @@ ColumnLayout {
         const v = t.text.trim();
         return v !== "" && !/^\d+$/.test(v) ? Tr.t("Use a whole number") : "";
     }
+
+    // A refusal is printed as JSON on stdout by both helpers. Read the plain
+    // message instead of guessing a tone from the wording.
+    function errorFromJson(text) {
+        try { const d = JSON.parse(text); if (d && d.error) return String(d.error); } catch (e) {}
+        return "";
+    }
+    function knownAccounts() {
+        const acc = (Ui.systemState && Ui.systemState.access) || {};
+        const src = (acc.totp && acc.totp.users) || [];
+        const out = [];
+        for (const u of src) {
+            const n = u && u.user;
+            if (n && out.indexOf(n) < 0) out.push(n);
+        }
+        if (out.indexOf("root") < 0) out.unshift("root");
+        return out;
+    }
+    function runasOptions() {
+        const out = [{ label: Tr.t("Any user"), value: "ALL" }, { label: Tr.t("Root"), value: "root" }];
+        for (const n of page.knownAccounts())
+            if (n !== "root" && !out.some(o => o.value === n)) out.push({ label: n, value: n });
+        return out;
+    }
+    function whoError() {
+        return /^%?[A-Za-z0-9._-]{1,64}$/.test(page.grantWho)
+            ? "" : Tr.t("Use a plain account name, like alice. Start with % for a group.");
+    }
+    function commandError() {
+        const v = page.customCommand.trim();
+        if (v === "") return "";
+        const head = v.split(/\s+/)[0];
+        if (head !== "ALL" && !head.startsWith("/")) return Tr.t("Start with / or use ALL");
+        if (/[;|&$`\\\n\r]/.test(v)) return Tr.t("Do not use shell symbols in a command");
+        return "";
+    }
+    function toggleCommand(c) {
+        const a = page.grantCommands.slice();
+        const i = a.indexOf(c);
+        if (i >= 0) a.splice(i, 1); else a.push(c);
+        page.grantCommands = a;
+    }
+    function addCustomCommand() {
+        const c = page.customCommand.trim();
+        if (c === "" || page.commandError() !== "") return;
+        if (page.grantCommands.indexOf(c) < 0) {
+            const a = page.grantCommands.slice(); a.push(c); page.grantCommands = a;
+        }
+        page.customCommand = "";
+    }
+    function rowSubtitle(row) {
+        const r = row || {};
+        const tags = (r.tags || []).length ? (r.tags || []).join(" ") + " " : "";
+        return tags + (r.commands || []).join(", ");
+    }
     property bool pwValid: [minlen, difok, dcredit, ucredit, lcredit, ocredit].every(f => /^\s*$|^\d+$/.test(f.text))
 
     Process {
@@ -101,7 +173,12 @@ ColumnLayout {
         stdout: StdioCollector { id: hostsOut }
         stderr: StdioCollector { id: hostsErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.hostsBusy = false; page.hostsNoteOk = code === 0; page.hostsNote = code === 0 ? Tr.t("Hosts saved") : (hostsErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadHosts(); }
+        onExited: code => {
+            stdinEnabled = true; page.hostsBusy = false; page.hostsNoteOk = code === 0;
+            page.hostsNote = code === 0 ? Tr.t("Hosts saved")
+                : (page.errorFromJson(hostsOut.text) || hostsErr.text.trim().split("\n").pop() || Tr.t("Could not save"));
+            if (code === 0) page.loadHosts();
+        }
     }
     function saveHosts() { page.hostsBusy = true; page.hostsNote = ""; hostsSaveProc.payload = JSON.stringify({ text: page.hostsText }); hostsSaveProc.command = page.adminCmd.concat(["hosts-set"]); hostsSaveProc.running = true; }
 
@@ -188,14 +265,100 @@ ColumnLayout {
     Process { id: coredumpRead; command: ["sh","-c","f=/etc/systemd/coredump.conf.d/50-shani-shell.conf; [ -r \"$f\" ] && grep -v '^#' \"$f\" | grep '=' || true"]; stdout: StdioCollector { onStreamFinished: { const o={}; for (const l of text.split("\n")) { const m=l.match(/^([^=]+)=(.*)$/); if(m) o[m[1].trim()]=m[2].trim(); } page.coredump=o; } } }
     Process { id: coredumpSet; stdinEnabled: true; property string payload: ""; stderr: StdioCollector { id: coredumpErr } onStarted: { write(payload+"\n"); stdinEnabled=false; } onExited: code => { stdinEnabled=true; coredumpRead.running=false; coredumpRead.running=true; page.aaNote = code===0 ? Tr.t("Coredump settings saved") : (coredumpErr.text.trim().split("\n").pop()||Tr.t("Could not save")); } }
     function saveCoredump(key, value) { const o=Object.assign({}, page.coredump); o[key]=value; coredumpSet.payload=JSON.stringify({settings:o}); coredumpSet.command=page.adminCmd.concat(["coredump-set"]); coredumpSet.running=true; }
-    function loadSudoers() { sudoersRead.running = false; sudoersRead.running = true; }
+    // Structured read of the same drop-in. It never edits the raw editor; that
+    // path below stays available for hand-written rules.
+    Process {
+        id: sudoersParsedRead
+        command: ["python3", page.accessTool, "sudoers"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = {};
+                try { d = JSON.parse(text) || {}; } catch (e) {}
+                page.sudoersRows = Array.isArray(d.rows) ? d.rows : [];
+                page.sudoersOther = Array.isArray(d.other) ? d.other : [];
+                page.sudoersUnreadable = Array.isArray(d.unreadable) ? d.unreadable : [];
+            }
+        }
+    }
+    function loadSudoers() {
+        sudoersRead.running = false; sudoersRead.running = true;
+        sudoersParsedRead.running = false; sudoersParsedRead.running = true;
+    }
     Process {
         id: sudoersSaveProc; stdinEnabled: true; property string payload: ""
-        stdout: StdioCollector { } stderr: StdioCollector { id: sudoersErr }
+        stdout: StdioCollector { id: sudoersOut } stderr: StdioCollector { id: sudoersErr }
         onStarted: { write(payload + "\n"); stdinEnabled = false; }
-        onExited: code => { stdinEnabled = true; page.sudoersBusy = false; page.sudoersNoteOk = code === 0; page.sudoersNote = code === 0 ? Tr.t("Sudo rules saved") : (sudoersErr.text.trim().split("\n").pop() || Tr.t("Could not save")); if (code === 0) page.loadSudoers(); }
+        onExited: code => {
+            stdinEnabled = true; page.sudoersBusy = false; page.sudoersNoteOk = code === 0;
+            page.sudoersNote = code === 0 ? Tr.t("Sudo rules saved")
+                : (page.errorFromJson(sudoersOut.text) || sudoersErr.text.trim().split("\n").pop() || Tr.t("Could not save"));
+            if (page.formSaving) {
+                page.formSaving = false;
+                if (code !== 0) page.sudoersRows = page.rowsSnapshot;
+            }
+            if (code === 0) page.loadSudoers();
+        }
     }
-    function saveSudoers() { page.sudoersBusy = true; page.sudoersNote = ""; sudoersSaveProc.payload = JSON.stringify({ text: page.sudoersText }); sudoersSaveProc.command = page.adminCmd.concat(["sudoers-set"]); sudoersSaveProc.running = true; }
+    property bool formSaving: false
+    function saveSudoers() {
+        page.formSaving = false;
+        page.sudoersBusy = true; page.sudoersNote = "";
+        sudoersSaveProc.payload = JSON.stringify({ text: page.sudoersText });
+        sudoersSaveProc.command = page.adminCmd.concat(["sudoers-set"]);
+        sudoersSaveProc.running = true;
+    }
+    // Stage the whole rule list first: the bridge returns the exact text and
+    // its digest, which the privileged writer checks before touching the file.
+    Process {
+        id: sudoersStageProc; stdinEnabled: true; property string payload: ""
+        stdout: StdioCollector { id: sudoersStageOut }
+        stderr: StdioCollector { id: sudoersStageErr }
+        onStarted: { write(payload + "\n"); stdinEnabled = false; }
+        onExited: code => {
+            stdinEnabled = true;
+            const reason = page.errorFromJson(sudoersStageOut.text)
+                || sudoersStageErr.text.trim().split("\n").pop();
+            let d = {};
+            if (code === 0) { try { d = JSON.parse(sudoersStageOut.text) || {}; } catch (e) {} }
+            if (code !== 0 || d.refuse || d.error || !d.text || !d.sha256) {
+                page.sudoersBusy = false; page.formSaving = false;
+                page.sudoersRows = page.rowsSnapshot;
+                page.sudoersNoteOk = false;
+                page.sudoersNote = reason || (d.refuse ? String(d.refuse) : "") || d.error || Tr.t("Could not check the sudo rules");
+                return;
+            }
+            sudoersSaveProc.payload = JSON.stringify({ text: d.text, sha256: d.sha256 });
+            sudoersSaveProc.command = page.adminCmd.concat(["sudoers-set"]);
+            sudoersSaveProc.running = true;
+        }
+    }
+    function applyRows() {
+        page.rowsSnapshot = page.sudoersRows;
+        page.formSaving = true;
+        page.sudoersBusy = true; page.sudoersNote = "";
+        sudoersStageProc.payload = JSON.stringify({ rows: page.sudoersRows, other: page.sudoersOther });
+        sudoersStageProc.command = ["python3", page.accessTool, "sudoers-stage"];
+        sudoersStageProc.running = true;
+    }
+    function addRule() {
+        if (!page.grantValid) return;
+        const tags = page.grantTag === "NOPASSWD" ? ["NOPASSWD"] : [];
+        const cmds = page.grantCommands.slice();
+        const rows = page.sudoersRows.slice();
+        rows.push({ who: page.grantWho, runas: page.grantRunas, tags: tags, commands: cmds,
+            raw: "", nopasswd: tags.indexOf("NOPASSWD") >= 0,
+            warning: cmds.indexOf("ALL") >= 0 ? "all_commands" : "" });
+        page.sudoersRows = rows;
+        page.grantCommands = [];
+        page.applyRows();
+    }
+    function removeRow(i) {
+        const rows = page.sudoersRows.slice();
+        if (i < 0 || i >= rows.length) return;
+        rows.splice(i, 1);
+        page.sudoersRows = rows;
+        page.applyRows();
+    }
 
     Process {
         id: aaProc; stdinEnabled: true; property string payload: ""
@@ -489,6 +652,7 @@ ColumnLayout {
         Layout.fillWidth: true
         title: Tr.t("Hosts")
         Text { Layout.fillWidth: true; text: Tr.t("Static name mappings in /etc/hosts. Each line: IP address, then hostnames."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text { Layout.fillWidth: true; text: Tr.t("The addresses 127.0.0.1, 127.0.1.1 and ::1 are always kept."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: Theme.px(140)
             radius: Theme.radiusSmall; color: Theme.surface1; border.width: 1; border.color: hostsEdit.activeFocus ? Theme.accent : Theme.stroke
@@ -534,6 +698,166 @@ ColumnLayout {
             Item { Layout.fillWidth: true; visible: page.sudoersNote === "" }
             Button { text: Tr.t("Reload"); enabled: !page.sudoersBusy; onClicked: page.loadSudoers() }
             Button { text: Tr.t("Save sudo rules"); kind: "primary"; enabled: !page.sudoersBusy; busy: page.sudoersBusy; onClicked: page.saveSudoers() }
+        }
+
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Who can run commands as another user")
+        hint: Tr.t("Pick an account, who it may act as, and the commands it may run. The rule is written to the same sudo drop-in as the raw text above.")
+
+        BusyNote { Layout.fillWidth: true; visible: page.sudoersBusy; note: Tr.t("Checking and saving the sudo rules...") }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.sudoersNote !== ""
+            tone: page.sudoersNoteOk ? "ok" : "error"
+            text: page.sudoersNote
+        }
+        InfoBanner {
+            Layout.fillWidth: true
+            visible: page.rowsAllowAll
+            tone: "warn"
+            title: Tr.t("Some rules allow every command")
+            text: Tr.t("A rule marked All commands lets that account run anything. Remove it if only a few commands are needed.")
+        }
+
+        EmptyState {
+            Layout.fillWidth: true
+            visible: page.sudoersRows.length === 0 && !page.sudoersBusy
+            icon: "security-high"
+            title: Tr.t("No command rules yet")
+            subtitle: Tr.t("Add a rule below when someone needs to run a command as another user.")
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            visible: page.sudoersRows.length > 0
+            Repeater {
+                model: page.sudoersRows
+                ListRow {
+                    required property var modelData
+                    required property int index
+                    Layout.fillWidth: true
+                    interactive: false
+                    icon: "security-high"
+                    title: Tr.t("%1 may run as %2", modelData.who || "?", modelData.runas || Tr.t("any user"))
+                    subtitle: page.rowSubtitle(modelData)
+                    trailing: modelData.warning === "all_commands" ? Tr.t("All commands") : ""
+                    ConfirmButton {
+                        Accessible.name: Tr.t("Remove the rule for %1", modelData.who || "")
+                        implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                        implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                        text: Tr.t("Remove")
+                        armedText: Tr.t("Tap again to remove")
+                        kind: armed ? "danger" : "plain"
+                        interval: 4000
+                        enabled: !page.sudoersBusy
+                        onConfirmed: page.removeRow(index)
+                    }
+                }
+            }
+        }
+
+        Text { Layout.fillWidth: true; text: Tr.t("Lines this page does not manage are kept as they are."); color: Theme.dim; wrapMode: Text.Wrap; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        ColumnLayout {
+            Layout.fillWidth: true; spacing: Theme.px(2)
+            Repeater {
+                model: page.sudoersOther
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    visible: String(modelData).trim() !== ""
+                    interactive: false
+                    icon: "document-open-recent"
+                    title: Tr.t("Kept line")
+                    subtitle: String(modelData).trim()
+                }
+            }
+            Repeater {
+                model: page.sudoersUnreadable
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    visible: String(modelData).trim() !== ""
+                    interactive: false
+                    icon: "dialog-warning"
+                    title: Tr.t("Kept but not understood")
+                    subtitle: String(modelData).trim()
+                }
+            }
+        }
+
+        GridLayout {
+            Layout.fillWidth: true; columns: 2; columnSpacing: Theme.px(8); rowSpacing: Theme.px(6)
+            Text { text: Tr.t("Who"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            ColumnLayout {
+                Layout.fillWidth: true; spacing: Theme.px(6)
+                Picks {
+                    label: Tr.t("Known accounts")
+                    options: page.knownAccounts()
+                    current: page.selectedWho
+                    onPicked: v => { page.selectedWho = v; page.customWho = ""; }
+                }
+                TextField {
+                    id: grantWhoField
+                    Layout.fillWidth: true
+                    label: Tr.t("Or type an account name")
+                    placeholder: Tr.t("user name")
+                    text: page.customWho
+                    onTextChanged: page.customWho = text
+                    error: page.whoError()
+                }
+            }
+            Text { text: Tr.t("Run as"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Picks {
+                options: page.runasOptions()
+                current: page.grantRunas
+                onPicked: v => page.grantRunas = v
+            }
+            Text { text: Tr.t("Password"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Picks {
+                options: [{ label: Tr.t("Ask for a password"), value: "PASSWD" }, { label: Tr.t("Never ask"), value: "NOPASSWD" }]
+                current: page.grantTag
+                onPicked: v => page.grantTag = v
+            }
+            Text { text: Tr.t("Commands"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            ColumnLayout {
+                Layout.fillWidth: true; spacing: Theme.px(6)
+                Flow {
+                    Layout.fillWidth: true; spacing: Theme.px(6)
+                    Repeater {
+                        model: page.commonCommands
+                        Choice {
+                            required property string modelData
+                            columns: 3
+                            text: modelData
+                            selected: page.grantCommands.indexOf(modelData) >= 0
+                            Accessible.name: modelData === "ALL" ? Tr.t("Any command") : Tr.t("Command %1", modelData)
+                            onClicked: page.toggleCommand(modelData)
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: Theme.px(6)
+                    TextField {
+                        id: grantCommandField
+                        Layout.fillWidth: true
+                        label: Tr.t("Or type a command path")
+                        placeholder: Tr.t("/usr/bin/systemctl")
+                        text: page.customCommand
+                        onTextChanged: page.customCommand = text
+                        error: page.commandError()
+                        onAccepted: page.addCustomCommand()
+                    }
+                    Button { text: Tr.t("Add command"); enabled: page.customCommand.trim() !== "" && page.commandError() === ""; onClicked: page.addCustomCommand() }
+                }
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true; spacing: Theme.px(6)
+            Item { Layout.fillWidth: true }
+            Button { text: Tr.t("Add rule"); kind: "primary"; enabled: !page.sudoersBusy && page.grantValid; busy: page.sudoersBusy; onClicked: page.addRule() }
         }
 
     }

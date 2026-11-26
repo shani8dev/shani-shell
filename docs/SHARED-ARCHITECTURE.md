@@ -266,3 +266,10 @@ Add a line when you finish a piece (date, repo, what, commit).
   a null update check is no longer claimed as "up to date". Rejecting
   stand-ins, contract tests and a nested-shell live part cover each flow
   (a6639f0, 9ed59a0, 6c69c03).
+- 2026-11-26 shani-shell: inventory gaps 4-16; the privileged helper stages
+  content over stdin behind a SHA-256 expect, re-checks with sshd/visudo/
+  exportfs/testparm and rolls back, staging stays in GTK-free read bridges, and
+  the four Settings pages draw rows from them (f8f9c88, 7323209).
+- 2026-11-26 shani-shell: a strict stand-in backs each new OS-tool option in
+  `tests/test_os_cli_contract.py`, and `dev/shell-parts/access-sharing.sh`
+  drives the staged reads and writes in the nested shell.

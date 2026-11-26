@@ -19,6 +19,8 @@ import ast
 import os
 import re
 import shlex
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -46,9 +48,26 @@ COMMANDS = {
     "shani-cassini-save": "shani-cassini-save.sh",
 }
 
+# OS tools outside shani-deploy: their source is not beside this repo, so the
+# strict stand-in is the contract. A stand-in that accepted any argument would
+# hide a bad option exactly as the shani-deploy fakes once did (rule 5).
+EXTERNAL_COMMANDS = {
+    "sshd": "dev/fake-sshd.py",
+    "visudo": "dev/fake-visudo.py",
+    "exportfs": "dev/fake-exportfs.py",
+    "testparm": "dev/fake-testparm.py",
+    "pdbedit": "dev/fake-system-smb.py",
+    "pcsc_scan": "dev/fake-system-access.py",
+    "oathtool": "dev/fake-system-access.py",
+}
+ALL_COMMANDS = {**COMMANDS, **EXTERNAL_COMMANDS}
+
 
 def source_path(command):
     """The real parser's source, or None when this checkout is not beside us."""
+    if command in EXTERNAL_COMMANDS:
+        path = ROOT / EXTERNAL_COMMANDS[command]
+        return path if path.is_file() else None
     path = BACKUP_CLI if command == "shani-backup" else SCRIPTS / COMMANDS[command]
     return path if path.is_file() else None
 
@@ -61,7 +80,7 @@ def _head_name(node):
 
 
 def _command_in(text):
-    for name in COMMANDS:
+    for name in ALL_COMMANDS:
         if re.search(r"(^|[/\s])" + re.escape(name) + r"($|\s)", text):
             return name
     return None
@@ -174,6 +193,14 @@ def accepts(command, word):
     if path is None:
         pytest.skip(f"no {command} parser beside this repo")
     text = path.read_text(errors="ignore")
+    if command in EXTERNAL_COMMANDS:
+        # The stand-in's strict argv table names every option it will accept.
+        known = {
+            n.value
+            for n in ast.walk(ast.parse(text))
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+        }
+        return word in known
     if text.startswith("#!/usr/bin/env python") or text.startswith("#!/usr/bin/python"):
         return word in _argparse_words(text)
     # a bash case label: `--json)`, `-c|--cleanup)`, `tpm2-status)`
@@ -234,7 +261,7 @@ def test_a_made_up_backup_option_in_a_bridge_list_is_caught(tmp_path):
     assert not accepts("shani-backup", "--yes")
 
 
-@pytest.mark.parametrize("command", sorted(COMMANDS))
+@pytest.mark.parametrize("command", sorted(ALL_COMMANDS))
 def test_every_option_the_bridges_pass_is_accepted(command):
     if source_path(command) is None:
         pytest.skip(f"no {command} parser beside this repo")
@@ -247,3 +274,25 @@ def test_every_option_the_bridges_pass_is_accepted(command):
                 if not accepts(command, word):
                     wrong.append(f"{bridge}: {used} {word}")
     assert wrong == []
+
+
+@pytest.mark.parametrize("command", sorted(EXTERNAL_COMMANDS))
+def test_external_standin_rejects_an_option_the_real_tool_rejects(command, tmp_path):
+    path = source_path(command)
+    if path is None:
+        pytest.skip(f"no {command} stand-in")
+    env = dict(os.environ)
+    env["FAKE_SYSTEM_ACCESS"] = str(tmp_path)
+    env["FAKE_SYSTEM_NFS"] = str(tmp_path)
+    env["FAKE_SYSTEM_SMB"] = str(tmp_path)
+    # fake-system-access.py and the system-*-samba stand-ins pick their tool
+    # from argv[0], as the real tools are invoked by name.
+    runner = tmp_path / command
+    runner.symlink_to(path)
+    result = subprocess.run(
+        [sys.executable, str(runner), "--not-an-option-of-this-tool"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode != 0, f"{command} stand-in accepted a made-up option"
