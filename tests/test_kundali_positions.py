@@ -106,3 +106,15 @@ def test_ashtakavarga_has_every_planets_bindus(when):
     totals = {k: sum(v) for k, v in av["bhinna"].items()}
     assert totals == {"Sun": 48, "Moon": 49, "Mars": 39, "Mercury": 54, "Jupiter": 56, "Venus": 52, "Saturn": 39}
     assert sum(av["sarva"]) == 337 and sum(c["ashtakavarga"]["sarva"]) == 337
+
+
+def test_sade_sati_dates_span_the_whole_phase():
+    """A running phase reported its start as "now" (it searched one day back).
+    For an Aquarius Moon in November 2026 Saturn is in Pisces, the 2nd from the
+    Moon - the setting phase - from its ingress on 29 March 2025 to its move
+    into Aries on 2/3 June 2027 (Lahiri)."""
+    chart = a.compute_full_chart_v2("1990-01-01T06:30:00Z", 18.5204, 73.8567)
+    s = a.sade_sati(chart, "2026-11-26T12:00:00Z")
+    assert s["running"] and s["phase"] == "2nd" and s["phase_name"] == "setting"
+    assert s["start"].startswith("2025-03-2") or s["start"].startswith("2025-03-3"), s["start"]
+    assert s["end"].startswith("2027-06-0"), s["end"]

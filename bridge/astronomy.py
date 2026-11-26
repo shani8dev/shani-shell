@@ -4784,7 +4784,14 @@ def sade_sati(chart: dict, now: str | None = None) -> dict:
     saturn = _saturn_sidereal(jd)
     phase = sade_phase(moon_sign, saturn)
     if phase is not None:
-        low, high = jd - 1, jd
+        # step back a day at a time to where this phase began (it can be
+        # years ago), then bisect - searching only the last day gave "now"
+        back = jd
+        for _ in range(1300):
+            if sade_phase(moon_sign, _saturn_sidereal(back - 1)) != phase:
+                break
+            back -= 1
+        low, high = back - 1, back
         for _ in range(12):
             mid = (low + high) / 2
             if sade_phase(moon_sign, _saturn_sidereal(mid)) == phase:
@@ -4830,11 +4837,16 @@ def sade_sati(chart: dict, now: str | None = None) -> dict:
             {"phase": following, "start": _jd_to_iso(cursor), "end": _jd_to_iso(stop)}
         )
         cursor = stop
+    names = {"12th": "rising", "1st": "peak", "2nd": "setting"}
+    for p in phases:
+        p["name"] = names[p["phase"]]
     return {
         "moon_sign": SIGNS[moon_sign],
         "saturn_longitude": round(saturn, 4),
         "running": sade_phase(moon_sign, saturn) is not None,
+        # the house Saturn is in, counted from the Moon, and its plain name
         "phase": phase,
+        "phase_name": names.get(phase),
         "start": _jd_to_iso(start),
         "end": _jd_to_iso(end),
         "phases": phases,
