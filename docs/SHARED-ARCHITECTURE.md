@@ -150,7 +150,10 @@ ShaniOS's own (the backends' name is still open):
 - **The shared backends repo: name not decided yet** (to be a plain,
   descriptive, distro-neutral name). Written `<backends>` below; packages
   `<backends>-<domain>`, command `<backends> <domain> <action>`.
-- **`chronoa`** - the assistant (today `shani-chronoa`; to be renamed).
+- **`chrono-shell`** (Chrono Shell) - the desktop shell (today `shani-shell`;
+  to be renamed), and **`chronoa`** - the Chrono Assistant (today
+  `shani-chronoa`; to be renamed): one distro-neutral "Chrono" family
+  (decided 2026-11-26).
 - **ShaniOS extras** (`shani-*`): everything specific to ShaniOS, kept out of
   the neutral projects (below).
 - D-Bus/Varlink names move to the neutral names with the interface change
