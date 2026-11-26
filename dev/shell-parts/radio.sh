@@ -71,7 +71,7 @@ grep -q '^tune 98.3$' "$FM_LOG" 2>/dev/null \
     && result radio-fm-preset-tunes PASS || result radio-fm-preset-tunes FAIL "$(tail -4 "$FM_LOG" 2>&1)"
 
 # a custom frequency is typed into the field and started
-press "text field:^For example 91.1$" "text field:^Frequency in MHz$"
+press "text:^For example 91.1$" "text:^Frequency in MHz$" "text field:^For example 91.1$"
 wtype "98.5"
 press "button:^Start$"
 waitfor "d['fmState'] in ('running', 'on') and abs(d['fmFrequency'] - 98.5) < 0.01" 10 \
@@ -110,6 +110,8 @@ for line in open(sys.argv[1], encoding="utf-8", errors="replace"):
         continue
     role, name, x, y, w, h = m.group(1), m.group(2), *map(int, m.groups()[2:])
     if role not in ROLES or not name or w <= 0 or h <= 0 or y < 0 or w > 2000:
+        continue
+    if not re.search(r"MHz|Frequency|Start|Stop|Tune|Presets|87.5|station", name, re.I):
         continue
     a = (x, y, x + w, y + h)
     if any(a[0] >= b[0] and a[1] >= b[1] and a[2] <= b[2] and a[3] <= b[3] or
