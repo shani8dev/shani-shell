@@ -104,6 +104,16 @@ AppWindow {
     property string customPull: ""
     property bool useGpu: false
     property bool cdiReady: false
+    // ---- building an image from a Dockerfile, and browsing a container's files ----
+    property bool buildOpen: false
+    property string buildSource: ""
+    property string buildKind: "dir"       // "dir" or "file", from the picker used
+    property string buildTag: "my-app:latest"
+    property string customBuildTag: ""
+    property string filesOf: ""
+    property string browsePath: "/"
+    property var fileHistory: []
+    property var fileEntries: []
 
     // ---- LXD system containers ----
     property var lxdInstances: []
@@ -202,6 +212,8 @@ AppWindow {
                 }
                 if (win.removing !== "" && win.removing !== "__prune__" && !win.containers.some(c => c.name === win.removing))
                     win.removing = "";
+                if (win.filesOf !== "" && !win.containers.some(c => c.name === win.filesOf))
+                    win.closeFiles();
                 Ui.containersList = win.containers.map(c => (c.box ? "box:" : "") + c.name + ":" + c.state);
                 Ui.containersImages = win.images.map(i => i.name);
             }
@@ -449,6 +461,69 @@ AppWindow {
     function pickComposeFolder() {
         FilePicker.open({ mode: "open", title: Tr.t("A compose file"), filters: ["yaml", "yml"],
             onPicked: paths => { if (paths.length) win.composeFolder = paths[0].slice(0, paths[0].lastIndexOf("/")); } });
+    }
+    function pickBuildSource(kind) {
+        FilePicker.open(kind === "file"
+            ? { mode: "open", title: Tr.t("A Dockerfile"),
+                onPicked: paths => { if (paths.length) { win.buildSource = paths[0]; win.buildKind = "file"; } } }
+            : { mode: "folder", title: Tr.t("A folder with a Dockerfile"),
+                onPicked: paths => { if (paths.length) { win.buildSource = paths[0]; win.buildKind = "dir"; } } });
+    }
+    function buildImage() {
+        const tag = win.picked(win.buildTag, win.customBuildTag);
+        if (!tag || !win.buildSource) return;
+        win.startJob("build " + tag, ["image-build", tag, win.buildSource, win.buildKind]);
+    }
+    function loadFiles(path) {
+        const name = win.filesOf;
+        if (!name) return;
+        win.browsePath = path;
+        win.run(["container-files", name, path], r => {
+            if (win.filesOf === name) win.fileEntries = Array.isArray(r.entries) ? r.entries : [];
+        });
+    }
+    function browseFiles(name) {
+        if (win.filesOf === name) { win.closeFiles(); return; }
+        win.filesOf = name;
+        win.fileHistory = [];
+        win.loadFiles("/");
+    }
+    function closeFiles() {
+        win.filesOf = "";
+        win.browsePath = "/";
+        win.fileHistory = [];
+        win.fileEntries = [];
+    }
+    function childPath(entry) {
+        return win.browsePath === "/" ? "/" + entry.name : win.browsePath + "/" + entry.name;
+    }
+    function browseInto(entry) {
+        if (!entry.dir) return;
+        win.fileHistory = win.fileHistory.concat([win.browsePath]);
+        win.loadFiles(win.childPath(entry));
+    }
+    function browseUp() {
+        const i = win.browsePath.lastIndexOf("/");
+        const parent = i <= 0 ? "/" : win.browsePath.slice(0, i);
+        if (parent === win.browsePath) return;
+        win.fileHistory = win.fileHistory.concat([win.browsePath]);
+        win.loadFiles(parent);
+    }
+    function browseBack() {
+        if (!win.fileHistory.length) return;
+        const path = win.fileHistory[win.fileHistory.length - 1];
+        win.fileHistory = win.fileHistory.slice(0, -1);
+        win.loadFiles(path);
+    }
+    function copyFileOut(entry) {
+        const name = win.filesOf;
+        const src = win.childPath(entry);
+        FilePicker.open({ mode: "save", defaultName: entry.name, title: Tr.t("Where to save %1", entry.name),
+            onPicked: paths => {
+                if (paths.length) win.run(["container-file-copy", name, src, paths[0]], r => {
+                    if (r.ok) win.note = Tr.t("Copied %1 to %2", entry.name, paths[0]);
+                });
+            } });
     }
     function composeAction(verb) {
         if (!win.composeFolder) return;
@@ -945,6 +1020,11 @@ AppWindow {
                     IconButton { icon: "text-x-generic"; size: Theme.px(26); tip: Tr.t("Logs"); onClicked: win.showLogs(crow.modelData.name) }
                     IconButton { icon: "document-properties"; size: Theme.px(26); tip: Tr.t("Inspect"); onClicked: win.inspect(crow.modelData.name) }
                     IconButton { icon: "utilities-terminal"; size: Theme.px(26); tip: Tr.t("Open a shell"); onClicked: win.shellInto(crow.modelData.name) }
+                    IconButton {
+                        visible: crow.up
+                        icon: "folder"; size: Theme.px(26); tip: Tr.t("Browse its files")
+                        onClicked: win.browseFiles(crow.modelData.name)
+                    }
                     Button {
                         text: Tr.t("More"); checked: win.moreOf === crow.modelData.name
                         onClicked: win.moreOf = win.moreOf === crow.modelData.name ? "" : crow.modelData.name
@@ -1088,7 +1168,140 @@ AppWindow {
             }
         }
 
+        // ---- the running container's files ----
+        Rectangle {
+            visible: win.tab === "containers" && win.filesOf !== ""
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.px(190)
+            color: Theme.card
+            radius: Theme.px(6)
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.px(8)
+                spacing: Theme.px(4)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    IconButton {
+                        icon: "go-previous"; size: Theme.px(24); tip: Tr.t("Back")
+                        enabled: win.fileHistory.length > 0; onClicked: win.browseBack()
+                    }
+                    IconButton {
+                        icon: "go-up"; size: Theme.px(24); tip: Tr.t("Up")
+                        enabled: win.browsePath !== "/"; onClicked: win.browseUp()
+                    }
+                    Text {
+                        Layout.fillWidth: true; elide: Text.ElideMiddle
+                        text: win.filesOf + ": " + win.browsePath
+                        color: Theme.text; font.family: Theme.mono; font.pixelSize: Theme.type("small")
+                    }
+                    IconButton { icon: "window-close"; size: Theme.px(24); tip: Tr.t("Close the file list"); onClicked: win.closeFiles() }
+                }
+                ListView {
+                    id: flist
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: 2
+                    model: win.fileEntries
+                    delegate: RowLayout {
+                        required property var modelData
+                        width: flist.width
+                        spacing: Theme.px(8)
+                        Icon { name: modelData.dir ? "folder" : "text-x-generic"; size: Theme.px(20); color: Theme.dim }
+                        Text {
+                            Layout.fillWidth: true; elide: Text.ElideRight
+                            text: modelData.name
+                            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body")
+                        }
+                        Text {
+                            visible: !modelData.dir
+                            text: win.size(modelData.size || 0)
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
+                        }
+                        Button {
+                            visible: modelData.dir
+                            text: Tr.t("Enter")
+                            Accessible.name: Tr.t("Enter folder %1", modelData.name)
+                            onClicked: win.browseInto(modelData)
+                        }
+                        Button {
+                            visible: !modelData.dir
+                            text: Tr.t("Copy out")
+                            Accessible.name: Tr.t("Copy out %1", modelData.name)
+                            onClicked: win.copyFileOut(modelData)
+                        }
+                    }
+                }
+                Text {
+                    visible: win.fileEntries.length === 0 && !act.running
+                    Layout.fillWidth: true
+                    text: Tr.t("Nothing in this folder")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
+                }
+            }
+        }
+
         // ---- images ----
+        RowLayout {
+            visible: win.tab === "images" && win.hasPodman
+            Layout.fillWidth: true
+            Button {
+                text: win.buildOpen ? Tr.t("Hide the build form") : Tr.t("Build from a file")
+                checked: win.buildOpen
+                onClicked: win.buildOpen = !win.buildOpen
+            }
+            Item { Layout.fillWidth: true }
+        }
+        ColumnLayout {
+            visible: win.tab === "images" && win.buildOpen && win.hasPodman
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: Tr.t("Make an image from a Dockerfile in a folder you pick, or from a Dockerfile file.")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                Text {
+                    Layout.fillWidth: true; elide: Text.ElideMiddle
+                    text: win.buildSource !== "" ? win.buildSource : Tr.t("No Dockerfile picked yet")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
+                }
+                Button { text: Tr.t("Pick a folder"); onClicked: win.pickBuildSource("dir") }
+                Button { text: Tr.t("Pick a Dockerfile"); onClicked: win.pickBuildSource("file") }
+            }
+            Picks {
+                label: Tr.t("Name for the image")
+                options: ["my-app:latest", "my-app:1", { label: Tr.t("Your own…"), value: "custom" }]
+                current: win.buildTag
+                onPicked: v => win.buildTag = v
+            }
+            TextField {
+                visible: win.buildTag === "custom"
+                Layout.fillWidth: true
+                label: Tr.t("An image name, like my-app:1")
+                text: win.customBuildTag
+                onTextChanged: win.customBuildTag = text
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button {
+                    kind: "primary"
+                    text: Tr.t("Build image")
+                    enabled: win.buildSource !== "" && win.picked(win.buildTag, win.customBuildTag) !== "" && !job.running
+                    onClicked: win.buildImage()
+                }
+            }
+            BusyNote {
+                visible: job.running && job.what.indexOf("build ") === 0
+                Layout.fillWidth: true
+                note: win.jobLine || Tr.t("Working…")
+            }
+        }
         ColumnLayout {
             visible: win.tab === "images" && win.hasPodman
             Layout.fillWidth: true

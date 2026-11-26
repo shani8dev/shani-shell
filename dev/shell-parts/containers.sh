@@ -11,6 +11,8 @@ rm -f /tmp/fake-apptainer/*.json /tmp/fake-apptainer/calls /tmp/fake-apptainer/e
 rm -f /tmp/fake-virsh/*.json /tmp/fake-virsh/calls /tmp/fake-virsh/errors /tmp/fake-virsh/undefined
 rm -f /tmp/fake-waydroid/*.json /tmp/fake-waydroid/calls /tmp/fake-waydroid/errors /tmp/fake-waydroid/notinitialised
 rm -f /tmp/fake-compose/*.json /tmp/fake-compose/calls /tmp/fake-compose/errors /tmp/fake-compose/compose
+mkdir -p /tmp/container-build
+printf 'FROM alpine\nCOPY . /app\n' > /tmp/container-build/Dockerfile
 SHANI_QS_CONFIG=/work/shani python3 /work/bin/shani app containers >/dev/null 2>&1
 waitfor "d['containersShown'] and 'box:' not in ' '.join(d['containersList']) and 'web:running' in d['containersList']" 8 && result containers-listed PASS || result containers-listed FAIL "$(q "['containersShown'], d['containersList']")"
 shot app-containers 0.3
@@ -67,6 +69,38 @@ if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" press "button:^Resume$" >/dev/null 2>&1
     waitfor "'app:running' in d['containersList']" 8 && result containers-resume PASS || result containers-resume FAIL "$(q "['containersList']")"
 
+    # the running app container's files: list, enter a folder, up, back, copy out
+    timeout 20 python3 "$A11Y" press "button:^Browse its files$" >/dev/null 2>&1
+    sleep 1.0
+    shot app-containers-files 0.4
+    timeout 20 python3 "$A11Y" actionable 2>/dev/null | grep -q "Copy out notes.txt" \
+        && result containers-files-listed PASS || result containers-files-listed FAIL "$(timeout 20 python3 "$A11Y" actionable 2>/dev/null | grep -i -E 'copy|browse|folder' | head -12)"
+    timeout 20 python3 "$A11Y" press "button:^Enter folder docs$" >/dev/null 2>&1
+    sleep 0.6
+    grep -q -- "podman exec app ls -lA /docs" /tmp/fake-podman/calls \
+        && result containers-files-enter PASS || result containers-files-enter FAIL "$(tail -5 /tmp/fake-podman/calls)"
+    nup=$(grep -c -- "podman exec app ls -lA /$" /tmp/fake-podman/calls || true)
+    timeout 20 python3 "$A11Y" press "button:^Up$" >/dev/null 2>&1
+    sleep 0.6
+    [ "$(grep -c -- "podman exec app ls -lA /$" /tmp/fake-podman/calls)" -gt "$nup" ] \
+        && result containers-files-up PASS || result containers-files-up FAIL "$(tail -5 /tmp/fake-podman/calls)"
+    nback=$(grep -c -- "podman exec app ls -lA /docs" /tmp/fake-podman/calls || true)
+    timeout 20 python3 "$A11Y" press "button:^Back$" >/dev/null 2>&1
+    sleep 0.6
+    [ "$(grep -c -- "podman exec app ls -lA /docs" /tmp/fake-podman/calls)" -gt "$nback" ] \
+        && result containers-files-back PASS || result containers-files-back FAIL "$(tail -5 /tmp/fake-podman/calls)"
+    rm -f /tmp/notes.txt
+    timeout 20 python3 "$A11Y" press "button:^Up$" >/dev/null 2>&1
+    sleep 0.5
+    timeout 20 python3 "$A11Y" press "button:^Copy out notes.txt$" >/dev/null 2>&1
+    waitfor "d['pickerShown']" 6
+    ipc filePickerGo /tmp
+    ipc filePickerAccept
+    sleep 0.8
+    grep -q -- "podman cp app:/notes.txt /tmp/notes.txt" /tmp/fake-podman/calls \
+        && result containers-file-copy PASS || result containers-file-copy FAIL "$(tail -5 /tmp/fake-podman/calls)"
+    timeout 20 python3 "$A11Y" press "button:^Close the file list$" >/dev/null 2>&1
+
     # registry search, fetch, pods and volumes
     timeout 20 python3 "$A11Y" press "radio button:^Images$" >/dev/null 2>&1
     sleep 0.4
@@ -74,6 +108,34 @@ if [ -f "$A11Y" ]; then
     waitfor "len(d['containersSearch']) >= 2" 8 && result containers-search PASS || result containers-search FAIL "$(q "['containersSearch']")"
     timeout 20 python3 "$A11Y" press "button:^Fetch$" >/dev/null 2>&1
     waitfor "d['containersDone'].startswith('pull ')" 8 && grep -q -- "podman pull " /tmp/fake-podman/calls && result containers-pull PASS || result containers-pull FAIL "$(q "['containersDone']")"
+
+    # build an image from a folder, then from a picked Dockerfile
+    timeout 20 python3 "$A11Y" press "button:^Build from a file$" >/dev/null 2>&1
+    shot app-containers-build 0.4
+    sleep 0.3
+    timeout 20 python3 "$A11Y" press "button:^Pick a folder$" >/dev/null 2>&1
+    waitfor "d['pickerShown']" 6
+    ipc filePickerGo /tmp/container-build
+    ipc filePickerAccept
+    sleep 0.4
+    timeout 20 python3 "$A11Y" press "button:^Build image$" >/dev/null 2>&1
+    waitfor "d['containersDone'] == 'build my-app:latest:ok'" 15 && \
+        grep -q -- "podman build -t my-app:latest /tmp/container-build" /tmp/fake-podman/calls \
+        && result containers-build PASS || result containers-build FAIL "$(q "['containersDone']") $(grep build /tmp/fake-podman/calls | tail -3)"
+    timeout 20 python3 "$A11Y" press "button:^Pick a Dockerfile$" >/dev/null 2>&1
+    waitfor "d['pickerShown']" 6
+    ipc filePickerSelect /tmp/container-build/Dockerfile
+    ipc filePickerAccept
+    sleep 0.4
+    for _try in 1 2 3 4 5 6; do
+        timeout 20 python3 "$A11Y" press "button:^Build image$" >/dev/null 2>&1
+        sleep 0.5
+        grep -q -- "podman build -t my-app:latest -f /tmp/container-build/Dockerfile /tmp/container-build" /tmp/fake-podman/calls && break
+    done
+    grep -q -- "podman build -t my-app:latest -f /tmp/container-build/Dockerfile /tmp/container-build" /tmp/fake-podman/calls \
+        && result containers-build-file PASS || result containers-build-file FAIL "$(grep build /tmp/fake-podman/calls | tail -3)"
+    shot app-containers-build-done 0.3
+
     timeout 20 python3 "$A11Y" press "radio button:^Pods$" >/dev/null 2>&1
     shot app-containers-pods 0.3
     waitfor "any('webpod' in x for x in d['containersPods'])" 8 && result containers-pods-listed PASS || result containers-pods-listed FAIL "$(q "['containersPods']")"
