@@ -16,8 +16,9 @@ bridges them to the shell over a unix socket (one JSON object per line).
 
 The shell -> bridge side also carries the turn stream Chronoa now implements
 (`dev.shani.chronoa.Agent`, owned by `shani-chronoa.agent_service`):
-Turn(text) -> id, Approve(id, decision), Event(json) signal. When the name is
-absent the bridge falls back to Gateways.Submit and says so.
+Turn(text) -> id, Approve(id, decision), Event(json) signal, plus the read-only
+Inventory(section) -> json for shell panels. When the name is absent the bridge
+falls back to Gateways.Submit for a question and says so.
 """
 
 from __future__ import annotations
@@ -210,6 +211,22 @@ def has_owner(name: str) -> bool:
         return False
 
 
+def short_error(exc: Exception) -> str:
+    """GLib's "GDBus.Error:name: message (36)" cut down to what a person reads."""
+    msg = str(exc)
+    if "GDBus.Error" in msg:
+        msg = re.sub(r"\s*\(\d+\)$", "", msg.split(": ", 1)[-1])
+    return msg
+
+
+def inventory_limit(value) -> int:
+    """A panel is a summary, never an unbounded dump of an engine store."""
+    try:
+        return max(1, min(int(value), 100))
+    except (TypeError, ValueError, OverflowError):
+        return 100
+
+
 # ---- shell -> Chronoa ----------------------------------------------------
 
 
@@ -247,6 +264,17 @@ def handle_request(msg: dict) -> None:
         threading.Thread(
             target=write,
             args=(msg.get("id", ""), msg.get("instruction", ""), msg.get("text", "")),
+            daemon=True,
+        ).start()
+    elif op == "inventory":
+        # read-only facts for one shell panel, ID-correlated like write/findfiles
+        threading.Thread(
+            target=inventory,
+            args=(
+                msg.get("id", ""),
+                msg.get("section", ""),
+                msg.get("limit", 100),
+            ),
             daemon=True,
         ).start()
     elif op == "release-sleep":
@@ -323,13 +351,65 @@ def write(req_id: str, instruction: str, text: str) -> None:
         )
         broadcast({"type": "written", "id": req_id, "text": r.unpack()[0]})
     except Exception as exc:
-        msg = str(exc)
-        # GLib's "GDBus.Error:name: message" - the message is what a person reads
-        if "GDBus.Error" in msg:
-            msg = re.sub(
-                r"\s*\(\d+\)$", "", msg.split(": ", 1)[-1]
-            )  # GLib's "... (36)" code
-        broadcast({"type": "written", "id": req_id, "error": msg})
+        broadcast({"type": "written", "id": req_id, "error": short_error(exc)})
+
+
+def inventory(req_id: str, section: str, limit=100) -> None:
+    """Agent.Inventory: one bounded section of read-only facts for a panel.
+
+    The engine owns the section names and the JSON shape; the bridge owns the
+    ID correlation and the cap, so a shell cannot ask for an unbounded dump.
+    No Agent on the bus is a plain message, never a traceback.
+    """
+    section = str(section or "")
+    cap = inventory_limit(limit)
+    if not has_owner(AGENT_NAME):
+        broadcast(
+            {
+                "type": "inventory",
+                "id": req_id,
+                "section": section,
+                "error": "Chronoa is not running",
+                "items": [],
+            }
+        )
+        return
+    try:
+        r = call(
+            AGENT_NAME,
+            AGENT_PATH,
+            AGENT_IFACE,
+            "Inventory",
+            GLib.Variant("(s)", (section,)),
+            timeout=8000,
+        )
+        data = json.loads(r.unpack()[0])
+        if not isinstance(data, dict):
+            raise ValueError("Inventory did not return a JSON object")
+        reply = {
+            "type": "inventory",
+            "id": req_id,
+            "section": data.get("section", section),
+        }
+        if data.get("error"):
+            reply["error"] = str(data["error"])
+            reply["items"] = []
+            if "allowed" in data:
+                reply["allowed"] = data["allowed"]
+        else:
+            items = data.get("items", [])
+            reply["items"] = items[:cap] if isinstance(items, list) else items
+        broadcast(reply)
+    except Exception as exc:
+        broadcast(
+            {
+                "type": "inventory",
+                "id": req_id,
+                "section": section,
+                "error": short_error(exc),
+                "items": [],
+            }
+        )
 
 
 def find_files(req_id: str, query: str) -> None:
@@ -537,14 +617,16 @@ def main() -> int:
         except FileNotFoundError:
             pass
 
-    server = Server(SOCK, Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    os.chmod(SOCK, 0o600)
-
     main_loop = GLib.MainLoop()
 
     connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
     conn_holder["conn"] = connection
+
+    # Only open the socket once D-Bus is ready: a client that connects on the
+    # first millisecond must not find has_owner() without a connection.
+    server = Server(SOCK, Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    os.chmod(SOCK, 0o600)
 
     connection.register_object(
         MASCOT_PATH,

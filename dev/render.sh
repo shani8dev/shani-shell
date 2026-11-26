@@ -116,6 +116,7 @@ teardown() {
     pkill -f 'qs -c shani' 2>/dev/null || true
     pkill -f 'chronoa-bridge.py' 2>/dev/null || true
     pkill -f 'mock-chronoa.py' 2>/dev/null || true
+    pkill -f 'fake-chronoa-agent.py' 2>/dev/null || true
     pkill -f 'shani-setup' 2>/dev/null || true
     pkill -f 'fake-greetd.py' 2>/dev/null || true
     pkill -f 'fake-modem.py' 2>/dev/null || true
