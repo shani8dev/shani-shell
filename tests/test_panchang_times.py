@@ -174,6 +174,40 @@ def test_abhijit_and_brahma_muhurta_follow_their_rules():
     assert brahma["auspicious"] is True
 
 
+@pytest.mark.parametrize(
+    "offset", range(7), ids=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+)
+def test_choghadiya_and_hora_sequences_follow_the_weekday_orders(offset):
+    d = date(2026, 10, 19) + timedelta(days=offset)
+    result = compute(d.isoformat(), 18.5204, 73.8567, "Asia/Kolkata")
+    weekday = (d.weekday() + 1) % 7
+    for part, first in (
+        ("day", pt._CHOG_DAY_START[weekday]),
+        ("night", pt._CHOG_NIGHT_START[weekday]),
+    ):
+        periods = result["choghadiya"][part]
+        expected = [
+            pt._CHOG_CYCLE[(pt._CHOG_CYCLE.index(first) + i) % 7] for i in range(8)
+        ]
+        assert [p["name"] for p in periods] == expected
+        assert all(p["nature"] == pt._CHOG_NATURE[p["name"]] for p in periods)
+        assert all(periods[i]["end"] == periods[i + 1]["start"] for i in range(7))
+    assert result["choghadiya"]["day"][0]["start"] == result["sun"]["sunrise"]
+    assert result["choghadiya"]["night"][0]["start"] == result["sun"]["sunset"]
+
+    horas = result["horas"]
+    assert len(horas) == 24
+    first_lord = pt._DAY_LORD[weekday]
+    index = pt._CHALDEAN.index(first_lord)
+    assert [h["lord"] for h in horas] == [
+        pt._CHALDEAN[(index + i) % 7] for i in range(24)
+    ]
+    assert horas[0]["start"] == result["sun"]["sunrise"]
+    assert horas[12]["start"] == result["sun"]["sunset"]
+    assert horas[0]["lord"] == first_lord
+    assert all(horas[i]["end"] == horas[i + 1]["start"] for i in range(23))
+
+
 def test_cli_prints_one_json_object_and_errors_without_traceback():
     script = str(ROOT / "bridge" / "panchang_times.py")
     good = subprocess.run(

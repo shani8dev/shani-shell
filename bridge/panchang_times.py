@@ -88,16 +88,7 @@ _CHOG_NATURE = {
 
 # Chaldean order, slowest first; each planetary hour moves one step on.
 _CHALDEAN = ("Saturn", "Jupiter", "Mars", "Sun", "Venus", "Mercury", "Moon")
-_DAY_LORD = {
-    0: "Sun",
-    1: "Moon",
-    2: "Mars",
-    3: "Mercury",
-    4: "Jupiter",
-    5: "Venus",
-    6: "Saturday",
-}  # Saturday fixed below
-_DAY_LORD[6] = "Saturn"
+_DAY_LORD = ("Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn")
 
 # Meeus, Astronomical Algorithms, table 47.B: the largest terms of the
 # Moon's ecliptic latitude (coefficient in degrees, D, M, M', F multiples).
@@ -435,6 +426,75 @@ def _muhurtas(
     return result
 
 
+def _following_sunrise(sunset: datetime, lat: float, lon: float) -> datetime:
+    """Next sunrise after sunset, for the night's length and its periods."""
+    crossings = _crossings(
+        sunset + timedelta(hours=1),
+        sunset + timedelta(hours=30),
+        lat,
+        lon,
+        SUN_H0,
+        "sun",
+    )
+    return next(
+        (t for t, kind in crossings if kind == "rise"), sunset + timedelta(days=1)
+    )
+
+
+def _choghadiya(
+    sunrise: datetime,
+    sunset: datetime,
+    night_end: datetime,
+    zone: ZoneInfo,
+    day: date_type,
+    weekday: int,
+) -> dict:
+    def periods(begin: datetime, end: datetime, first: str) -> list[dict]:
+        index = _CHOG_CYCLE.index(first)
+        length = (end - begin) / 8
+        return [
+            {
+                "name": _CHOG_CYCLE[(index + i) % 7],
+                "start": _clock(begin + i * length, zone, day),
+                "end": _clock(begin + (i + 1) * length, zone, day),
+                "nature": _CHOG_NATURE[_CHOG_CYCLE[(index + i) % 7]],
+            }
+            for i in range(8)
+        ]
+
+    return {
+        "day": periods(sunrise, sunset, _CHOG_DAY_START[weekday]),
+        "night": periods(sunset, night_end, _CHOG_NIGHT_START[weekday]),
+    }
+
+
+def _horas(
+    sunrise: datetime,
+    sunset: datetime,
+    night_end: datetime,
+    zone: ZoneInfo,
+    day: date_type,
+    weekday: int,
+) -> list[dict]:
+    day_length = (sunset - sunrise) / 12
+    night_length = (night_end - sunset) / 12
+    first = _CHALDEAN.index(_DAY_LORD[weekday])
+    result = []
+    for i in range(24):
+        if i < 12:
+            begin, length = sunrise + i * day_length, day_length
+        else:
+            begin, length = sunset + (i - 12) * night_length, night_length
+        result.append(
+            {
+                "lord": _CHALDEAN[(first + i) % 7],
+                "start": _clock(begin, zone, day),
+                "end": _clock(begin + length, zone, day),
+            }
+        )
+    return result
+
+
 def _rise_set(
     day: date_type, lat: float, lon: float, zone: ZoneInfo
 ) -> tuple[dict, dict, dict, dict]:
@@ -478,6 +538,13 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
     if not -90 <= lat <= 90 or not -180 <= lon <= 180:
         raise ValueError("latitude must be -90..90 and longitude -180..180")
     sun, moon, sunrise, sunset = _rise_set(day, lat, lon, zone)
+    weekday = (day.weekday() + 1) % 7  # Sunday = 0
+    if sunrise and sunset:
+        night_end = _following_sunrise(sunset, lat, lon)
+        choghadiya = _choghadiya(sunrise, sunset, night_end, zone, day, weekday)
+        horas = _horas(sunrise, sunset, night_end, zone, day, weekday)
+    else:
+        choghadiya, horas = {}, []
     return {
         "date": day.isoformat(),
         "place": {"latitude": lat, "longitude": lon, "timezone": zone_name},
@@ -485,8 +552,8 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
         "moon": moon,
         "limbs": _limbs(sunrise, zone, day),
         "muhurtas": _muhurtas(sunrise, sunset, zone, day),
-        "choghadiya": {},
-        "horas": [],
+        "choghadiya": choghadiya,
+        "horas": horas,
         "month": {},
         "illumination": {},
     }
