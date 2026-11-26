@@ -275,7 +275,7 @@ def test_send_state_reports_sending_sent_and_error_without_inventing_receipts():
     assert "root.lastSend = { thread: root.openThread, text: t };" in send
     sent = block(s, '} else if (what === "send") {', '} else if (what === "dial")')
     assert 'root.sendState = data && data.error ? "error" : "sent";' in sent
-    assert "not exposed by MAP or KDE Connect" in sent
+    assert "not exposed by every phone link" in sent
     assert 'Tr.t("Sending…")' in w and 'Tr.t("Sent")' in w
     assert 'Tr.t("Not sent — tap Send to retry")' in w
 
