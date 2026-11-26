@@ -59,7 +59,7 @@ shot() { sleep "${2:-0.8}"; grim "$SHOTS/$1.png" 2>/dev/null || true; }   # a mi
 # (the dock's pins: the dev image's own Nautilus and GNOME Text Editor, whose
 # jump lists and launcher entries the dock checks use)
 settings() {
-    python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0,"startHintsDone":True,"dynamicLockGrace":1500,"dockPinned":["org.gnome.Nautilus","com.vivaldi.Vivaldi","foot","dev.shani.cassini","shani-chronoa","org.gnome.TextEditor"]}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"
+    python3 -c 'import json,sys; d={"dimAfter":0,"lockAfter":0,"screenOffAfter":0,"lockAfterBattery":0,"screenOffAfterBattery":0,"startHintsDone":True,"dynamicLockGrace":1500,"dockPinned":["org.gnome.Nautilus","com.vivaldi.Vivaldi","foot","shani-chronoa","org.gnome.TextEditor"]}; d.update(json.loads(sys.argv[1])); print(json.dumps(d), end="")' "$1" > "$SHANI_SHELL_SETTINGS"
     sleep 1.5
 }
 

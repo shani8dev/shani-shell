@@ -1,7 +1,7 @@
 # sourced by dev/shell-test.sh (or alone: sh dev/check.sh shell=updates)
 # ---- Settings > Updates: the channel, what is running, what is offered, and
 #      what is waiting - read from `shani-deploy --status --check --json` by
-#      Services/Updates.qml, the same contract Cassini reads. Installing stays
+#      Services/Updates.qml, the same contract the shell's pages read. Installing stays
 #      with shani-deploy and authorisation.
 #
 # There is no shani-deploy in the dev image, so a stand-in answers the read and

@@ -59,7 +59,7 @@ NAMES = {
     "tr": "Turkish",
     "en": "English",
 }
-KEEP = "Chronoa, Cassini, ShaniOS, Wi-Fi, Bluetooth, VPN, QR, USB, KDE Connect, Tailscale, UEFI, Miracast"
+KEEP = "Chronoa, ShaniOS, Wi-Fi, Bluetooth, VPN, QR, USB, KDE Connect, Tailscale, UEFI, Miracast"
 BATCH = 25
 
 

@@ -84,6 +84,43 @@ ColumnLayout {
         }
     }
 
+    // At a glance: the three facts people ask about first, then a way in to
+    // the full health page. The detail stays below, where it already was.
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("At a glance")
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.px(2)
+            ListRow {
+                Layout.fillWidth: true
+                icon: "computer"
+                title: Updates.version || Tr.t("This system")
+                subtitle: [Updates.slot ? Tr.t("slot %1", Updates.slot) : "",
+                           Updates.channel === "latest" ? Tr.t("latest channel") : Tr.t("stable channel")].filter(x => x).join("  ·  ")
+            }
+            ListRow {
+                Layout.fillWidth: true
+                icon: page.checks.length && page.passedChecks === page.checks.length ? "dialog-ok" : "dialog-warning"
+                title: Tr.t("System health")
+                subtitle: page.checks.length
+                    ? Tr.t("%1 of %2 checks passed", page.passedChecks, page.checks.length)
+                    : Tr.t("No checks have run yet")
+                trailing: "›"
+                onClicked: { Ui.closeAll(); Ui.settingsCat = "health"; }
+            }
+            ListRow {
+                Layout.fillWidth: true
+                icon: "firmware"
+                title: Tr.t("Firmware")
+                subtitle: Tr.t("%1 update%2 offered", Updates.firmware.length, Updates.firmware.length === 1 ? "" : "s")
+                trailing: "›"
+                onClicked: { Ui.closeAll(); Ui.settingsCat = "firmware"; }
+            }
+        }
+    }
+
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("This computer")

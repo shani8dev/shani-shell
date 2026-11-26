@@ -58,7 +58,9 @@ _CONSENT_KEY = "bluetooth-call-enabled"
 
 BUS_NAME = "org.pipewire.Telephony"
 MANAGER_PATH = "/org/pipewire/Telephony"
-MANAGER_IFACE = "org.ofono.Manager"          # the compatible name; the native one has no GetModems
+MANAGER_IFACE = (
+    "org.ofono.Manager"  # the compatible name; the native one has no GetModems
+)
 GATEWAY_IFACE = "org.pipewire.Telephony.AudioGateway1"
 #: Where `GetCalls` lives on a gateway object. Not `org.ofono.Manager`: measured on
 #: PipeWire 1.4, asking that interface answers "Method GetCalls ... doesn't exist",
@@ -75,11 +77,14 @@ class TelephonyUnavailable(RuntimeError):
     """The Telephony service is not here, or said no. Never "there is nothing"."""
 
 
-
-
 def _busctl(*args: str, timeout: int = _TIMEOUT) -> subprocess.CompletedProcess:
-    return subprocess.run(["busctl", "--user", *args], capture_output=True,
-                          text=True, timeout=timeout, check=False)
+    return subprocess.run(
+        ["busctl", "--user", *args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
 
 
 def service_present() -> bool:
@@ -111,9 +116,13 @@ def gateways() -> "list[tuple[str, str, str]]":
             "(it ships with wireplumber's PipeWire and needs pipewire's bluez5 module)"
         )
     try:
-        result = _busctl("--json=short", "call", BUS_NAME, MANAGER_PATH, MANAGER_IFACE, "GetModems")
+        result = _busctl(
+            "--json=short", "call", BUS_NAME, MANAGER_PATH, MANAGER_IFACE, "GetModems"
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise TelephonyUnavailable(f"the Telephony service did not answer ({exc})") from exc
+        raise TelephonyUnavailable(
+            f"the Telephony service did not answer ({exc})"
+        ) from exc
     if result.returncode != 0:
         raise TelephonyUnavailable(
             "the Telephony service refused GetModems: "
@@ -136,10 +145,23 @@ def gateways() -> "list[tuple[str, str, str]]":
 def _managed_addresses() -> "dict[str, str]":
     """{gateway path: Bluetooth address} from the ObjectManager, or {} when unreadable."""
     try:
-        result = _busctl("--json=short", "call", BUS_NAME, MANAGER_PATH,
-                         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects")
+        result = _busctl(
+            "--json=short",
+            "call",
+            BUS_NAME,
+            MANAGER_PATH,
+            "org.freedesktop.DBus.ObjectManager",
+            "GetManagedObjects",
+        )
         data = json.loads(result.stdout or "")["data"][0]
-    except (OSError, subprocess.SubprocessError, ValueError, KeyError, IndexError, TypeError):
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        ValueError,
+        KeyError,
+        IndexError,
+        TypeError,
+    ):
         return {}
     out = {}
     for path, ifaces in (data or {}).items():
@@ -155,12 +177,18 @@ def _device_name(address: str) -> str:
     if not address or not shutil.which("bluetoothctl"):
         return ""
     try:
-        proc = subprocess.run(["bluetoothctl", "info", address], capture_output=True,
-                              text=True, timeout=_TIMEOUT, check=False)
+        proc = subprocess.run(
+            ["bluetoothctl", "info", address],
+            capture_output=True,
+            text=True,
+            timeout=_TIMEOUT,
+            check=False,
+        )
     except (OSError, subprocess.SubprocessError):
         return ""
-    m = re.search(r"^\s*Alias:\s*(.+)$", proc.stdout or "", re.M) or \
-        re.search(r"^\s*Name:\s*(.+)$", proc.stdout or "", re.M)
+    m = re.search(r"^\s*Alias:\s*(.+)$", proc.stdout or "", re.M) or re.search(
+        r"^\s*Name:\s*(.+)$", proc.stdout or "", re.M
+    )
     return m.group(1).strip() if m else ""
 
 
@@ -182,24 +210,39 @@ def _parse_objects(text: str) -> list:
         return []
     rows = []
     for path, fields in data.items():
-        if not str(path).startswith("/org/pipewire/Telephony/") or not isinstance(fields, dict):
+        if not str(path).startswith("/org/pipewire/Telephony/") or not isinstance(
+            fields, dict
+        ):
             continue
-        rows.append((path, {k: (v.get("data") if isinstance(v, dict) else v)
-                            for k, v in fields.items()}))
+        rows.append(
+            (
+                path,
+                {
+                    k: (v.get("data") if isinstance(v, dict) else v)
+                    for k, v in fields.items()
+                },
+            )
+        )
     return rows
 
 
 def calls(gateway: str) -> list:
     """(path, state, direction) for each call on a gateway."""
     try:
-        result = _busctl("--json=short", "call", BUS_NAME, gateway, CALLMGR_IFACE, "GetCalls")
+        result = _busctl(
+            "--json=short", "call", BUS_NAME, gateway, CALLMGR_IFACE, "GetCalls"
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise TelephonyUnavailable(f"the Telephony service did not answer ({exc})") from exc
+        raise TelephonyUnavailable(
+            f"the Telephony service did not answer ({exc})"
+        ) from exc
     if result.returncode != 0:
         return []
-    return [(path, f.get("State", ""), f.get("Direction", ""))
-            for path, f in _parse_objects(result.stdout or "")
-            if "State" in f or "Direction" in f]
+    return [
+        (path, f.get("State", ""), f.get("Direction", ""))
+        for path, f in _parse_objects(result.stdout or "")
+        if "State" in f or "Direction" in f
+    ]
 
 
 def _gateway_call(gateway: str, method: str, *params: str) -> "tuple[bool, str]":
@@ -207,7 +250,9 @@ def _gateway_call(gateway: str, method: str, *params: str) -> "tuple[bool, str]"
     return _object_call(gateway, GATEWAY_IFACE, method, *params)
 
 
-def _object_call(path: str, iface: str, method: str, *params: str) -> "tuple[bool, str]":
+def _object_call(
+    path: str, iface: str, method: str, *params: str
+) -> "tuple[bool, str]":
     """(ok, why) for one method on a Telephony object (a gateway or a call)."""
     try:
         result = _busctl("call", BUS_NAME, path, iface, method, *params)
@@ -229,9 +274,15 @@ def audio_route(gateway: str) -> "tuple[str, str]":
     active transport is the call audio on this computer; RejectSCO true keeps it
     on the handset.
     """
+
     def prop(name):
         r = _busctl("get-property", BUS_NAME, gateway, TRANSPORT_IFACE, name)
-        return (r.stdout or "").strip().split(" ", 1)[-1].strip('"') if r.returncode == 0 else ""
+        return (
+            (r.stdout or "").strip().split(" ", 1)[-1].strip('"')
+            if r.returncode == 0
+            else ""
+        )
+
     state, reject = prop("State"), prop("RejectSCO")
     return ("phone" if reject == "true" or state != "active" else "pc"), state
 
@@ -240,10 +291,19 @@ def set_audio_route(gateway: str, where: str) -> "tuple[bool, str]":
     """Move the call audio to this computer ("pc") or back to the phone ("phone")."""
     if where not in ("pc", "phone"):
         return False, "where must be 'pc' or 'phone'"
-    r = _busctl("set-property", BUS_NAME, gateway, TRANSPORT_IFACE, "RejectSCO", "b",
-                "true" if where == "phone" else "false")
+    r = _busctl(
+        "set-property",
+        BUS_NAME,
+        gateway,
+        TRANSPORT_IFACE,
+        "RejectSCO",
+        "b",
+        "true" if where == "phone" else "false",
+    )
     if r.returncode != 0:
-        return False, (r.stderr or r.stdout or "").strip() or "RejectSCO could not be set"
+        return False, (
+            r.stderr or r.stdout or ""
+        ).strip() or "RejectSCO could not be set"
     if where == "pc":
         return _object_call(gateway, TRANSPORT_IFACE, "Activate")
     return True, ""
@@ -257,7 +317,7 @@ def set_audio_route(gateway: str, where: str) -> "tuple[bool, str]":
 #: wpctl's box-drawing tree correctly; re-deriving it here got the `├─` prefixes and
 #: the trailing colon wrong and reported **zero audio cards on a machine with one**,
 #: and once that was fixed it reported gnome-shell and both webcams as audio
-#: hardware until the section scoping went back. shani-cassini's `system_status.py`
+#: hardware until the section scoping went back. The shell's `system_health.py`
 #: hit the same traps and wrote them down, which is why they were not rediscovered.
 #:
 #: `parse_status` gained a "Devices" section for this skill, because the Bluetooth
@@ -281,14 +341,20 @@ def audio_backends() -> "tuple[str, str]":
     """
     missing = []
     if not shutil.which("wpctl"):
-        missing.append("wpctl (the 'wireplumber' package) - without it no profile can be read "
-                       "or switched")
+        missing.append(
+            "wpctl (the 'wireplumber' package) - without it no profile can be read "
+            "or switched"
+        )
     if not shutil.which("pactl"):
-        missing.append("pactl (the 'libpulse' package) - without it the call's audio "
-                       "cannot be bridged, though the profile can still be switched")
+        missing.append(
+            "pactl (the 'libpulse' package) - without it the call's audio "
+            "cannot be bridged, though the profile can still be switched"
+        )
     if not pipewire.echo_cancel_active():
-        missing.append("echo cancellation is not active (PipeWire attaches it through a "
-                       "filter-chain.conf.d fragment, so it is detected but not switched on here)")
+        missing.append(
+            "echo cancellation is not active (PipeWire attaches it through a "
+            "filter-chain.conf.d fragment, so it is detected but not switched on here)"
+        )
     return ("everything" if not missing else "", "; ".join(missing))
 
 
@@ -307,10 +373,15 @@ def audio_cards() -> list:
     for device in graph.get("Devices", []):
         active, available = "", []
         for i, line in enumerate(lines):
-            if not re.match(r"^[\s\u2502\u251c\u2514\u2500]*\*?\s*" + str(device["id"]) + r"\.", line):
+            if not re.match(
+                r"^[\s\u2502\u251c\u2514\u2500]*\*?\s*" + str(device["id"]) + r"\.",
+                line,
+            ):
                 continue
-            for follow in lines[i + 1:i + 8]:
-                p = re.match(r"^[\s\u2502\u251c\u2514\u2500]*Profile\s+(\d+):\s+(\S+)", follow)
+            for follow in lines[i + 1 : i + 8]:
+                p = re.match(
+                    r"^[\s\u2502\u251c\u2514\u2500]*Profile\s+(\d+):\s+(\S+)", follow
+                )
                 if p:
                     available.append((p.group(1), p.group(2)))
                     if "active" in follow:
@@ -329,10 +400,13 @@ def bluez_cards() -> list:
     rows = audio_cards()
     # wpctl pads the name into a column ("acer ZX" + 29 spaces + "[bluez5]",
     # measured); collapsed here so the padding never reaches a spoken answer.
-    return [(card, " ".join(str(desc).split()), profile, available)
-            for card, desc, profile, available in rows
-            if "bluez" in desc.lower() or "bluez" in profile.lower()
-            or "bluez" in " ".join(n for _, n in available)]
+    return [
+        (card, " ".join(str(desc).split()), profile, available)
+        for card, desc, profile, available in rows
+        if "bluez" in desc.lower()
+        or "bluez" in profile.lower()
+        or "bluez" in " ".join(n for _, n in available)
+    ]
 
 
 def set_profile(card: str, profile: str) -> "tuple[bool, str]":
@@ -345,12 +419,17 @@ def set_profile(card: str, profile: str) -> "tuple[bool, str]":
         return False, "wpctl (the 'wireplumber' package) is not installed"
     rows = [row for row in audio_cards() if row[0] == str(card)]
     if not rows:
-        return False, (f"no audio card numbered {card}; wpctl sees: "
-                       + (", ".join(f"{c} ({d})" for c, d, _, _ in audio_cards()) or "none"))
+        return False, (
+            f"no audio card numbered {card}; wpctl sees: "
+            + (", ".join(f"{c} ({d})" for c, d, _, _ in audio_cards()) or "none")
+        )
     index = next((i for i, name in rows[0][3] if name == profile), None)
     if index is None:
         offered = ", ".join(name for _, name in rows[0][3]) or "none listed"
-        return False, f"that card has no profile called {profile!r}; it offers: {offered}"
+        return (
+            False,
+            f"that card has no profile called {profile!r}; it offers: {offered}",
+        )
     try:
         done = pipewire.run_wpctl("set-profile", str(card), index)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -369,9 +448,13 @@ def bridge_running() -> "tuple[str, str]":
     if not shutil.which("pactl"):
         return "", "pactl (the 'libpulse' package) is not installed"
     try:
-        result = subprocess.run(["pactl", "list", "short", "modules"],
-                                capture_output=True, text=True, timeout=_TIMEOUT,
-                                check=False)
+        result = subprocess.run(
+            ["pactl", "list", "short", "modules"],
+            capture_output=True,
+            text=True,
+            timeout=_TIMEOUT,
+            check=False,
+        )
     except (OSError, subprocess.SubprocessError) as exc:
         return "", f"pactl could not be run ({exc})"
     for line in (result.stdout or "").split("\n"):
@@ -386,9 +469,11 @@ def _audio_report(address: str) -> str:
     lines = []
     bt = bluez_cards()
     if not bt:
-        lines.append("No Bluetooth audio card is present, so a phone's call audio has nowhere "
-                     "to go on this machine. A phone that is only paired does not appear - it "
-                     "has to be connected.")
+        lines.append(
+            "No Bluetooth audio card is present, so a phone's call audio has nowhere "
+            "to go on this machine. A phone that is only paired does not appear - it "
+            "has to be connected."
+        )
     for card, description, profile, available in bt:
         detail = f" on profile {profile}" if profile else ""
         if available and not profile:
@@ -411,9 +496,11 @@ def _summary() -> str:
     except TelephonyUnavailable as exc:
         return str(exc)
     if not found:
-        return ("No phone is connected to this machine as a Bluetooth hands-free unit, so "
-                "there is nothing to call through. Pair a phone and make sure it is connected; "
-                "a phone that is only paired does not answer.")
+        return (
+            "No phone is connected to this machine as a Bluetooth hands-free unit, so "
+            "there is nothing to call through. Pair a phone and make sure it is connected; "
+            "a phone that is only paired does not answer."
+        )
     lines = []
     for path, name, address in found:
         lines.append(f"{name}" + (f" ({address})" if address else ""))
@@ -423,15 +510,19 @@ def _summary() -> str:
         if not active:
             lines.append("    no call in progress")
         for card, description, profile, _avail in bluez_cards():
-            lines.append(f"    audio: card {card} {description}"
-                         + (f" on profile {profile}" if profile else ""))
+            lines.append(
+                f"    audio: card {card} {description}"
+                + (f" on profile {profile}" if profile else "")
+            )
     return "\n".join(lines)
 
 
 def _run(arguments: dict, confirm=None) -> str:
     if not isinstance(arguments, dict):
-        return ("The bluetooth_call arguments were not an object; nothing was done. "
-                "Pass an action and, for dial, a number.")
+        return (
+            "The bluetooth_call arguments were not an object; nothing was done. "
+            "Pass an action and, for dial, a number."
+        )
 
     action = str(arguments.get("action") or "status").strip().lower()
     number = str(arguments.get("number") or "").strip()
@@ -455,12 +546,16 @@ def _run(arguments: dict, confirm=None) -> str:
     }.get(action, "Nothing was done.")
 
     if not found:
-        return ("No phone is connected to this machine as a Bluetooth hands-free unit, so "
-                f"there is nothing to call through. {not_done} A phone that is only paired, "
-                "and not connected, does not answer - check that it is switched on and in range.")
+        return (
+            "No phone is connected to this machine as a Bluetooth hands-free unit, so "
+            f"there is nothing to call through. {not_done} A phone that is only paired, "
+            "and not connected, does not answer - check that it is switched on and in range."
+        )
     if len(found) > 1:
-        return (f"{len(found)} phones are connected ({', '.join(n for _, n, _ in found)}), "
-                f"so I did not pick one. {not_done}")
+        return (
+            f"{len(found)} phones are connected ({', '.join(n for _, n, _ in found)}), "
+            f"so I did not pick one. {not_done}"
+        )
     path, name, address = found[0]
 
     if action == "audio":
@@ -471,23 +566,32 @@ def _run(arguments: dict, confirm=None) -> str:
             ok, why = set_audio_route(path, to)
             if not ok:
                 return f"Could not move the call audio to {'this computer' if to == 'pc' else 'the phone'}: {why}."
-            return ("Call audio is on this computer - its speaker and microphone."
-                    if to == "pc" else "Call audio is on the phone.")
+            return (
+                "Call audio is on this computer - its speaker and microphone."
+                if to == "pc"
+                else "Call audio is on the phone."
+            )
         where, state = audio_route(path)
-        return (f"Call audio: {'this computer' if where == 'pc' else 'the phone'} "
-                f"(transport {state or 'unknown'}).\n" + _audio_report(address))
+        return (
+            f"Call audio: {'this computer' if where == 'pc' else 'the phone'} "
+            f"(transport {state or 'unknown'}).\n" + _audio_report(address)
+        )
     if action == "profile":
         wanted = str(arguments.get("profile") or "").strip()
         if not wanted:
-            return ("Which profile? Pass profile, e.g. profile='hfp_hf'. Nothing was changed.")
+            return "Which profile? Pass profile, e.g. profile='hfp_hf'. Nothing was changed."
         found = bluez_cards()
         if not found:
-            return ("No Bluetooth audio card is present, so there is no profile to switch. "
-                    "A phone has to be connected over Bluetooth first.")
+            return (
+                "No Bluetooth audio card is present, so there is no profile to switch. "
+                "A phone has to be connected over Bluetooth first."
+            )
         if len(found) > 1 and not arguments.get("card"):
-            return (f"{len(found)} Bluetooth audio cards are present: "
-                    + ", ".join(f"{c} ({d})" for c, d, _, _ in found)
-                    + ". Nothing was changed - pass card to say which.")
+            return (
+                f"{len(found)} Bluetooth audio cards are present: "
+                + ", ".join(f"{c} ({d})" for c, d, _, _ in found)
+                + ". Nothing was changed - pass card to say which."
+            )
         card = str(arguments.get("card") or found[0][0])
         ok, why = set_profile(card, wanted)
         if not ok:
@@ -496,37 +600,50 @@ def _run(arguments: dict, confirm=None) -> str:
 
     if action == "dial":
         if not number:
-            return ("Dial what? Pass number, e.g. number='+441234567890'. Nothing was dialled.")
+            return "Dial what? Pass number, e.g. number='+441234567890'. Nothing was dialled."
         if not _NUMBER.match(number):
-            return ("That is not a dialable number - only digits, spaces, and + * # , are "
-                    "allowed. Nothing was dialled.")
+            return (
+                "That is not a dialable number - only digits, spaces, and + * # , are "
+                "allowed. Nothing was dialled."
+            )
         # the assistant asks first (its skill passes `confirm`); a call placed by
         # hand from the app or the shell's dialer needs no second question
-        ok, why = confirm(
-            "Make this call from your phone?",
-            f"Calling {number} through {name} over Bluetooth. "
-            "Both of you will hear it on this computer's speakers.") if confirm else (True, "")
+        ok, why = (
+            confirm(
+                "Make this call from your phone?",
+                f"Calling {number} through {name} over Bluetooth. "
+                "Both of you will hear it on this computer's speakers.",
+            )
+            if confirm
+            else (True, "")
+        )
         if not ok:
             return f"Not dialled: {why or 'nobody confirmed'}. Nothing was done."
         # busctl takes the signature before the argument; without "s" the number
         # itself was read as the signature and no call could ever be placed.
         done, why = _gateway_call(path, "Dial", "s", number)
         if not done:
-            return f"Could not dial {number} through {name}: {why}. Nothing was dialled."
+            return (
+                f"Could not dial {number} through {name}: {why}. Nothing was dialled."
+            )
         return f"Dialled {number} through {name} over Bluetooth."
 
     if action == "answer":
         # The ringing call's own Answer. `ReleaseAndAnswer` (the old route) ends
         # the *active* call to take a waiting one - right for call waiting, wrong
         # for a phone that is simply ringing - so it is only the fallback.
-        ringing = [c for c, state, _d in calls(path) if state in ("incoming", "waiting")]
+        ringing = [
+            c for c, state, _d in calls(path) if state in ("incoming", "waiting")
+        ]
         if ringing:
             done, why = _object_call(ringing[0], CALL_IFACE, "Answer")
         else:
             done, why = _gateway_call(path, "ReleaseAndAnswer")
         if not done:
-            return (f"Could not answer through {name}: {why}. "
-                    "There may be no call waiting - the phone only offers this while one rings.")
+            return (
+                f"Could not answer through {name}: {why}. "
+                "There may be no call waiting - the phone only offers this while one rings."
+            )
         return f"Answered through {name}."
 
     if action == "hangup":
@@ -538,5 +655,3 @@ def _run(arguments: dict, confirm=None) -> str:
         return f"Hung up through {name}."
 
     return f"action must be status, dial, answer or hangup, not {action!r}."
-
-

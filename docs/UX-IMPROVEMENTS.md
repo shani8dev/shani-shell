@@ -409,7 +409,7 @@ are Adwaita symbolic.
 - **`Frame`, `WorkspaceOverlays`** (Hyprland and niri-overview chrome),
   **`AppDrawer`**, **`Notepad`**, **`OSD`**, **`Network`**, the `sysupdate`
   backends — we have equivalents, or deliberately delegate (updating is
-  Cassini's job).
+  the old system manager's job).
 
 ### 12.6 Order to take them in
 
