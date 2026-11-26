@@ -90,6 +90,41 @@ _VARJYAM_GHATIS = (
     30,
 )
 
+# Amrita Kalam starts on the same 60-ghati scale, from AstroChaganti's
+# AMRITA_GHATIS table (telugu_panchangam/engines/base.py). The four-ghati
+# window is placed in the Moon's sidereal nakshatra span and kept when it
+# starts between sunrise and the next sunrise. This is not a Sun-Moon
+# separation rule, and it is not measured from sunrise or moonrise.
+_AMRITA_GHATIS = (
+    42,
+    48,
+    54,
+    52,
+    38,
+    35,
+    54,
+    44,
+    56,
+    54,
+    44,
+    42,
+    45,
+    44,
+    38,
+    38,
+    34,
+    38,
+    44,
+    48,
+    44,
+    34,
+    34,
+    42,
+    40,
+    48,
+    54,
+)
+
 # Eighth-of-the-day tables, 1-based parts from sunrise, Sunday first.
 _RAHU_PARTS = (8, 2, 7, 5, 6, 4, 3)
 _YAMA_PARTS = (5, 4, 3, 2, 1, 7, 6)
@@ -409,13 +444,6 @@ def _interval(
     }
 
 
-# Amrit Kaal is still left out. The published rules disagree: some sites
-# place it 21 ghatis after Varjyam, but that does not reproduce Drik
-# Panchang's daily Amrit Kalam windows, and the Sun-Moon 60-120 degree rule
-# is not the nakshatra-based one printed by those panchangs. Without a
-# reliable table no start/end time can be given, so none is invented.
-
-
 def _muhurtas(
     sunrise: datetime | None, sunset: datetime | None, zone: ZoneInfo, day: date_type
 ) -> list[dict]:
@@ -566,13 +594,16 @@ def _new_moons(start: datetime, end: datetime) -> list[float]:
     return _tithi_crossings(_jd(start), _jd(end), 360.0)
 
 
-def _varjyam(
+def _nakshatra_windows(
+    ghatis: tuple[int, ...],
+    name: str,
+    auspicious: bool,
     sunrise: datetime | None,
     next_sunrise: datetime | None,
     zone: ZoneInfo,
     day: date_type,
 ) -> list[dict]:
-    """Visha-ghati windows whose starts fall in this sunrise-to-sunrise day."""
+    """Four-ghati windows in nakshatra spans that start within this day."""
     if sunrise is None or next_sunrise is None:
         return []
     first, last = _jd(sunrise), _jd(next_sunrise)
@@ -583,18 +614,40 @@ def _varjyam(
             continue
         index = int(_limb_angle((left + right) / 2, "nakshatra") / _NAK_SIZE) % 27
         span = right - left
-        begin = left + _VARJYAM_GHATIS[index] * span / 60.0
+        begin = left + ghatis[index] * span / 60.0
         if not first <= begin < last:
             continue
         result.append(
             {
-                "name": "Varjyam",
+                "name": name,
                 "start": _clock(_utc_from_jd(begin), zone, day),
                 "end": _clock(_utc_from_jd(begin + 4 * span / 60.0), zone, day),
-                "auspicious": False,
+                "auspicious": auspicious,
             }
         )
     return result
+
+
+def _varjyam(
+    sunrise: datetime | None,
+    next_sunrise: datetime | None,
+    zone: ZoneInfo,
+    day: date_type,
+) -> list[dict]:
+    return _nakshatra_windows(
+        _VARJYAM_GHATIS, "Varjyam", False, sunrise, next_sunrise, zone, day
+    )
+
+
+def _amrit_kaal(
+    sunrise: datetime | None,
+    next_sunrise: datetime | None,
+    zone: ZoneInfo,
+    day: date_type,
+) -> list[dict]:
+    return _nakshatra_windows(
+        _AMRITA_GHATIS, "Amrit Kaal", True, sunrise, next_sunrise, zone, day
+    )
 
 
 def _amanta_index(jd: float) -> int:
@@ -727,6 +780,7 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
         "limbs": _limbs(sunrise, zone, day),
         "muhurtas": _muhurtas(sunrise, sunset, zone, day),
         "varjyam": _varjyam(sunrise, night_end, zone, day),
+        "amrit_kaal": _amrit_kaal(sunrise, night_end, zone, day),
         "choghadiya": choghadiya,
         "horas": horas,
         "month": _month(day, zone, zone_name),
