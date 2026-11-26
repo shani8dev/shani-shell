@@ -251,6 +251,20 @@ elif a[0] == "commit":
     st["images"].append({"Id": iid, "Names": [a[2]], "Size": 100000000, "Created": n})
     save()
     print(iid[:12])
+elif a[0] == "build":
+    tag = a[a.index("-t") + 1] if "-t" in a else a[-1]
+    for p in (
+        "Step 1/2 : FROM alpine",
+        "Step 2/2 : COPY . /app",
+        "Successfully built " + tag,
+    ):
+        print(p)
+        sys.stdout.flush()
+    n = created()
+    st["images"].append(
+        {"Id": "img" + str(n) * 7, "Names": [tag], "Size": 1234567, "Created": n}
+    )
+    save()
 elif a[0] == "stats":
     for c in st["containers"]:
         if "--all" in a or (c["Names"] and c["Names"][0] == a[-1]):
@@ -369,5 +383,16 @@ elif a[:2] == ["image", "prune"]:
     save()
     for i in gone:
         print(i["Id"])
+elif a[0] == "cp":
+    try:
+        with open(a[2], "w") as f:
+            f.write("copied from " + a[1] + "\n")
+    except OSError:
+        pass
 elif a[0] == "exec":
-    print("org.gnome.gedit.desktop\tText Editor\nfirefox.desktop\tFirefox")
+    if len(a) > 2 and a[2] == "ls":
+        print("total 2")
+        print("-rw-r--r-- 1 root root 12 Jan  1 00:00 notes.txt")
+        print("drwxr-xr-x 2 root root 40 Jan  1 00:00 docs")
+    else:
+        print("org.gnome.gedit.desktop\tText Editor\nfirefox.desktop\tFirefox")

@@ -11,6 +11,9 @@ list, or streamed {"line": ...} objects followed by {"ok": True}/{"error": ...}.
     container-rename NAME NEW / container-commit NAME IMAGE
     container-stats NAME / container-inspect NAME
     image-search TERM / image-pull IMAGE
+    image-build TAG PATH dir|file        stream a build from a Dockerfile or folder
+    container-files NAME [PATH]          dir listing inside a running container
+    container-file-copy NAME SRC DEST    podman cp SRC out to a host path
     pod-list / pod-start|pod-stop|pod-remove NAME
     volume-list / volume-create|volume-remove NAME / volume-prune
 
@@ -43,6 +46,9 @@ COMMANDS = (
     "container-inspect",
     "image-search",
     "image-pull",
+    "image-build",
+    "container-files",
+    "container-file-copy",
     "pod-list",
     "pod-start",
     "pod-stop",
@@ -59,6 +65,7 @@ CDI_DIR = os.environ.get("SHANI_CDI_DIR", "/etc/cdi")
 _PORT = re.compile(r"^[A-Za-z0-9._:-]+$")
 _PATH = re.compile(r"^(?:[A-Za-z0-9][A-Za-z0-9_.-]*|/[A-Za-z0-9_./@+-]*)$")
 _ENV = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=[^\s,;]*$")
+_PATHARG = re.compile(r"^/(?:[A-Za-z0-9_ .@+,=-]+/?)*$")
 _SHELLS = ("ubuntu", "debian", "fedora", "arch")
 
 
@@ -311,6 +318,38 @@ def _act(verb, name: str, timeout=120):
     )
 
 
+def _container_files(name: str, path: str) -> dict:
+    """A directory inside a running container, read with podman exec - no shell
+    on the host and no mount of the container's filesystem needed."""
+    if not NAME.match(name):
+        return {"error": "not a container name"}
+    if not _PATHARG.match(path):
+        return {"error": "not a path"}
+    rr = _run(PODMAN, "exec", name, "ls", "-lA", path)
+    if rr.returncode != 0:
+        return _err(rr, "not listed")
+    entries = []
+    for line in rr.stdout.splitlines():
+        f = line.split(None, 8)  # mode links owner group size month day time name
+        if len(f) < 9 or f[8] in (".", ".."):
+            continue
+        try:
+            size = int(f[4])
+        except ValueError:
+            size = 0
+        entries.append({"name": f[8], "dir": f[0].startswith("d"), "size": size})
+    return {"path": path, "entries": entries}
+
+
+def _container_file_copy(name: str, src: str, dest: str) -> dict:
+    if not NAME.match(name) or not _PATHARG.match(src):
+        return {"error": "not a container name or path"}
+    if not _PATHARG.match(dest):
+        return {"error": "not a destination path"}
+    rr = _run(PODMAN, "cp", "%s:%s" % (name, src), dest, timeout=120)
+    return {"ok": True} if rr.returncode == 0 else _err(rr, "not copied")
+
+
 def run(cmd: str, args: list[str]) -> int:
     try:
         if cmd == "container-run":
@@ -367,6 +406,24 @@ def run(cmd: str, args: list[str]) -> int:
                 r = {"error": "not an image"}
             else:
                 return _stream(["pull", args[0]])
+        elif cmd == "image-build" and len(args) == 3:
+            tag, path, kind = args
+            if not IMAGE.match(tag):
+                r = {"error": "not an image tag"}
+            elif not _PATHARG.match(path):
+                r = {"error": "not a path"}
+            elif kind == "dir":
+                return _stream(["build", "-t", tag, path])
+            elif kind == "file":
+                return _stream(
+                    ["build", "-t", tag, "-f", path, os.path.dirname(path) or "."]
+                )
+            else:
+                r = {"error": "not a source kind"}
+        elif cmd == "container-files" and len(args) in (1, 2):
+            r = _container_files(args[0], args[1] if len(args) == 2 else "/")
+        elif cmd == "container-file-copy" and len(args) == 3:
+            r = _container_file_copy(*args)
         elif cmd == "pod-list":
             r = _pod_list()
         elif cmd in ("pod-start", "pod-stop", "pod-remove") and len(args) == 1:

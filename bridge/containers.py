@@ -25,6 +25,9 @@ your home folder, its apps in your menu.
     containers.py container-rename <name> <new> / container-commit <name> <image>
     containers.py container-stats <name> / container-inspect <name>   readable details
     containers.py image-search <term> / image-pull <image>
+    containers.py image-build <tag> <path> dir|file   stream a build from a Dockerfile
+    containers.py container-files <name> [path]       list a running container's files
+    containers.py container-file-copy <name> <src> <dest>  copy a file out
     containers.py pod-list / pod-start|pod-stop|pod-remove <name>
     containers.py volume-list / volume-create|volume-remove <name> / volume-prune
     containers.py box-install <box> <file> / box-clone <box> <new>
