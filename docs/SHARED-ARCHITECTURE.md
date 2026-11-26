@@ -273,3 +273,21 @@ Add a line when you finish a piece (date, repo, what, commit).
 - 2026-11-26 shani-shell: a strict stand-in backs each new OS-tool option in
   `tests/test_os_cli_contract.py`, and `dev/shell-parts/access-sharing.sh`
   drives the staged reads and writes in the nested shell.
+- 2026-11-26 shani-shell (phase 2 prerequisite): the phone service ships a
+  `Type=dbus` user unit, a D-Bus activation file and one launcher; the live
+  Calls part proves a cold method call starts it and leaves one owner of the
+  landline. The PKGBUILD must install the launcher in /usr/bin, the unit in
+  /usr/lib/systemd/user and the D-Bus file in /usr/share/dbus-1/services
+  (296a5d5).
+- 2026-11-26 shani-shell (rule 10): the Background switches get their own app
+  grouped by Phone/Watch/Music, with a Settings link instead of a second copy
+  of the switch logic (18ad6fa).
+- 2026-11-26 shani-shell (rule 10): FM volume, recording playback, station
+  finder and bands; Backup's home-snapshot timer, disk meter, file finder,
+  restore-test and stale notes; all through the seed engines and the stand-ins
+  (5994020, ac62fda).
+- 2026-11-26 shani-shell (rule 10): call-history message/save/delete/Clear
+  all/Undo and a new-message contact picker; contacts from a paired phone,
+  multi-select and the full editor; a two-column watch dashboard with sync,
+  settings, notice and profile actions; no GTK app started (c61d9dd,
+  e69d25c, b82f359).
