@@ -66,6 +66,18 @@ AppWindow {
     property int horaryHouse: 7
     property bool copied: false
     property bool chartCopied: false
+    property bool saveOpen: false
+    readonly property var birth: ({ date: win.dateInput, time: win.timeInput, lat: Number(win.place.lat), lon: Number(win.place.lon),
+                                    zone: win.place.timezone || "", place: win.placeTitle })
+    readonly property var savedProfile: Services.KundaliProfiles.profiles.length >= 0 ? Services.KundaliProfiles.find(win.birth) : null
+    readonly property bool saved: win.savedProfile !== null
+    function openProfile(p) {
+        win.mode = "kundali";
+        win.dateInput = p.date;
+        win.timeInput = p.time || "12:00";
+        win.place = { name: p.place || p.name, region: "", country: "", lat: p.lat, lon: p.lon, timezone: p.zone || "" };
+        win.calculate();
+    }
 
     readonly property var sections: [
         ["chart", Tr.t("Chart")],
@@ -152,6 +164,7 @@ AppWindow {
         win.sectionText = "";
         win.sectionData = null;
         if (id === "chart" || id === "all" || !win.chart) return;
+        if (id === "ahead") { win.loadAhead(); return; }
         sectionProc.command = ["python3", win.scriptPath, "details", id, win.birthArg(), String(win.place.lat), String(win.place.lon)];
         sectionProc.running = true;
     }
@@ -165,6 +178,15 @@ AppWindow {
         if (id === "horary") args.push(String(win.horaryHouse));
         calcProc.command = args;
         calcProc.running = true;
+    }
+    // the days ahead for the chart on screen (the same forecast the notices use)
+    property var ahead: null
+    readonly property string forecastTool: Quickshell.env("SHANI_KUNDALI_FORECAST_TOOL") || "/usr/lib/shani-shell/kundali_forecast.py"
+    function loadAhead() {
+        win.ahead = null;
+        aheadProc.command = ["python3", win.forecastTool, win.birthArg(), String(win.place.lat), String(win.place.lon),
+                             Qt.formatDate(new Date(), "yyyy-MM-dd"), "14"];
+        aheadProc.running = true;
     }
     function stepDay(n) {
         const d = new Date(win.dateInput + "T12:00:00");
@@ -234,6 +256,10 @@ AppWindow {
             try { const d = JSON.parse(text); win.sectionData = d.error ? null : d; win.sectionText = d.error ? Tr.t("Could not compute: %1").arg(d.error) : win.renderSection(d); }
             catch (e) { win.sectionText = Tr.t("The result could not be read"); }
         } }
+    }
+    Process {
+        id: aheadProc
+        stdout: StdioCollector { onStreamFinished: { try { const d = JSON.parse(text); win.ahead = d.error ? null : d; } catch (e) { win.ahead = null; } } }
     }
     Process {
         id: calcProc
@@ -317,6 +343,76 @@ AppWindow {
             }
         ]
 
+        // ---- the people saved here --------------------------------------------------
+        Card {
+            Layout.fillWidth: true
+            visible: win.mode === "kundali" && Services.KundaliProfiles.profiles.length > 0 && (win.editing || win.chart === null)
+            icon: "system-users"
+            title: Tr.t("Saved")
+            subtitle: Tr.t("Open one, or turn its notices about the days ahead on or off")
+            spacing: 0
+            Repeater {
+                model: Services.KundaliProfiles.profiles
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    icon: "avatar-default"
+                    title: modelData.name
+                    subtitle: Qt.formatDate(new Date(modelData.date + "T12:00:00"), "d MMM yyyy") + " · " + modelData.time + " · " + modelData.place
+                    onClicked: win.openProfile(modelData)
+                    IconButton {
+                        icon: modelData.alerts ? "notifications" : "notifications-disabled"
+                        on: modelData.alerts
+                        tip: modelData.alerts ? Tr.t("Notices about the days ahead: on") : Tr.t("Notices about the days ahead: off")
+                        onClicked: Services.KundaliProfiles.setAlerts(modelData.id, !modelData.alerts)
+                    }
+                    ConfirmButton {
+                        icon: "user-trash"
+                        tip: Tr.t("Remove %1", modelData.name)
+                        armedText: Tr.t("Click again to remove %1 from this computer", modelData.name)
+                        onConfirmed: Services.KundaliProfiles.remove(modelData.id)
+                    }
+                }
+            }
+        }
+
+        // ---- save the chart under a name -------------------------------------------
+        Card {
+            Layout.fillWidth: true
+            visible: win.saveOpen && win.chart !== null
+            icon: "document-save"
+            title: Tr.t("Save this chart")
+            subtitle: Tr.t("Saved charts stay on this computer. You get a notice before a hard day and when a period begins")
+            TextField {
+                id: saveName
+                Layout.fillWidth: true
+                label: Tr.t("Whose chart")
+                placeholder: Tr.t("Whose chart, e.g. Asha")
+                onAccepted: saveBtn.clicked()
+            }
+            SwitchRow {
+                id: saveAlerts
+                Layout.fillWidth: true
+                text: Tr.t("Notices about the days ahead")
+                hint: Tr.t("Hard days (chandrashtama, an unfavourable tara) and periods that begin")
+                checked: true
+                onToggled: on => checked = on
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                Button { text: Tr.t("Cancel"); flat: true; onClicked: win.saveOpen = false }
+                Button {
+                    id: saveBtn
+                    kind: "primary"
+                    text: Tr.t("Save")
+                    onClicked: {
+                        Services.KundaliProfiles.save(Object.assign({}, win.birth, { name: saveName.text.trim() || win.placeTitle, alerts: saveAlerts.checked }));
+                        win.saveOpen = false;
+                    }
+                }
+            }
+        }
+
         // ---- the birth, folded into one line once there is a chart --------------
         Card {
             Layout.fillWidth: true
@@ -335,6 +431,13 @@ AppWindow {
                     text: win.chartCopied ? Tr.t("Copied") : Tr.t("Copy chart")
                     Accessible.name: win.chartCopied ? Tr.t("Copied") : Tr.t("Copy chart")
                     onClicked: { Quickshell.execDetached(["sh", "-c", 'printf %s "$1" | wl-copy', "sh", (win.chart || {}).text || ""]); win.chartCopied = true; }
+                },
+                Button {
+                    visible: win.mode === "kundali" && win.chart !== null
+                    kind: win.saved ? "plain" : "primary"
+                    text: win.saved ? Tr.t("Saved") : Tr.t("Save")
+                    enabled: !win.saved
+                    onClicked: win.saveOpen = true
                 },
                 Button { text: win.mode === "panchang" ? Tr.t("Change day or place") : Tr.t("Edit birth details"); onClicked: win.editing = true }
             ]
@@ -523,7 +626,7 @@ AppWindow {
             visible: win.mode === "kundali"
             spacing: Theme.space(2)
             Repeater {
-                model: win.sections.concat([["all", Tr.t("Every calculation")]])
+                model: [win.sections[0], ["ahead", Tr.t("Days ahead")]].concat(win.sections.slice(1)).concat([["all", Tr.t("Every calculation")]])
                 Choice {
                     required property var modelData
                     text: modelData[1]
@@ -558,6 +661,100 @@ AppWindow {
                 icon: "starred"; label: Tr.t("Retrograde"); tint: Theme.amber
                 value: String(((win.chart || {}).planets || []).filter(p => p.retrograde && p.name !== "Rahu" && p.name !== "Ketu").length)
                 detail: ((win.chart || {}).planets || []).filter(p => p.retrograde && p.name !== "Rahu" && p.name !== "Ketu").map(p => p.name).join(", ")
+            }
+        }
+
+        // ---- the days ahead -------------------------------------------------------------
+        Card {
+            Layout.fillWidth: true
+            visible: win.section === "ahead" && win.chart !== null
+            icon: "view-calendar-week"
+            title: Tr.t("The days ahead")
+            subtitle: Tr.t("Traditional indications from this chart, not certainties: the Moon's place from the birth Moon, the day's star, and the periods")
+            BusyNote { visible: win.ahead === null; note: Tr.t("Working it out…") }
+            // now: the periods running, Saturn and Jupiter from the birth Moon
+            Flow {
+                Layout.fillWidth: true
+                visible: win.ahead !== null
+                spacing: Theme.space(2)
+                readonly property var now: (win.ahead || {}).now || {}
+                StatusPill { visible: !!parent.now.mahadasha; tone: "info"; text: parent.now.mahadasha ? Tr.t("%1 mahadasha, until %2", parent.now.mahadasha.lord, parent.now.mahadasha.until) : "" }
+                StatusPill { visible: !!parent.now.antardasha; tone: "info"; text: parent.now.antardasha ? Tr.t("%1 antardasha, until %2", parent.now.antardasha.lord, parent.now.antardasha.until) : "" }
+                StatusPill {
+                    visible: !!parent.now.saturn
+                    tone: "warn"
+                    text: ({ sade_sati_rising: Tr.t("Sade Sati: rising phase"), sade_sati_peak: Tr.t("Sade Sati: peak phase"),
+                             sade_sati_setting: Tr.t("Sade Sati: setting phase"), kantaka: Tr.t("Kantaka Shani: Saturn 4th from the Moon"),
+                             ashtama: Tr.t("Ashtama Shani: Saturn 8th from the Moon") })[parent.now.saturn] || ""
+                }
+                StatusPill { visible: parent.now.jupiter === "hard"; tone: "warn"; text: Tr.t("Jupiter %1th from the Moon", parent.now.jupiter_from_moon) }
+                StatusPill { visible: parent.now.jupiter === "good"; tone: "ok"; text: Tr.t("Jupiter %1th from the Moon: supportive", parent.now.jupiter_from_moon) }
+            }
+            // the days, as a strip: one tile each, coloured by how the day looks
+            GridLayout {
+                Layout.fillWidth: true
+                visible: win.ahead !== null
+                columns: width < Theme.px(560) ? 4 : 7
+                columnSpacing: Theme.space(2)
+                rowSpacing: Theme.space(2)
+                Repeater {
+                    model: (win.ahead || {}).days || []
+                    Rectangle {
+                        id: dayTile
+                        required property var modelData
+                        readonly property color tone: modelData.tone === "difficult" ? Theme.danger : modelData.tone === "caution" ? Theme.amber
+                                                    : modelData.tone === "good" ? Theme.success : Theme.dim
+                        Layout.fillWidth: true
+                        implicitHeight: dcol.implicitHeight + Theme.space(4)
+                        radius: Theme.radius
+                        color: Theme.alpha(tone, 0.14)
+                        border.width: 1
+                        border.color: Theme.alpha(tone, 0.45)
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: Qt.formatDate(new Date(modelData.date + "T12:00:00"), "dddd d MMMM") + ": "
+                                         + ((modelData.reasons || []).map(r => Services.KundaliProfiles.reasonText(r)).join(", ") || Tr.t("nothing in the way"))
+                        ColumnLayout {
+                            id: dcol
+                            anchors.centerIn: parent
+                            width: parent.width - Theme.space(2)
+                            spacing: 0
+                            Text { Layout.alignment: Qt.AlignHCenter; text: Qt.formatDate(new Date(dayTile.modelData.date + "T12:00:00"), "ddd"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
+                            Text { Layout.alignment: Qt.AlignHCenter; text: Qt.formatDate(new Date(dayTile.modelData.date + "T12:00:00"), "d"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
+                            Text {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: dayTile.modelData.tone === "difficult" ? Tr.t("hard") : dayTile.modelData.tone === "caution" ? Tr.t("care")
+                                    : dayTile.modelData.tone === "good" ? Tr.t("good") : Tr.t("even")
+                                color: dayTile.tone
+                                font.family: Theme.font
+                                font.pixelSize: Theme.type("caption")
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                    }
+                }
+            }
+            // why: each day that is not plain sailing, in words
+            Repeater {
+                model: ((win.ahead || {}).days || []).filter(d => (d.reasons || []).length > 0)
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    interactive: false
+                    icon: modelData.tone === "difficult" ? "dialog-warning" : "dialog-information"
+                    title: Qt.formatDate(new Date(modelData.date + "T12:00:00"), "dddd, d MMMM")
+                    subtitle: (modelData.reasons || []).map(r => Services.KundaliProfiles.reasonText(r)).join(" · ")
+                }
+            }
+            Repeater {
+                model: (win.ahead || {}).changes || []
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    interactive: false
+                    icon: "x-office-calendar"
+                    title: Qt.formatDate(new Date(modelData.date + "T12:00:00"), "dddd, d MMMM")
+                    subtitle: Services.KundaliProfiles.changeText(modelData)
+                }
             }
         }
 

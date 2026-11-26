@@ -52,6 +52,21 @@ else
 fi
 ipc kundaliClose
 
+# a saved chart gets a notice before a hard day: 2 December 2026 (the
+# harness's today) is chandrashtama for this birth (Moon in Virgo, the 8th
+# from its Aquarius Moon)
+ipc kundaliSave 1990-01-01 12:00 18.5204 73.8567 Asia/Kolkata Asha
+waitfor "d['kundaliSaved'] == 1" 5 && result kundali-saved PASS || result kundali-saved FAIL "$(q "['kundaliSaved']")"
+waitfor "any('Asha' in s and 'hard' in s for s in d['kundaliNotices'])" 15 \
+    && result kundali-hard-day-notice PASS || result kundali-hard-day-notice FAIL "$(q "['kundaliNotices']")"
+shot kundali-notice 0.5
+ipc kundaliChart 1990-01-01 12:00 18.5204 73.8567 Asia/Kolkata Pune
+waitfor "d['kundali']" 6
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "radio button:^Days ahead$" >/dev/null 2>&1; shot kundali-ahead 3
+fi
+ipc kundaliClose
+
 # the day's panchang, as the calendar asks for it
 ipc kundaliPanchang 2026-10-19 18.5204 73.8567 Asia/Kolkata Pune
 waitfor "d['kundali']" 6 && result kundali-panchang-opens PASS || result kundali-panchang-opens FAIL "$(q "['kundali']")"
