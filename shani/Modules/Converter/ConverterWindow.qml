@@ -116,10 +116,10 @@ AppWindow {
             anchors.fill: parent
             spacing: Theme.px(10)
 
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
+                spacing: Theme.px(6)
                 Button { kind: win.jobs.length ? "plain" : "primary"; text: Tr.t("Add files…"); onClicked: win.pick() }
-                Item { Layout.fillWidth: true }
                 Text { text: Tr.t("Quality"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                 Repeater {
                     model: [["small", Tr.t("Small")], ["balanced", Tr.t("Balanced")], ["best", Tr.t("Best")]]
@@ -127,29 +127,29 @@ AppWindow {
                 }
             }
 
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: win.jobs.length > 0
                 spacing: Theme.px(6)
                 Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                TextField { id: fromField; Layout.preferredWidth: Theme.px(64); placeholderText: "0"; Accessible.name: Tr.t("Start, in seconds") }
+                TextField { id: fromField; width: Theme.px(64); placeholderText: "0"; Accessible.name: Tr.t("Start, in seconds") }
                 Text { text: Tr.t("To"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                TextField { id: toField; Layout.preferredWidth: Theme.px(64); placeholderText: Tr.t("end"); Accessible.name: Tr.t("End, in seconds") }
+                TextField { id: toField; width: Theme.px(64); placeholderText: Tr.t("end"); Accessible.name: Tr.t("End, in seconds") }
                 Text { text: Tr.t("Volume"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                TextField { id: volField; Layout.preferredWidth: Theme.px(56); placeholderText: "100"; Accessible.name: Tr.t("Volume, percent") }
+                TextField { id: volField; width: Theme.px(56); placeholderText: "100"; Accessible.name: Tr.t("Volume, percent") }
                 Text { text: Tr.t("Title"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                TextField { id: titleField; Layout.fillWidth: true; placeholderText: Tr.t("What the file says about itself"); Accessible.name: Tr.t("Title") }
+                TextField { id: titleField; width: Theme.px(160); placeholderText: Tr.t("What the file says about itself"); Accessible.name: Tr.t("Title") }
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: win.jobs.length > 0
                 spacing: Theme.px(6)
                 Text { text: Tr.t("Artist"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                TextField { id: artistField; Layout.preferredWidth: Theme.px(110); placeholderText: Tr.t("Performer"); Accessible.name: Tr.t("Artist") }
+                TextField { id: artistField; width: Theme.px(110); placeholderText: Tr.t("Performer"); Accessible.name: Tr.t("Artist") }
                 Text { text: Tr.t("Fade"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                TextField { id: fadeField; Layout.preferredWidth: Theme.px(70); placeholderText: "0:0"; Accessible.name: Tr.t("Fade in and out, seconds") }
+                TextField { id: fadeField; width: Theme.px(70); placeholderText: "0:0"; Accessible.name: Tr.t("Fade in and out, seconds") }
                 Text { text: Tr.t("Speed"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
-                TextField { id: speedField; Layout.preferredWidth: Theme.px(60); placeholderText: "1.0"; Accessible.name: Tr.t("Playback speed") }
+                TextField { id: speedField; width: Theme.px(60); placeholderText: "1.0"; Accessible.name: Tr.t("Playback speed") }
             }
 
             ListView {
@@ -241,6 +241,7 @@ AppWindow {
                 Layout.fillWidth: true
                 Text {
                     Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                     text: Tr.t("New files go beside the originals; nothing is written over.")
                     color: Theme.faint
                     font.family: Theme.font

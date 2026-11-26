@@ -36,6 +36,8 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
                     text: Tr.t("Restore from snapshot")
                     color: Theme.text
                     font.family: Theme.font
@@ -91,31 +93,61 @@ AppWindow {
                 reuseItems: true
                 cacheBuffer: 400
                 model: Backup.snapshots
-                delegate: ListRow {
+                delegate: ColumnLayout {
                     required property var modelData
                     width: timeline.width
-                    icon: "document-open-recent"
-                    title: modelData.displayDate
-                    subtitle: modelData.size > 0 ? Backup.formatBytes(modelData.size) + " · " + modelData.name : modelData.name
-                    // restore is an explicit button, never a stray row tap
-                    interactive: false
-                    Button {
-                        text: Tr.t("Restore")
-                        kind: "primary"
-                        enabled: Backup.driveSetUp
-                        onClicked: {
-                            Backup.restoreFromSnapshot(modelData.name, "all");
-                            win.visible = false;
+                    spacing: Theme.px(2)
+                    ListRow {
+                        Layout.fillWidth: true
+                        icon: "document-open-recent"
+                        title: modelData.displayDate
+                        subtitle: modelData.size > 0 ? Backup.formatBytes(modelData.size) + " · " + modelData.name : modelData.name
+                        // restore is an explicit button, never a stray row tap
+                        interactive: false
+                        Button {
+                            visible: !win.compact
+                            text: Tr.t("Restore")
+                            kind: "primary"
+                            enabled: Backup.driveSetUp
+                            onClicked: {
+                                Backup.restoreFromSnapshot(modelData.name, "all");
+                                win.visible = false;
+                            }
+                        }
+                        Button {
+                            visible: !win.compact
+                            text: Tr.t("Files only")
+                            kind: "outline"
+                            flat: true
+                            enabled: Backup.driveSetUp
+                            onClicked: {
+                                Backup.restoreFromSnapshot(modelData.name, "files");
+                                win.visible = false;
+                            }
                         }
                     }
-                    Button {
-                        text: Tr.t("Files only")
-                        kind: "outline"
-                        flat: true
-                        enabled: Backup.driveSetUp
-                        onClicked: {
-                            Backup.restoreFromSnapshot(modelData.name, "files");
-                            win.visible = false;
+                    Flow {
+                        visible: win.compact
+                        Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        Button {
+                            text: Tr.t("Restore")
+                            kind: "primary"
+                            enabled: Backup.driveSetUp
+                            onClicked: {
+                                Backup.restoreFromSnapshot(modelData.name, "all");
+                                win.visible = false;
+                            }
+                        }
+                        Button {
+                            text: Tr.t("Files only")
+                            kind: "outline"
+                            flat: true
+                            enabled: Backup.driveSetUp
+                            onClicked: {
+                                Backup.restoreFromSnapshot(modelData.name, "files");
+                                win.visible = false;
+                            }
                         }
                     }
                 }

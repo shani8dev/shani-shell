@@ -232,7 +232,7 @@ except Exception as e:
                     }
                 }
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true; spacing: Theme.px(6)
                 Button {
                     kind: "primary"; text: Tr.t("Run query")
@@ -326,7 +326,7 @@ except Exception as e:
                     Rectangle {
                         required property string modelData
                         width: Math.min(Theme.px(280), parent.width)
-                        height: Theme.px(30); radius: Theme.radiusSmall
+                        height: Math.max(Theme.px(30), Theme.touchTarget); radius: Theme.radiusSmall
                         color: Theme.surface1; border.width: 1; border.color: Theme.stroke
                         Accessible.role: Accessible.Button
                         Accessible.name: Tr.t("Run again: %1").arg(modelData)

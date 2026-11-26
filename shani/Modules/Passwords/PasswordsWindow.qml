@@ -504,7 +504,7 @@ AppWindow {
             }
         }
         // folders / favourites / recent: all chips and the folders in the vault
-        RowLayout {
+        Flow {
             visible: win.tab === "passwords"
             Layout.fillWidth: true
             spacing: Theme.px(4)
@@ -550,21 +550,22 @@ AppWindow {
         }
 
         // ---- passwords ----
-        RowLayout {
+        Flow {
             visible: win.tab === "passwords"
             Layout.fillWidth: true
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.px(6)
-                SearchField { id: search; Layout.fillWidth: true; placeholder: Tr.t("Find a password"); label: Tr.t("Find a password") }
-                Text {
-                    visible: search.text !== ""
-                    text: win.visibleItems.length + " / " + win.items.length
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                    font.features: { "tnum": 1 }
-                }
+            spacing: Theme.px(6)
+            SearchField {
+                id: search
+                width: win.compact ? parent.width : implicitWidth
+                placeholder: Tr.t("Find a password"); label: Tr.t("Find a password")
+            }
+            Text {
+                visible: search.text !== ""
+                text: win.visibleItems.length + " / " + win.items.length
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
+                font.features: { "tnum": 1 }
             }
             Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }
             Button {
@@ -661,6 +662,7 @@ AppWindow {
                 id: prow
                 required property var modelData
                 width: plist.width
+                height: Math.max(Theme.touchTarget, actions.implicitHeight + Theme.px(8))
                 spacing: 2
                 Accessible.role: Accessible.ListItem
                 Accessible.name: prow.modelData.label
@@ -692,43 +694,49 @@ AppWindow {
                             Accessible.name: Tr.t("Folder: %1", win.categoryOf(prow.modelData))
                         }
                     }
-                    IconButton {
-                        icon: win.isFav(prow.modelData) ? "starred" : "non-starred"
-                        size: Theme.px(26)
-                        on: win.isFav(prow.modelData)
-                        tip: win.isFav(prow.modelData) ? Tr.t("Remove %1 from favourites", prow.modelData.label) : Tr.t("Add %1 to favourites", prow.modelData.label)
-                        onClicked: win.toggleFavorite(prow.modelData)
-                    }
-                    IconButton {
-                        visible: win.noteOf(prow.modelData) !== ""
-                        icon: "text-x-generic"
-                        size: Theme.px(26)
-                        on: win.shownNotePath === prow.modelData.path
-                        tip: win.shownNotePath === prow.modelData.path ? Tr.t("Hide the secure note for %1", prow.modelData.label) : Tr.t("Read the secure note for %1", prow.modelData.label)
-                        onClicked: win.toggleNote(prow.modelData)
-                    }
-                    IconButton { icon: win.shownPath === prow.modelData.path ? "view-conceal" : "view-reveal"; size: Theme.px(26); tip: win.shownPath === prow.modelData.path ? Tr.t("Hide %1", prow.modelData.label) : Tr.t("Show %1", prow.modelData.label); onClicked: win.reveal(prow.modelData) }
-                    IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the password for %1", prow.modelData.label); onClicked: win.copy(prow.modelData) }
-                    IconButton {
-                        visible: win.username(prow.modelData) !== ""
-                        icon: "contact-new"
-                        size: Theme.px(26)
-                        tip: Tr.t("Copy the username for %1", prow.modelData.label)
-                        onClicked: win.copyUser(prow.modelData)
-                    }
-                    IconButton {
-                        visible: win.siteUrl(prow.modelData) !== ""
-                        icon: "web-browser"
-                        size: Theme.px(26)
-                        tip: Tr.t("Open site in browser")
-                        onClicked: Qt.openUrlExternally(win.siteUrl(prow.modelData))
-                    }
-                    IconButton { icon: "document-edit"; size: Theme.px(26); tip: Tr.t("Change it"); onClicked: win.changing = win.changing === prow.modelData.path ? "" : prow.modelData.path }
-                    IconButton {
-                        icon: win.removing === prow.modelData.path ? "edit-delete" : "window-close"
-                        size: Theme.px(26)
-                        tip: win.removing === prow.modelData.path ? Tr.t("Click again: %1 is deleted", prow.modelData.label) : Tr.t("Delete")
-                        onClicked: { if (win.removing === prow.modelData.path) { win.removing = ""; win.run(["delete", prow.modelData.path]); } else win.removing = prow.modelData.path; }
+                    Flow {
+                        id: actions
+                        Layout.minimumWidth: win.compact ? Theme.touchTarget * 3 : implicitWidth
+                        Layout.preferredWidth: win.compact ? Theme.touchTarget * 3 : implicitWidth
+                        spacing: Theme.px(4)
+                        IconButton {
+                            icon: win.isFav(prow.modelData) ? "starred" : "non-starred"
+                            size: Theme.px(26)
+                            on: win.isFav(prow.modelData)
+                            tip: win.isFav(prow.modelData) ? Tr.t("Remove %1 from favourites", prow.modelData.label) : Tr.t("Add %1 to favourites", prow.modelData.label)
+                            onClicked: win.toggleFavorite(prow.modelData)
+                        }
+                        IconButton {
+                            visible: win.noteOf(prow.modelData) !== ""
+                            icon: "text-x-generic"
+                            size: Theme.px(26)
+                            on: win.shownNotePath === prow.modelData.path
+                            tip: win.shownNotePath === prow.modelData.path ? Tr.t("Hide the secure note for %1", prow.modelData.label) : Tr.t("Read the secure note for %1", prow.modelData.label)
+                            onClicked: win.toggleNote(prow.modelData)
+                        }
+                        IconButton { icon: win.shownPath === prow.modelData.path ? "view-conceal" : "view-reveal"; size: Theme.px(26); tip: win.shownPath === prow.modelData.path ? Tr.t("Hide %1", prow.modelData.label) : Tr.t("Show %1", prow.modelData.label); onClicked: win.reveal(prow.modelData) }
+                        IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy the password for %1", prow.modelData.label); onClicked: win.copy(prow.modelData) }
+                        IconButton {
+                            visible: win.username(prow.modelData) !== ""
+                            icon: "contact-new"
+                            size: Theme.px(26)
+                            tip: Tr.t("Copy the username for %1", prow.modelData.label)
+                            onClicked: win.copyUser(prow.modelData)
+                        }
+                        IconButton {
+                            visible: win.siteUrl(prow.modelData) !== ""
+                            icon: "web-browser"
+                            size: Theme.px(26)
+                            tip: Tr.t("Open site in browser")
+                            onClicked: Qt.openUrlExternally(win.siteUrl(prow.modelData))
+                        }
+                        IconButton { icon: "document-edit"; size: Theme.px(26); tip: Tr.t("Change it"); onClicked: win.changing = win.changing === prow.modelData.path ? "" : prow.modelData.path }
+                        IconButton {
+                            icon: win.removing === prow.modelData.path ? "edit-delete" : "window-close"
+                            size: Theme.px(26)
+                            tip: win.removing === prow.modelData.path ? Tr.t("Click again: %1 is deleted", prow.modelData.label) : Tr.t("Delete")
+                            onClicked: { if (win.removing === prow.modelData.path) { win.removing = ""; win.run(["delete", prow.modelData.path]); } else win.removing = prow.modelData.path; }
+                        }
                     }
                 }
                 RowLayout {

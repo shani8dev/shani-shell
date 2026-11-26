@@ -298,7 +298,8 @@ AppWindow {
                 Flickable {
                     Layout.fillWidth: true
                     contentWidth: historyRow.implicitWidth
-                    height: Theme.px(30)
+                    contentHeight: Math.max(height, historyRow.implicitHeight)
+                    height: Math.max(Theme.px(30), Theme.touchTarget)
                     clip: true
                     flickableDirection: Flickable.HorizontalFlick
                     Row {
@@ -395,6 +396,7 @@ AppWindow {
 
             Text {
                 Layout.fillWidth: true
+                wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 text: win.results.length + " results · Enter runs · Ctrl+F/L focuses the host · Ctrl+R reruns · Esc closes"
                 color: Theme.dim

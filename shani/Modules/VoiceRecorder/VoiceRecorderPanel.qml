@@ -309,7 +309,7 @@ AppWindow {
                 cacheBuffer: 400
                 id: list
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(240, Math.max(44, win.visibleRows().length * 48))
+                Layout.preferredHeight: Math.min(300, Math.max(44, win.visibleRows().length * (win.compact ? Theme.touchTarget * 2 + Theme.px(12) : 48)))
                 visible: win.visibleRows().length > 0
                 clip: true
                 spacing: Theme.px(4)
@@ -321,7 +321,7 @@ AppWindow {
                     required property var modelData
                     required property int index
                     width: list.width
-                    height: Theme.px(44)
+                    height: Math.max(Theme.px(44), Theme.touchTarget, actions.implicitHeight + Theme.px(8))
                     radius: Theme.px(10)
                     color: rowArea.containsMouse ? Theme.hover : "transparent"
 
@@ -367,49 +367,55 @@ AppWindow {
                                 win.renaming = "";
                             }
                         }
-                        IconButton {
-                            icon: win.inlinePlay === row.modelData.path && playback.playbackState === MediaPlayer.PlayingState ? "media-playback-pause" : "media-playback-start"
-                            size: Theme.px(30)
-                            tip: Tr.t("Play here")
-                            Accessible.name: Tr.t("Play in the recorder")
-                            onClicked: win.playInline(row.modelData.path)
-                        }
-                        IconButton {
-                            icon: "applications-multimedia"
-                            size: Theme.px(30)
-                            tip: Tr.t("Open in %1", "Media Player")
-                            Accessible.name: Tr.t("Open in %1", "Media Player")
-                            onClicked: win.openInPlayer(row.modelData.path)
-                        }
-                        IconButton {
-                            icon: "document-save-as"
-                            size: Theme.px(30)
-                            tip: Tr.t("Export…")
-                            Accessible.name: Tr.t("Export recording")
-                            onClicked: win.exportDialog(row.modelData.path)
-                        }
-                        IconButton {
-                            icon: "document-edit"
-                            size: Theme.px(30)
-                            tip: Tr.t("Rename")
-                            onClicked: {
-                                win.renaming = row.modelData.path;
-                                Qt.callLater(function() { renameField.forceActiveFocus(Qt.MouseFocusReason); });
+                        Flow {
+                            id: actions
+                            Layout.minimumWidth: win.compact ? Theme.touchTarget * 3 : implicitWidth
+                            Layout.preferredWidth: win.compact ? Theme.touchTarget * 3 : implicitWidth
+                            spacing: Theme.px(4)
+                            IconButton {
+                                icon: win.inlinePlay === row.modelData.path && playback.playbackState === MediaPlayer.PlayingState ? "media-playback-pause" : "media-playback-start"
+                                size: Theme.px(30)
+                                tip: Tr.t("Play here")
+                                Accessible.name: Tr.t("Play in the recorder")
+                                onClicked: win.playInline(row.modelData.path)
                             }
-                        }
-                        IconButton {
-                            icon: "edit-cut"
-                            size: Theme.px(30)
-                            tip: Tr.t("Trim take")
-                            onClicked: VoiceRecorder.openTrim(row.modelData.path)
-                        }
-                        IconButton {
-                            icon: "edit-delete"
-                            size: Theme.px(30)
-                            tip: win.confirmingDelete === row.modelData.path ? Tr.t("Tap again to trash") : Tr.t("Move to trash")
-                            onClicked: {
-                                if (win.confirmingDelete === row.modelData.path) win.trashTake(row.modelData.path);
-                                else win.confirmingDelete = row.modelData.path;
+                            IconButton {
+                                icon: "applications-multimedia"
+                                size: Theme.px(30)
+                                tip: Tr.t("Open in %1", "Media Player")
+                                Accessible.name: Tr.t("Open in %1", "Media Player")
+                                onClicked: win.openInPlayer(row.modelData.path)
+                            }
+                            IconButton {
+                                icon: "document-save-as"
+                                size: Theme.px(30)
+                                tip: Tr.t("Export…")
+                                Accessible.name: Tr.t("Export recording")
+                                onClicked: win.exportDialog(row.modelData.path)
+                            }
+                            IconButton {
+                                icon: "document-edit"
+                                size: Theme.px(30)
+                                tip: Tr.t("Rename")
+                                onClicked: {
+                                    win.renaming = row.modelData.path;
+                                    Qt.callLater(function() { renameField.forceActiveFocus(Qt.MouseFocusReason); });
+                                }
+                            }
+                            IconButton {
+                                icon: "edit-cut"
+                                size: Theme.px(30)
+                                tip: Tr.t("Trim take")
+                                onClicked: VoiceRecorder.openTrim(row.modelData.path)
+                            }
+                            IconButton {
+                                icon: "edit-delete"
+                                size: Theme.px(30)
+                                tip: win.confirmingDelete === row.modelData.path ? Tr.t("Tap again to trash") : Tr.t("Move to trash")
+                                onClicked: {
+                                    if (win.confirmingDelete === row.modelData.path) win.trashTake(row.modelData.path);
+                                    else win.confirmingDelete = row.modelData.path;
+                                }
                             }
                         }
                     }
@@ -564,7 +570,7 @@ AppWindow {
                     Item {
                         id: wave
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Theme.px(40)
+                        Layout.preferredHeight: Math.max(Theme.px(40), Theme.touchTarget)
                         readonly property real progress: playback.duration > 0 ? Math.max(0, Math.min(1, playback.position / playback.duration)) : 0
                         property real value: progress
                         Accessible.role: Accessible.Slider
