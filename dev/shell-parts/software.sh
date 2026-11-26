@@ -34,6 +34,11 @@ if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" press "radio button:^Office$" >/dev/null 2>&1; sleep 0.8
     timeout 20 python3 "$A11Y" press "button:^Notes$" >/dev/null 2>&1
     waitfor "d['softwareApp'] == 'org.example.Notes'" 6 && result software-app-page PASS || result software-app-page FAIL "$(q "['softwareApp']")"
+    # the app page reads reviews and add-ons out of `info` (no separate commands)
+    timeout 20 python3 "$A11Y" find "Review from a person" >/dev/null 2>&1 \
+        && result software-app-reviews PASS || result software-app-reviews FAIL "the review is not on the app page"
+    timeout 20 python3 "$A11Y" find "Extra tools" >/dev/null 2>&1 \
+        && result software-app-addons PASS || result software-app-addons FAIL "the add-on is not on the app page"
     shot app-software-page 0.3
     timeout 20 python3 "$A11Y" press "button:^Install$" >/dev/null 2>&1
     waitfor "d['softwareDone'] == 'org.example.Notes:ok' and d['softwareInstalled'] == ['org.example.Notes']" 15 \

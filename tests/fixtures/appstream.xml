@@ -19,5 +19,11 @@
     <summary>A game about notes in space</summary>
     <categories><category>Game</category></categories>
   </component>
+  <component type="addon">
+    <id>org.example.Notes.Extra</id>
+    <extends>org.example.Notes</extends>
+    <name>Extra tools</name>
+    <summary>More tools for Notes</summary>
+  </component>
   <component type="runtime"><id>org.freedesktop.Platform</id><name>Platform</name></component>
 </components>
