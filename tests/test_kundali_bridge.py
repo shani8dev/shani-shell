@@ -6,6 +6,7 @@ plainly rather than crash, and it must hand the module a timestamp it can
 parse — a bare date becomes noon UTC, a date with a time gets a Z.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -92,16 +93,62 @@ def test_panchang_returns_what_the_module_said(astro):
 # ---- the command line --------------------------------------------------------
 
 
-def test_the_command_line_answers_json_with_defaults(monkeypatch):
+def test_missing_arguments_are_an_error_not_a_trip_to_new_delhi():
+    import subprocess
+
+    tool = [sys.executable, str(ROOT / "bridge/kundali.py")]
+    for args in (
+        ["panchang"],
+        ["panchang", "2024-01-01"],
+        ["kundali", "1990-01-01T12:00:00Z", "28.6"],
+        ["details", "dasha"],
+    ):
+        out = subprocess.run(tool + args, capture_output=True, text=True, timeout=60)
+        assert out.returncode == 2, (args, out.stdout, out.stderr)
+        answer = json.loads(out.stdout)
+        assert "missing" in answer["error"]
+        assert "Traceback" not in out.stderr
+
+
+def test_the_command_line_returns_a_chart_section():
     import subprocess
 
     out = subprocess.run(
-        [sys.executable, str(ROOT / "bridge/kundali.py"), "panchang", "2024-01-01"],
+        [
+            sys.executable,
+            str(ROOT / "bridge/kundali.py"),
+            "details",
+            "nakshatra",
+            "1990-01-01T12:00:00Z",
+            "28.6",
+            "77.2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert out.returncode in (0, 1)
+    answer = json.loads(out.stdout)
+    if "error" not in answer:
+        assert "nakshatra" in answer and "pada" in answer and "lord" in answer
+
+
+def test_the_command_line_answers_json_with_all_arguments():
+    import subprocess
+
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "bridge/kundali.py"),
+            "panchang",
+            "2024-01-01",
+            "28.6",
+            "77.2",
+        ],
         capture_output=True,
         text=True,
         timeout=60,
     )
     assert out.returncode == 0
-    # either the module answered or it said it was missing - never a traceback
     assert out.stdout.strip().startswith("{")
     assert "Traceback" not in out.stderr

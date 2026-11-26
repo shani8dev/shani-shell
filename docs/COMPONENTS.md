@@ -57,6 +57,11 @@ writing; treat them as a reach warning, not a target.
 - `icon`, `title`, `subtitle`, `selected`, `interactive` (default true),
   `trailing`, `columns` (grid width for Up/Down), `extra` (default alias),
   `clicked()`. Do not draw a raw `Rectangle` as a row.
+### PhoneFiles.qml  ·  the one view of files to and from the paired phone.
+- Send (shell file picker → `PhoneTools.filesSend`), the receive switch and the
+  received list (open, show in Files). Used by Calls and Devices; the Files
+  app's context menu calls the same service.
+
 ### SegmentedTabs.qml  ·  `options`, `currentIndex`, `segmentWidth`
 (`Theme.px(100)`), `activated(int)`. Height `max(Theme.px(40),
 Theme.touchTarget)`.

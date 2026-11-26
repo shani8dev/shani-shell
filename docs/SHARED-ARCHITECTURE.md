@@ -291,3 +291,12 @@ Add a line when you finish a piece (date, repo, what, commit).
   multi-select and the full editor; a two-column watch dashboard with sync,
   settings, notice and profile actions; no GTK app started (c61d9dd,
   e69d25c, b82f359).
+- 2026-11-26 shani-shell (orphan bridge commands, rule 1): each command got one
+  owner. Phone file send/receive went into a shared Calls/Devices view and the
+  Files menu (ff95e54); app-store add-ons and reviews stayed inside `info` and
+  its page (96b34f4); feeds' next-unread and tag chips got a working refresh
+  path (dd666da); `passkey-capabilities` got a Passkeys section (39a8c38);
+  zipcrypt's make/encrypted commands were removed in favour of the Archives
+  app's own Compress and Locked badge (6d9f4a3); Kundali's duplicated engine
+  calculations were cut to the six sections the window draws, and missing
+  coordinates became an error instead of New Delhi (this commit).
