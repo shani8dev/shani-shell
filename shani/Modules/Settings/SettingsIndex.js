@@ -270,6 +270,18 @@ var entries = [
 
     // ---- Chronoa
     { key: "islandActivities", label: "The Island on the bar", cat: "chronoa", hint: "timers, music and recordings in the Island", words: "island chronoa bar activities pomodoro timer" },
+    // The engine's ten read-only pages live in one Settings category. `page`
+    // opens the right one when a search finds it (see SettingsPage.openSetting).
+    { key: "chronoaStatus", label: "Chronoa status", cat: "chronoa", page: "status", hint: "is the engine running, which model answers, is the service up", words: "chronoa status engine running model service up down diagnostics" },
+    { key: "chronoaModels", label: "Chronoa models", cat: "chronoa", page: "models", hint: "which model answers each kind of request, and why", words: "chronoa models model choice local llm reason" },
+    { key: "chronoaSkills", label: "Chronoa skills", cat: "chronoa", page: "skills", hint: "the things Chronoa can do, and what needs asking first", words: "chronoa skills tools can do permission gate" },
+    { key: "chronoaCapabilities", label: "Chronoa capabilities", cat: "chronoa", page: "capabilities", hint: "what can be asked, with an example for each", words: "chronoa capabilities what can i ask examples consent" },
+    { key: "chronoaRoutines", label: "Chronoa routines", cat: "chronoa", page: "routines", hint: "one short phrase standing for a whole request", words: "chronoa routines phrases shortcuts say this" },
+    { key: "chronoaTriggers", label: "Chronoa triggers", cat: "chronoa", page: "triggers", hint: "rules that act when something happens", words: "chronoa triggers rules when this happens automation" },
+    { key: "chronoaMemory", label: "Chronoa memory", cat: "chronoa", page: "memory", hint: "facts it kept, where they came from and when", words: "chronoa memory durable facts learned kept" },
+    { key: "chronoaPrivacy", label: "Chronoa privacy", cat: "chronoa", page: "privacy", hint: "privacy mode, what left the machine and each consent key", words: "chronoa privacy consent cloud egress sent off machine" },
+    { key: "chronoaSenses", label: "Chronoa senses", cat: "chronoa", page: "senses", hint: "every sense it knows and whether it may be used", words: "chronoa senses camera microphone screen consent keys" },
+    { key: "chronoaConversations", label: "Chronoa conversations", cat: "chronoa", page: "conversations", hint: "saved talks, read-only here", words: "chronoa conversations saved talks history" },
 
     // ---- Power
     { key: "autoLockOnLowBattery", label: "Lock when critically low", cat: "power", hint: "lock the screen at 7 % battery", words: "lock battery low critical auto" },

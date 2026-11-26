@@ -165,6 +165,17 @@ ColumnLayout {
             if (found) entry = found;
             else return;   // unknown key: nowhere to open
         }
+        // Chronoa's read-only pages are one Settings category with a chosen
+        // page inside it: a search for "routines" lands on the Routines page,
+        // not just on the category's first page.
+        if (entry.cat === "chronoa" && entry.page) {
+            Ui.chronoaSettingsPage = entry.page;
+            Ui.openSettings("chronoa");
+            settingsSearch.text = "";
+            query = "";
+            settingsMatches = [];
+            return;
+        }
         // app deep-links open their window instead of a Settings category;
         // an unknown link is not a dead end: it falls through to entry.cat
         if (entry.link && page.linkFlags[entry.link] in Ui) {

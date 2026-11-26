@@ -758,6 +758,11 @@ ShellRoot {
         function settings() { Ui.openSettings(""); }
         function settingsCategory(cat: string) { Ui.openSettings(cat); }
         function settingsAt(cat: string, section: string) { Ui.openSettings(cat, section); }
+        // Settings > Chronoa: its pages and the engine switch. Both go through
+        // the same singleton the switch's click uses, so a live check drives
+        // the path a person drives (no second copy of the systemctl call).
+        function chronoaSettingsPage(name: string) { Ui.chronoaSettingsPage = name; Ui.openSettings("chronoa"); }
+        function chronoaEngine(on: string) { ChronoaEngine.setEngine(on === "on" || on === "true" || on === "1"); }
         // settings undo: revert one or all changed settings
         function settingsChangedKeys(): string { return JSON.stringify(Settings.changedKeys); }
         function settingsUndo(key: string) { Settings.undo(key); }
@@ -1228,6 +1233,7 @@ ShellRoot {
                 updatesFirmware: Updates.firmware, updatesSummary: Updates.summary,
                 bootAvailable: BootInfo.available, bootRows: BootInfo.rows.map(r => r.label + ": " + r.value), bootNote: BootInfo.note,
                 settingsCat: Ui.settingsCat, settingsOpen: Ui.settingsOpen, settingsCompact: Ui.settingsCompact, settingsShowingPage: Ui.settingsShowingPage,
+                chronoaState: Ui.chronoaState, chronoaSettingsPage: Ui.chronoaSettingsPage,
                 pinned: Niri.pinned, badges: Notifs.perApp,
                 capsLock: LockKeys.caps, numLock: LockKeys.num,
                 screenSaver: ScreenSaver.active, screenSaverPreview: ScreenSaver.preview,

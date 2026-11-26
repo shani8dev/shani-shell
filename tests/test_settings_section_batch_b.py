@@ -22,22 +22,45 @@ def test_boot_uses_settings_section_and_keeps_content():
     assert "Rolling back is shani-deploy's job" in s
 
 
-def test_chronoa_uses_settings_sections_and_keeps_actions():
+def test_chronoa_uses_shell_pages_and_starts_the_engine_unit():
     s = read("shani/Modules/Settings/SettingsChronoa.qml")
-    assert s.count("SettingsSection {") >= 2
+    assert s.count("SettingsSection {") >= 3
     assert 'title: Tr.t("Chronoa")' in s
+    assert 'title: Tr.t("Chronoa\'s own pages")' in s
     assert 'title: Tr.t("The Island")' in s
-    assert "Chronoa is running." in s
-    assert "Chronoa is not running" in s
     assert 'text: Tr.t("Enable Chronoa")' in s
     assert "Settings.data.chronoaEnabled = on" in s
-    assert 'Quickshell.execDetached(["shani-chronoa"])' in s
-    assert 'Quickshell.execDetached(["pkill", "-f", "shani-chronoa"])' in s
-    assert "Chronoa's settings — model, voice, wake word, permissions" in s
-    assert "dev.shani.chronoa open-settings" in s
+    assert "ChronoaEngine.setEngine(on)" in s
+    assert 'checked: ChronoaEngine.service === "active"' in s
+    assert "ChronoaInventoryPage" in s
+    assert "Ui.chronoaSettingsPage" in s
+    for section in (
+        "status",
+        "models",
+        "skills",
+        "capabilities",
+        "routines",
+        "triggers",
+        "memory",
+        "privacy",
+        "senses",
+        "conversations",
+    ):
+        assert 'value: "' + section + '"' in s, section
+    # no GTK app, no gapplication action, no pkill of the old app from QML
+    assert "execDetached" not in s
+    assert "gapplication" not in s
+    assert '"shani-chronoa"' not in s
     assert 'text: Tr.t("Show what is going on")' in s
     assert "page.d.islandActivities = on" in s
     assert "Super+A opens Chronoa" in s
+
+
+def test_no_qml_launches_the_gtk_app():
+    for path in (ROOT / "shani").rglob("*.qml"):
+        text = path.read_text()
+        assert 'execDetached(["shani-chronoa"])' not in text, path
+        assert "gapplication action dev.shani.chronoa" not in text, path
 
 
 def test_components_uses_settings_section_and_keeps_preview():
