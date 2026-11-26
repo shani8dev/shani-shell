@@ -45,13 +45,13 @@ the way.
 UIs (no logic)      shani-shell (QML)    GTK UIs (Cassini, Link, Backup, Chronoa-gtk)    Chronoa TUI    Chronoa skills + MCP    CLI
                           \_____ drawn from the registry ______/                      \__ generated from it __/
 Capability registry  one description per capability: method, inputs/outputs, words, privilege, consent, page
-Domain services      samyoga-<domain>: Varlink over a Unix socket, socket-activated, push events
+Domain services      <backends>-<domain>: Varlink over a Unix socket, socket-activated, push events
 OS commands          shani-deploy: run as root through polkit, contract-tested
 ```
 
 1. **OS commands** (`shani-deploy`): root work only, behind polkit. Unchanged,
    but every caller is contract-tested against the real parser.
-2. **Domain services** (new repo **`samyoga`**): one Python
+2. **Domain services** (new repo **`<backends>`**): one Python
    package per domain (`phone`, `system`, `backup`, `containers`, `network`,
    `disks`, `updates`, ...). GLib/Gio/Gst allowed, **GTK and Qt never**. Each
    domain runs as a small user service speaking **Varlink** (JSON over a Unix
@@ -84,7 +84,7 @@ OS commands          shani-deploy: run as root through polkit, contract-tested
    functions that return plain data (dicts/lists), never into a GTK tab, a QML
    file or a bridge's `main()`. A bridge is: parse argv, call a function, print
    JSON. In a GTK app, move logic you touch out of the widget code into such a
-   module in the same repo: it moves to `samyoga` later as-is.
+   module in the same repo: it moves to `<backends>` later as-is.
 3. **Data and codes from backends, words in UIs.** A backend returns stable
    keys and codes (`"status": "warn"`, `"name": "btrfs_scrub"`); the UI owns the
    sentence. Where a backend must carry a human message, keep it short and
@@ -121,7 +121,7 @@ Each phase ends green and pushable on its own.
 |---|---|---|
 | 0 | **Spike.** System health as one Varlink domain service: a read and an action, called from QML (Quickshell `Socket`), Python and `varlinkctl`; one settings page drawn from the registry in both QML and GTK. | All four work in the shell harness and on a testbed boot, and a call is faster than spawning a bridge. If `Socket` falls short, fall back to one long-lived bridge process per domain speaking the same JSON on stdin/stdout; the registry and everything above stay. |
 | 1 | **Inventory.** One table, capability by implementation (Cassini tab / shell bridge / Chronoa skill / extras tool / Link engine), and which copy is best. Kept in `shani-shell/docs/CAPABILITY-INVENTORY.md`. Also: which Cassini tabs only repeat GNOME/Plasma's own settings and need no port. | Every capability has a chosen source. |
-| 2 | **Phone domain.** The two engine copies merged file by file into `samyoga-phone`; one service, one bus/socket name (the old names kept as aliases for a release), one data home with a first-start move from `~/.config/shani-link` and `~/.config/shani-shell`. The shell, Link's window and Chronoa become clients. Ships a unit (fixes the never-started service). | Calls, texts and the watch work from the shell and Chronoa at once on a real boot; the old copies are shims; the landline media engine (`ua`/`media`/`video`) moved, not changed. |
+| 2 | **Phone domain.** The two engine copies merged file by file into `<backends>-phone`; one service, one bus/socket name (the old names kept as aliases for a release), one data home with a first-start move from `~/.config/shani-link` and `~/.config/shani-shell`. The shell, Link's window and Chronoa become clients. Ships a unit (fixes the never-started service). | Calls, texts and the watch work from the shell and Chronoa at once on a real boot; the old copies are shims; the landline media engine (`ua`/`media`/`video`) moved, not changed. |
 | 3 | **The shell's bridges become domain services,** area by area, wrapped in place (their functions are already GTK-free). The QML keeps working through shims, then switches to the socket. | Per area: shell suite + live parts green on the service. |
 | 4 | **Backup split:** `shani-backup` (command + library) and `shani-backup-gtk`. Niri drops the GTK half. | Niri image has no GTK from `shani-backup`. |
 | 5 | **Chronoa without GTK:** engine package and `shani-chronoa-gtk`; skills come from the registry; the shell builds QML for the remaining Chronoa windows (`shani-chronoa/docs/HEADLESS.md`); Settings starts the engine, not the GTK app; `shani-link` becomes an optional dependency. | Niri image has no GTK from our packages. |
@@ -134,25 +134,22 @@ Each phase ends green and pushable on its own.
 | Today | After |
 |---|---|
 | `shani-chronoa` (engine + GTK) | `shani-chronoa` (engine) + `shani-chronoa-gtk` |
-| `shani-link` (engines + GTK app) | engines in `samyoga-phone`; `shani-link` is a GTK window only |
+| `shani-link` (engines + GTK app) | engines in `<backends>-phone`; `shani-link` is a GTK window only |
 | `shani-backup` (command + GTK) | `shani-backup` + `shani-backup-gtk` |
-| shell `bridge/` | `shani-shell` depends on the `samyoga-*` it uses |
-| — | one `samyoga` repo, a split PKGBUILD: `samyoga-{phone,system,backup,...}` |
-| ShaniOS specifics scattered in each project | one ShaniOS extras package: the `shani-deploy`/`gen-efi` providers and the vendor config for samyoga, `chronoa` and the shell |
+| shell `bridge/` | `shani-shell` depends on the `<backends>-*` it uses |
+| — | one `<backends>` repo, a split PKGBUILD: `<backends>-{phone,system,backup,...}` |
+| ShaniOS specifics scattered in each project | one ShaniOS extras package: the `shani-deploy`/`gen-efi` providers and the vendor config for <backends>, `chronoa` and the shell |
 
 GNOME, Plasma and COSMIC images add the `-gtk` UIs; niri does not.
 
 ## Names
 
 Distro-neutral names for what any distribution can use, `shani-` for what is
-ShaniOS's own (decided 2026-11-26):
+ShaniOS's own (the backends' name is still open):
 
-- **`samyoga`** (संयोग, "joining together": the Vaisheshika term for the link
-  between separate things, and a conjunction of planets) - the shared
-  backends that link every UI, the assistant and the CLI. Python package
-  `samyoga`, command `samyoga <domain> <action>`, packages `samyoga-<domain>`
-  with plain descriptive domain names (`samyoga-phone`, `samyoga-disks`, ...),
-  as systemd and KDE Frameworks name their parts.
+- **The shared backends repo: name not decided yet** (to be a plain,
+  descriptive, distro-neutral name). Written `<backends>` below; packages
+  `<backends>-<domain>`, command `<backends> <domain> <action>`.
 - **`chronoa`** - the assistant (today `shani-chronoa`; to be renamed).
 - **ShaniOS extras** (`shani-*`): everything specific to ShaniOS, kept out of
   the neutral projects (below).
@@ -167,11 +164,11 @@ change and every caller in one commit). Inside, every domain is a separate
 part with strict boundaries, and at runtime each is its own service:
 
 ```
-samyoga/<domain>/
+<backends>/<domain>/
   <domain>.varlink   the contract: methods, types, privilege, consent (the one file to edit)
   service.py         the implementation: plain functions returning data
   stand_in.py        generated from the contract: the fake every test (here and in UIs) uses
-  cli.py             generated: `samyoga <domain> <action> [--json]`
+  cli.py             generated: `<backends> <domain> <action> [--json]`
   qml/<Domain>.qml   generated client for the shell
   client.py          generated client for GTK apps and Chronoa
   tests/
@@ -200,7 +197,7 @@ the way systemd, PipeWire, NetworkManager and PackageKit are reused:
    plugins), upstream, not as a patch.
 3. **Distro specifics live in a separate extras package.** For ShaniOS: the
    providers for `shani-deploy` and `gen-efi`, and the vendor config for
-   samyoga, `chronoa` and the shell (names, branding, default apps, image
+   <backends>, `chronoa` and the shell (names, branding, default apps, image
    paths) - the pattern of `fedora-release` or `ubuntu-settings`. The neutral
    projects never name ShaniOS in code.
 4. **Branding and paths are configuration** (vendor config files, build
