@@ -91,7 +91,9 @@ box() {
     # end (a layout loop once took qs to 12 GB) is killed inside its own box
     # instead of sending the host's OOM killer after the person's desktop.
     mem="--memory=${SHANI_CHECK_MEMORY:-6g} --memory-swap=${SHANI_CHECK_MEMORY:-6g}"
-    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $mem $tb $ch $on $ff $shape -v "$REPO":/work "$@"
+    # PYTHONDONTWRITEBYTECODE: no root-owned __pycache__ left in the checkout
+    # (only sudo could remove a worktree the box had run in)
+    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK -e PYTHONDONTWRITEBYTECODE=1 $mem $tb $ch $on $ff $shape -v "$REPO":/work "$@"
 }
 run() {
     case "$1" in
