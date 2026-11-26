@@ -17,6 +17,13 @@ AppWindow {
     appName: "Mail"
     visible: Ui.mail
     onGone: Ui.mail = false
+    sidePane: foldersPane
+    // picking a folder or a message closes the phone's drawer
+    Connections {
+        target: Mail
+        function onFolderChanged() { foldersPane.open = false; win.readerShown = false; }
+        function onOpenUidChanged() { foldersPane.open = false; }
+    }
     implicitWidth: Theme.px(1080)
     implicitHeight: Theme.px(680)
     shortcutSearch: searchField.input   // Ctrl+F focuses the folder's search
@@ -38,6 +45,7 @@ AppWindow {
     property var lastBulk: ({})            // { kind, uids } of the last bulk action, for undo
     property bool subjectWarning: false    // send was pressed with an empty subject
     property int cursor: 0
+    property bool readerShown: false      // a narrow window shows one pane: a tap replaces the list
 
     property bool starred: (Mail.messages.find(m => m.uid === Mail.openUid) || {}).starred || false
     // the list is a view over Mail.messages, sorted here rather than asking the
@@ -208,7 +216,7 @@ AppWindow {
         const row = rows[list.currentIndex];
         if (!row) return;
         if (row.isThread) win.toggleThread(row.threadKey);
-        else Mail.read(row.uid);
+        else { Mail.read(row.uid); win.readerShown = true; }
     }
     function nextUnread(dir) {
         const rows = win.visibleMessages();
@@ -342,14 +350,18 @@ AppWindow {
         spacing: Theme.px(10)
 
         // ---- folders --------------------------------------------------------
-        Rectangle {
-            Layout.preferredWidth: Theme.px(200)
-            Layout.fillHeight: true
-            radius: Theme.radius
-            color: Theme.alpha(Theme.text, 0.035)
-            border.width: 1
-            border.color: Theme.stroke
-
+        SidePane {
+            id: foldersPane
+            compact: win.compact
+            paneWidth: Theme.px(200)
+            label: Tr.t("Mail")
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.radius
+                color: Theme.alpha(Theme.text, 0.035)
+                border.width: 1
+                border.color: Theme.stroke
+            }
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Theme.px(10)
@@ -418,7 +430,9 @@ AppWindow {
 
         // ---- the message list -----------------------------------------------
         ColumnLayout {
-            Layout.preferredWidth: Theme.px(300)
+            visible: !win.compact || !win.readerShown
+            Layout.fillWidth: true
+            Layout.maximumWidth: win.compact ? Number.MAX_VALUE : Theme.px(300)
             Layout.fillHeight: true
             spacing: Theme.px(4)
 
@@ -482,13 +496,13 @@ AppWindow {
                 visible: win.selecting || !!win.lastBulk.kind
                 radius: Theme.radiusSmall
                 color: Theme.alpha(Theme.accent, 0.10)
-                implicitHeight: bar.implicitHeight
-                RowLayout {
+                implicitHeight: bar.implicitHeight + Theme.px(12)
+                Flow {
                     id: bar
-                    anchors { left: parent.left; right: parent.right; margins: Theme.px(6) }
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.px(6) }
                     spacing: Theme.px(4)
                     Text {
-                        Layout.fillWidth: true
+                        width: Math.min(bar.width, implicitWidth)
                         elide: Text.ElideRight
                         text: win.selecting ? Tr.t("%1 selected", win.selectedUids.length)
                             : (win.undoAvailable() ? Tr.t("Undo last bulk action") : Tr.t("Archived or deleted — no undo"))
@@ -531,7 +545,7 @@ AppWindow {
                     onClicked: {
                         if (win.selecting) win.toggleSelect(modelData.uid);
                         else if (modelData.isThread) win.toggleThread(modelData.threadKey);
-                        else Mail.read(modelData.uid);
+                        else { Mail.read(modelData.uid); win.readerShown = true; }
                     }
                 }
             }
@@ -555,6 +569,7 @@ AppWindow {
         // ---- the message being read -----------------------------------------
         Flickable {
             id: reader
+            visible: !win.compact || win.readerShown
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -567,6 +582,18 @@ AppWindow {
                 width: reader.width
                 spacing: Theme.px(10)
 
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: win.compact
+                    IconButton {
+                        icon: "go-previous"
+                        size: Theme.px(28)
+                        tip: Tr.t("Back")
+                        accessibleName: Tr.t("Back")
+                        onClicked: win.readerShown = false
+                    }
+                    Item { Layout.fillWidth: true }
+                }
                 Text {
                     Layout.fillWidth: true
                     visible: Mail.subject === ""
@@ -625,7 +652,7 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(14) * Theme.fontScale
                 }
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     visible: Mail.html !== ""
                     spacing: Theme.px(6)
@@ -646,7 +673,6 @@ AppWindow {
                         selected: Mail.remoteImages
                         onClicked: Mail.setRemoteImages(!Mail.remoteImages)
                     }
-                    Item { Layout.fillWidth: true }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -670,7 +696,7 @@ AppWindow {
                         }
                     }
                 }
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     visible: Mail.openUid !== ""
                     spacing: Theme.px(6)
@@ -712,7 +738,6 @@ AppWindow {
                         flat: true
                         onClicked: Mail.remove(Mail.openUid)
                     }
-                    Item { Layout.fillWidth: true }
                 }
                 Item { Layout.preferredHeight: 20 }
             }
@@ -725,8 +750,9 @@ AppWindow {
         visible: false
         property string to: ""
         anchors.centerIn: parent
-        width: Math.min(parent.width - 80, Theme.px(560))
+        width: win.compact ? parent.width - Theme.px(8) : Math.min(parent.width - 80, Theme.px(560))
         implicitHeight: col.implicitHeight + 40
+        height: Math.min(parent.height - Theme.px(16), implicitHeight)
         radius: Theme.radiusLarge
         color: Theme.glassStrong
         border.width: 1
@@ -780,7 +806,7 @@ AppWindow {
         visible: Mail.source !== ""
         z: 30
         anchors.centerIn: parent
-        width: Math.min(parent.width - 80, Theme.px(760))
+        width: win.compact ? parent.width - Theme.px(8) : Math.min(parent.width - 80, Theme.px(760))
         height: Math.min(parent.height - 80, Theme.px(520))
         radius: Theme.radiusLarge
         color: Theme.glassStrong
