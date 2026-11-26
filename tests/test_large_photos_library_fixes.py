@@ -112,10 +112,9 @@ def test_metadata_actions_copy_reveal_and_open_with():
     """Finder/Nautilus/Digikam: path to clipboard, reveal in Files, open with."""
     s = source()
     assert "function copyPath(path) { if (path) Files.copyPath(path); }" in s
-    assert (
-        "function reveal(path)" in s
-        and 'Files.show(at === 0 ? "/" : p.substring(0, at))' in s
-    )
+    assert "function reveal(path)" in s and "FilesReveal.show(path, Files)" in s
+    helper = Path(ROOT, "shani/Common/FilesReveal.js").read_text(encoding="utf-8")
+    assert 'files.show(at === 0 ? "/" : p.substring(0, at))' in helper
     assert 'Quickshell.execDetached(["gio", "open", "--", path])' in s
     for icon in ('icon: "edit-copy"', 'icon: "folder-open"', 'icon: "system-run"'):
         assert icon in s, icon

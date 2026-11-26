@@ -33,8 +33,14 @@ LABEL = r'Tr\.t\("(?:Show|Reveal) in Files'
 def test_surface_has_named_keyboard_reveal_hook(rel, shortcut):
     src = read(rel)
     assert "function reveal(" in src, rel
-    assert 'startsWith("/")' in src, rel  # streams have no folder on disk
-    assert "Files.show(" in src and "Files.select(" in src, rel
+    if "FilesReveal.show(path, Files)" in src:
+        # four viewers share one path-split helper; the guard lives there
+        helper = read("shani/Common/FilesReveal.js")
+        assert 'startsWith("/")' in helper, rel  # streams have no folder on disk
+        assert "files.show(" in helper and "files.select(" in helper, rel
+    else:
+        assert 'startsWith("/")' in src, rel
+        assert "Files.show(" in src and "Files.select(" in src, rel
     assert re.search(LABEL, src), rel  # tip/text is the control's AT-SPI name
     assert shortcut in src, rel  # keyboard users get the same action
 
@@ -97,4 +103,10 @@ def test_the_qml_guard_matches_the_pure_logic():
     # keep the mirror honest: every viewer must reject a non-local path before
     # it asks the file manager to show anything
     for rel in SURFACES:
-        assert 'if (!p.startsWith("/")) return;' in read(rel), rel
+        src = read(rel)
+        assert (
+            "FilesReveal.show(path, Files)" in src
+            or 'if (!p.startsWith("/")) return;' in src
+        ), rel
+    helper = read("shani/Common/FilesReveal.js")
+    assert 'if (!p.startsWith("/")) return false;' in helper

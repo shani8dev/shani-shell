@@ -21,8 +21,8 @@ def test_terminal_ping_dns_hands_the_host_to_nettools():
     # documented clipboard handoff, since no Ui flag is owned here
     assert "do not own the Ui singleton" in t and "shell.qml" in t
     assert "function openNetTools(host)" in t
-    assert 'Quickshell.clipboardText = "shani-nettools:" + h;' in t
-    assert "Ui.netTools = true;" in t
+    assert "NetToolsOpen.open(host, Quickshell, Ui)" in t
+    assert "NetToolsOpen.js" in t
     # a per-host action in both the pinned and the full host list
     assert t.count('Tr.t("Ping / DNS")') >= 2
     assert "onClicked: win.openNetTools(modelData.host)" in t
@@ -37,8 +37,8 @@ def test_maps_check_host_hands_the_place_domain_to_nettools():
     assert "Location.available" in m
     assert 'text: Tr.t("Check host")' in m
     assert "onClicked: win.checkHost()" in m
-    assert 'Quickshell.clipboardText = "shani-nettools:" + h;' in m
-    assert "Ui.netTools = true;" in m
+    assert "NetToolsOpen.open(host, Quickshell, Ui)" in m
+    assert "NetToolsOpen.js" in m
 
 
 def test_files_network_tools_handles_share_paths_and_desktop_urls():
@@ -51,7 +51,7 @@ def test_files_network_tools_handles_share_paths_and_desktop_urls():
     assert 'grep -m1 "^URL=" "$1"' in f
     assert 'text: Tr.t("Network tools")' in f
     assert "onClicked: win.checkNetworkHost()" in f
-    assert 'Quickshell.clipboardText = "shani-nettools:" + h;' in f
+    assert "NetToolsOpen.open(host, Quickshell, Ui)" in f
 
 
 def test_nettools_reads_the_handoff_keeps_per_tool_history_and_copies_all():
@@ -73,3 +73,9 @@ def test_nettools_reads_the_handoff_keeps_per_tool_history_and_copies_all():
     assert "function copyAll()" in n
     assert "win.copyResults();" in n
     assert "onClicked: win.copyAll()" in n
+
+
+def test_the_shared_handoff_owns_the_clipboard_marker():
+    helper = source("shani/Common/NetToolsOpen.js")
+    assert 'shell.clipboardText = "shani-nettools:" + h;' in helper
+    assert "ui.closeAll();" in helper and "ui.netTools = true;" in helper

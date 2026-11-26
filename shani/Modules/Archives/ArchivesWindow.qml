@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/FilesReveal.js" as FilesReveal
 
 AppWindow {
     id: win
@@ -49,10 +50,7 @@ AppWindow {
     function clearPass() { Archive.newPass = ""; archPassConfirm.text = ""; }
     function clearPrompt() { pw.text = ""; }
     // jump from the archive to its folder in Files, with the file chosen
-    function reveal(path) {
-        const p = String(path || ""); if (!p.startsWith("/")) return;
-        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
-    }
+    function reveal(path) { return FilesReveal.show(path, Files); }
     function openRecent(path) { win.clearPrompt(); Archive.open(path); }
     function runTest() { Archive.testArchive(); }
 

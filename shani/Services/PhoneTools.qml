@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/JobQueue.js" as JobQueue
 import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
@@ -52,12 +53,7 @@ Singleton {
         root.pending = root.pending.concat([{ what: what, args: args }]);
         root.pump();
     }
-    function pump() {
-        if (root.busy || job.running || !root.pending.length) return;
-        const next = root.pending[0];
-        root.pending = root.pending.slice(1);
-        root.start(next.what, next.args);
-    }
+    function pump() { JobQueue.pump(root, job); }
     function start(what, args) {
         root.busy = true;
         job.what = what;

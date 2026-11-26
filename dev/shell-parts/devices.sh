@@ -423,7 +423,7 @@ else
     result devices-background-switch SKIP "no accessibility client"
     result devices-background-toggle SKIP "no accessibility client"
 fi
-shot background-settings-link 0.3
+shot settings-background 0.3
 ipc backgroundClose
 
 # ---- the lines are also in Settings > Phone (Search must find the page) --------

@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/FilesReveal.js" as FilesReveal
 
 AppWindow {
     id: win
@@ -530,10 +531,7 @@ AppWindow {
 
     // ---- metadata actions (Finder / Nautilus / Digikam) --------------------------
     function copyPath(path) { if (path) Files.copyPath(path); }
-    function reveal(path) {
-        const p = String(path || ""); if (!p.startsWith("/")) return;
-        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
-    }
+    function reveal(path) { return FilesReveal.show(path, Files); }
     function openWith(path) {
         if (path) Quickshell.execDetached(["gio", "open", "--", path]);
     }
