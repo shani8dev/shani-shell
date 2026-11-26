@@ -404,7 +404,6 @@ Singleton {
         netTools = false;
         databaseBrowser = false;
         pasteHistory = false;
-        scheduled = false;
         irc = false;
         health = false;
         cloudSync = false;
