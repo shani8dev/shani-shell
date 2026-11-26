@@ -426,6 +426,10 @@ ShellRoot {
         function feedsExport(path: string) { Feeds.exportTo(path); }
         function feedsImport(path: string) { Feeds.run("import", [path]); }
         function feedsInterval(minutes: int) { Feeds.setInterval(minutes); }
+        // the tag filter and the next-unread jump are driven by the same service
+        // the window uses, so a script or a check picks the same values
+        function feedsSetTags(feed: string, tags: string) { Feeds.setTags(feed, tags); }
+        function feedsNextUnread() { Feeds.nextUnread(); }
         function mailOpen() { Ui.closeAll(); Ui.mail = true; Mail.state(); Mail.refresh(); }
         function mailSearch(q: string) { Mail.search(q); }
         function mailClose() { Ui.mail = false; }
@@ -769,6 +773,14 @@ ShellRoot {
         // the path a person drives (no second copy of the systemctl call).
         function chronoaSettingsPage(name: string) { Ui.chronoaSettingsPage = name; Ui.openSettings("chronoa"); }
         function chronoaEngine(on: string) { ChronoaEngine.setEngine(on === "on" || on === "true" || on === "1"); }
+        // an API key goes to the engine's own keyring through the same call a
+        // person's Connect button makes (never through GSettings)
+        function providerKey(id: string, key: string) { AIProviders.syncKeyToChronoa(id, key); }
+        // the engine's settings page, driven through the same singleton its
+        // controls call (ask first when the engine needs consent, then confirm)
+        function chronoaSettingAsk(name: string, value: string) { ChronoaSettings.ask(name, value); }
+        function chronoaSettingPreset(name: string) { ChronoaSettings.askPreset(name); }
+        function chronoaSettingConfirm() { ChronoaSettings.confirm(); }
         // settings undo: revert one or all changed settings
         function settingsChangedKeys(): string { return JSON.stringify(Settings.changedKeys); }
         function settingsUndo(key: string) { Settings.undo(key); }
@@ -1287,7 +1299,7 @@ ShellRoot {
                 playerSeekable: Media.current ? Media.current.canSeek : false,
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
-                cameraShown: Camera.open, notes: Ui.notes, feedsShown: Ui.feeds, mailShown: Ui.mail, textEditor: Ui.textEditor,
+                cameraShown: Camera.open, notes: Ui.notes, feedsShown: Ui.feeds, feedsOpenId: Feeds.openId, feedsTags: Feeds.tags, feedsRows: Feeds.feeds.map(f => f.title + ":" + (f.tags || []).join("/")), feedsNote: Feeds.note, mailShown: Ui.mail, textEditor: Ui.textEditor,
                 servicesShown: Ui.servicesApp, servicesTab: SysServices.tab,
                 servicesCount: SysServices.services.length, timersCount: SysServices.timers.length,
                 cronCount: SysServices.cron.length, servicesNote: SysServices.note,
@@ -1304,7 +1316,7 @@ ShellRoot {
                 androidFind: AndroidTools.result["find"] || {}, androidPair: AndroidTools.result["pair"] || {},
                 backgroundShown: Ui.backgroundServices, backgroundSwitches: PhoneTools.switches.length, backgroundOn: PhoneTools.switches.filter(s => s.on).length,
                 incoming: Link.incoming.name || Link.incoming.number || "", incomingId: Link.incoming.id || "", incomingLine: Link.incoming.line || "",
-                devicesShown: Ui.devices, devicesCount: new Set(Link.devices.map(d => d.id)
+                devicesShown: Ui.devices, devicesTab: Ui.devicesTab, devicesCount: new Set(Link.devices.map(d => d.id)
                     .concat(Devices.devices.map(d => d.id || d.serial || d.name),
                             Devices.androidInfo && Devices.androidInfo.serial ? [Devices.androidInfo.serial] : [])).size,
                 devicesNote: Devices.note,

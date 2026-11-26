@@ -7,6 +7,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ServiceRun.js" as ServiceRun
 
 Singleton {
     id: root
@@ -215,12 +216,7 @@ Singleton {
     property bool busy: false
     property string note: ""               // last successful look-up/fetch
     property string what: ""               // the command currently in flight
-    function run(what, args) {
-        root.what = what;
-        root.busy = true;
-        root.error = "";
-        return true;
-    }
+    function run(what, args) { return ServiceRun.begin(root, what); }
     function finished(what, text, code) {
         root.busy = false;
         if (code === 127) {

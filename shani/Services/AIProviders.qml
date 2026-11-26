@@ -32,18 +32,45 @@ Singleton {
         return providers.some(p => p.id === id);
     }
 
-    // Chronoa's GSettings key for a provider id (shani-chronoa config.py API_KEY_SETTINGS)
+    // Chronoa's own key name for a provider id (config.py API_KEY_SETTINGS).
+    // The engine writes it to its keyring; the shell never touches GSettings.
     function chronoaKeyFor(id) {
         return ({ openai: "openai-api-key", anthropic: "anthropic-api-key",
                   google: "google-api-key", groq: "groq-api-key",
                   openrouter: "openrouter-api-key", custom: "custom-llm-api-key" })[id] || "";
     }
-    // Sync a key to Chronoa so the answer actually comes from that provider.
+    // A refused write is shown, never swallowed. Only the key's name is kept
+    // here; the secret itself goes over the socket and is not stored in QML.
+    property int syncSeq: 0
+    property string syncError: ""
+    property string lastSync: ""
+
+    function publish() {
+        const o = Object.assign({}, Ui.chronoaState || {});
+        o.keys = { last: root.lastSync, error: root.syncError };
+        Ui.chronoaState = o;
+    }
+
     function syncKeyToChronoa(id, key) {
         const k = chronoaKeyFor(id);
         if (k === "") return;
-        Quickshell.execDetached(["sh", "-c",
-            'gsettings set org.shani.chronoa "' + k + '" "$1" 2>/dev/null || true', "sh", key]);
+        root.syncError = "";
+        root.syncSeq += 1;
+        root.lastSync = k;
+        if (!Bridge.send({ op: "settings-set", id: "keyset" + root.syncSeq,
+                           name: k, value: key, confirm: true }))
+            root.syncError = Tr.t("Could not reach the answer engine to save the key");
+        root.publish();
+    }
+
+    Connections {
+        target: Bridge
+        function onMessage(msg) {
+            if (!msg || msg.type !== "settings" || msg.op !== "set") return;
+            if (String(msg.id || "").indexOf("keyset") !== 0) return;
+            root.syncError = msg.error ? String(msg.error) : "";
+            root.publish();
+        }
     }
 
     // connect a provider: save the API key to Passwords, store metadata here

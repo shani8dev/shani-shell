@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/FilesReveal.js" as FilesReveal
 import "../../Common/Markup.js" as Markup
 
 AppWindow {
@@ -28,10 +29,7 @@ AppWindow {
         if (extraPanel !== "" && win.compact) { pagesPane.open = false; PdfViewer.formShown = false; }
     }
     // jump from the document to its folder in Files, with the file chosen
-    function reveal(path) {
-        const p = String(path || ""); if (!p.startsWith("/")) return;
-        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
-    }
+    function reveal(path) { return FilesReveal.show(path, Files); }
     function pick() {
         FilePicker.open({ mode: "open", filters: ["pdf"], title: "Open a PDF",
                           onPicked: paths => { if (paths && paths.length) PdfViewer.open(paths[0]); } });

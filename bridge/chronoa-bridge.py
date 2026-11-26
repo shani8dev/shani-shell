@@ -277,6 +277,50 @@ def handle_request(msg: dict) -> None:
             ),
             daemon=True,
         ).start()
+    elif op == "settings-set":
+        # the engine owns its settings; a key write needs confirm=True
+        threading.Thread(
+            target=settings_set,
+            args=(
+                msg.get("id", ""),
+                msg.get("name", ""),
+                msg.get("value", ""),
+                bool(msg.get("confirm")),
+            ),
+            daemon=True,
+        ).start()
+    elif op == "settings-list":
+        threading.Thread(
+            target=settings_call,
+            args=(msg.get("id", ""), "list", "SettingsList", None, {}),
+            daemon=True,
+        ).start()
+    elif op == "settings-get":
+        threading.Thread(
+            target=settings_call,
+            args=(
+                msg.get("id", ""),
+                "get",
+                "SettingsGet",
+                GLib.Variant("(s)", (str(msg.get("name", "")),)),
+                {"name": str(msg.get("name", ""))},
+            ),
+            daemon=True,
+        ).start()
+    elif op == "settings-preset":
+        threading.Thread(
+            target=settings_call,
+            args=(
+                msg.get("id", ""),
+                "preset",
+                "SettingsPreset",
+                GLib.Variant(
+                    "(sb)", (str(msg.get("name", "")), bool(msg.get("confirm")))
+                ),
+                {"name": str(msg.get("name", ""))},
+            ),
+            daemon=True,
+        ).start()
     elif op == "release-sleep":
         # "lock before suspend" is off: let sleep go without a lock
         logind.release_sleep()
@@ -439,6 +483,79 @@ def find_files(req_id: str, query: str) -> None:
     except Exception as exc:
         broadcast(
             {"type": "found", "id": req_id, "hits": [], "how": "", "error": str(exc)}
+        )
+
+
+def settings_call(req_id: str, op: str, method: str, variant, extra: dict) -> None:
+    """Agent.SettingsList/Get/Preset: one ID-correlated reply for the page.
+
+    The engine owns the rows and the consent rules; the bridge owns only the
+    correlation and turns a missing engine into a plain message.
+    """
+    if not has_owner(AGENT_NAME):
+        reply = {"type": "settings", "op": op, "id": req_id}
+        reply.update(extra)
+        reply["error"] = "Chronoa is not running"
+        broadcast(reply)
+        return
+    try:
+        r = call(AGENT_NAME, AGENT_PATH, AGENT_IFACE, method, variant, timeout=8000)
+        data = json.loads(r.unpack()[0])
+        reply = {"type": "settings", "op": op, "id": req_id}
+        reply.update(extra)
+        if isinstance(data, dict) and data.get("error"):
+            reply["error"] = str(data["error"])
+        else:
+            reply["data"] = data
+        broadcast(reply)
+    except Exception as exc:
+        reply = {"type": "settings", "op": op, "id": req_id}
+        reply.update(extra)
+        reply["error"] = short_error(exc)
+        broadcast(reply)
+
+
+def settings_set(req_id: str, name: str, value, confirm: bool) -> None:
+    """Agent.SettingsSet: the engine writes its own keyring, never the shell.
+
+    Secrets and consent switches that turn on need confirm=True. The reply is
+    ID-correlated so the caller can show a refusal instead of silently losing it.
+    No Agent on the bus is a plain message, never a traceback.
+    """
+    name = str(name or "")
+    if not has_owner(AGENT_NAME):
+        broadcast(
+            {
+                "type": "settings",
+                "op": "set",
+                "id": req_id,
+                "name": name,
+                "error": "Chronoa is not running",
+            }
+        )
+        return
+    try:
+        r = call(
+            AGENT_NAME,
+            AGENT_PATH,
+            AGENT_IFACE,
+            "SettingsSet",
+            GLib.Variant("(ssb)", (name, str(value), bool(confirm))),
+            timeout=8000,
+        )
+        data = json.loads(r.unpack()[0])
+        reply = {"type": "settings", "op": "set", "id": req_id}
+        reply.update(data)
+        broadcast(reply)
+    except Exception as exc:
+        broadcast(
+            {
+                "type": "settings",
+                "op": "set",
+                "id": req_id,
+                "name": name,
+                "error": short_error(exc),
+            }
         )
 
 

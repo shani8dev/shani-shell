@@ -166,6 +166,9 @@ and a `Theme.touchTarget` hit area (pinned by
   arrow, box, blur, text), shaped by the mark's kind. Viewer and PdfReader.
 - **FilePaths.js / FileFilter.js / FileIcons.js** — path, extension and icon
   rules shared by Files, QuickLook and the pickers.
+- **ServiceRun.js / FilesReveal.js / JobQueue.js / NetToolsOpen.js** — the four
+  once-copied QML bodies: start a service command, reveal a file in Files,
+  pump one queued bridge job, and hand a host to Network Tools.
 - **Accents.js / Contrast.js / Hct.js / Tonal.js / Shape.js** — colour:
   `derive()`, named `PRESETS`, measured contrast. `Theme.accent` is the single
   resolved colour.

@@ -521,7 +521,11 @@ def stream(args: list[str], tool: list[str] | None = None) -> int:
             )
     rc = p.wait()
     print(
-        json.dumps({"ok": True} if rc == 0 else {"error": last or "%s failed" % ((tool or FLATPAK)[0])}),
+        json.dumps(
+            {"ok": True}
+            if rc == 0
+            else {"error": last or "%s failed" % ((tool or FLATPAK)[0])}
+        ),
         flush=True,
     )
     return rc
@@ -700,7 +704,9 @@ NIX_ATTR = re.compile(r"^[A-Za-z0-9_.+-]+$")
 def _nix_names() -> set:
     """pnames of what nix-env put in this user's profile."""
     try:
-        r = subprocess.run(NIX_ENV + ["-q", "--json"], capture_output=True, text=True, timeout=60)
+        r = subprocess.run(
+            NIX_ENV + ["-q", "--json"], capture_output=True, text=True, timeout=60
+        )
         return {v.get("pname", "") for v in json.loads(r.stdout or "{}").values()}
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return set()
@@ -713,21 +719,54 @@ def nix_tools() -> list[dict]:
     out = []
     for name, attr, cmd, about in NIX_TOOLS:
         nix = attr in mine or cmd in mine
-        out.append({"name": name, "attr": attr, "cmd": cmd, "about": about, "nix": nix,
-                    "installed": nix or shutil.which(cmd) is not None or os.access(os.path.join(prof, cmd), os.X_OK)})
+        out.append(
+            {
+                "name": name,
+                "attr": attr,
+                "cmd": cmd,
+                "about": about,
+                "nix": nix,
+                "installed": nix
+                or shutil.which(cmd) is not None
+                or os.access(os.path.join(prof, cmd), os.X_OK),
+            }
+        )
     return out
 
 
 def nix_install(attr: str) -> int:
     # the docs' first-time setup: the nixpkgs channel, once
-    chans = subprocess.run(NIX_CHANNEL + ["--list"], capture_output=True, text=True, timeout=30).stdout
+    chans = subprocess.run(
+        NIX_CHANNEL + ["--list"], capture_output=True, text=True, timeout=30
+    ).stdout
     if not any(l.split()[:1] == ["nixpkgs"] for l in chans.splitlines()):
-        print(json.dumps({"progress": None, "line": "Adding the nixpkgs channel (once)"}), flush=True)
-        if subprocess.run(NIX_CHANNEL + ["--add", "https://nixos.org/channels/nixpkgs-unstable", "nixpkgs"],
-                          capture_output=True, text=True, timeout=60).returncode != 0:
-            print(json.dumps({"error": "could not add the nixpkgs channel"}), flush=True)
+        print(
+            json.dumps({"progress": None, "line": "Adding the nixpkgs channel (once)"}),
+            flush=True,
+        )
+        if (
+            subprocess.run(
+                NIX_CHANNEL
+                + ["--add", "https://nixos.org/channels/nixpkgs-unstable", "nixpkgs"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            ).returncode
+            != 0
+        ):
+            print(
+                json.dumps({"error": "could not add the nixpkgs channel"}), flush=True
+            )
             return 1
-        print(json.dumps({"progress": None, "line": "Fetching the package list (the first time takes a while)"}), flush=True)
+        print(
+            json.dumps(
+                {
+                    "progress": None,
+                    "line": "Fetching the package list (the first time takes a while)",
+                }
+            ),
+            flush=True,
+        )
         if stream(["--update"], NIX_CHANNEL) != 0:
             return 1
     return stream(["-iA", "nixpkgs." + attr], NIX_ENV)
@@ -749,9 +788,22 @@ def snap_search(words: str) -> list[dict]:
     for row in _snap_table(["find", words]):
         if len(row) < 5:
             continue
-        name, version, pub, notes, summary = row[0], row[1], row[2], row[3], " ".join(row[4:])
-        out.append({"name": name, "version": version, "publisher": _publisher(pub),
-                    "summary": summary, "classic": "classic" in notes})
+        name, version, pub, notes, summary = (
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            " ".join(row[4:]),
+        )
+        out.append(
+            {
+                "name": name,
+                "version": version,
+                "publisher": _publisher(pub),
+                "summary": summary,
+                "classic": "classic" in notes,
+            }
+        )
     return out
 
 
@@ -763,10 +815,20 @@ def snap_installed() -> list[dict]:
             row = row + [""] * (6 - len(row))
         name, version, _rev, _track, pub, notes = row[:6]
         # the snaps snapd runs on are not apps to manage here
-        if any(n in notes.split(",") for n in ("base", "core", "snapd")) or name in ("snapd", "bare"):
+        if any(n in notes.split(",") for n in ("base", "core", "snapd")) or name in (
+            "snapd",
+            "bare",
+        ):
             continue
-        out.append({"name": name, "version": version, "publisher": _publisher(pub),
-                    "classic": "classic" in notes, "update": name in updates})
+        out.append(
+            {
+                "name": name,
+                "version": version,
+                "publisher": _publisher(pub),
+                "classic": "classic" in notes,
+                "update": name in updates,
+            }
+        )
     return out
 
 
@@ -788,10 +850,6 @@ def main(argv: list[str]) -> int:
             out = info(args[0])
         elif cmd == "featured":
             out = featured()
-        elif cmd == "reviews" and len(args) == 1:
-            out = rating(args[0])["reviews"]
-        elif cmd == "addons" and len(args) == 1:
-            out = addons(args[0])
         elif cmd == "remotes":
             out = remotes()
         elif cmd == "remote-toggle" and len(args) == 2 and args[1] in ("on", "off"):
@@ -878,9 +936,15 @@ def main(argv: list[str]) -> int:
             out = snap_search(args[0])
         elif cmd == "snap-installed":
             out = snap_installed()
-        elif cmd in ("snap-install", "snap-remove") and args and NIX_ATTR.match(args[0]):
-            verb = ["install", args[0]] + (["--classic"] if args[1:] == ["classic"] else []) \
-                if cmd == "snap-install" else ["remove", args[0]]
+        elif (
+            cmd in ("snap-install", "snap-remove") and args and NIX_ATTR.match(args[0])
+        ):
+            verb = (
+                ["install", args[0]]
+                + (["--classic"] if args[1:] == ["classic"] else [])
+                if cmd == "snap-install"
+                else ["remove", args[0]]
+            )
             return 0 if stream(verb, SNAP) == 0 else 1
         elif cmd == "snap-refresh" and (not args or NIX_ATTR.match(args[0])):
             return 0 if stream(["refresh"] + args[:1], SNAP) == 0 else 1

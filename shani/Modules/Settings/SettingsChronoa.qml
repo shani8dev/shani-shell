@@ -64,6 +64,13 @@ ColumnLayout {
         }
     }
 
+    // The engine's own settings: rows come from SettingsList, writes from
+    // SettingsSet and presets from SettingsPreset, all through the bridge.
+    ChronoaSettingsEditor {
+        Layout.fillWidth: true
+        active: true
+    }
+
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Chronoa's own pages")

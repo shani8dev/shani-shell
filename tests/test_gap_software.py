@@ -28,6 +28,9 @@ def test_odrs_ratings_are_in_the_bridge_and_the_app_page():
     assert "odrs.gnome.org/1.0/reviews/api/reviews/" in b
     w = read("shani/Modules/Software/SoftwareWindow.qml")
     assert "appCol.a.ratingCount" in w and "appCol.a.reviews" in w
+    # the app page reads both from `info`; there are no second CLI commands
+    assert "out.update(rating(app_id))" in b and 'out["addons"] = addons(app_id)' in b
+    assert 'cmd == "reviews"' not in b and 'cmd == "addons"' not in b
 
 
 def test_featured_picks_and_addons():
@@ -36,6 +39,7 @@ def test_featured_picks_and_addons():
     assert '"type": "addon"' in b and "def addons(app_id" in b
     w = read("shani/Modules/Software/SoftwareWindow.qml")
     assert "win.loadFeatured()" in w and '"repositories"' in w
+    assert "appCol.a.addons" in w and 'Tr.t("Add-ons")' in w
 
 
 def test_version_history_and_age_warning():

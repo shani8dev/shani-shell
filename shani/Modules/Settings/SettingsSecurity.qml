@@ -55,6 +55,11 @@ ColumnLayout {
     property bool auditBusy: false
     property bool auditLoaded: false
     readonly property string auditTool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_HEALTH_TOOL"), "system_health.py")
+    // The raw audit log records moved here from Background services: same read
+    // bridge (system_background.py), just a different home on the page.
+    readonly property string bgTool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_BG_TOOL"), "system_background.py")
+    property var auditLogRows: []
+    property bool auditLogLoaded: false
     // "off" removes the shell-managed rules file: ask for a second click
     property string confirmingAudit: ""
     Timer { id: auditConfirmTimer; interval: 4000; onTriggered: page.confirmingAudit = "" }
@@ -62,8 +67,8 @@ ColumnLayout {
     property string faillockNote: ""
     property bool faillockNoteOk: false
     property bool faillockBusy: false
-    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); page.loadAudit(); }
-    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); page.loadAudit(); }
+    onActiveChanged: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); page.loadAudit(); page.loadAuditLog(); }
+    Component.onCompleted: if (active) { SecurityInfo.refresh(); syncPw(); page.loadHosts(); page.loadSudoers(); page.loadFaillock(); page.loadLoginDefs(); page.loadAuditProfile(); page.loadAudit(); page.loadAuditLog(); }
 
     readonly property var r: SecurityInfo.report || ({})
     readonly property var aa: r.apparmor || ({})
@@ -234,9 +239,25 @@ ColumnLayout {
             verdict: page.auditInfo.verdict || "unresolved",
             active: page.auditInfo.active || "",
             records: Array.isArray(page.auditInfo.records) ? page.auditInfo.records : [],
+            log: page.auditLogRows.map(e => e.type || ""),
             error: page.auditInfo.error || ""
         };
         Ui.systemState = o;
+    }
+
+    function loadAuditLog() { bgAuditProc.running = false; bgAuditProc.running = true; }
+    Process {
+        id: bgAuditProc
+        command: ["python3", page.bgTool, "audit"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text) || {}; } catch (e) { r = { error: Tr.t("This section could not be read") }; }
+                page.auditLogRows = Array.isArray(r.events) ? r.events : [];
+                page.auditLogLoaded = true;
+                page.publishAudit();
+            }
+        }
     }
 
     Process {
@@ -629,6 +650,44 @@ ColumnLayout {
             subtitle: Tr.t("Audit logging is working and has no events.")
         }
 
+    }
+
+    // The raw log records, moved here from Background services. They are shown
+    // word for word, with no grading or verdict of their own.
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Audit log records")
+        hint: Tr.t("Records shown word for word, with no grading or verdict.")
+        EmptyState {
+            Layout.fillWidth: true
+            visible: page.auditLogLoaded && page.auditLogRows.length === 0
+            icon: "format-list-unordered"
+            title: Tr.t("No audit records")
+            subtitle: Tr.t("No audit records were reported.")
+        }
+        Repeater {
+            model: page.auditLogRows
+            ColumnLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                ListRow {
+                    Layout.fillWidth: true
+                    interactive: false
+                    icon: "format-list-unordered"
+                    title: modelData.type || Tr.t("Record")
+                    subtitle: modelData.time || ""
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: (modelData.detail || "") !== ""
+                    text: modelData.detail || ""
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.mono
+                    font.pixelSize: Theme.px(10) * Theme.fontScale
+                }
+            }
+        }
     }
 
     SettingsSection {

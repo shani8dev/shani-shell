@@ -221,3 +221,17 @@ def test_ui_wires_the_new_feeds_commands():
         assert 'run("%s"' % cmd in service or '"%s"' % cmd in service
     assert "function toggleSave(" in service and "Show read" in window
     assert "Save for later" in window and "Open episode" in window
+    # both have a visible control in the window, not just a bridge verb
+    assert (
+        'Tr.t("Next unread article")' in window and "function nextUnread()" in service
+    )
+    assert (
+        "win.tagFilter" in window
+        and "Repeater {" in window
+        and "model: Feeds.tags" in window
+    )
+    part = (ROOT / "dev" / "shell-parts" / "feeds.sh").read_text()
+    assert "feedsNextUnread" in part and "feedsSetTags" in part
+    # setting tags refreshes both the rows and the chips: neither may be dropped
+    assert "property var pending: []" in service and "root.pending.shift()" in service
+    assert "Qt.callLater(() => { root.refresh(); root.loadTags(); })" in service

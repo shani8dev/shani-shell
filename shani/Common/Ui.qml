@@ -145,6 +145,7 @@ Singleton {
     property string backupSummary: ""              // Settings > Backup, for the tests
     property bool backup: false                    // the Backup panel (Modules/Backup/BackupPanel)
     property bool backgroundServices: false        // the Background app (Modules/Background/BackgroundServices)
+    property string devicesTab: ""                   // where the Devices app opens when linked from Settings
     property string settingsCat: ""                // the settings category open
     property string settingsSection: ""            // a part of it to scroll to, once (openSettings)
     property bool settingsOpen: false              // the Settings window (Modules/Settings)

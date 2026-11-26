@@ -143,7 +143,9 @@ Singleton {
     // is created by the first thing that touches it, and its own first fetch
     // would otherwise swallow that thing.
     function run(what, args, redraw) {
-        if (job.running) { root.pending = { what: what, args: args, redraw: redraw !== false }; return; }
+        // more than one caller can answer the same finished() (settags refreshes
+        // the list AND the tag list): a single slot would drop the first one
+        if (job.running) { root.pending.push({ what: what, args: args, redraw: redraw !== false }); return; }
         root.start(what, args, redraw);
     }
 
@@ -158,7 +160,7 @@ Singleton {
         job.running = true;
     }
 
-    property var pending: null
+    property var pending: []
 
     function finished(what, text, code) {
         root.busy = false;
@@ -262,8 +264,9 @@ Singleton {
             root.searchResults = Array.isArray(data) ? data : [];
         } else if (what === "settags") {
             root.note = data && data.ok ? Tr.t("Tags updated") : Tr.t("Could not set tags");
-            root.refresh();
-            root.loadTags();
+            // finished() runs on the collector, before the process has exited:
+            // start the two follow-up reads once the job is really free
+            Qt.callLater(() => { root.refresh(); root.loadTags(); });
         } else if (what === "tags") {
             root.tags = Array.isArray(data) ? data : [];
         } else if (what === "discover") {
@@ -292,9 +295,8 @@ Singleton {
         stdout: StdioCollector { id: out }
         onExited: code => {
             root.finished(job.what, out.text, code);
-            if (root.pending) {
-                const next = root.pending;
-                root.pending = null;
+            if (root.pending.length) {
+                const next = root.pending.shift();
                 root.start(next.what, next.args, next.redraw);
             }
         }

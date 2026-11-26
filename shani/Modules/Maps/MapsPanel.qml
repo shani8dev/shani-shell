@@ -12,6 +12,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/NetToolsOpen.js" as NetToolsOpen
 import "../../Common/Gestures.js" as G
 
 AppWindow {
@@ -398,13 +399,7 @@ AppWindow {
     // No Ui handoff property is owned here (the Ui singleton source file/shell.qml are out of scope),
     // so the domain travels by clipboard marker and Ui.netTools is set — the
     // same flag shell.qml's netToolsOpen() uses.
-    function openNetTools(host) {
-        const h = String(host || "").trim();
-        if (!h) return;
-        Quickshell.clipboardText = "shani-nettools:" + h;
-        Ui.closeAll();
-        Ui.netTools = true;
-    }
+    function openNetTools(host) { NetToolsOpen.open(host, Quickshell, Ui); }
     function hostFromText(raw) {
         let s = String(raw || "").trim();
         s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");  // scheme

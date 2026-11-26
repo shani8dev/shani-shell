@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/NetToolsOpen.js" as NetToolsOpen
 
 AppWindow {
     id: win
@@ -129,13 +130,7 @@ AppWindow {
     // We do not own the Ui singleton source file or shell.qml, so there is no a handoff flag to carry
     // the host: write a clipboard marker and set Ui.netTools, the same flag
     // shell.qml's netToolsOpen() sets. NetTools consumes the marker on open.
-    function openNetTools(host) {
-        const h = String(host || "").trim();
-        if (!h) return;
-        Quickshell.clipboardText = "shani-nettools:" + h;
-        Ui.closeAll();
-        Ui.netTools = true;
-    }
+    function openNetTools(host) { NetToolsOpen.open(host, Quickshell, Ui); }
     function requestDelete(h) {
         if (!h || h.id === undefined) return;
         if (win.confirmingDelete !== h.id) { win.confirmingDelete = h.id; unconfirmDelete.restart(); return; }

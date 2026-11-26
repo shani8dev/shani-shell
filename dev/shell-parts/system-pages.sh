@@ -18,7 +18,7 @@ page() {
 }
 
 page firmware firmware "len(d.get('systemState',{}).get('firmware',{}).get('devices',[])) >= 2"
-page health health "len(d.get('systemState',{}).get('health',{}).get('checks',[])) >= 4"
+page health health "len(d.get('systemState',{}).get('health',{}).get('checks',[])) >= 4 and d.get('systemState',{}).get('health',{}).get('irq',{}).get('cpus',0) >= 1"
 page maintenance maintenance "d.get('systemCat') == 'maintenance'"
 page graphics graphics "len(d.get('systemState',{}).get('graphics',{}).get('devices',[])) >= 1"
 page appversions appversions "len(d.get('systemState',{}).get('appversions',{}).get('os',[])) >= 1"
@@ -26,7 +26,7 @@ page etcchanges etcchanges "d.get('systemCat') == 'etcchanges'"
 page persistence persistence "len(d.get('systemState',{}).get('persistence',{}).get('mounts',[])) >= 1"
 page virtualization virtualization "d.get('systemState',{}).get('virtualization',{}).get('kvm') is True"
 page disksfs disksfs "len(d.get('systemState',{}).get('disksfs',{}).get('raid',[])) >= 1"
-page background background "len(d.get('systemState',{}).get('background',{}).get('audit',[])) >= 1"
+page background background "'schedules' in d.get('systemState',{}).get('background',{}) and 'priority' in d.get('systemState',{}).get('background',{}) and 'irq' not in d.get('systemState',{}).get('background',{}) and 'audit' not in d.get('systemState',{}).get('background',{})"
 page dns dns "len(d.get('systemState',{}).get('dns',{}).get('servers',[])) >= 1"
 page netservices netservices "len(d.get('systemState',{}).get('netservices',{}).get('ports',[])) >= 1"
 page adminaccess access "d.get('systemState',{}).get('access',{}).get('directory',{}).get('sssd') == 'active'"

@@ -719,7 +719,7 @@ AppWindow {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: 0
-                        Text { Layout.fillWidth: true; text: "★".repeat(Math.max(1, Math.round(modelData.rating || 3))) + "  " + (modelData.summary || ""); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: "★".repeat(Math.max(1, Math.round(modelData.rating || 3))) + "  " + (modelData.summary || ""); Accessible.name: modelData.summary || ""; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; font.weight: Font.DemiBold; elide: Text.ElideRight }
                         Text { Layout.fillWidth: true; text: modelData.review || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
                     }
                 }
