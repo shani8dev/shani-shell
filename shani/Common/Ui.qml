@@ -96,6 +96,12 @@ Singleton {
     property string containersStarted: ""    // ...the container started last,
     property string containersFollow: ""     // ...the followed log text,
     property string containersStats: ""      // ...the last CPU and memory reading shown
+    property var containersLxd: []           // ...LXD, Apptainer, VM and Android state,
+    property var containersSif: []
+    property var containersDomains: []
+    property var containersAndroid: []
+    property var containersCompose: []
+    property string containersService: ""    // ...the last service status shown
     property string containersDetails: ""    // ...the last readable details shown
     property bool software: false            // Software (Modules/Software: GNOME Software, Warehouse, Gear Lever)
     property var softwareResults: []         // for the tests: the ids listed,

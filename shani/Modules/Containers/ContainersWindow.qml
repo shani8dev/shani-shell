@@ -28,7 +28,8 @@ AppWindow {
         ["arch", "Arch Linux", "docker.io/library/archlinux:latest"],
         ["debian", "Debian 13", "docker.io/library/debian:13"]
     ]
-    property string tab: "boxes"
+    property string group: "toolboxes"       // Containers, Toolboxes, Machines & VMs, Android
+    property string tab: "boxes"              // the view inside the group
     property var containers: []
     property var images: []
     property bool hasPodman: true
@@ -101,6 +102,41 @@ AppWindow {
     property var searchResults: []
     property string pullImage: ""
     property string customPull: ""
+    property bool useGpu: false
+    property bool cdiReady: false
+
+    // ---- LXD system containers ----
+    property var lxdInstances: []
+    property bool lxdReady: false
+    property bool hasLxc: false
+    property string lxdImage: "ubuntu:24.04"
+    property string customLxdImage: ""
+    property string lxdName: ""
+    // ---- Apptainer images ----
+    property var sifImages: []
+    property bool hasApptainer: false
+    property string sifFolder: Quickshell.env("SHANI_APPTAINER_FOLDER") || ((Quickshell.env("HOME") || "") + "/Apptainer")
+    property string apptainerRef: "docker://ubuntu:22.04"
+    property string customApptainerRef: ""
+    property string sifName: ""
+    // ---- VMs ----
+    property var domains: []
+    property bool kvmOk: false
+    property bool hasVirsh: false
+    property bool hasViewer: false
+    property bool hasBoxes: false
+    property bool systemVms: false
+    property string vmUri: "session"
+    // ---- Android ----
+    property var android: ({})
+    // ---- compose and services ----
+    property string composeFolder: ""
+    property string serviceName: ""
+    property string serviceImage: ""
+    property string customServiceImage: ""
+    property bool serviceGpu: false
+    property var serviceStatus: ({})
+    property var services: []
 
     onTabChanged: win.removing = ""        // an armed confirmation must not survive a tab switch
     Connections {
@@ -117,6 +153,29 @@ AppWindow {
             win.run(["box-export", box, id], r => { if (r.ok) { win.exportedApps = win.exportedApps.concat(key); Ui.containersExported = id; win.note = Tr.t("%1 is in your menu", name); } });
     }
 
+    function subViews() {
+        if (win.group === "toolboxes") return [["boxes", Tr.t("Toolboxes")], ["apptainer", Tr.t("HPC images")]]
+        if (win.group === "containers") return [["containers", Tr.t("App containers")], ["images", Tr.t("Images")], ["pods", Tr.t("Pods")], ["volumes", Tr.t("Volumes")], ["compose", Tr.t("Compose")], ["services", Tr.t("Services")]]
+        if (win.group === "machines") return [["machines", Tr.t("Machines")], ["images", Tr.t("Machine images")], ["vms", Tr.t("Virtual machines")], ["lxd", Tr.t("System containers")], ["boot", Tr.t("Boot a disk image")]]
+        return []
+    }
+    function isMachineView(v) { return win.group === "machines" && ["machines", "images", "boot"].indexOf(v) >= 0; }
+    function viewSelected(v) {
+        return isMachineView(v) ? (win.tab === "machines" && win.machineView === v) : win.tab === v;
+    }
+    function selectView(v) {
+        if (isMachineView(v)) { win.tab = "machines"; win.machineView = v; }
+        else win.tab = v;
+    }
+    function go(group, tab) {
+        win.group = group;                 // subViews() reads the new group
+        if (!tab) {
+            const views = win.subViews();
+            tab = views.length ? views[0][0] : group;
+        }
+        win.group = group;
+        selectView(tab);
+    }
     function refresh() { lister.running = true; win.refreshExtra(); }
     onVisibleChanged: if (visible) refresh()
     Component.onCompleted: refresh()
@@ -178,7 +237,14 @@ AppWindow {
                 try { r = JSON.parse(line); } catch (e) { return; }
                 if (r.line) win.jobLine = r.line;
                 if (r.error) win.error = r.error;
-                if (r.ok) { Ui.containersDone = job.what + ":ok"; win.note = Tr.t("Done: %1", job.what); }
+                if (r.ok) {
+                    Ui.containersDone = job.what + ":ok";
+                    win.note = Tr.t("Done: %1", job.what);
+                    if (job.what.indexOf("service ") === 0) {
+                        const n = job.what.slice(8);
+                        if (win.services.indexOf(n) < 0) win.services = win.services.concat(n);
+                    }
+                }
             }
         }
         onExited: { win.jobLine = ""; win.refresh(); }
@@ -198,6 +264,7 @@ AppWindow {
                 let r = {};
                 try { r = JSON.parse(text); } catch (e) { return; }
                 if (r.error) { win.error = r.error; return; }
+                if (win.tab === "containers" && r.cdi !== undefined) win.cdiReady = !!r.cdi;
                 if (Array.isArray(r.pods)) { win.pods = r.pods; Ui.containersPods = r.pods.map(p => p.name + ":" + p.status); }
                 if (Array.isArray(r.volumes)) { win.volumes = r.volumes; Ui.containersVolumes = r.volumes.map(v => v.name); }
                 if (Array.isArray(r.machines)) {
@@ -208,6 +275,30 @@ AppWindow {
                     win.hasVmspawn = !!r.vmspawn;
                     Ui.containersMachines = r.machines.map(m => m.name + ":" + m.state);
                     Ui.containersMachineImages = (r.images || []).map(i => i.name);
+                }
+                if (Array.isArray(r.instances)) {
+                    win.lxdInstances = r.instances;
+                    win.lxdReady = !!r.ready;
+                    win.hasLxc = !!r.hasLxc;
+                    Ui.containersLxd = r.instances.map(i => i.name + ":" + i.status);
+                }
+                if (win.tab === "apptainer" && Array.isArray(r.images)) {
+                    win.sifImages = r.images;
+                    win.hasApptainer = !!r.hasApptainer;
+                    Ui.containersSif = r.images.map(i => i.name);
+                }
+                if (win.tab === "android" && r.available !== undefined) {
+                    win.android = r;
+                    Ui.containersAndroid = [(r.initialised ? Tr.t("ready") : Tr.t("not set up")), r.session];
+                }
+                if (Array.isArray(r.domains)) {
+                    win.domains = r.domains;
+                    win.kvmOk = !!r.kvm;
+                    win.hasVirsh = !!r.hasVirsh;
+                    win.hasViewer = !!r.hasViewer;
+                    win.hasBoxes = !!r.hasBoxes;
+                    win.systemVms = !!r.systemAllowed;
+                    Ui.containersDomains = r.domains.map(d => d.name + ":" + d.state + ":" + d.uri);
                 }
             }
         }
@@ -259,6 +350,7 @@ AppWindow {
         if (volumes) args.push("--volumes", volumes);
         if (env) args.push("--env", env);
         if (command && command !== "default") args.push("--command", command);
+        if (win.useGpu) args.push("--gpu");
         win.run(args, r => {
             if (r.ok) {
                 Ui.containersStarted = name;
@@ -328,12 +420,65 @@ AppWindow {
         if (!image) return;
         win.startJob("pull " + image, ["image-pull", image]);
     }
+    function lxdLaunch() {
+        const image = win.picked(win.lxdImage, win.customLxdImage);
+        const name = win.lxdName !== "" ? win.lxdName : win.nextName(image.split(":")[0]);
+        if (!image) return;
+        win.run(["lxd-launch", image, name], r => { if (r.ok) win.note = Tr.t("Started %1", name); });
+    }
+    function vmUriArg() { return win.vmUri === "system" ? "qemu:///system" : "qemu:///session"; }
+    function virtAction(verb, name) { win.run([verb, name, win.vmUriArg()]); }
+    function virtConsole(name) {
+        win.run(["virt-console", name, win.vmUriArg()], r => {
+            if (!r.argv) return;
+            Quickshell.execDetached(r.argv);
+            Ui.containersTerminal = r.argv.join(" ");
+        });
+    }
+    function openBoxes() {
+        win.run(["virt-open-boxes"], r => {
+            if (r.argv) Quickshell.execDetached(r.argv);
+            else win.error = r.error || "";
+        });
+    }
+    function apptainerOpen(file, mode) {
+        win.run([mode === "shell" ? "apptainer-shell" : "apptainer-run", file], r => {
+            if (r.argv) win.openTerminal(r.argv, file);
+        });
+    }
+    function pickComposeFolder() {
+        FilePicker.open({ mode: "open", title: Tr.t("A compose file"), filters: ["yaml", "yml"],
+            onPicked: paths => { if (paths.length) win.composeFolder = paths[0].slice(0, paths[0].lastIndexOf("/")); } });
+    }
+    function composeAction(verb) {
+        if (!win.composeFolder) return;
+        win.startJob(verb + " compose", ["compose-" + verb, win.composeFolder]);
+    }
+    function serviceCreate() {
+        const image = win.picked(win.serviceImage, win.customServiceImage);
+        if (!image || !win.serviceName) return;
+        const name = win.serviceName;
+        const args = ["service-create", name, image];
+        if (win.useGpu) args.push("--gpu");
+        win.startJob("service " + name, args);
+    }
+    function serviceStatus(name) {
+        win.run(["service-status", name], r => {
+            win.serviceStatus = r;
+            Ui.containersService = name + ":" + (r.active ? Tr.t("running") : Tr.t("stopped"));
+        });
+    }
     function refreshExtra() {
-        if (extraLister.running) return;
+        if (extraLister.running) extraLister.running = false;   // a tab change wins over an old read
         let cmd = null;
-        if (win.tab === "pods") cmd = ["pod-list"];
+        if (win.tab === "containers") cmd = ["gpu-status"];
+        else if (win.tab === "pods") cmd = ["pod-list"];
         else if (win.tab === "volumes") cmd = ["volume-list"];
         else if (win.tab === "machines") cmd = ["machines-list"];
+        else if (win.tab === "lxd") cmd = ["lxd-list"];
+        else if (win.tab === "apptainer") cmd = ["apptainer-list", win.sifFolder];
+        else if (win.tab === "vms") cmd = ["virt-list"];
+        else if (win.tab === "android") cmd = ["waydroid-status"];
         if (!cmd) return;
         extraLister.command = ["python3", win.tool].concat(cmd);
         extraLister.running = true;
@@ -418,12 +563,31 @@ AppWindow {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             Repeater {
-                model: [["boxes", Tr.t("Toolboxes")], ["containers", Tr.t("Containers")], ["images", Tr.t("Images")],
-                        ["pods", Tr.t("Pods")], ["volumes", Tr.t("Volumes")], ["machines", Tr.t("Machines")]]
-                Choice { required property var modelData; text: modelData[1]; selected: win.tab === modelData[0]; onClicked: win.tab = modelData[0] }
+                model: [["toolboxes", Tr.t("Toolboxes")], ["containers", Tr.t("Containers")],
+                        ["machines", Tr.t("Machines & VMs")], ["android", Tr.t("Android")]]
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: win.group === modelData[0]
+                    onClicked: win.go(modelData[0], win.group === modelData[0] ? win.tab : "")
+                }
             }
             Item { Layout.fillWidth: true }
             IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Read again"); onClicked: win.refresh() }
+        }
+        RowLayout {
+            visible: win.subViews().length > 1
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Repeater {
+                model: win.subViews()
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: win.viewSelected(modelData[0])
+                    onClicked: win.selectView(modelData[0])
+                }
+            }
         }
         RowLayout {                            // the sort control: containers (status) or images (size)
             visible: win.tab === "containers" || win.tab === "images"
@@ -491,11 +655,11 @@ AppWindow {
                 current: win.boxHome
                 onPicked: v => win.boxHome = v
             }
-            Picks {
-                label: Tr.t("Graphics card")
-                options: [{ label: Tr.t("Normal"), value: "no" }, { label: Tr.t("Use NVIDIA"), value: "yes" }]
-                current: win.boxNvidia
-                onPicked: v => win.boxNvidia = v
+            SwitchRow {
+                text: Tr.t("Use the graphics card")
+                hint: Tr.t("Toolboxes share the graphics card without extra setup")
+                checked: win.boxNvidia === "yes"
+                onToggled: v => win.boxNvidia = v ? "yes" : "no"
             }
             Picks {
                 label: Tr.t("On start")
@@ -698,6 +862,18 @@ AppWindow {
                 label: Tr.t("The command to run in the container")
                 text: win.customCommand
                 onTextChanged: win.customCommand = text
+            }
+            SwitchRow {
+                text: Tr.t("Use the graphics card")
+                hint: Tr.t("Needs a CDI setup for raw containers; a toolbox with a graphics card works without one")
+                checked: win.useGpu
+                onToggled: v => win.useGpu = v
+            }
+            Text {
+                visible: win.useGpu && !win.cdiReady
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: Tr.t("The graphics card setup is missing here. Use a toolbox with the graphics card instead.")
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             Button {
                 kind: "primary"
@@ -1343,6 +1519,374 @@ AppWindow {
                         onClicked: win.run(["vmspawn-boot", win.vmFile], r => { if (r.argv) win.openTerminal(r.argv, win.vmFile); })
                     }
                 }
+            }
+        }
+
+        // ---- LXD system containers ----
+        ColumnLayout {
+            visible: win.tab === "lxd"
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Text {
+                visible: !win.hasLxc
+                text: Tr.t("System containers are not installed on this computer")
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            Text {
+                visible: win.hasLxc && !win.lxdReady
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: Tr.t("System containers need a first-time setup. Set them up with lxd init --auto. If your account is not in the lxd group, ask an administrator to add you, then sign out and back in.")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            Button {
+                visible: win.hasLxc && !win.lxdReady
+                text: Tr.t("Set up system containers")
+                enabled: !job.running
+                onClicked: win.startJob("set up system containers", ["lxd-init"])
+            }
+            Picks {
+                label: Tr.t("System to start")
+                options: [{ label: Tr.t("Ubuntu"), value: "ubuntu:24.04" }, { label: Tr.t("Debian"), value: "debian:bookworm" },
+                          { label: Tr.t("Fedora"), value: "fedora:40" }, { label: Tr.t("Alpine"), value: "alpine:3.19" },
+                          { label: Tr.t("Arch Linux"), value: "archlinux:current" }, { label: Tr.t("Your own…"), value: "custom" }]
+                current: win.lxdImage
+                onPicked: v => win.lxdImage = v
+            }
+            TextField {
+                visible: win.lxdImage === "custom"
+                Layout.fillWidth: true
+                label: Tr.t("An image name, like ubuntu:24.04")
+                text: win.customLxdImage
+                onTextChanged: win.customLxdImage = text
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                TextField {
+                    Layout.fillWidth: true
+                    label: Tr.t("Name for the system")
+                    text: win.lxdName
+                    onTextChanged: win.lxdName = text
+                }
+                Button { text: Tr.t("Start system"); enabled: win.hasLxc && win.lxdReady && !act.running; onClicked: win.lxdLaunch() }
+            }
+            EmptyState {
+                visible: win.hasLxc && win.lxdReady && win.lxdInstances.length === 0
+                icon: "computer"
+                title: Tr.t("No systems yet")
+                subtitle: Tr.t("Pick one above to start it")
+            }
+            ListView {
+                reuseItems: true
+                id: lxdl
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: Theme.px(4)
+                model: win.lxdInstances
+                delegate: ListRow {
+                    required property var modelData
+                    width: lxdl.width
+                    icon: "computer"
+                    title: modelData.name
+                    subtitle: [modelData.status, modelData.image, modelData.address].filter(x => x).join("  ·  ")
+                    interactive: false
+                    Button { text: Tr.t("Start"); onClicked: win.run(["lxd-start", modelData.name]) }
+                    Button { text: Tr.t("Stop"); onClicked: win.run(["lxd-stop", modelData.name]) }
+                    Button { text: Tr.t("Restart"); onClicked: win.run(["lxd-restart", modelData.name]) }
+                    Button {
+                        text: Tr.t("Open a shell")
+                        onClicked: win.run(["lxd-shell", modelData.name], r => { if (r.argv) win.openTerminal(r.argv, modelData.name); })
+                    }
+                    ConfirmButton {
+                        text: Tr.t("Delete"); armedText: Tr.t("Tap again: delete")
+                        Accessible.name: Tr.t("Delete system %1", modelData.name)
+                        width: Theme.px(110); height: Theme.px(32)
+                        onConfirmed: win.run(["lxd-delete", modelData.name])
+                    }
+                }
+            }
+        }
+
+        // ---- Apptainer images ----
+        ColumnLayout {
+            visible: win.tab === "apptainer"
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Text {
+                visible: !win.hasApptainer
+                text: Tr.t("HPC images are not installed on this computer")
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true; elide: Text.ElideMiddle
+                    text: win.sifFolder
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button {
+                    text: Tr.t("Pick an image folder")
+                    onClicked: FilePicker.open({ mode: "open", title: Tr.t("An HPC image"), filters: ["sif"],
+                        onPicked: paths => { if (paths.length) win.sifFolder = paths[0].slice(0, paths[0].lastIndexOf("/")); } });
+                }
+            }
+            Picks {
+                label: Tr.t("Where from")
+                options: [{ label: Tr.t("Ubuntu image"), value: "docker://ubuntu:22.04" },
+                          { label: Tr.t("Alpine image"), value: "docker://alpine:3.19" },
+                          { label: Tr.t("Your own…"), value: "custom" }]
+                current: win.apptainerRef
+                onPicked: v => win.apptainerRef = v
+            }
+            TextField {
+                visible: win.apptainerRef === "custom"
+                Layout.fillWidth: true
+                label: Tr.t("A docker:// or oras:// address")
+                text: win.customApptainerRef
+                onTextChanged: win.customApptainerRef = text
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                TextField {
+                    Layout.fillWidth: true
+                    label: Tr.t("Name for the image")
+                    text: win.sifName
+                    onTextChanged: win.sifName = text
+                }
+                Button {
+                    text: Tr.t("Fetch image")
+                    enabled: !job.running && win.sifName !== ""
+                    onClicked: win.startJob("fetch image", ["apptainer-pull", win.picked(win.apptainerRef, win.customApptainerRef), win.sifName, win.sifFolder])
+                }
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: Tr.t("These images use your graphics card automatically.")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            EmptyState {
+                visible: win.sifImages.length === 0
+                icon: "media-optical"
+                title: Tr.t("No images here yet")
+                subtitle: Tr.t("Fetch one above, or pick another folder")
+            }
+            ListView {
+                reuseItems: true
+                id: sifl
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: Theme.px(4)
+                model: win.sifImages
+                delegate: ListRow {
+                    required property var modelData
+                    width: sifl.width
+                    icon: "media-optical"
+                    title: modelData.name
+                    subtitle: win.size(modelData.size || 0)
+                    interactive: false
+                    Button { text: Tr.t("Run"); onClicked: win.apptainerOpen(modelData.path, "run") }
+                    Button { text: Tr.t("Open a shell"); onClicked: win.apptainerOpen(modelData.path, "shell") }
+                    ConfirmButton {
+                        text: Tr.t("Remove"); armedText: Tr.t("Tap again: remove")
+                        Accessible.name: Tr.t("Remove image %1", modelData.name)
+                        width: Theme.px(110); height: Theme.px(32)
+                        onConfirmed: win.run(["apptainer-remove", modelData.path])
+                    }
+                }
+            }
+        }
+
+        // ---- virtual machines ----
+        ColumnLayout {
+            visible: win.tab === "vms"
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Text {
+                visible: !win.hasVirsh
+                text: Tr.t("Virtual machine tools are not installed on this computer")
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            Text {
+                visible: win.hasVirsh && !win.kvmOk
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: Tr.t("KVM is not usable here. The KVM check in Shani Cassini can diagnose and fix it.")
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Repeater {
+                    model: win.systemVms ? [["session", Tr.t("My machines")], ["system", Tr.t("Shared machines")]] : [["session", Tr.t("My machines")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.vmUri === modelData[0]
+                        onClicked: win.vmUri = modelData[0]
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: Tr.t("New virtual machine…")
+                    enabled: win.hasBoxes
+                    onClicked: win.openBoxes()
+                }
+            }
+            Text {
+                visible: !win.hasBoxes
+                text: Tr.t("Install Boxes to make a new virtual machine")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            EmptyState {
+                visible: win.domains.length === 0
+                icon: "computer"
+                title: Tr.t("No virtual machines yet")
+                subtitle: Tr.t("Make one with Boxes, or one appears here from a manager")
+            }
+            ListView {
+                reuseItems: true
+                id: vml
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: Theme.px(4)
+                model: win.domains
+                delegate: ListRow {
+                    required property var modelData
+                    width: vml.width
+                    icon: "computer"
+                    title: modelData.name
+                    subtitle: [modelData.state, modelData.uri].filter(x => x).join("  ·  ")
+                    interactive: false
+                    Button { text: Tr.t("Start"); onClicked: win.virtAction("virt-start", modelData.name) }
+                    Button { text: Tr.t("Shut down"); onClicked: win.virtAction("virt-shutdown", modelData.name) }
+                    Button { text: Tr.t("Force off"); onClicked: win.virtAction("virt-force-off", modelData.name) }
+                    Button { text: Tr.t("Restart"); onClicked: win.virtAction("virt-reboot", modelData.name) }
+                    Button { text: Tr.t("Console"); onClicked: win.virtConsole(modelData.name) }
+                    ConfirmButton {
+                        text: Tr.t("Remove"); armedText: Tr.t("Tap again: remove")
+                        Accessible.name: Tr.t("Remove virtual machine %1", modelData.name)
+                        width: Theme.px(110); height: Theme.px(32)
+                        onConfirmed: win.run(["virt-remove", modelData.name, win.vmUriArg()])
+                    }
+                }
+            }
+        }
+
+        // ---- Android ----
+        ColumnLayout {
+            visible: win.tab === "android"
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Text {
+                visible: win.android.available !== true
+                text: Tr.t("Android support is not installed on this computer")
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                visible: win.android.available === true
+                text: Tr.t("Android is %1 and its session is %2").arg(win.android.initialised === true ? Tr.t("ready") : Tr.t("not set up")).arg(win.android.session || Tr.t("unknown"))
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+            }
+            Button {
+                visible: win.android.available === true && win.android.initialised !== true && win.android.helper === true
+                text: Tr.t("Set up Android")
+                enabled: !job.running
+                onClicked: win.startJob("set up Android", ["waydroid-init"])
+            }
+            Text {
+                visible: win.android.available === true && win.android.initialised !== true && win.android.helper !== true
+                text: Tr.t("The Android setup helper is not installed")
+                color: Theme.danger; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
+            RowLayout {
+                visible: win.android.available === true && win.android.initialised === true
+                Layout.fillWidth: true
+                Button { text: Tr.t("Start session"); onClicked: win.run(["waydroid-start"]) }
+                Button { text: Tr.t("Stop session"); onClicked: win.run(["waydroid-stop"]) }
+                Button {
+                    text: Tr.t("Open Android apps")
+                    onClicked: win.run(["waydroid-ui"], r => { if (r.argv) { Quickshell.execDetached(r.argv); Ui.containersTerminal = r.argv.join(" "); } })
+                }
+            }
+        }
+
+        // ---- compose folders ----
+        ColumnLayout {
+            visible: win.tab === "compose"
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true; elide: Text.ElideMiddle
+                    text: win.composeFolder !== "" ? win.composeFolder : Tr.t("No folder picked yet")
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Button { text: Tr.t("Pick a compose file"); onClicked: win.pickComposeFolder() }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Button { text: Tr.t("Start stack"); enabled: win.composeFolder !== "" && !job.running; onClicked: win.composeAction("up") }
+                Button { text: Tr.t("Stop stack"); enabled: win.composeFolder !== "" && !job.running; onClicked: win.composeAction("down") }
+                Button { text: Tr.t("Read its logs"); enabled: win.composeFolder !== "" && !job.running; onClicked: win.composeAction("logs") }
+            }
+            BusyNote { visible: job.running && job.what.indexOf("compose") >= 0; Layout.fillWidth: true; note: win.jobLine || Tr.t("Working…") }
+        }
+
+        // ---- user services (Quadlet) ----
+        ColumnLayout {
+            visible: win.tab === "services"
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Picks {
+                label: Tr.t("Image for the service")
+                options: win.images.map(i => i.name).concat([{ label: Tr.t("Your own…"), value: "custom" }])
+                current: win.serviceImage
+                onPicked: v => win.serviceImage = v
+            }
+            TextField {
+                visible: win.serviceImage === "custom"
+                Layout.fillWidth: true
+                label: Tr.t("An image name")
+                text: win.customServiceImage
+                onTextChanged: win.customServiceImage = text
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                TextField {
+                    Layout.fillWidth: true
+                    label: Tr.t("Service name")
+                    text: win.serviceName
+                    onTextChanged: win.serviceName = text
+                }
+                Button { text: Tr.t("Run as a service"); enabled: win.serviceName !== "" && !job.running; onClicked: win.serviceCreate() }
+            }
+            SwitchRow {
+                text: Tr.t("Use the graphics card")
+                hint: Tr.t("Only when a CDI setup is present")
+                checked: win.serviceGpu
+                onToggled: v => win.serviceGpu = v
+            }
+            Repeater {
+                model: win.services
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Text { Layout.fillWidth: true; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
+                    Button { text: Tr.t("Status"); onClicked: win.serviceStatus(modelData) }
+                    ConfirmButton {
+                        text: Tr.t("Remove"); armedText: Tr.t("Tap again: remove")
+                        Accessible.name: Tr.t("Remove service %1", modelData)
+                        width: Theme.px(110); height: Theme.px(32)
+                        onConfirmed: { win.run(["service-remove", modelData]); win.services = win.services.filter(x => x !== modelData); }
+                    }
+                }
+            }
+            Text {
+                visible: Object.keys(win.serviceStatus).length > 0
+                text: [win.serviceStatus.description, win.serviceStatus.active ? Tr.t("running") : Tr.t("stopped"), win.serviceStatus.sub].filter(x => x).join("  ·  ")
+                color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }
