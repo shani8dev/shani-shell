@@ -365,6 +365,8 @@ def main(argv: list[str]) -> int:
         data = load()
         if mode == "music":
             answer = music(data, args[1:])
+            if answer.get("ok"):
+                save(data)  # a skip must survive into the next status read
         elif mode == "files-send":
             # The bridge logs the path itself; success needs no words.
             answer = {"ok": True, "error": ""}
