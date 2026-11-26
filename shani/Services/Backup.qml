@@ -43,6 +43,21 @@ Singleton {
     property var btrfsSnapshots: []      // btrfs snapshots under homeTool
     property string versions: ""
     property string drive: ""
+    property bool stale: false         // newest backup is at least three days old
+    property string newest: ""
+    property bool timerKnown: false    // the daily snapshot timer for this user
+    property bool timerEnabled: false
+    property bool timerActive: false
+    property string timerNext: ""
+    property bool diskKnown: false
+    property real diskTotal: 0
+    property real diskFree: 0
+    property real diskUsed: 0
+    property bool diskLow: false
+    property var findResults: []
+    property bool findSearched: false
+    property bool findTruncated: false
+    property string findPick: ""
 
     // what the person picked / the shell did last
     property string tab: "home"
@@ -62,6 +77,8 @@ Singleton {
         list.running = true;
         homeList.running = true;
         snapshotList.running = true;
+        timerState.running = true;
+        diskUsage.running = true;
     }
 
     // Open the shell's own Backup window at a tab. The GTK app is never started.
@@ -79,6 +96,20 @@ Singleton {
         const d = new Date(m[1] + "T00:00:00"), t = new Date(); t.setHours(0, 0, 0, 0);
         const n = Math.round((t - d) / 86400000);
         return n === 0 ? Tr.t("today") : n === 1 ? Tr.t("yesterday") : Qt.formatDate(d, "d MMM");
+    }
+
+    // One honest line for the daily copy switch: why it is off, and when it
+    // runs next. The words are ours; enabled/active/next come from the timer.
+    function timerHint() {
+        if (!timerKnown) return Tr.t("A copy of your home is kept on this disk every day.");
+        if (!timerEnabled) return Tr.t("Off. Turn it on to keep a daily copy of your home on this disk.");
+        if (!timerActive) return Tr.t("On, but not running now. It starts again at the next sign-in.");
+        return timerNext !== "" ? Tr.t("On. Next copy: %1", timerNext)
+            : Tr.t("On. The next copy time is not known yet.");
+    }
+
+    function diskPercent() {
+        return diskTotal > 0 ? Math.round(100 * (diskTotal - diskFree) / diskTotal) : 0;
     }
 
     function openPath(path) {
@@ -109,6 +140,8 @@ Singleton {
                 root.scheduleTime = (d.schedule && d.schedule.time) || "";
                 root.backups = d.ok !== false && Array.isArray(d.backups) ? d.backups : [];
                 root.restoreTest = d.restore_test || null;
+                root.stale = d.ok !== false && !!d.stale;
+                root.newest = d.newest || "";
                 root.drive = !root.repository ? Tr.t("No backup drive chosen yet")
                     : !root.reachable ? Tr.t("The backup drive is not connected")
                     : !root.driveSetUp ? Tr.t("This folder is not set up for backups yet")
@@ -152,6 +185,42 @@ Singleton {
                 try { d = JSON.parse(text.trim().split("\n").pop() || "{}"); } catch (e) {}
                 const paths = d.ok !== false && Array.isArray(d.snapshots) ? d.snapshots : [];
                 root.btrfsSnapshots = paths.map(p => ({ path: p, name: String(p).split("/").pop() || p }));
+            }
+        }
+    }
+
+    // The daily snapshot timer is a user unit: no administrator rights needed.
+    Process {
+        id: timerState
+        command: [root.tool, "home-timer", "state"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = {};
+                try { d = JSON.parse(text.trim().split("\n").pop() || "{}"); } catch (e) {}
+                root.timerKnown = d.ok !== false;
+                if (root.timerKnown) {
+                    root.timerEnabled = !!d.enabled;
+                    root.timerActive = !!d.active;
+                    root.timerNext = d.next || "";
+                }
+            }
+        }
+    }
+
+    Process {
+        id: diskUsage
+        command: [root.tool, "disk-usage", root.homeTool]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d = {};
+                try { d = JSON.parse(text.trim().split("\n").pop() || "{}"); } catch (e) {}
+                root.diskKnown = d.ok !== false;
+                if (root.diskKnown) {
+                    root.diskTotal = d.total || 0;
+                    root.diskFree = d.free || 0;
+                    root.diskUsed = d.used || 0;
+                    root.diskLow = !!d.low;
+                }
             }
         }
     }
@@ -226,8 +295,15 @@ Singleton {
                 root.error = code === 126 || code === 127 ? Tr.t("Administrator rights were not given")
                     : (d.error || actionErr.text.trim().split("\n").pop() || Tr.t("That did not work"));
             }
+            if (op === "find-file") {
+                root.findSearched = true;
+                root.findResults = Array.isArray(d.results) ? d.results : [];
+                root.findTruncated = !!d.truncated;
+                root.findPick = "";
+            }
             if (op === "home-snapshot" || op === "home-remove" || op === "snapshot-create"
-                || op === "snapshot-delete" || op === "schedule" || op === "restore") root.refresh();
+                || op === "snapshot-delete" || op === "schedule" || op === "restore"
+                || op === "home-timer") root.refresh();
         }
     }
 
@@ -264,6 +340,13 @@ Singleton {
     function homeRemove(name) { return runOp("home-remove", [name], Tr.t("Snapshot removed")); }
     function setSchedule(on) { return runOp("schedule", [on ? "on" : "off"], on ? Tr.t("Daily backup turned on") : Tr.t("Daily backup turned off")); }
     function setScheduleTime(hhmm) { return runOp("schedule", ["at", hhmm], Tr.t("Daily backup at %1", hhmm)); }
+    function setHomeTimer(on) { return runOp("home-timer", [on ? "on" : "off"], on ? Tr.t("Daily copy turned on") : Tr.t("Daily copy turned off")); }
+    function findFile(name) {
+        root.findSearched = false;
+        root.findResults = [];
+        root.findPick = "";
+        return runOp("find-file", [name], "");
+    }
 
     // Restore a file or folder from a home snapshot with the shell's own copy
     // engine (bridge/files.py paste): never over another file.

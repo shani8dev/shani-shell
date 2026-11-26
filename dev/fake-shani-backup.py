@@ -43,6 +43,12 @@ DEFAULTS = {
         },
     ],
     "snapshots": ["/home/.snapshots/root/daily-2026-11-26"],
+    "restore_test": {
+        "ok": True,
+        "at": 1764167103,
+        "snapshot": "ab12cd34",
+        "file": "/root/notes.txt",
+    },
     "error": None,
 }
 
@@ -62,6 +68,7 @@ def load_state():
         "backups",
         "home_snapshots",
         "snapshots",
+        "restore_test",
         "error",
     ):
         if key in seeded:
@@ -231,12 +238,7 @@ def main():
             "set_up": state["set_up"],
             "schedule": dict(state["schedule"]),
             "backups": state["backups"],
-            "restore_test": {
-                "ok": True,
-                "at": 1764167103,
-                "snapshot": "ab12cd34",
-                "file": "/root/notes.txt",
-            },
+            "restore_test": dict(state["restore_test"]),
             "_error": error,
         }
         if as_json:
