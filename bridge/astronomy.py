@@ -3038,38 +3038,183 @@ def vishesha_yogas(planets: list) -> list:
     return result if result else ["No special yogas detected"]
 
 
-# More house systems
-def houses_placidus(asc_sid: float, mc_sid: float, lat: float) -> list:
-    """Placidus house system (simplified)."""
-    # Simplified: equal-ish but with ascendant and MC
-    houses = []
-    for i in range(12):
-        # Interpolate between ascendant and MC
-        if i < 6:
-            h_lon = _norm(asc_sid + i * 30)
-        else:
-            h_lon = _norm(mc_sid + (i - 6) * 30)
-        sign_idx = int(h_lon / 30) % 12
-        houses.append(
+# Quadrant house systems: real Placidus and Koch by the semi-arc method
+# (Holden, Elements of House Division; cross-checked with vedaksha's
+# crates/vedaksha-astro/src/houses/{placidus,koch}.rs). All longitudes here
+# are sidereal: the caller supplies asc_sid and mc_sid in the same frame.
+
+POLAR_LATITUDE = 66.56
+
+
+def _ra_of_lon(lon: float, eps: float) -> float:
+    """Right ascension of an ecliptic longitude, degrees."""
+    return _norm(
+        math.degrees(
+            math.atan2(
+                math.sin(math.radians(lon)) * math.cos(math.radians(eps)),
+                math.cos(math.radians(lon)),
+            )
+        )
+    )
+
+
+def _lon_of_ra(ra: float, eps: float) -> float:
+    """Ecliptic longitude whose right ascension is ``ra``, degrees."""
+    return _norm(
+        math.degrees(
+            math.atan2(
+                math.sin(math.radians(ra)),
+                math.cos(math.radians(ra)) * math.cos(math.radians(eps)),
+            )
+        )
+    )
+
+
+def _declination(lon: float, eps: float) -> float:
+    return math.degrees(
+        math.asin(math.sin(math.radians(lon)) * math.sin(math.radians(eps)))
+    )
+
+
+def _semi_arc(lat: float, dec: float) -> float | None:
+    """Diurnal semi-arc in degrees, or None when the point is circumpolar."""
+    value = -math.tan(math.radians(lat)) * math.tan(math.radians(dec))
+    if not -1.0 <= value <= 1.0:
+        return None
+    return math.degrees(math.acos(value))
+
+
+def _asc_from_ramc(ramc: float, lat: float, eps: float) -> float:
+    y = math.cos(math.radians(ramc))
+    x = -(
+        math.sin(math.radians(ramc)) * math.cos(math.radians(eps))
+        + math.tan(math.radians(lat)) * math.sin(math.radians(eps))
+    )
+    return _norm(math.degrees(math.atan2(y, x)))
+
+
+def _house_rows(cusps: list) -> list:
+    rows = []
+    for number, cusp in enumerate(cusps, 1):
+        lon = _norm(cusp)
+        sign_idx = int(lon / 30) % 12
+        degree = int(lon % 30)
+        rows.append(
             {
-                "house_number": i + 1,
+                "house_number": number,
                 "sign": SIGNS[sign_idx],
-                "degree": int(h_lon % 30),
-                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-                "ecliptic_longitude": round(h_lon, 4),
+                "degree": degree,
+                "minute": int((lon % 30 - degree) * 60),
+                "ecliptic_longitude": round(lon, 4),
             }
         )
-    return houses
+    return rows
 
 
-def houses_koch(asc_sid: float, mc_sid: float) -> list:
-    """Koch house system (simplified)."""
-    return houses_placidus(asc_sid, mc_sid, 0)  # simplified
+def _placidus_cusps(
+    asc_sid: float, mc_sid: float, lat: float, eps: float = 23.4393
+) -> list:
+    """Twelve Placidus cusps by trisecting the semi-arcs in right ascension."""
+    if abs(lat) > POLAR_LATITUDE:  # no rising/setting: use equal
+        return [_norm(asc_sid + i * 30) for i in range(12)]
+    ramc = _ra_of_lon(mc_sid, eps)
+    if _semi_arc(lat, _declination(mc_sid, eps)) is None:
+        return [_norm(asc_sid + i * 30) for i in range(12)]
+
+    def cusp(fraction: float, above: bool) -> float | None:
+        initial = _semi_arc(lat, _declination(mc_sid, eps))
+        if above:
+            ra = _norm(ramc + fraction * initial)
+        else:
+            ra = _norm(ramc + 180 - (1 - fraction) * (180 - initial))
+        for _ in range(50):
+            lon = _lon_of_ra(ra, eps)
+            arc = _semi_arc(lat, _declination(lon, eps))
+            if arc is None:
+                return None
+            target = (
+                _norm(ramc + fraction * arc)
+                if above
+                else _norm(ramc + 180 - (1 - fraction) * (180 - arc))
+            )
+            delta = (target - ra + 180) % 360 - 180
+            if abs(delta) < 1e-8:
+                ra = target
+                break
+            ra = target
+        return _lon_of_ra(ra, eps)
+
+    first = cusp(1 / 3, True)  # house 11
+    second = cusp(2 / 3, True)  # house 12
+    third = cusp(1 / 3, False)  # house 2
+    fourth = cusp(2 / 3, False)  # house 3
+    if None in (first, second, third, fourth):
+        return [_norm(asc_sid + i * 30) for i in range(12)]
+    return [
+        _norm(asc_sid),
+        _norm(third),
+        _norm(fourth),
+        _norm(mc_sid + 180),
+        _norm(first + 180),
+        _norm(second + 180),
+        _norm(asc_sid + 180),
+        _norm(third + 180),
+        _norm(fourth + 180),
+        _norm(mc_sid),
+        _norm(first),
+        _norm(second),
+    ]
 
 
-# Add to HOUSE_SYSTEMS
-HOUSE_SYSTEMS["P"] = ("Placidus", lambda asc: houses_placidus(asc, asc + 90, 0))
-HOUSE_SYSTEMS["K"] = ("Koch", lambda asc: houses_koch(asc, asc + 90))
+def houses_placidus(
+    asc_sid: float, mc_sid: float, lat: float, eps: float = 23.4393
+) -> list:
+    """Placidus houses as data, one row per house."""
+    return _house_rows(_placidus_cusps(asc_sid, mc_sid, lat, eps))
+
+
+def _koch_cusps(
+    asc_sid: float, mc_sid: float, lat: float, eps: float = 23.4393
+) -> list:
+    """Koch cusps: the MC's semi-arc, measured back from birth for houses
+    11/12 and forward for houses 2/3, then read from the ascendant."""
+    if abs(lat) > POLAR_LATITUDE:
+        return [_norm(asc_sid + i * 30) for i in range(12)]
+    arc = _semi_arc(lat, _declination(mc_sid, eps))
+    if arc is None:
+        return [_norm(asc_sid + i * 30) for i in range(12)]
+    ramc = _ra_of_lon(mc_sid, eps)
+
+    def cusp(fraction: float, above: bool) -> float:
+        return _asc_from_ramc(
+            _norm(ramc - fraction * arc if above else ramc + fraction * arc),
+            lat,
+            eps,
+        )
+
+    first, second = cusp(2 / 3, True), cusp(1 / 3, True)
+    third, fourth = cusp(1 / 3, False), cusp(2 / 3, False)
+    return [
+        _norm(asc_sid),
+        third,
+        fourth,
+        _norm(mc_sid + 180),
+        _norm(first + 180),
+        _norm(second + 180),
+        _norm(asc_sid + 180),
+        _norm(third + 180),
+        _norm(fourth + 180),
+        _norm(mc_sid),
+        first,
+        second,
+    ]
+
+
+def houses_koch(
+    asc_sid: float, mc_sid: float, lat: float = 0.0, eps: float = 23.4393
+) -> list:
+    """Koch houses as data, one row per house."""
+    return _house_rows(_koch_cusps(asc_sid, mc_sid, lat, eps))
 
 
 # Bhava Bala
@@ -3317,57 +3462,14 @@ def ayanamsa_extended(code: str, jd: float) -> float:
         return ayanamsa_value(code, jd)
 
 
-# More House Systems
 def houses_placidus_full(asc_sid: float, mc_sid: float, lat: float) -> list:
-    """Placidus house system (more accurate)."""
-    houses = []
-    # Simplified Placidus: interpolate between ascendant and MC
-    for i in range(12):
-        if i < 6:
-            frac = i / 6.0
-            h_lon = _norm(asc_sid + frac * (mc_sid - asc_sid + 180) % 360)
-        else:
-            frac = (i - 6) / 6.0
-            h_lon = _norm(mc_sid + 180 + frac * (asc_sid + 360 - mc_sid - 180) % 360)
-        sign_idx = int(h_lon / 30) % 12
-        houses.append(
-            {
-                "house_number": i + 1,
-                "sign": SIGNS[sign_idx],
-                "degree": int(h_lon % 30),
-                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-                "ecliptic_longitude": round(h_lon, 4),
-            }
-        )
-    return houses
+    """Placidus houses (the semi-arc implementation, shared with the short name)."""
+    return houses_placidus(asc_sid, mc_sid, lat)
 
 
 def houses_koch_full(asc_sid: float, mc_sid: float, lat: float) -> list:
-    """Koch house system (simplified)."""
-    return houses_placidus_full(asc_sid, mc_sid, lat)
-
-
-def houses_regiomontanus(asc_sid: float, mc_sid: float) -> list:
-    """Regiomontanus house system (simplified)."""
-    houses = []
-    for i in range(12):
-        h_lon = _norm(asc_sid + i * 30)
-        sign_idx = int(h_lon / 30) % 12
-        houses.append(
-            {
-                "house_number": i + 1,
-                "sign": SIGNS[sign_idx],
-                "degree": int(h_lon % 30),
-                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-                "ecliptic_longitude": round(h_lon, 4),
-            }
-        )
-    return houses
-
-
-def houses_campanus(asc_sid: float, mc_sid: float, lat: float) -> list:
-    """Campanus house system (simplified)."""
-    return houses_whole_sign(asc_sid)
+    """Koch houses (the semi-arc implementation, shared with the short name)."""
+    return houses_koch(asc_sid, mc_sid, lat)
 
 
 def houses_topocentric(asc_sid: float, mc_sid: float, lat: float) -> list:
@@ -3438,8 +3540,6 @@ def houses_vehlow(asc_sid: float) -> list:
 HOUSE_SYSTEMS_FULL = {
     "P": ("Placidus", lambda asc, mc, lat: houses_placidus_full(asc, mc, lat)),
     "K": ("Koch", lambda asc, mc, lat: houses_koch_full(asc, mc, lat)),
-    "R": ("Regiomontanus", lambda asc, mc, lat: houses_regiomontanus(asc, mc)),
-    "C": ("Campanus", lambda asc, mc, lat: houses_campanus(asc, mc, lat)),
     "T": ("Topocentric", lambda asc, mc, lat: houses_topocentric(asc, mc, lat)),
     "B": ("Alcabitius", lambda asc, mc, lat: houses_alcabitius(asc, mc, lat)),
     "M": ("Morinus", lambda asc, mc, lat: houses_morinus(asc, mc)),
@@ -4687,4 +4787,93 @@ def sade_sati(chart: dict, now: str | None = None) -> dict:
         "end": _jd_to_iso(end),
         "phases": phases,
         "method": "stepping_saturn",
+    }
+
+
+# ---------------------------------------------------------------------------
+# KP system: lords by sign, star, sub and sub-sub
+# ---------------------------------------------------------------------------
+
+
+def _obliquity(jd: float) -> float:
+    T = (jd - 2451545.0) / 36525.0
+    return 23.439291 - 0.0130042 * T - 0.000000164 * T * T + 0.000000504 * T * T * T
+
+
+def _mc_tropical(jd: float, lon: float) -> float:
+    """Tropical longitude of the midheaven (from the local sidereal time)."""
+    T = (jd - 2451545.0) / 36525.0
+    gmst = (
+        280.46061837
+        + 360.98564736629 * (jd - 2451545.0)
+        + 0.000387933 * T * T
+        - T * T * T / 38710000.0
+    )
+    return _lon_of_ra(_norm(gmst + lon), _obliquity(jd))
+
+
+def kp_sub_lord(longitude: float, levels: int = 1) -> str:
+    """Vimshottari sub lord at a longitude; ``levels=2`` is the sub-sub lord.
+
+    The nakshatra is divided in the proportion of the dasha years of its
+    lord and the eight lords that follow. Within the chosen sub period the
+    same division is repeated for the sub-sub period.
+    """
+    span = 360.0 / 27.0
+    nak_idx = int(longitude / span) % 27
+    lord_idx = nak_idx % 9
+    fraction = (longitude % span) / span
+    fraction = min(max(fraction, 0.0), 0.999999999)
+    for _ in range(levels):
+        passed = 0.0
+        for step in range(9):
+            idx = (lord_idx + step) % 9
+            share = DASHA_YEARS[idx] / 120.0
+            if fraction < passed + share or step == 8:
+                fraction = min(max((fraction - passed) / share, 0.0), 0.999999999)
+                lord_idx = idx
+                break
+            passed += share
+    return DASHA_LORDS[lord_idx]
+
+
+def kp_lords(chart: dict) -> dict:
+    """Four levels of lordship for every planet and Placidus cusp."""
+    jd = julian_day(str(chart.get("datetime") or ""))
+    lat = float(chart.get("latitude") or 0)
+    lon = float(chart.get("longitude") or 0)
+    eps = _obliquity(jd)
+    ayan = ayanamsa_lahiri(jd)
+    asc_sid = float(chart.get("ascendant") or 0) % 360
+    mc_sid = _norm(_mc_tropical(jd, lon) - ayan)
+    cusps = _placidus_cusps(asc_sid, mc_sid, lat, eps)
+
+    def details(name: str, longitude: float) -> dict:
+        value = _norm(longitude)
+        sign_idx = int(value / 30) % 12
+        nak_idx = int(value / (360.0 / 27.0)) % 27
+        return {
+            "name": name,
+            "longitude": round(value, 4),
+            "sign": SIGNS[sign_idx],
+            "sign_lord": SIGN_LORDS[sign_idx],
+            "star_lord": DASHA_LORDS[nak_idx % 9],
+            "sub_lord": kp_sub_lord(value),
+            "sub_sub_lord": kp_sub_lord(value, 2),
+        }
+
+    planets = [
+        details(p.get("name", ""), p.get("sidereal_longitude") or 0)
+        for p in chart.get("planets", [])
+    ]
+    return {
+        "system": "KP",
+        "ayanamsa": "Lahiri",
+        "ayanamsa_value": round(ayan, 4),
+        "kp_ayanamsa": round(ayanamsa_value("kp", jd), 4),
+        "house_system": "Placidus",
+        "ascendant": round(asc_sid, 4),
+        "midheaven": round(mc_sid, 4),
+        "points": planets,
+        "cusps": [details(f"house {i + 1}", value) for i, value in enumerate(cusps)],
     }

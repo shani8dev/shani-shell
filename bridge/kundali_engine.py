@@ -99,6 +99,7 @@ ACTION_GROUPS = (
     ("traditions", ("bazi", "ziwei", "chinese", "temperament")),
     ("matching", ("ashtakoota",)),
     ("doshas", ("mangaldosha", "kalasarpa", "sadesati")),
+    ("kp", ("kplords",)),
 )
 ACTIONS = tuple(a for _, group in ACTION_GROUPS for a in group)
 
@@ -302,6 +303,8 @@ def new_data(action: str, arguments: dict, astronomy) -> dict:
         return astronomy.kaal_sarpa_dosha(chart)
     if action == "sadesati":
         return astronomy.sade_sati(chart, arguments.get("now"))
+    if action == "kplords":
+        return astronomy.kp_lords(chart)
     return {"error": f"Unknown calculation: {action}"}
 
 
@@ -362,6 +365,25 @@ def render_new(action: str, data: dict) -> str:
         for span in data["phases"]:
             lines.append(f"  {span['phase']}: {span['start']} to {span['end']}")
         return "\n".join(lines)
+    if action == "kplords":
+        lines = [
+            "KP Lords (Placidus cusps):",
+            f"  Ayanamsa (Lahiri): {data['ayanamsa_value']}",
+            f"  KP ayanamsa: {data['kp_ayanamsa']}",
+        ]
+        for point in data["points"]:
+            lines.append(
+                f"  {point['name']}: {point['sign']} - sign {point['sign_lord']}, "
+                f"star {point['star_lord']}, sub {point['sub_lord']}, "
+                f"sub-sub {point['sub_sub_lord']}"
+            )
+        for cusp in data["cusps"]:
+            lines.append(
+                f"  Cusp {cusp['name']}: {cusp['longitude']}° - "
+                f"sign {cusp['sign_lord']}, star {cusp['star_lord']}, "
+                f"sub {cusp['sub_lord']}, sub-sub {cusp['sub_sub_lord']}"
+            )
+        return "\n".join(lines)
     return "Calculation failed: no renderer"
 
 
@@ -405,6 +427,9 @@ def compute(arguments: dict, astronomy) -> str:
 
     if action == "sadesati":
         return _answer_new("sadesati", arguments, astronomy)
+
+    if action == "kplords":
+        return _answer_new("kplords", arguments, astronomy)
 
     # ---- every calculation the engine offers (restored from 98075ba) ----
 
