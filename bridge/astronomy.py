@@ -2132,11 +2132,6 @@ GRAHA_INFO = {
 }
 
 
-def graha_info(planet: str) -> dict:
-    """Get graha (planet) info."""
-    return GRAHA_INFO.get(planet, {"nature": "unknown", "gender": "unknown", "element": "unknown", "guna": "unknown"})
-
-
 # Khagola (celestial position functions)
 def khagola_sun_ingress(year: int, sign: int) -> str:
     """Approximate date of Sun's ingress into a sign."""
@@ -2262,52 +2257,6 @@ def compute_full_panchang(dt_str, lat, lon):
 # Placidus houses, Eclipse details, Heliacal
 # ---------------------------------------------------------------------------
 
-# Narayana Dasha (Jaimini)
-def narayana_dasha(lagna_sign: int, positions: dict) -> list:
-    """Narayana Dasha (Jaimini) - sign-based."""
-    # Simplified: each sign gets a period based on its lord
-    sign_lords = {0: "Mars", 1: "Venus", 2: "Mercury", 3: "Moon", 4: "Sun",
-                  5: "Mercury", 6: "Venus", 7: "Mars", 8: "Jupiter",
-                  9: "Saturn", 10: "Saturn", 11: "Jupiter"}
-    result = []
-    for i in range(12):
-        sign = (lagna_sign + i) % 12
-        lord = sign_lords.get(sign, "")
-        # Years = distance from lagna to sign lord's position
-        lord_pos = positions.get(lord, sign)
-        years = (lord_pos - sign) % 12 + 1
-        result.append({"sign": SIGNS[sign], "lord": lord, "years": years,
-                       "start_offset": sum(r["years"] for r in result)})
-    return result
-
-
-# Sthira Dasha (Jaimini)
-def sthira_dasha(lagna_sign: int, positions: dict) -> list:
-    """Sthira Dasha (Jaimini) - fixed sign periods."""
-    fixed_years = {0: 7, 1: 8, 2: 9, 3: 10, 4: 11, 5: 12,
-                   6: 7, 7: 8, 8: 9, 9: 10, 10: 11, 11: 12}
-    result = []
-    for i in range(12):
-        sign = (lagna_sign + i) % 12
-        result.append({"sign": SIGNS[sign], "years": fixed_years.get(sign, 7),
-                       "start_offset": sum(r["years"] for r in result)})
-    return result
-
-
-# Shoola Dasha (Jaimini)
-def shoola_dasha(lagna_sign: int) -> list:
-    """Shoola Dasha (Jaimini) - based on trikona."""
-    result = []
-    # Trikonas: (1,5,9), (2,6,10), (3,7,11), (4,8,12)
-    trikonas = [[0, 4, 8], [1, 5, 9], [2, 6, 10], [3, 7, 11]]
-    for tri in trikonas:
-        for sign_offset in tri:
-            sign = (lagna_sign + sign_offset) % 12
-            result.append({"sign": SIGNS[sign], "years": 1,
-                           "start_offset": len(result)})
-    return result
-
-
 # Ashtottari Dasha (already added, enhance)
 def ashtottari_dasha_full(moon_lon_sid: float) -> list:
     """Ashtottari Dasha (108-year cycle) with antardasha."""
@@ -2424,86 +2373,9 @@ def bhava_bala(house: int, planets_in_house: list) -> dict:
     return {"house": house, "strength": strength}
 
 
-# Kala Khanda (time periods)
-def kala_khanda_full(jd: float, lat: float, lon: float) -> dict:
-    """Full kala khanda (time periods)."""
-    base = kala_khanda(jd)
-    # Add sunrise/sunset (simplified)
-    base["sunrise_approx"] = "06:00"
-    base["sunset_approx"] = "18:00"
-    return base
-
-
-# Mean motion (already have, add more)
-def mean_motion_full(planet: str) -> dict:
-    """Mean motion with additional info."""
-    motions = {
-        "Sun": 0.9856, "Moon": 13.176, "Mercury": 4.092, "Venus": 1.602,
-        "Mars": 0.524, "Jupiter": 0.083, "Saturn": 0.033,
-        "Uranus": 0.012, "Neptune": 0.006, "Pluto": 0.004,
-        "Rahu": -0.053, "Ketu": -0.053,
-    }
-    motion = motions.get(planet, 0.0)
-    return {"planet": planet, "degrees_per_day": motion,
-            "degrees_per_year": round(motion * 365.25, 2)}
-
-
-# Khagola (celestial positions)
-def khagola_ingress(planet: str, sign: int, year: int) -> str:
-    """Approximate date of planet's ingress into a sign."""
-    # Simplified: search through the year
-    return f"{year}-01-01"  # placeholder
-
-
-def khagola_station(planet: str, jd: float) -> bool:
-    """Check if planet is stationary (simplified)."""
-    return False  # placeholder
-
-
 def khagola_heliacal_rise(planet: str, jd: float, lat: float) -> bool:
     """Check if planet is heliacally rising (simplified)."""
     return False  # placeholder
-
-
-# Node calculations (mean, true, osculating)
-def node_mean(jd: float) -> float:
-    """Mean lunar node."""
-    T = (jd - 2451545.0) / 36525.0
-    omega = 125.0445479 - 1934.1362891 * T + 0.0020754 * T * T
-    return _norm(omega)
-
-
-def node_true(jd: float) -> float:
-    """True lunar node (with nutation)."""
-    mean = node_mean(jd)
-    # Add nutation in longitude (simplified)
-    T = (jd - 2451545.0) / 36525.0
-    nutation = -17.2 * (1 - 0.00001 * (jd - 2451545)) * (1 - 0.00001 * (jd - 2451545))
-    return _norm(mean + nutation / 3600.0)
-
-
-# Chinese calendar (enhanced)
-def chinese_calendar_full(dt_str: str) -> dict:
-    """Enhanced Chinese calendar with solar terms."""
-    base = chinese_calendar(dt_str)
-    jd = julian_day(dt_str)
-    base["solar_term"] = solar_term(jd)
-    return base
-
-
-# Zi Wei Dou Shu (basic)
-def zi_wei_basic(year: int, month: int, day: int, hour: int) -> dict:
-    """Basic Zi Wei Dou Shu chart."""
-    # Simplified: just compute the 12 palaces
-    palaces = ["Life", "Siblings", "Spouse", "Children", "Wealth", "Health",
-               "Travel", "Friends", "Career", "Property", "Fortune", "Parents"]
-    # Life palace based on lunar month and hour
-    life_palace_idx = (month + hour) % 12
-    result = {}
-    for i, name in enumerate(palaces):
-        idx = (life_palace_idx + i) % 12
-        result[name] = {"palace": idx + 1, "name": palaces[idx]}
-    return {"life_palace": life_palace_idx + 1, "palaces": result}
 
 
 # Vishesha yogas (special combinations)
@@ -2519,57 +2391,6 @@ VISHESHA_YOGA_LIST = [
     ("Neecha Bhanga", "Debilitated planet with cancellation"),
     ("Viparita Raja", "Lords of 6th/8th/12th in 6th/8th/12th"),
 ]
-
-
-def vishesha_yogas_full(planets: list) -> list:
-    """Detect Vishesha (special) yogas."""
-    result = []
-    planet_map = {p["name"]: p for p in planets}
-    moon = planet_map.get("Moon", {})
-    jupiter = planet_map.get("Jupiter", {})
-    sun = planet_map.get("Sun", {})
-    mercury = planet_map.get("Mercury", {})
-    venus = planet_map.get("Venus", {})
-    mars = planet_map.get("Mars", {})
-
-    # Gaja Kesari
-    if moon and jupiter:
-        moon_sign = int(moon["sidereal_longitude"] / 30) % 12
-        jup_sign = int(jupiter["sidereal_longitude"] / 30) % 12
-        diff = (jup_sign - moon_sign) % 12
-        if diff in (0, 3, 6, 9):
-            result.append("Gaja Kesari Yoga")
-
-    # Budhaditya
-    if sun and mercury:
-        if int(sun["sidereal_longitude"] / 30) == int(mercury["sidereal_longitude"] / 30):
-            result.append("Budhaditya Yoga")
-
-    # Chandra Mangala
-    if moon and mars:
-        if int(moon["sidereal_longitude"] / 30) == int(mars["sidereal_longitude"] / 30):
-            result.append("Chandra Mangala Yoga")
-
-    # Pancha Mahapurusha
-    for pname in ["Mars", "Mercury", "Jupiter", "Venus", "Saturn"]:
-        p = planet_map.get(pname)
-        if p:
-            sign = p.get("sign", "")
-            house = p.get("house", 0)
-            if house in (1, 4, 7, 10):
-                dig = planet_dignity(pname, sign)
-                if dig in ("Exalted", "Own Sign", "Moolatrikona"):
-                    result.append(f"{pname} Mahapurusha Yoga ({dig})")
-
-    # Neecha Bhanga (simplified)
-    for p in planets:
-        sign = p.get("sign", "")
-        dig = planet_dignity(p["name"], sign)
-        if dig == "Debilitated":
-            # Check if lord of debilitation sign is in kendra
-            result.append(f"Neecha Bhanga possible for {p['name']}")
-
-    return result if result else ["No special yogas detected"]
 
 
 # Eclipses (detailed)
@@ -2588,41 +2409,6 @@ def eclipse_details(sun_lon: float, moon_lon: float, jd: float) -> dict:
         "magnitude": round(max(0, magnitude), 4),
         "type": "Total" if magnitude > 0.9 else ("Partial" if magnitude > 0 else "None"),
     }
-
-
-# Heliacal rising/setting (simplified)
-def heliacal_rise(planet: str, jd: float, lat: float) -> bool:
-    """Check if planet is heliacally rising (simplified)."""
-    # Simplified: check if planet is visible before sunrise
-    return False  # placeholder
-
-
-def heliacal_set(planet: str, jd: float, lat: float) -> bool:
-    """Check if planet is heliacally setting (simplified)."""
-    return False  # placeholder
-
-
-# Node calculations
-def node_mean(jd: float) -> float:
-    """Mean lunar node (Rahu)."""
-    T = (jd - 2451545.0) / 36525.0
-    omega = 125.0445479 - 1934.1362891 * T + 0.0020754 * T * T
-    return _norm(omega)
-
-
-def node_true(jd: float) -> float:
-    """True lunar node (with nutation)."""
-    mean = node_mean(jd)
-    T = (jd - 2451545.0) / 36525.0
-    # Nutation in longitude
-    Omega = 125.0445479 - 1934.1362891 * T
-    nutation = -17.2 * math.sin(math.radians(Omega)) / 3600.0
-    return _norm(mean + nutation)
-
-
-def node_osculating(jd: float) -> float:
-    """Osculating lunar node (simplified)."""
-    return node_true(jd)  # simplified
 
 
 # ---------------------------------------------------------------------------
@@ -2700,26 +2486,6 @@ def rashi_antar(dasha_sign: int, start_sign: int) -> list:
         result.append({"sign": SIGNS[sign], "years": 1,
                        "start_offset": i})
     return result
-
-
-# Zi Wei Dou Shu (basic)
-def zi_wei_basic(year: int, month: int, day: int, hour: int) -> dict:
-    """Basic Zi Wei Dou Shu chart."""
-    palaces = ["Life", "Siblings", "Spouse", "Children", "Wealth", "Health",
-               "Travel", "Friends", "Career", "Property", "Fortune", "Parents"]
-    life_palace_idx = (month + hour) % 12
-    result = {}
-    for i, name in enumerate(palaces):
-        idx = (life_palace_idx + i) % 12
-        result[name] = {"palace": idx + 1, "name": palaces[idx]}
-    # Bureau (five-element)
-    bureaus = ["Water-2", "Wood-3", "Metal-4", "Earth-5", "Fire-6"]
-    bureau_idx = (year + month) % 5
-    return {
-        "life_palace": life_palace_idx + 1,
-        "bureau": bureaus[bureau_idx],
-        "palaces": result,
-    }
 
 
 # Vishesha Yogas (more)
@@ -2937,32 +2703,6 @@ def compute_houses_full(asc_sid: float, mc_sid: float, lat: float, system: str =
     return func(asc_sid, mc_sid, lat)
 
 
-# Eclipse details (more complete)
-def eclipse_details_full(sun_lon: float, moon_lon: float, jd: float) -> dict:
-    """Detailed eclipse information."""
-    diff = abs(sun_lon - moon_lon)
-    diff = min(diff, 360 - diff)
-    sep_from_180 = abs(diff - 180)
-    solar = diff < 2.0
-    lunar = sep_from_180 < 2.0
-    if solar:
-        magnitude = 1.0 - (diff / 2.0)
-        eclipse_type = "Total" if magnitude > 0.9 else ("Partial" if magnitude > 0 else "Penumbral")
-    elif lunar:
-        magnitude = 1.0 - (sep_from_180 / 2.0)
-        eclipse_type = "Total" if magnitude > 0.9 else ("Partial" if magnitude > 0 else "Penumbral")
-    else:
-        magnitude = 0
-        eclipse_type = "None"
-    return {
-        "solar_eclipse": solar,
-        "lunar_eclipse": lunar,
-        "angular_separation": round(diff, 4),
-        "magnitude": round(max(0, magnitude), 4),
-        "type": eclipse_type,
-    }
-
-
 # Heliacal rise/set (simplified)
 def heliacal_rise_simple(planet: str, jd: float, lat: float) -> dict:
     """Simplified heliacal rise check."""
@@ -2980,21 +2720,6 @@ def heliacal_rise_simple(planet: str, jd: float, lat: float) -> dict:
     }
 
 
-# Mean motion (full)
-def mean_motion_full(planet: str) -> dict:
-    """Mean motion with additional info."""
-    motions = {
-        "Sun": 0.9856, "Moon": 13.176, "Mercury": 4.092, "Venus": 1.602,
-        "Mars": 0.524, "Jupiter": 0.083, "Saturn": 0.033,
-        "Uranus": 0.012, "Neptune": 0.006, "Pluto": 0.004,
-        "Rahu": -0.053, "Ketu": -0.053,
-    }
-    motion = motions.get(planet, 0.0)
-    return {"planet": planet, "degrees_per_day": motion,
-            "degrees_per_year": round(motion * 365.25, 2),
-            "days_per_degree": round(1.0 / motion, 2) if motion != 0 else 0}
-
-
 # Khagola (celestial position functions)
 def khagola_ingress(planet: str, sign: int, year: int) -> str:
     """Approximate date of planet's ingress into a sign."""
@@ -3006,67 +2731,6 @@ def khagola_ingress(planet: str, sign: int, year: int) -> str:
 def khagola_station(planet: str, jd: float) -> bool:
     """Check if planet is stationary (simplified)."""
     return False  # placeholder
-
-
-# Vishesha Yogas (more comprehensive)
-def vishesha_yogas_comprehensive(planets: list) -> list:
-    """Detect all Vishesha (special) yogas."""
-    result = []
-    planet_map = {p["name"]: p for p in planets}
-    moon = planet_map.get("Moon", {})
-    jupiter = planet_map.get("Jupiter", {})
-    sun = planet_map.get("Sun", {})
-    mercury = planet_map.get("Mercury", {})
-    venus = planet_map.get("Venus", {})
-    mars = planet_map.get("Mars", {})
-    saturn = planet_map.get("Saturn", {})
-
-    # Gaja Kesari
-    if moon and jupiter:
-        moon_sign = int(moon["sidereal_longitude"] / 30) % 12
-        jup_sign = int(jupiter["sidereal_longitude"] / 30) % 12
-        diff = (jup_sign - moon_sign) % 12
-        if diff in (0, 3, 6, 9):
-            result.append("Gaja Kesari Yoga")
-
-    # Budhaditya
-    if sun and mercury:
-        if int(sun["sidereal_longitude"] / 30) == int(mercury["sidereal_longitude"] / 30):
-            result.append("Budhaditya Yoga")
-
-    # Chandra Mangala
-    if moon and mars:
-        if int(moon["sidereal_longitude"] / 30) == int(mars["sidereal_longitude"] / 30):
-            result.append("Chandra Mangala Yoga")
-
-    # Pancha Mahapurusha
-    for pname in ["Mars", "Mercury", "Jupiter", "Venus", "Saturn"]:
-        p = planet_map.get(pname)
-        if p:
-            sign = p.get("sign", "")
-            house = p.get("house", 0)
-            if house in (1, 4, 7, 10):
-                dig = planet_dignity(pname, sign)
-                if dig in ("Exalted", "Own Sign", "Moolatrikona"):
-                    result.append(f"{pname} Mahapurusha Yoga ({dig})")
-
-    # Neecha Bhanga
-    for p in planets:
-        sign = p.get("sign", "")
-        dig = planet_dignity(p["name"], sign)
-        if dig == "Debilitated":
-            result.append(f"Neecha Bhanga possible for {p['name']}")
-
-    # Raja Yoga
-    result.append("Raja Yoga (check kendra/trikona lords)")
-
-    # Dhana Yoga
-    result.append("Dhana Yoga (check 2nd/11th lords)")
-
-    # Viparita Raja
-    result.append("Viparita Raja Yoga (check 6th/8th/12th lords)")
-
-    return result if result else ["No special yogas detected"]
 
 
 # ---------------------------------------------------------------------------
