@@ -123,36 +123,114 @@ def _moon_longitude(jd: float) -> float:
     return _norm(lon)
 
 
+# JPL's Keplerian elements for the planets (E. M. Standish, "Keplerian
+# Elements for Approximate Positions of the Major Planets", table 1, valid
+# 1800-2050): a (au), e, I, L, long. of perihelion, long. of node (deg), each
+# with its rate per Julian century, on the J2000 ecliptic. With Kepler's
+# equation and the step from the Sun's centre to the Earth's, the geocentric
+# longitude is good to about an arcminute over that span (checked against
+# JPL Horizons: tests/test_kundali_positions.py).
+_ELEMENTS = {
+    "mercury": ((0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593),
+                (0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081)),
+    "venus": ((0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255),
+              (0.00000390, -0.00004107, -0.00078890, 58517.81538729, 0.00268329, -0.27769418)),
+    "earth": ((1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0),
+              (0.00000562, -0.00004392, -0.01294668, 35999.37244981, 0.32327364, 0.0)),
+    "mars": ((1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891),
+             (0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343)),
+    "jupiter": ((5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909),
+                (-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106)),
+    "saturn": ((9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448),
+               (-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794)),
+    "uranus": ((19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.95427630, 74.01692503),
+               (-0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589)),
+    "neptune": ((30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574),
+                (0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664)),
+    "pluto": ((39.48211675, 0.24882730, 17.14001206, 238.92903833, 224.06891629, 110.30393684),
+              (-0.00031596, 0.00005170, 0.00004818, 145.20780515, -0.04062942, -0.01183482)),
+}
+
+
+def _mean_anomaly(name: str, T: float) -> float:
+    base, rate = _ELEMENTS[name]
+    return (base[3] + rate[3] * T) - (base[4] + rate[4] * T)
+
+
+def _great_inequality(name: str, T: float) -> float:
+    """Saturn's pull on Jupiter (deg of longitude), the largest periodic terms
+    of the great inequality: Jupiter's worst error against JPL Horizons over
+    1950-2045 drops from ~8' to ~5'. (The matching terms for Saturn made these
+    elements worse - their mean motion already holds part of it.)"""
+    mj, ms = math.radians(_mean_anomaly("jupiter", T)), math.radians(_mean_anomaly("saturn", T))
+    d = math.radians
+    if name == "jupiter":
+        return (-0.332 * math.sin(2 * mj - 5 * ms - d(67.6)) - 0.056 * math.sin(2 * mj - 2 * ms + d(21))
+                + 0.042 * math.sin(3 * mj - 5 * ms + d(21)) - 0.036 * math.sin(mj - 2 * ms)
+                + 0.022 * math.cos(mj - ms) + 0.023 * math.sin(2 * mj - 3 * ms + d(52))
+                - 0.016 * math.sin(mj - 5 * ms - d(69)))
+    return 0.0
+
+
+def _heliocentric(name: str, T: float) -> tuple:
+    """Heliocentric ecliptic x, y, z (au, J2000 ecliptic and equinox)."""
+    base, rate = _ELEMENTS[name]
+    a, e, inc, L, peri, node = (b + r * T for b, r in zip(base, rate))
+    M = math.radians(_norm(L - peri + 180) - 180)
+    E = M + e * math.sin(M)
+    for _ in range(12):                      # Kepler's equation, Newton steps
+        dE = (M - (E - e * math.sin(E))) / (1 - e * math.cos(E))
+        E += dE
+        if abs(dE) < 1e-12:
+            break
+    xp, yp = a * (math.cos(E) - e), a * math.sqrt(1 - e * e) * math.sin(E)
+    w, O, i = math.radians(peri - node), math.radians(node), math.radians(inc)
+    cw, sw, cO, sO, ci, si = math.cos(w), math.sin(w), math.cos(O), math.sin(O), math.cos(i), math.sin(i)
+    x = (cw * cO - sw * sO * ci) * xp + (-sw * cO - cw * sO * ci) * yp
+    y = (cw * sO + sw * cO * ci) * xp + (-sw * sO + cw * cO * ci) * yp
+    z = (sw * si) * xp + (cw * si) * yp
+    dl = math.radians(_great_inequality(name, T))
+    if dl:
+        x, y = x * math.cos(dl) - y * math.sin(dl), x * math.sin(dl) + y * math.cos(dl)
+    return x, y, z
+
+
 def _planet_longitude(name: str, jd: float) -> float:
-    """Planet longitude (Meeus Ch.33 simplified, ~1 deg)."""
+    """Geocentric tropical longitude of date (deg) of a planet or a lunar node."""
     T = (jd - 2451545.0) / 36525.0
     name = name.lower().replace(" ", "")
-    # Mean longitudes with periodic corrections
-    if name == "mercury":
-        L = 252.250906 + 149472.6746358 * T
-        # Add major periodic terms
-        L += 0  # simplified
-    elif name == "venus":
-        L = 181.979801 + 58517.8156760 * T
-    elif name == "mars":
-        L = 355.433 + 19140.2993313 * T
-    elif name == "jupiter":
-        L = 34.351519 + 3034.9056606 * T
-    elif name == "saturn":
-        L = 50.077444 + 1222.1137943 * T
-    elif name == "uranus":
-        L = 314.055005 + 428.4669983 * T
-    elif name == "neptune":
-        L = 304.348665 + 218.4862002 * T
-    elif name == "pluto":
-        L = 238.929 + 145.207800 * T
-    elif name in ("rahu", "northnode"):
-        L = 125.0445479 - 1934.1362891 * T + 0.0020754 * T * T
-    elif name in ("ketu", "southnode"):
-        L = _planet_longitude("rahu", jd) + 180
-    else:
+    if name in ("rahu", "northnode"):
+        # the mean node, as most Jyotish software uses by default
+        return _norm(125.0445479 - 1934.1362891 * T + 0.0020754 * T * T + T ** 3 / 467441.0)
+    if name in ("ketu", "southnode"):
+        return _norm(_planet_longitude("rahu", jd) + 180)
+    if name not in _ELEMENTS or name == "earth":
         return 0.0
-    return _norm(L)
+    # light time: where the planet was when the light left it
+    ex, ey, ez = _heliocentric("earth", T)
+    px, py, pz = _heliocentric(name, T)
+    dist = math.sqrt((px - ex) ** 2 + (py - ey) ** 2 + (pz - ez) ** 2)
+    px, py, pz = _heliocentric(name, T - dist * 0.0057755183 / 36525.0)
+    lon_j2000 = math.degrees(math.atan2(py - ey, px - ex))
+    # J2000 equinox -> equinox of date (general precession in longitude)
+    return _norm(lon_j2000 + (5028.796195 * T + 1.1054348 * T * T) / 3600.0)
+
+
+def planet_speed(name: str, jd: float) -> float:
+    """Daily motion in longitude (deg/day); negative while retrograde."""
+    key = name.lower().replace(" ", "")
+    if key == "sun":
+        f = _sun_longitude
+    elif key == "moon":
+        f = _moon_longitude
+    else:
+        f = lambda j: _planet_longitude(key, j)
+    return (_norm(f(jd + 0.5) - f(jd - 0.5) + 180) - 180)
+
+
+def is_retrograde(name: str, jd: float) -> bool:
+    """A planet moving backwards along the zodiac (the nodes always are)."""
+    return name.lower() not in ("sun", "moon") and planet_speed(name, jd) < 0
 
 
 def ayanamsa_lahiri(jd: float) -> float:
@@ -177,9 +255,11 @@ def ascendant(jd: float, lat: float, lon: float) -> float:
     eps_r = math.radians(eps)
     lst_r = math.radians(lst)
     lat_r = math.radians(lat)
-    # Ascendant formula
-    y = -math.cos(lst_r)
-    x = math.sin(lst_r) * math.cos(eps_r) + math.tan(lat_r) * math.sin(eps_r)
+    # the rising point: atan2(cos LST, -(sin LST cos e + tan lat sin e)). Both
+    # signs were flipped before, which gave the descendant - every chart's
+    # rising sign was the opposite one (tests/test_kundali_positions.py)
+    y = math.cos(lst_r)
+    x = -(math.sin(lst_r) * math.cos(eps_r) + math.tan(lat_r) * math.sin(eps_r))
     asc = math.degrees(math.atan2(y, x))
     return _norm(asc)
 
@@ -215,7 +295,7 @@ def compute_chart(dt_str: str, lat: float, lon: float) -> dict:
             "sign": SIGNS[sign_idx],
             "degree": deg,
             "minute": minute,
-            "retrograde": False,
+            "retrograde": is_retrograde(name, jd),
         })
 
     # Houses (Whole Sign)
@@ -1035,7 +1115,7 @@ def compute_full_chart(dt_str: str, lat: float, lon: float,
             "sign": sign,
             "degree": deg,
             "minute": minute,
-            "retrograde": False,
+            "retrograde": is_retrograde(name, jd),
             "dignity": planet_dignity(name, sign),
             "nakshatra": nakshatra_details(sid),
         })
