@@ -5,6 +5,13 @@
     kundali.py kundali DATETIME LAT LON
     kundali.py details SECTION DATETIME LAT LON
         SECTION is dasha | ashtakavarga | dignity | aspects | nakshatra | eclipse
+    kundali.py run ACTION DATETIME LAT LON [HOUSE]
+        any of the engine's calculations (kundali_engine.ACTIONS), as text
+    kundali.py actions
+        the calculations, with what each needs
+
+DATETIME is a UTC stamp (…Z) or a clock time where the birth was:
+"1990-01-01T10:00@Asia/Kolkata" - converted with that zone's rules that day.
 
 One JSON object on stdout. Every argument is required: a missing date or place
 is an error, never New Delhi on 2024-01-01. The six sections return plain data
@@ -26,10 +33,37 @@ def _astro():
 
 
 def _stamp(value: str) -> str:
-    value = str(value or "").strip()
-    if "T" not in value:
-        return value + "T12:00:00Z"
-    return value if value.endswith("Z") else value + "Z"
+    return kundali_engine.utc_instant(value)
+
+
+#: actions that take a zodiac longitude: the Moon's
+_MOON_LONGITUDE = ("nakshatra", "lunarmansion")
+#: actions about one planet: every planet in the chart
+_PER_PLANET = ("dignity", "meanmotion")
+#: the Chinese systems count from the birth's own wall clock
+_LOCAL_PARTS = ("bazi", "ziwei")
+
+
+def run(action, when, lat, lon, house=None):
+    """One of the engine's calculations for a birth, as {"text": ...}."""
+    action = str(action or "").strip().lower()
+    if action not in kundali_engine.ACTIONS:
+        return {"error": f"Unknown calculation: {action}"}
+    stamp = _stamp(when)
+    args = {"action": action, "datetime": stamp, "date": stamp, "latitude": lat, "longitude": lon}
+    if house:
+        args["quesited_house"] = int(house)
+    if action in _LOCAL_PARTS:
+        args.update(kundali_engine.local_parts(when))
+    if action in _MOON_LONGITUDE or action in _PER_PLANET:
+        chart = astronomy.compute_chart(stamp, lat, lon)
+        if action in _MOON_LONGITUDE:
+            moon = next(p for p in chart["planets"] if p["name"] == "Moon")
+            return {"text": kundali_engine.compute(dict(args, longitude=moon["sidereal_longitude"]), astronomy)}
+        lines = [kundali_engine.compute(dict(args, planet=p["name"], sign=p["sign"]), astronomy)
+                 for p in chart["planets"]]
+        return {"text": "\n".join(lines)}
+    return {"text": kundali_engine.compute(args, astronomy)}
 
 
 def panchang(date_str, lat, lon):
@@ -56,6 +90,13 @@ def kundali(datetime_str, lat, lon):
         return {"error": "Astronomy module not available"}
     stamp = _stamp(datetime_str)
     chart = astro.compute_full_chart_v2(stamp, lat, lon)
+    # every planet's navamsa (D9) sign, for the window's D1 / D9 chart
+    if hasattr(astro, "varga_longitude") and "ascendant" in chart:
+        chart["navamsa"] = [
+            {"name": p["name"], "sign": astro.SIGNS[int(astro.varga_longitude(p["sidereal_longitude"], "D9") / 30) % 12]}
+            for p in chart.get("planets", [])
+        ]
+        chart["navamsa_ascendant"] = astro.SIGNS[int(astro.varga_longitude(chart["ascendant"], "D9") / 30) % 12]
     chart["text"] = kundali_engine.compute(
         {
             "action": "kundali",
@@ -94,6 +135,8 @@ def main(argv: list[str]) -> int:
         "panchang": ("date", "latitude", "longitude"),
         "kundali": ("datetime", "latitude", "longitude"),
         "details": ("section", "datetime", "latitude", "longitude"),
+        "run": ("calculation", "datetime", "latitude", "longitude"),
+        "actions": (),
     }
     if action not in names:
         print(json.dumps({"error": "usage: kundali.py <panchang|kundali|details> ..."}))
@@ -102,8 +145,11 @@ def main(argv: list[str]) -> int:
     if len(argv) < 2 + len(required):
         print(json.dumps({"error": "missing " + ", ".join(required[len(argv) - 2 :])}))
         return 2
+    if action == "actions":
+        print(json.dumps({"actions": kundali_engine.ACTIONS}, ensure_ascii=False))
+        return 0
     try:
-        if action == "details":
+        if action in ("details", "run"):
             section = argv[2]
             when, lat, lon = argv[3], float(argv[4]), float(argv[5])
         else:
@@ -121,6 +167,8 @@ def main(argv: list[str]) -> int:
                 result["aspects"] = _astro().compute_aspects(result.get("planets", []))
             except Exception:
                 pass
+        elif action == "run":
+            result = run(section, when, lat, lon, argv[6] if len(argv) > 6 else None)
         else:
             result = details(section, when, lat, lon)
     except Exception as exc:  # noqa: BLE001 - never a traceback to the UI
