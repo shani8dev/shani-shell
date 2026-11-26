@@ -25,7 +25,10 @@ export SHANI_PHONE_TOOLS_STATE=/tmp/fake-phone-tools.json
 export SHANI_PHONE_TOOLS_LOG=/tmp/fake-phone-tools-devices
 export SHANI_MUSIC="python3 $PHONE_TOOLS_FAKE music"
 export SHANI_FILES_SEND="python3 $PHONE_TOOLS_FAKE files-send"
-export SHANI_FILES_LOG=/tmp/fake-phone-files-devices
+# the shell's own bridge reads this folder (session.sh sets it); seed one file
+# there for the received list
+mkdir -p "${SHANI_FILES_DIR:-/tmp/fake-phone-files-inbox}"
+printf 'a received photo\n' > "${SHANI_FILES_DIR:-/tmp/fake-phone-files-inbox}/Asha-photo.jpg"
 export SHANI_PHONE_REMOTE="python3 $PHONE_TOOLS_FAKE remote"
 export SHANI_PHONE_REMOTE_LOG=/tmp/fake-phone-remote-devices
 export SHANI_PHONE_LINK="python3 $PHONE_TOOLS_FAKE link"
@@ -122,6 +125,37 @@ waitfor "d['devicesShown'] == True" 8 && result devices-opens PASS \
 shot devices-window 0.4
 waitfor "d['devicesCount'] >= 1" 10 && result devices-lists-paired-phone PASS \
     || result devices-lists-paired-phone FAIL "$(q "['devicesCount'], d['devicesNote']")"
+
+# ---- files to and from the paired phone ---------------------------------------
+if [ -f "$A11Y" ]; then
+    press "radio button:^Files$" \
+        && result devices-files-tab PASS || result devices-files-tab FAIL "the Files tab was not pressable"
+    waitfor "d['phoneFiles'] >= 1" 10 && result devices-files-listed PASS \
+        || result devices-files-listed FAIL "$(q "['phoneFiles'], d['phoneNote'], d['phoneBusy'], d['phoneFilesReceive']")"
+    timeout 20 python3 "$A11Y" find "Asha-photo.jpg" >/dev/null 2>&1 \
+        && result devices-file-shown PASS || result devices-file-shown FAIL "the received file is not listed"
+    # opening really leaves this window (the viewer takes over), so check the
+    # affordance here and let the viewer's own part drive that hand-off
+    timeout 20 python3 "$A11Y" find "button:^Open Asha-photo.jpg$" >/dev/null 2>&1 \
+        && result devices-file-open PASS || result devices-file-open FAIL "no Open button on the file"
+    printf 'a file for the phone\n' > /tmp/devices-phone-send.txt
+    press "button:^Choose a file to send$" \
+        && result devices-send-file-button PASS || result devices-send-file-button FAIL "no send button"
+    waitfor "d['pickerShown']" 6
+    ipc filePickerSelect /tmp/devices-phone-send.txt; ipc filePickerAccept
+    # PhoneTools reports the send in its own note; the picker path is checked
+    # by the Calls part's stand-in log, not repeated here
+    waitfor "d['phoneNote'] == 'Sent to the phone'" 8 \
+        && result devices-send-file-to-phone PASS || result devices-send-file-to-phone FAIL "$(q "['phoneNote']")"
+    # Show in Files hands the screen to the file manager by design; check the
+    # named affordance here and let files-ops.sh drive the file manager itself
+    timeout 20 python3 "$A11Y" find "button:^Show Asha-photo.jpg in Files$" >/dev/null 2>&1 \
+        && result devices-file-show-in-folder PASS || result devices-file-show-in-folder FAIL "no Show in Files button"
+else
+    for n in files-tab files-listed file-shown file-open file-show-in-folder send-file-button send-file-calls-phone; do
+        result devices-$n SKIP "no accessibility client"
+    done
+fi
 
 # ---- the Android phone's actions ----------------------------------------------
 if [ -f "$A11Y" ]; then

@@ -28,6 +28,7 @@ AppWindow {
     property string tab: "phones"
     readonly property var tabs: [
         ["phones", Tr.t("Phones")],
+        ["files", Tr.t("Files")],
         ["android", Tr.t("Android phone")],
         ["screen", Tr.t("This screen")],
         ["gadgets", Tr.t("Gadgets")],
@@ -1223,6 +1224,21 @@ AppWindow {
                                 actionText: Tr.t("Look for phones")
                                 onAction: AndroidTools.run("find", [])
                             }
+                        }
+                    }
+                }
+
+                // ---- files to and from the paired phone ----
+                ColumnLayout {
+                    visible: win.tab === "files"
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Send a file")
+                        hint: Tr.t("Send a file to the paired phone, and see what it sent back")
+                        PhoneFiles {
+                            Layout.fillWidth: true
                         }
                     }
                 }

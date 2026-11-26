@@ -4046,6 +4046,8 @@ AppWindow {
         if (e.image)
             items.push({ label: Tr.t("Set as wallpaper"), icon: "preferences-desktop-wallpaper", danger: false, run: () => Files.setWallpaper(e.path) });
         items.push({ label: Tr.t("Share…"), icon: "folder-publicshare", danger: false, run: () => Share.open(e.path) });
+        if (!e.isDir)
+            items.push({ label: Tr.t("Send to phone"), icon: "phone", danger: false, run: () => PhoneTools.filesSend(e.path) });
         // the chosen files when this one is among them, else this one
         items.push({ label: Tr.t("Compress…"), icon: "package-x-generic", danger: false,
                      run: () => Archive.createAsk(Files.selected.indexOf(e.path) >= 0 ? Files.selected : [e.path]) });

@@ -1297,7 +1297,7 @@ ShellRoot {
                 cronCount: SysServices.cron.length, servicesNote: SysServices.note,
                 callsShown: Ui.calls, callsPad: Ui.callsPad, messagesPending: Ui.messagesPending, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
                 phoneMusicTitle: PhoneTools.music.title || "", phoneMusicState: PhoneTools.music.state || "", phoneMusicSummary: PhoneTools.music.summary || "",
-                phoneFiles: PhoneTools.files.length, phoneFilesReceive: !!PhoneTools.receiveFiles,
+                phoneFiles: PhoneTools.files.length, phoneFilesReceive: !!PhoneTools.receiveFiles, phoneNote: PhoneTools.note, phoneBusy: PhoneTools.busy,
                 phoneRemoteOn: !!PhoneTools.remote.on, phoneRemoteNote: PhoneTools.remote.note || "",
                 phoneLinkPaired: !!((AndroidTools.result["state"] || {}).paired), phoneLinkAddress: (AndroidTools.result["state"] || {}).address || (AndroidTools.result["state"] || {}).serial || "", phoneLinkNote: AndroidTools.note || "",
                 androidState: AndroidTools.result["state"] || {}, androidBusy: !!AndroidTools.busy, androidNote: AndroidTools.note || "",
