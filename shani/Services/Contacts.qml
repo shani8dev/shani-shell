@@ -15,6 +15,9 @@ Singleton {
     id: root
     readonly property string tool: ToolPath.of(Quickshell.env("SHANI_CONTACTS_TOOL"), "contacts.py")
     property var contacts: []            // [{ uid, name, given, family, phone, email, phones, emails }]
+    // the phone's book is read-only here; "Save here" copies one card into the local book
+    property var phoneContacts: []
+    property bool phoneBusy: false
     property string query: ""            // live search filter
     property string error: ""
     property bool busy: false
@@ -127,15 +130,44 @@ Singleton {
         const d = detail || {};
         run(["add", JSON.stringify({ name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(),
             phones: d.phones || [], emails: d.emails || [], groups: groups || [],
-            given: d.given || "", family: d.family || "", favorite: !!d.favorite, avatar: d.avatar || "" })]);
+            given: d.given || "", family: d.family || "", favorite: !!d.favorite, avatar: d.avatar || "",
+            birthday: d.birthday || "", addresses: d.addresses || [], org: d.org || "",
+            role: d.role || "", urls: d.urls || [], note: d.note || "" })]);
     }
     function edit(uid, name, phone, email, groups, detail) {
         const d = detail || {};
         run(["edit", JSON.stringify({ uid: uid, name: String(name || "").trim(), phone: String(phone || "").trim(), email: String(email || "").trim(),
             phones: d.phones || [], emails: d.emails || [], groups: groups || [],
-            given: d.given || "", family: d.family || "", favorite: !!d.favorite, avatar: d.avatar || "" })]);
+            given: d.given || "", family: d.family || "", favorite: !!d.favorite, avatar: d.avatar || "",
+            birthday: d.birthday || "", addresses: d.addresses || [], org: d.org || "",
+            role: d.role || "", urls: d.urls || [], note: d.note || "" })]);
     }
     function remove(uid) { run(["delete", JSON.stringify({ uid: uid })]); }
+    function removeMany(uids) { run(["delete-many", JSON.stringify(uids || [])]); }
+    property string _lastPhoneName: ""
+    function savePhone(c) {
+        if (!c) return;
+        _lastPhoneName = c.name || "";
+        run(["save-phone", JSON.stringify({ name: c.name || "", numbers: c.numbers || [], emails: c.emails || [] })]);
+    }
+
+    // the phone's contacts come from the phone tools, never from the local book
+    function refreshPhone() {
+        if (phoneReader.running) return;
+        phoneBusy = true;
+        phoneReader.running = true;
+    }
+    Process {
+        id: phoneReader
+        command: ["python3", root.tool, "phone"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.phoneContacts = JSON.parse(text) || []; } catch (e) { root.phoneContacts = []; }
+                root.phoneBusy = false;
+            }
+        }
+        onExited: code => { if (code !== 0) { root.phoneContacts = []; root.phoneBusy = false; } }
+    }
 
     // raw vCard for a QR code (Qr.show takes arbitrary text)
     property string vcardText: ""
@@ -159,10 +191,11 @@ Singleton {
     }
     // export all cards as one .vcf, written through FileView (no shell quoting)
     property string exportPath: ""
-    function exportAll(path) {
+    function exportAll(path, uids) {
         if (!path) return;
         root.exportPath = path;
-        exportProc.command = ["python3", root.tool, "export-all"];
+        exportProc.command = ["python3", root.tool, "export-all"]
+            .concat(uids && uids.length ? [JSON.stringify(uids)] : []);
         exportProc.running = true;
     }
     Process {
@@ -304,6 +337,15 @@ Singleton {
                 let count = 0;
                 try { count = Number(JSON.parse(writeOut.text.trim()).count) || 0; } catch (e) {}
                 root.say(Tr.t("Imported %1 contact%2", count, count === 1 ? "" : "s"));
+            }
+            if (code === 0 && root._lastAction === "delete-many") {
+                let count = 0;
+                try { count = JSON.parse(writeOut.text.trim()).deleted.length || 0; } catch (e) {}
+                root.say(Tr.t("Deleted %1 contact%2", count, count === 1 ? "" : "s"));
+            }
+            if (code === 0 && root._lastAction === "save-phone") {
+                root.say(Tr.t("Saved %1 to your contacts", root._lastPhoneName || Tr.t("contact")));
+                root.refreshPhone();
             }
             root.refresh();
             root.next();

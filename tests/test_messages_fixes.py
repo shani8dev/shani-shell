@@ -86,3 +86,21 @@ def test_drafts_survive_switches_and_clear_only_on_send():
     assert "delete root.drafts[root.openThread]" in svc
     assert "text: Link.draft" in win
     assert "Link.clearDraft();" in win
+
+
+def test_a_new_message_picks_a_contact_and_keeps_typing_optional():
+    """The recipient comes from Link.contacts by click; a number may be typed."""
+    win = (ROOT / "shani/Modules/Messages/MessagesWindow.qml").read_text()
+    svc = (ROOT / "shani/Services/Link.qml").read_text()
+
+    assert "property bool choosingContact" in win
+    assert "options: Link.contacts.map(" in win
+    assert "onPicked: v => {" in win and "Link.startConversation(v);" in win
+    assert "id: customRecipient" in win
+    assert "onAccepted: {" in win and "Link.startConversation(n);" in win
+    assert "checked: win.choosingContact" in win
+    # navigation is one service function; the window does not open another one
+    assert "function message(number)" in svc
+    assert "Ui.messagesNumber = n;" in svc and "Ui.messages = true;" in svc
+    # a Calls note must not read as an error in Messages
+    assert "function clearNote()" in svc and "Link.clearNote();" in win

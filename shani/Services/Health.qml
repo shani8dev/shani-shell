@@ -40,6 +40,8 @@ Singleton {
     property int calories: 0
     property var sleepStages: []          // [{ stage, minutes }]
     property var stressSeries: []         // [{ when, value }]
+    property string watchNote: ""         // answer to the last watch action
+    property var watchSettingsData: ({})  // the watch's own settings, when readable
 
     function refresh() {
         root.run("summary", []);
@@ -82,6 +84,27 @@ Singleton {
     function watchConnect(on) {
         root.say(on ? Tr.t("Connecting the watch…") : Tr.t("Disconnecting the watch…"));
         root.run("watch-connect", [on ? "on" : "off"]);
+    }
+    function watchSyncTime() {
+        root.say(Tr.t("Setting the watch's time…"));
+        root.run("sync-time", []);
+    }
+    function watchSettings() {
+        root.say(Tr.t("Reading the watch's settings…"));
+        root.run("watch-settings", []);
+    }
+    function watchSet(setting, value) {
+        root.say(Tr.t("Changing the watch setting…"));
+        root.run("watch-set", [String(setting || ""), String(value || "")]);
+    }
+    function watchNotify(text) {
+        root.say(Tr.t("Sending to the watch…"));
+        root.run("watch-notify", [String(text || "")]);
+    }
+    function watchProfile(height, weight, age, gender) {
+        root.say(Tr.t("Sending your profile to the watch…"));
+        root.run("watch-profile", [String(height || ""), String(weight || ""),
+                                   String(age || ""), String(gender || "")]);
     }
     function say(message) { root.note = message || ""; }
 
@@ -176,6 +199,17 @@ Singleton {
             root.note = data && data.error ? data.error
                 : (root.connected ? Tr.t("The watch will stay connected") : Tr.t("The watch is disconnected"));
             if (!data || !data.error) root.refresh();
+        } else if (what === "watch-settings") {
+            root.watchNote = data && data.error ? data.error
+                : (data && data.note ? data.note : Tr.t("The watch's settings were read"));
+            root.watchSettingsData = (data && data.settings) || {};
+        } else if (what === "sync-time" || what === "watch-set"
+                   || what === "watch-notify" || what === "watch-profile") {
+            root.watchNote = data && data.error ? data.error
+                : (data && data.note ? data.note : Tr.t("Done"));
+            if (data && data.settings && Object.keys(data.settings).length)
+                root.watchSettingsData = data.settings;
+            if (what === "watch-set" && (!data || !data.error)) root.watchSettings();
         }
     }
 

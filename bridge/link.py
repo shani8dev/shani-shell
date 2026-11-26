@@ -8,6 +8,10 @@ service never disagree about what a device is called or what was said.
     link.py state                     {backend, placesCalls, lines, devices}
     link.py devices                   [{id, name, paired, reachable, battery}]
     link.py calls                     [{id, line, number, name, direction, missed, when, seconds}]
+    link.py call-delete <id>          {ok, error}; one history row
+    link.py call-clear                {ok, error, undo}; clears all, returns a one-use Undo id
+    link.py call-restore <undo>       {ok, error}; puts the cleared rows back
+    link.py call-save <name> <number> {ok, error, saved}; puts the number in contacts
     link.py contacts [query]          [{name, numbers, emails}]
     link.py match <query>             [{name, numbers, emails}] (name or number)
     link.py incoming                  {id, name, number, line, when} (or {})
@@ -32,6 +36,8 @@ import os
 import shlex
 import subprocess
 import sys
+import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -150,6 +156,103 @@ def cmd_calls() -> list[dict]:
     return out
 
 
+# --- history actions: delete one, clear all, undo ---------------------------
+# The rows live in calls_log (the seed engine). The shell only asks for a
+# change and renders the answer; the Undo snapshot is written atomically and
+# never echoed to the UI, so no call data goes through argv or a log.
+
+
+def _undo_path() -> Path:
+    base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    return Path(base) / "shani-shell" / "call-undo.json"
+
+
+def _read_undo() -> dict:
+    try:
+        data = json.loads(_undo_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):  # no pending clear, or unreadable state
+        return {}
+
+
+def _write_undo(token: str, rows: list) -> None:
+    target = _undo_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".call-undo-", dir=str(target.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"token": token, "rows": rows}, fh)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.chmod(tmp, 0o600)  # who called whom is private
+        os.replace(tmp, target)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _clear_undo() -> None:
+    try:
+        _undo_path().unlink()
+    except OSError:
+        pass
+
+
+def cmd_call_delete(row_id: str) -> dict:
+    """Remove one row. An unknown id is an answer, never a traceback."""
+    ident = str(row_id or "").strip()
+    if not ident:
+        return _ok("no call to delete")
+    if calls_log is None:
+        return _ok(NOT_INSTALLED)
+    try:
+        removed = calls_log.delete(ident)
+    except Exception as exc:  # noqa: BLE001 - a strict stand-in rejects unknown ids
+        return _ok(str(exc)[:160])
+    return _ok() if removed else _ok("no such call")
+
+
+def cmd_call_clear() -> dict:
+    """Clear the history and return a one-use token the UI can Undo with."""
+    if calls_log is None:
+        return {"ok": False, "error": NOT_INSTALLED, "undo": ""}
+    try:
+        old = calls_log.clear_for_undo()
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)[:160], "undo": ""}
+    token = uuid.uuid4().hex
+    try:
+        _write_undo(token, old)
+    except OSError as exc:
+        return {"ok": False, "error": str(exc)[:160], "undo": ""}
+    return {"ok": True, "error": "", "undo": token}
+
+
+def cmd_call_restore(token: str) -> dict:
+    """Undo a Clear all: put the snapshot behind this token back, once."""
+    want = str(token or "").strip()
+    saved = _read_undo()
+    rows = saved.get("rows") if isinstance(saved, dict) else None
+    if (
+        not want
+        or not saved
+        or saved.get("token") != want
+        or not isinstance(rows, list)
+    ):
+        return _ok("nothing to undo")
+    if calls_log is None:
+        return _ok(NOT_INSTALLED)
+    try:
+        calls_log.restore(rows)
+    except Exception as exc:  # noqa: BLE001
+        return _ok(str(exc)[:160])
+    _clear_undo()
+    return _ok()
+
+
 def _book() -> list:
     if contacts_mod is None:
         return []
@@ -229,6 +332,33 @@ def cmd_match(query: str = "") -> list[dict]:
         ):
             out.append(contact)
     return out
+
+
+def cmd_call_save(name: str, number: str) -> dict:
+    """Put the number from a call into the address book. A duplicate is ok.
+
+    `saved` is a code, not a sentence: the window owns the words.
+    """
+    num = str(number or "").strip()
+    if not num:
+        return {"ok": False, "error": "no number to save", "saved": False}
+    if contacts_mod is None:
+        return {"ok": False, "error": NOT_INSTALLED, "saved": False}
+    label = str(name or "").strip() or num
+    digits = _digits(num)
+    try:
+        already = any(
+            digits
+            and (digits == _digits(n) or (len(digits) >= 7 and digits in _digits(n)))
+            for c in cmd_contacts()
+            for n in (c.get("numbers") or [])
+        )
+        if not already:
+            contact = contacts_mod.Contact(full_name=label, phones=[("cell", num)])
+            contacts_mod.book().save(contact)
+    except Exception as exc:  # noqa: BLE001 - a full disk is an answer
+        return {"ok": False, "error": str(exc)[:160], "saved": False}
+    return {"ok": True, "error": "", "saved": not already}
 
 
 def cmd_incoming() -> dict:
@@ -461,6 +591,31 @@ def main() -> int:
         print(json.dumps(cmd_devices(), ensure_ascii=False))
     elif cmd == "calls":
         print(json.dumps(cmd_calls(), ensure_ascii=False))
+    elif cmd == "call-delete":
+        if not args:
+            print(json.dumps(_ok("call-delete needs an id")))
+            return 2
+        print(json.dumps(cmd_call_delete(args[0]), ensure_ascii=False))
+    elif cmd == "call-clear":
+        print(json.dumps(cmd_call_clear(), ensure_ascii=False))
+    elif cmd == "call-restore":
+        if not args:
+            print(json.dumps(_ok("call-restore needs the undo id")))
+            return 2
+        print(json.dumps(cmd_call_restore(args[0]), ensure_ascii=False))
+    elif cmd == "call-save":
+        if len(args) < 2:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "error": "call-save needs a name and a number",
+                        "saved": False,
+                    }
+                )
+            )
+            return 2
+        print(json.dumps(cmd_call_save(args[0], args[1]), ensure_ascii=False))
     elif cmd == "contacts":
         print(json.dumps(cmd_contacts(args[0] if args else ""), ensure_ascii=False))
     elif cmd == "match":

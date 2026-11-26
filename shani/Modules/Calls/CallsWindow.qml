@@ -474,6 +474,28 @@ AppWindow {
                                     onClicked: win.missedOnly = !win.missedOnly
                                 }
                             }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.px(6)
+                                Item { Layout.fillWidth: true }
+                                ConfirmButton {
+                                    id: clearHistory
+                                    Layout.preferredWidth: Theme.px(100)
+                                    Layout.preferredHeight: Theme.px(34)
+                                    text: Tr.t("Clear all")
+                                    armedText: Tr.t("Tap again to clear")
+                                    kind: "danger"
+                                    enabled: Link.calls.length > 0
+                                    Accessible.name: Tr.t("Clear all call history")
+                                    onConfirmed: Link.clearCalls()
+                                }
+                                Button {
+                                    text: Tr.t("Undo clear")
+                                    flat: true
+                                    visible: Link.callUndo !== ""
+                                    onClicked: Link.undoClear()
+                                }
+                            }
                             ListView {
                                 id: recents
                                 Layout.fillWidth: true
@@ -495,7 +517,37 @@ AppWindow {
                                     // Enter calls and typing continues without a Tab
                                     onClicked: { number.text = modelData.number; number.cursorPosition = number.text.length; number.forceActiveFocus(); }
                                     extra: RowLayout {
-                                        Button { text: Tr.t("Call"); flat: true; onClicked: { win.line = modelData.line || win.line; number.text = modelData.number; win.call() } }
+                                        spacing: Theme.px(2)
+                                        Button {
+                                            text: Tr.t("Call")
+                                            flat: true
+                                            onClicked: { win.line = modelData.line || win.line; number.text = modelData.number; win.call() }
+                                        }
+                                        IconButton {
+                                            size: Theme.px(26)
+                                            icon: "chat-message-new"
+                                            tip: Tr.t("Send a message")
+                                            accessibleName: Tr.t("Send a message")
+                                            onClicked: Link.message(modelData.number || modelData.name || "")
+                                        }
+                                        IconButton {
+                                            size: Theme.px(26)
+                                            icon: "contact-new"
+                                            tip: Tr.t("Save as a contact")
+                                            accessibleName: Tr.t("Save as a contact")
+                                            onClicked: Link.saveCall(modelData.name || "", modelData.number || "")
+                                        }
+                                        ConfirmButton {
+                                            id: deleteCall
+                                            width: Theme.px(26); height: Theme.px(26)
+                                            icon: "edit-delete"
+                                            size: Theme.px(26)
+                                            kind: "danger"
+                                            value: modelData.id
+                                            tip: Tr.t("Delete call")
+                                            Accessible.name: Tr.t("Delete call")
+                                            onConfirmed: id => Link.deleteCall(id)
+                                        }
                                     }
                                 }
                                 // nothing to show is not an error

@@ -21,8 +21,10 @@ AppWindow {
     property string pendingNumber: ""   // a requested conversation, matched once messages arrive
     property string retryText: ""       // last send's text, kept until the bridge replies
     property string search: ""          // conversation filter, name / number / last line
+    property bool choosingContact: false  // the new-message recipient picker is open
 
     onVisibleChanged: if (visible) {
+        Link.clearNote();   // a note from Calls is not an error in this window
         pendingNumber = Ui.messagesNumber.trim();
         Ui.messagesPending = pendingNumber;
         Ui.messagesNumber = "";
@@ -69,7 +71,8 @@ AppWindow {
         anchors.fill: parent
         focus: win.visible
         Keys.onEscapePressed: {
-            if (win.search !== "") { searchBox.text = ""; win.search = ""; }
+            if (win.choosingContact) win.choosingContact = false;
+            else if (win.search !== "") { searchBox.text = ""; win.search = ""; }
             else if (Link.openThread !== "") Link.openDevice(Link.phone ? Link.phone.id : "");
             else Ui.messages = false;
         }
@@ -81,18 +84,64 @@ AppWindow {
     }
 
     // ---- the conversations --------------------------------------------------
-    TextField {
-        id: searchBox
-        objectName: "messageSearch"
+    ColumnLayout {
+        id: leftHeader
         anchors { top: parent.top; left: parent.left; margins: Theme.px(12) }
-        width: Theme.px(256)
-        placeholder: Tr.t("Search conversations")
-        label: Tr.t("Search conversations")
-        onTextChanged: win.search = text
+        width: Theme.px(280)
+        spacing: Theme.px(6)
+        TextField {
+            id: searchBox
+            objectName: "messageSearch"
+            Layout.fillWidth: true
+            placeholder: Tr.t("Search conversations")
+            label: Tr.t("Search conversations")
+            onTextChanged: win.search = text
+        }
+        Button {
+            Layout.fillWidth: true
+            text: Tr.t("New message")
+            checked: win.choosingContact
+            onClicked: {
+                win.choosingContact = !win.choosingContact;
+                if (win.choosingContact) customRecipient.forceActiveFocus();
+            }
+        }
+        // a recipient is picked by click from the address book; typing is only
+        // the way in for a number nobody has saved yet
+        Picks {
+            visible: win.choosingContact
+            label: Tr.t("Choose a contact")
+            options: Link.contacts.map(c => {
+                const n = (c.numbers || [])[0] || "";
+                return { label: (c.name || n || Tr.t("Contact")) + (n ? " · " + n : ""), value: n };
+            }).filter(o => o.value)
+            onPicked: v => {
+                if (!v) return;
+                Link.startConversation(v);
+                win.choosingContact = false;
+                Qt.callLater(() => reply.forceActiveFocus());
+            }
+        }
+        TextField {
+            id: customRecipient
+            visible: win.choosingContact
+            objectName: "newMessageRecipient"
+            Layout.fillWidth: true
+            placeholder: Tr.t("Or type a number")
+            label: Tr.t("New message recipient")
+            onAccepted: {
+                const n = text.trim();
+                if (!n) return;
+                Link.startConversation(n);
+                win.choosingContact = false;
+                text = "";
+                Qt.callLater(() => reply.forceActiveFocus());
+            }
+        }
     }
     ListView {
         id: list
-        anchors { top: searchBox.bottom; topMargin: Theme.px(6); bottom: parent.bottom; left: parent.left; leftMargin: Theme.px(12) }
+        anchors { top: leftHeader.bottom; topMargin: Theme.px(6); bottom: parent.bottom; left: parent.left; leftMargin: Theme.px(12) }
         width: Theme.px(280)
         clip: true
         spacing: Theme.px(2)

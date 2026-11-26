@@ -8,6 +8,9 @@ WATCH_FAKE=/work/dev/fake-watch.py
 HEALTH_TOOL=/work/bridge/health.py
 export SHANI_WATCH_FAKE=/tmp/fake-watch.json
 export SHANI_FITNESS_TOOL=${SHANI_FITNESS_TOOL:-/work/bridge/health.py}
+export SHANI_WATCH_ACTION_TOOL=${SHANI_WATCH_ACTION_TOOL:-/work/dev/fake-watch.py}
+export SHANI_WATCH_ACTION_LOG=${SHANI_WATCH_ACTION_LOG:-/tmp/fake-watch-actions.jsonl}
+ACTION_LOG=$SHANI_WATCH_ACTION_LOG
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/shani-shell"
 HEALTH_DB="$DATA_HOME/health.sqlite3"
 FULL_DB=/tmp/health-part-full.sqlite3
@@ -20,8 +23,23 @@ health_press() {
     return 1
 }
 
+# "x y" of a named on-screen element, from the accessibility tree's box
+health_box() {
+    timeout 20 python3 "$A11Y" find "$1" 2>/dev/null | head -1 \
+        | sed -n 's/.* @\(-*[0-9][0-9]*\),\(-*[0-9][0-9]*\) .*/\1 \2/p'
+}
+
+health_wait_log() {
+    for i in $(seq 1 12); do
+        grep -q "$1" "$ACTION_LOG" 2>/dev/null && return 0
+        sleep 0.3
+    done
+    return 1
+}
+
 # one watch, the same fields every run
 python3 "$WATCH_FAKE" seed >/dev/null
+rm -f "$ACTION_LOG"
 python3 "$HEALTH_TOOL" summary 2>/dev/null | grep -q '"device_model": "Pulse Watch 2"' \
     && result health-watch-stand-in PASS \
     || result health-watch-stand-in FAIL "$(python3 "$HEALTH_TOOL" summary 2>&1 | tail -1)"
@@ -79,6 +97,54 @@ if [ -f "$A11Y" ]; then
     [ "$found" = 1 ] && result health-workouts PASS \
         || result health-workouts FAIL "the workouts card is not drawn"
 
+    # two columns, not one stack: the stress and sleep cards start on the same
+    # row but sit side by side (their headings are named in the window)
+    stress_box=$(health_box "^Stress today$")
+    sleep_box=$(health_box "^Sleep stages$")
+    sx=${stress_box% *}; sy=${stress_box#* }
+    lx=${sleep_box% *}; ly=${sleep_box#* }
+    # the headings sit inside cards of different heights, so allow their own
+    # padding (a second grid row is a whole card lower than this)
+    if [ -n "$sx" ] && [ -n "$lx" ] && [ "$sx" != "$lx" ] \
+       && [ "$((sy - ly))" -le 48 ] && [ "$((ly - sy))" -le 48 ]; then
+        result health-two-columns PASS
+    else
+        result health-two-columns FAIL "stress @$stress_box, sleep @$sleep_box"
+    fi
+
+    # the engine's own actions, through the stand-in: exact verbs in its log
+    health_press "button:^Set the watch's time$" \
+        && result health-sync-time-button PASS \
+        || result health-sync-time-button FAIL "no time button"
+    health_wait_log '"action": "sync_time"' \
+        && result health-sync-time PASS \
+        || result health-sync-time FAIL "$(tail -2 "$ACTION_LOG" 2>/dev/null)"
+    found=0
+    for i in $(seq 1 10); do
+        # the controls card is below the fold: `tree` sees it, `find` only sees
+        # what is scrolled into view
+        timeout 10 python3 "$A11Y" tree --max-depth 24 2>/dev/null \
+            | grep -q "The watch clock was set." && { found=1; break; }
+        sleep 0.3
+    done
+    [ "$found" = 1 ] && result health-sync-time-note PASS \
+        || result health-sync-time-note FAIL "the answer was not shown"
+
+    health_press "radio button:^Set raise to wake On$" \
+        && result health-setting-button PASS \
+        || result health-setting-button FAIL "no raise-to-wake choice"
+    health_wait_log '"action": "set", "args": \["raise_to_wake", "on"\]' \
+        && result health-setting-toggle PASS \
+        || result health-setting-toggle FAIL "$(tail -2 "$ACTION_LOG" 2>/dev/null)"
+    grep -q '"raise_to_wake": "on"' "$SHANI_WATCH_FAKE" 2>/dev/null \
+        && result health-setting-state PASS \
+        || result health-setting-state FAIL "the stand-in did not keep the new value"
+
+    health_press "button:^Read watch settings$" >/dev/null 2>&1
+    health_wait_log '"action": "settings"' \
+        && result health-settings-read PASS \
+        || result health-settings-read FAIL "$(tail -2 "$ACTION_LOG" 2>/dev/null)"
+
     health_press "button:^Read the watch again$" \
         && result health-refresh-button PASS || result health-refresh-button FAIL "no watch refresh button"
     waitfor "d['healthBattery'] == 76" 8 \
@@ -94,8 +160,10 @@ if [ -f "$A11Y" ]; then
         && result health-reconnect PASS || result health-reconnect FAIL "$(q "['healthConnected']")"
 else
     for n in header-model header-battery header-time activity-ring \
-             three-day-bars sleep-stages stress-chart workouts refresh-button refresh \
-             connected-switch disconnect reconnect; do
+             three-day-bars sleep-stages stress-chart workouts two-columns \
+             sync-time-button sync-time sync-time-note setting-button \
+             setting-toggle setting-state settings-read \
+             refresh-button refresh connected-switch disconnect reconnect; do
         result health-$n SKIP "no accessibility client"
     done
 fi
