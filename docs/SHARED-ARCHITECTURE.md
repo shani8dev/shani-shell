@@ -153,7 +153,11 @@ ShaniOS's own (the backends' name is still open):
 - **`chrono-shell`** (Chrono Shell) - the desktop shell (today `shani-shell`;
   to be renamed), and **`chronoa`** - the Chrono Assistant (today
   `shani-chronoa`; to be renamed): one distro-neutral "Chrono" family
-  (decided 2026-11-26).
+  (decided 2026-11-26). Nothing is released yet, so the renames carry **no
+  compatibility layer**: no old command (`shani` becomes `chrono`), no old
+  unit or package aliases, no data-folder migration - every caller (all in
+  our own repos) changes in the same step. The `dev.shani.*` identifiers do
+  not change (below).
 - **ShaniOS extras** (`shani-*`): everything specific to ShaniOS, kept out of
   the neutral projects (below).
 - **Identifiers stay `dev.shani.*`** (app IDs, D-Bus and Varlink names,
