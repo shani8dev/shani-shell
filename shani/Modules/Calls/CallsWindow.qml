@@ -3,8 +3,8 @@
 // link can carry a call. One list, newest first, with the name from the
 // address book where there is one.
 //
-// bridge/link.py does the talking (shani_link.lines for the landline and the
-// modem, shani_link.phone for a phone over KDE Connect / GSConnect / plain
+// bridge/link.py does the talking (phone.lines for the landline and the
+// modem, phone.phone for a phone over KDE Connect / GSConnect / plain
 // Bluetooth); the window is only a view.
 import QtQuick
 import QtQuick.Layouts
@@ -19,7 +19,7 @@ AppWindow {
     implicitWidth: Theme.px(760)
     implicitHeight: Theme.px(620)
 
-    // the line a new call goes out on: the first one shani-link has, or the
+    // the line a new call goes out on: the first one shani-shell has, or the
     // phone's when there is no landline or modem
     property string line: Link.lines.length ? Link.lines[0] : ""
     property string dialed: ""              // the number being called
@@ -37,7 +37,7 @@ AppWindow {
         spacing: Theme.px(10)
 
         // ---- the call in progress -------------------------------------------------
-        // shani-link rings the call; this is the shell's own live view of it, with
+        // shani-shell rings the call; this is the shell's own live view of it, with
         // Mute/Speaker on the bridge's callctl verb and Hang up on the call itself.
         Glass {
             visible: Modem.call !== null

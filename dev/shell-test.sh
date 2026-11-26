@@ -1809,12 +1809,12 @@ waitfor "d['modem'] == 'registered/unlocked/Jio'" 4
 echo '{"sms": {"path": "/s/1", "from": "+919811111111", "text": "Your code is 482913", "time": ""}}' > /tmp/modem-ask
 waitfor "'+919811111111' in d['notificationSummaries']" 4 && result sms-notifies PASS || result sms-notifies FAIL
 shot 95-sms 0.4
-# a modem call rings once - shani-link's notification - not a second one from the shell
+# a modem call rings once - shani-shell's notification - not a second one from the shell
 n0=$(q "['notificationSummaries'].count('Call from +919844444444')")
 echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "ringing-in", "incoming": true}}' > /tmp/modem-ask
 sleep 1.5
 [ "$(q "['notificationSummaries'].count('Call from +919844444444')")" = "$n0" ] && result call-rings-once PASS || result call-rings-once FAIL "the shell rang too"
-notify-send -a "Shani Link" -h string:category:call.incoming -u critical -A answer=Answer -A decline=Decline "Call from +919844444444" "on your mobile" &
+notify-send -a "Phone" -h string:category:call.incoming -u critical -A answer=Answer -A decline=Decline "Call from +919844444444" "on your mobile" &
 waitfor "d['islandActivity'].startswith('Call from +919844444444')" 4 && result call-ringing-on-island PASS || result call-ringing-on-island FAIL "$(q "['islandActivity']")"
 shot 96-call-ringing 0.3
 echo '{"call": {"path": "/c/1", "number": "+919844444444", "state": "terminated", "incoming": true}}' > /tmp/modem-ask

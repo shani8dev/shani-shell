@@ -9,8 +9,8 @@ import qs.Common
 Singleton {
     id: root
     property var entries: []        // [{ id, text, image, preview }]; originOf(text) says where one came from
-    // where an entry came from, when Shani Link put it there from the paired phone
-    // (shani-link's clipboard_sync.py writes it, keyed by the text's first 60
+    // where an entry came from, when Phone put it there from the paired phone
+    // (shani-shell's clipboard_sync.py writes it, keyed by the text's first 60
     // characters with whitespace collapsed - what cliphist's list shows can match)
     property var origins: ({})
     function originOf(text) {
@@ -19,7 +19,7 @@ Singleton {
     }
     FileView {
         id: originFile
-        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/shani-link/clipboard-origin.json"
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/shani-shell/clipboard-origin.json"
         watchChanges: true
         printErrors: false                 // none until something comes from the phone
         onFileChanged: reload()

@@ -1,6 +1,6 @@
 pragma Singleton
 // Suggested replies for a message notification that can be answered in place
-// (an app offering inline reply: Shani Link's texts, chat apps): three short
+// (an app offering inline reply: Phone's texts, chat apps): three short
 // answers Chronoa writes (Agent.Write - the model alone, no tools, nothing in
 // the conversation), shown as chips on the card; one click sends it as the
 // reply. Settings > Notifications turns them off. Never for a hidden-content

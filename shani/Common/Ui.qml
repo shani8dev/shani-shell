@@ -253,8 +253,8 @@ Singleton {
     property int trashCount: 0                     // the dock's trash tile reports it (for the tests)                      // the tour, opened again by hand
     property string modemDialog: ""                // "pin" | "sms" (ModemDialog)
     property string smsTo: ""                      // the number a reply goes to
-    // Shani Link Phone / Messages (opened via Services/Phone; the external
-    // shani-link-app window, not a shell panel): which page the shell last
+    // Phone Phone / Messages (opened via Services/Phone; the external
+    // phone-app window, not a shell panel): which page the shell last
     // opened and the number its dialer/messages composer was prefilled with.
     property string phoneNumber: ""   // the number the dial pad / Messages composer opened with
     // the web search chosen in Settings > Search (the launcher, Lens)

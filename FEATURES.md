@@ -426,7 +426,7 @@ in that nested session - not yet on an installed image - is listed in
   lists the ones the network announces, or takes an address, and sets it up without
   a driver to pick (IPP Everywhere); your **paper, two-sided and colour** defaults per
   printer; **share a printer** on the network.
-- **Your phone (Shani Link)** — calls on your phone, your landline or the laptop's
+- **Your phone (Phone)** — calls on your phone, your landline or the laptop's
   own modem; texts; **one address book**; one call history; a dial pad that finds
   contacts as you type; phone links anywhere open the dial pad; use the phone's
   internet over Bluetooth or over a USB cable. Watches and fitness bands too.

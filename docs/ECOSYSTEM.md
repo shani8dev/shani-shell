@@ -21,8 +21,8 @@ ShaniOS package (native or a Flatpak of the niri profile) covers it.
 | Notes | — | KNotes | Voice Notes | Notebook | — | Sticky Notes | Notes, Stickies | Sticky Notes | Keep | **Notes** |
 | To-dos | Endeavour | (Merkuro) | — | — | — | — | Reminders | To Do | Tasks | **Tasks** (EDS) |
 | Calendar | Calendar | Merkuro | Calendar | Calendar | — | — | Calendar | Calendar | Calendar | **Calendar** |
-| Contacts | Contacts | KAddressBook | Contacts | — | — | — | Contacts | People | Contacts | **Contacts** · shani-link |
-| Phone, texts | Calls | KDE Connect | Phone Master | Connectivity | — | — | Phone, Messages | Phone Link | Phone, Messages | shani-link · Mirror (scrcpy) |
+| Contacts | Contacts | KAddressBook | Contacts | — | — | — | Contacts | People | Contacts | **Contacts** · shani-shell |
+| Phone, texts | Calls | KDE Connect | Phone Master | Connectivity | — | — | Phone, Messages | Phone Link | Phone, Messages | shani-shell · Mirror (scrcpy) |
 | Mail | Geary | KMail | Mail | — | — | Thunderbird | Mail | Outlook | Gmail | **Mail** (IMAP + SMTP) |
 | Browser | Web | Konqueror | Browser | — | — | Firefox | Safari | Edge | Chrome | Vivaldi |
 | Office | — | Calligra | — | WPS | — | LibreOffice | Pages… | Office | Docs | ONLYOFFICE |
@@ -59,7 +59,7 @@ ShaniOS package (native or a Flatpak of the niri profile) covers it.
 | Software | Software | Discover | App Store | Software Center | Store | Software Manager | App Store | Store | Play | GNOME Software · Warehouse |
 | Updates | Software | Discover | Update | Updater | Updater | Update Manager | Software Update | Windows Update | System update | Cassini · shani-deploy |
 | Backup | Backups¹ | — | Clone | Backup | — | Timeshift | Time Machine | Backup | Backup | shani-backup |
-| Send to a nearby device | — | KDE Connect | Cooperation | IP Messenger | — | Warpinator | AirDrop | Nearby Share | Quick Share | **Nearby Share** (LocalSend) · shani-link (KDE Connect, paired phone) · Bluetooth |
+| Send to a nearby device | — | KDE Connect | Cooperation | IP Messenger | — | Warpinator | AirDrop | Nearby Share | Quick Share | **Nearby Share** (LocalSend) · shani-shell (KDE Connect, paired phone) · Bluetooth |
 | Remote desktop | Connections | KRDC | — | — | — | — | Screen Sharing | Remote Desktop | — | Connections |
 | Virtual machines | Boxes | — | — | — | — | — | — | Hyper-V | — | Boxes |
 | Clean up storage | — | Sweeper | System Cleaner (Defender) | OS Manager | — | — | Storage | Disk Cleanup | Files (clean) | **Settings › Storage** (your space) · Cassini Maintenance (the system's) |
@@ -179,7 +179,7 @@ launcher plus Chronoa's meaning search.
 Worth saying in the other direction, so the comparison is not read as a
 deficit: Chronoa (the assistant, with approvals and an Island that shows what
 it is doing), the launcher's own ranking (typos, actions, files, windows and
-app-provided results in one list), Nearby Share and shani-link, Feeds, the
+app-provided results in one list), Nearby Share and shani-shell, Feeds, the
 firewall page, Containers, Window Layouts, Screen time and the accessibility
 surface (Magnifier, Live Captions, Lens, Characters, dictation).
 
@@ -187,10 +187,10 @@ surface (Magnifier, Live Captions, Lens, Characters, dictation).
 
 Filled 2026-11-12: a music and video library (in the Media Player), two-factor
 codes (Authenticator), nearby sharing (Nearby, LocalSend's protocol; and
-shani-link's KDE Connect link, now two-way), and storage clean-up (Settings › Storage). Before building
-each, Cassini, Chronoa and shani-link were checked for one already: Cassini's
+shani-shell's KDE Connect link, now two-way), and storage clean-up (Settings › Storage). Before building
+each, Cassini, Chronoa and shani-shell were checked for one already: Cassini's
 TOTP page is codes for signing in to *this computer* (pam_oath) and its
-Maintenance cleans the *system*; shani-link spoke KDE Connect but its file
+Maintenance cleans the *system*; shani-shell spoke KDE Connect but its file
 sending had never worked against the protocol. Each new one hands over to
 the existing one where they meet.
 

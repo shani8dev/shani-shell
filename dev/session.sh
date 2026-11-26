@@ -46,7 +46,7 @@ export SHANI_SCRCPY=/work/dev/fake-scrcpy.sh SHANI_ADB=/work/dev/fake-adb.sh SHA
 # the shell's own apps, as the package installs them: their desktop entries
 # (the launcher's app list, the dock's and the switcher's icon for an app window)
 python3 /work/bin/shani app --write-desktop /root/.local/share/applications
-export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_LINK_TOOL=/work/bridge/link.py SHANI_SERVICES_TOOL=/work/bridge/services.py SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
+export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_PHONE_TOOL=/work/bridge/link.py SHANI_SERVICES_TOOL=/work/bridge/services.py SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
 export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/tidy.py SHANI_BATTERY_TOOL=/work/bridge/battery.py SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
 # no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
 export SHANI_NEARBY_SUBNET=0 SHANI_NEARBY_PEERS=127.0.0.1:53399 SHANI_FIREWALL_CMD=/work/dev/fake-firewall-cmd.sh
@@ -208,7 +208,7 @@ export WAYLAND_DISPLAY=wayland-1
 export NIRI_SOCKET=$(ls "$XDG_RUNTIME_DIR"/niri.wayland-1.*.sock | head -1)
 
 if [ "${CHRONOA:-mock}" = real ] && [ -x /chronoa/usr/bin/shani-chronoa ]; then
-    # its schema from the source tree, shani-link (its phone skills) beside it
+    # its schema from the source tree, shani-shell (its phone skills) beside it
     GSETTINGS_SCHEMA_DIR=/chronoa/usr/share/glib-2.0/schemas PYTHONPATH=/link \
         python3 /chronoa/usr/bin/shani-chronoa >$L/chronoa.log 2>&1 &
     i=0; until gdbus introspect --session --dest dev.shani.chronoa.Agent --object-path /dev/shani/chronoa/Agent >/dev/null 2>&1 || [ $i -ge 120 ]; do sleep 0.25; i=$((i+1)); done

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""link — the phone, the landline and the watch, for the shell's Link app.
+"""phone — calls, messages and devices for the shell's own windows.
 
-Shani Link's own window is GTK. This is the same information for a QML view:
-each command prints one JSON answer, as every other bridge in this directory
-does. Everything it reads comes from `shani_link` itself, so the window and the
-daemon can never disagree about what a device is called or what was said.
+Each command prints one JSON answer, as every other bridge here does. Reads
+come from the same vendored backends the daemon uses, so a window and the
+service never disagree about what a device is called or what was said.
 
     link.py state                     {backend, placesCalls, lines, devices}
     link.py devices                   [{id, name, paired, reachable, battery}]
@@ -19,8 +18,8 @@ daemon can never disagree about what a device is called or what was said.
     link.py ring [device]             {ok, error}
     link.py share <device> <path>     {ok, error}
 
-`shani-link` is an optional package: every command that needs it answers
-{"error": "…not installed"} rather than failing, so the app can say so.
+The phone backends are optional: every command that needs them answers
+{"error": "…not installed"} rather than failing, so the window can say so.
 """
 
 from __future__ import annotations
@@ -31,21 +30,21 @@ import sys
 from pathlib import Path
 from typing import Any
 
-NOT_INSTALLED = "shani-link is not installed"
+NOT_INSTALLED = "the phone backends are not installed"
 
 
 def _module(name: str):
-    """Import one piece of shani_link, or None when the package is not there."""
+    """Import one piece of phone, or None when the package is not there."""
     try:
         return __import__(name, fromlist=["*"])
     except Exception:  # noqa: BLE001 - any import failure means "no link here"
         return None
 
 
-phone = _module("shani_link.phone")
-calls_log = _module("shani_link.calls_log")
-contacts_mod = _module("shani_link.contacts")
-lines = _module("shani_link.lines")
+phone = _module("phone.phone")
+calls_log = _module("phone.calls_log")
+contacts_mod = _module("phone.contacts")
+lines = _module("phone.lines")
 
 
 def _ok(error: str | None = None) -> dict:

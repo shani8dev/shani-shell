@@ -2,7 +2,7 @@ pragma Singleton
 // Link: the phone on this computer — the paired devices, the call history, the
 // address book, and the texts, in a window of the shell's own.
 //
-// bridge/link.py owns every read and every action: it speaks to shani_link
+// bridge/link.py owns every read and every action: it speaks to phone
 // itself (GSConnect, KDE Connect, plain Bluetooth, the landline, the modem), so
 // the window cannot disagree with the daemon about what a device is called or
 // what was said. The window is a view, nothing else.
@@ -15,7 +15,7 @@ import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_LINK_TOOL"), "link.py")
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_PHONE_TOOL"), "link.py")
 
     property string backend: ""          // kdeconnect | gsconnect | bluetooth | ""
     property bool placesCalls: false     // the phone's link can carry a call

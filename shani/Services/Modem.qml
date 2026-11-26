@@ -37,11 +37,11 @@ Singleton {
     function setMute(on) { root.muted = !!on; callctl("mute", root.muted); }
     function setSpeaker(on) { root.speaker = !!on; callctl("speaker", root.speaker); }
     // a number to call: the modem when it can, otherwise Chronoa (a phone over Bluetooth)
-    // a number to call: shani-link's dial pad, filled in (it picks the line - landline,
+    // a number to call: shani-shell's dial pad, filled in (it picks the line - landline,
     // phone or this modem - and nothing is dialled until Call is pressed)
     // Contacts / "Call" landing: the dial pad is the first action when a phone
-    // link is available (Services/Phone tries shani-link-app directly); else
-    // the tel: handler (dev.shani.Link.Dial.desktop, also shani-link --dial).
+    // link is available (Services/Phone tries phone-app directly); else
+    // the tel: handler (dev.shani.Shell.Phone.Dial.desktop, also shani-shell --dial).
     function callNumber(number) {
         const n = (number || "").replace(/[\s-]/g, "");
         if (Phone.available || Phone.reachable)
@@ -94,7 +94,7 @@ Singleton {
                     const fresh = !root.call || root.call.path !== c.path;
                     if (root.waitingCall && root.waitingCall.path === c.path) root.waitingCall = null;
                     root.call = c;
-                    // ringing is shani-link's notification (it owns calls on every line):
+                    // ringing is shani-shell's notification (it owns calls on every line):
                     // ringing here as well put two on screen for one call
                     if (fresh)
                         root.callSeconds = 0;
@@ -136,7 +136,7 @@ Singleton {
             }
         }
     }
-    // incoming-call Answer/Decline UI is shani-link's notification path
-    // (shani_link/missed_call.py + incoming_call.py); this shell never
-    // duplicated it. See shani-link/AGENTS.md "desktop-neutral plumbing".
+    // incoming-call Answer/Decline UI is shani-shell's notification path
+    // (phone/missed_call.py + incoming_call.py); this shell never
+    // duplicated it. See shani-shell/AGENTS.md "desktop-neutral plumbing".
 }

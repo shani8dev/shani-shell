@@ -1,7 +1,7 @@
 pragma Singleton
 // Health: a local-first fitness journal. bridge/health.py keeps the sqlite
 // store under XDG_DATA_HOME and is the only reader of the watch, so the window
-// cannot disagree with what is on disk. shani-link is optional: the bridge
+// cannot disagree with what is on disk. shani-shell is optional: the bridge
 // still answers with the local journal when there is no watch to read.
 import Quickshell
 import Quickshell.Io

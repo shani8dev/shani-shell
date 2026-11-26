@@ -105,7 +105,7 @@ Consistent: skel mimeapps.list:56-83 maps all web types to Vivaldi; SettingsDefa
 5. **"Open containing folder" has no implementor.** Vivaldi granted org.freedesktop.FileManager1=talk, DesktopIcons.qml:129-130 calls ShowItems, but niri ships no Nautilus and files.py registers no D-Bus name. Sketch: implement FileManager1.ShowItems in files.py.
 6. **Web apps cannot be URL handlers or share targets.** WebApps.qml:89-101 has no MimeType/Actions; no manifest read, so share_target never becomes OS target.
 7. **No password/autofill bridge.** Vivaldi has Secret Service access but its own encrypted store; shell Passwords is metadata-only passkey registry; "Browser reference" just a source label (PasswordsWindow.qml:424).
-8. **No tab handoff / send-to-phone.** shani-link can open a link on phone over adb (shani-link/README.md:25-29) but no extension/share-sheet/command.
+8. **No tab handoff / send-to-phone.** shani-shell can open a link on phone over adb (shani-shell/README.md:25-29) but no extension/share-sheet/command.
 9. **No web-based settings / web-app → shell IPC.** No HTTP settings surface; Quickshell IPC not reachable from web content.
 10. **No download layer.** No XDG_DOWNLOAD_DIR in skel, no manager, notification, scan hook or bandwidth control.
 11. **No isolated profile, notifications or per-app shortcuts.** --app= alone shares Vivaldi's profile; no --user-data-dir.
@@ -175,7 +175,7 @@ Part A — features from desktops not yet compared:
 | Multiple independent panels (MATE/LXQt) | Top + bottom panels, own applets | One bar + one dock | Med | Second layer-shell panel instance |
 | 10-foot mode (SteamOS) | Controller/TV detected → bigger scale | Gamepad stack + TvHome but manual | Med (hardware) | Preset bound to TvHome + dockIconSize/bar scale |
 | Ambient cover card (Sailfish) | Always-on active-app card | Lock screen notifications/media | Out of scope (hardware) | Software-only: lock-screen active-task card |
-| Task handoff to nearby device (HarmonyOS) | Continue task on phone/tablet | shani-link pairs phones, no handoff | Out of scope (server) | Local "Open on paired phone" via shani-link send |
+| Task handoff to nearby device (HarmonyOS) | Continue task on phone/tablet | shani-shell pairs phones, no handoff | Out of scope (server) | Local "Open on paired phone" via shani-shell send |
 
 Part B — OS migration:
 
@@ -189,7 +189,7 @@ Part B — OS migration:
 | BitLocker drive status + recovery-key UI | files.py:1278-1282 generic gio prompt | Med-high | Detect via udisks HintEncryptionType + unlock dialog |
 | APFS read / Time Machine import | Guide says restic/borg cannot open Time Machine | Out of scope | Honest "export on Mac first" checklist |
 | iPhone/iMessage/WhatsApp backup restore | Guide covers iCloud photos only | Out of scope | Guided export checklist |
-| Android restore (photos/contacts/APKs into Waydroid) | shani-link pulls contacts via PBAP/KDE Connect | Med | ADB pull bridge + APK install |
+| Android restore (photos/contacts/APKs into Waydroid) | shani-shell pulls contacts via PBAP/KDE Connect | Med | ADB pull bridge + APK install |
 | macOS shortcut muscle-memory mode (Cmd→Super) | SettingsInput.qml:121-124 only keymaps | High | Preset applying niri binds + GTK/Qt Mac key themes |
 | In-shell "what replaces Photoshop/Excel/Outlook?" | Guide tables exist; Software has ODRS but no need→app mapping | High | Launcher "I want to…" action using APPS catalog |
 | First-run migration step in Setup | first-account.py only creates account | High | Setup page linking importers + switcher guide |
@@ -348,7 +348,7 @@ All sixth-pass verdicts static; no runtime/hardware/PAM/TPM/printer/gamescope/li
 2. **[high]** mail.py IMAP calls no timeout (:376-382); Updates.qml:66-69 no timeout/re-entrancy guard — one hung shani-deploy wedges all checks; fwupdmgr likewise. Translate interactive requests inherit 300s batch timeout.
 3. **[high]** Captive-portal detection exists (Net.qml:22-40) but apps emit generic errors; Weather keeps stale values with no "as of"; Feeds stores fetched but never shows; Radio wipes list on any error; Mail no offline/empty distinction.
 4. **[med]** No 429/503 handling on geocoding/OSRM (curl -sf collapses generic); Feeds retry no backoff; multi-GB model/Flatpak installs on metered connections; Flathub streams no timeout.
-5. **[daemon-level]** Landline SIP TLS disables verification and read timeouts (shani-link/.../ua.py:186-193); deploy retries fixed delays and honour no proxy.
+5. **[daemon-level]** Landline SIP TLS disables verification and read timeouts (shani-shell/.../ua.py:186-193); deploy retries fixed delays and honour no proxy.
 Already good: Chronoa cloud LLM exponential backoff with jitter; most API probes bounded; Screenshot OCR fully local.
 
 ## Search and navigation depth
@@ -468,7 +468,7 @@ Kundali: timezone always UTC (appends Z) — wrong Lagna (FIXED?); nine bridge c
 
 ## Messages/Calls/Phone (agent)
 
-Architecture: GTK4 shani-link owns Messages/Calls; QML shell has entry points and modem dialog.
+Architecture: GTK4 shani-shell owns Messages/Calls; QML shell has entry points and modem dialog.
 Gaps: conversation search; inline Reply on text notifications; group threads; image attachments; SMS backup/export; drafts; speed dial/favorites in shell; call-waiting UI; tie recordings to caller; delivery/read status.
 Security: messages not E2EE, bodies echoed to notify-send; positive: bidi control chars stripped, switches default off.
 Dead: PhonePanel.add_tab() empty stub; openRecentCalls() opens Calls tab.
@@ -643,7 +643,7 @@ Verified candidates against tree (Writing Tools, long-press quick tiles, Live Ac
 7. Focus Filters depth (iOS 18). Focus.qml:23-25 only gates notifications by app name. Sketch: people/calendar/badge filters.
 8. Notification cooldown (Android 15). No cooldown in Notifs.qml; distinct from storm coalescing. Sketch: per-app last-seen timestamp, downgrade Nth repeat within ~10s.
 9. Lock-screen widgets (iOS 16+). Lock surface only notification/media/camera (LockScreen.qml:340-409). Sketch: render one/two existing widget delegates.
-10. Cross-device clipboard continuity (Apple Universal Clipboard). Clipboard.qml local; shani-link can share but leaks with no confirm. Sketch: opt-in push with confirm card + 45s clear.
+10. Cross-device clipboard continuity (Apple Universal Clipboard). Clipboard.qml local; shani-shell can share but leaks with no confirm. Sketch: opt-in push with confirm card + 45s clear.
 11. Instant replay / rolling record buffer (Xbox Game Bar / ShadowPlay). Recorder no rolling buffer. Sketch: background wf-recorder to ring file, hotkey promotes last N seconds.
 12. Rotating widget stacks (macOS Sequoia / Win11 Widgets). desktop-widgets-* built, no stacking. Sketch: auto-rotate timer + manual swipe.
 13. Auto-arrange desktop icons (Finder Sort By). DesktopIcons.qml has placement, no sort action. Sketch: right-click "Arrange By…".
@@ -851,7 +851,7 @@ Corrections (brief was stale — do NOT re-file): 10-band EQ, bass boost, compre
 
 Shell-fixable:
 1. Per-app output picker absent from mixer (moveStream exists but app rows only volume/mute). Sketch: sink dropdown per app row.
-2. Echo cancellation is detection-only. echo_cancel_active() never enables (shani_link/audio.py:66-81). Sketch: mirror RNNoise filter-chain pattern.
+2. Echo cancellation is detection-only. echo_cancel_active() never enables (phone/audio.py:66-81). Sketch: mirror RNNoise filter-chain pattern.
 3. No separate mic monitoring level. Mic slider capture gain only.
 4. Lock-screen media controls shallow — prev/play/next and art only (LockScreen.qml:416-445); sidebar has switching+seek. Sketch: reuse sidebar card.
 5. Media keys follow sticky preferred player. Media.current = preferred||playing||first (Media.qml:13-15).
@@ -1058,7 +1058,7 @@ Bugs/dead code: PinCapture triple-open (#5), TabletMode.lidClosed unused (#11), 
 Scope: static; skipped parent's listed items. Note GAPS.md:801/805 stale — Popups.qml:46-189 and NotificationCard.qml:395-410 now implement grouped stacks + progress bars.
 
 1. Inline reply is a single-line TextField — no multiline/Shift+Enter, attachments, emoji/OSK, voice dictation, draft persistence; typed text dropped on expiry (NotificationCard.qml:304-315).
-2. Action labels not localized — card renders a.text verbatim; shani-link posts hardcoded English "answer"/"Answer"/"Call back"/"Message" (NotificationCard.qml:55,330; incoming_call.py:279-280; missed_call.py:69-71).
+2. Action labels not localized — card renders a.text verbatim; shani-shell posts hardcoded English "answer"/"Answer"/"Call back"/"Message" (NotificationCard.qml:55,330; incoming_call.py:279-280; missed_call.py:69-71).
 3. Custom rule "actions" dead code — evaluate() returns arbitrary action strings but onNotification only branches on "block"; mute/hide/silence collapse to hide (NotifsRules.qml:73-77; Notifs.qml:243-247,256).
 4. No "mark all read" semantic — clearAll dismisses everything; no read/unread flag; dock badge raw count (Notifs.qml:27-43,179-184).
 5. Call actions Answer/Decline only — no quick SMS presets, send location, silence, add-to-contacts; missed calls only Call back/Message.
@@ -1205,14 +1205,14 @@ Docs overclaim: "Pods pre-installed on every edition" and "BoxBuddy pre-installe
 Shell-fixable:
 1. No auto-accept for known/trusted devices (obex-agent.py:99-109 asks every push).
 2. No receive progress and no cancel (BytesTransferred ignored, Transfer1.Cancel never called).
-3. Ignored push hangs forever (notify-send -A implies --wait, no -t; shani-link twin has DECIDE_SECONDS=60).
+3. Ignored push hangs forever (notify-send -A implies --wait, no -t; shani-shell twin has DECIDE_SECONDS=60).
 4. No destination picker per file (target fixed at authorization).
 5. No Bluetooth transfer history (received counter + last path only).
 6. Outgoing send no progress/cancel/resume/retry (BtSend.qml polls Status only, 600 iterations).
 7. One file per send (single file string, one SendFile).
 8. Send does not connect paired-but-disconnected device.
 9. HFP call-audio routing exists in bridge (bt_telephony.py:224-249 audio_route) but no shell UI.
-10. PBAP call history implemented in shani-link but not reachable from shell.
+10. PBAP call history implemented in shani-shell but not reachable from shell.
 11. No FTP/browser of phone files.
 12. No per-device auto-connect (one global switch, regex /^(audio|input)/ excludes phones/watches).
 13. Connection profiles not exposed (UUIDs read but no profile chips).
@@ -1323,8 +1323,8 @@ Risk: fix #3/#5 together — expanding type lists without fixing xdg-open resolv
 
 ## Offline-first per app (agent ses_dfb76734dffeekyW96B2WMBa0t)
 
-Per-app matrix given for 19 apps. Already good: Feeds cache-first reader; Contacts/Photos/Camera/VoiceRecorder/Backup fully local; Software AppStream cache; shani-link cached threads.
-Ranked gaps: 1 Mail loses offline mail entirely (no cache, compose clears on Send); 2 Weather blank on cold offline start (forecast memory-only); 3 Radio wipes list on any fetch error; 4 LiveTV re-fetches playlist every open, no channel cache; 5 Calendar writes can vanish (EDS failure → Chronoa ask → toast); 6 Chronoa prompts dropped offline; 7 shani-link texts dropped when device unreachable; 8 Models can't distinguish ollama missing from none installed; 9 Software ratings lie offline (ODRS [] → 0 stars); 10 Updates failure indistinguishable from up-to-date; 11 Maps retries failed tiles no backoff; 12 Nearby send no devices silent no-op; 13 Feeds no cache age shown; 14 Chronoa/Translate no offline dictionary fallback.
+Per-app matrix given for 19 apps. Already good: Feeds cache-first reader; Contacts/Photos/Camera/VoiceRecorder/Backup fully local; Software AppStream cache; shani-shell cached threads.
+Ranked gaps: 1 Mail loses offline mail entirely (no cache, compose clears on Send); 2 Weather blank on cold offline start (forecast memory-only); 3 Radio wipes list on any fetch error; 4 LiveTV re-fetches playlist every open, no channel cache; 5 Calendar writes can vanish (EDS failure → Chronoa ask → toast); 6 Chronoa prompts dropped offline; 7 shani-shell texts dropped when device unreachable; 8 Models can't distinguish ollama missing from none installed; 9 Software ratings lie offline (ODRS [] → 0 stars); 10 Updates failure indistinguishable from up-to-date; 11 Maps retries failed tiles no backoff; 12 Nearby send no devices silent no-op; 13 Feeds no cache age shown; 14 Chronoa/Translate no offline dictionary fallback.
 
 ## Inclusive design depth (agent ses_dfb764876ffeas3T6i5EhHcjXh)
 
@@ -1369,7 +1369,7 @@ Comparison: Windows WinRE + BitLocker key escrow; macOS Cmd-R recovery + progres
 ## D-Bus shell surface as third-party API (agent ses_dfb6f041fffeQMoGWm66bkIbX7)
 
 Architecture: (a) shell's own API is Quickshell IpcHandler (521 functions) over private socket; (b) actual D-Bus names owned only by Python bridges ("Quickshell cannot export a D-Bus object"); no org.shani.Shell interface at all.
-Security (high value, low effort — mostly one sender check each): 1 any session process can drive every shell function (lock/poweroff/settings) with no polkit/peer check; 2 Agent Approve bus-wide — malicious app can approve its own tool calls; 3 UI spoofing via Mascot.Show/Windows.Cue; 4 any process can lock/reset idle/prevent locking; 5 dev.shani.Link exposes contacts/call history/dial/notifications/location to any bus client; 6 portal OpenFile returns user-chosen paths to any caller.
+Security (high value, low effort — mostly one sender check each): 1 any session process can drive every shell function (lock/poweroff/settings) with no polkit/peer check; 2 Agent Approve bus-wide — malicious app can approve its own tool calls; 3 UI spoofing via Mascot.Show/Windows.Cue; 4 any process can lock/reset idle/prevent locking; 5 dev.shani.Shell.Phone exposes contacts/call history/dial/notifications/location to any bus client; 6 portal OpenFile returns user-chosen paths to any caller.
 API design: 7 no D-Bus Properties for shell state (only pull-only state() JSON); 8 no D-Bus signals for shell events (external apps must poll); 9 no service activation for most names (only portal has .service file); 10 bus names/paths undocumented as stable API; 11 no versioning/deprecation; 12 all bridges use BusNameOwnerFlags.NONE no replacement policy; 13 Flatpak reachability undefined (no name manifest); 14 relay contract payloads undocumented; 15 portal FileChooser-only; 16 no caller identity exposure.
 Comparison: GNOME publishes documented org.gnome.Shell; KDE versioned org.kde.* with introspection; sway documented versioned IPC. Shani has private unversioned socket + undocumented compat names.
 Risk: #2/#5 may be intentional bus-wide design — confirm with owners before hardening so legitimate peers aren't locked out.
@@ -1384,7 +1384,7 @@ Risk: items 4-9 assume bridge actions can be dispatched generically — allow-li
 New QML-deliverable ideas: 1 Cinnamon panel edit mode + applet manager (bar widgets toggle but not reorder); 2 taskbar-style per-window list in bar (Niri.windows exposes ids); 3 app-grid edit mode — reorder/hide/folders (tvOS/Tizen); 4 tvOS Top Shelf focused-app hero preview; 5 Kodi Continue Watching row (PlayQueue resume points exist); 6 Batocera game library with box art; 7 Garuda network assistant guided troubleshooter; 8 Garuda upgrade-adviser "needs attention" card; 9 unresponsive-app watchdog Wait/Force Quit (System Monitor polls /proc); 10 ChromeOS combined clock+calendar+notifications tray; 11 ChromeOS lock-screen accessibility dock; 12 Kodi profiles on shared TV; 13 Clear Linux verify & repair; 14 Pantheon starred files virtual folder; 15 external media "index/play" prompt; 16 screenshot/record in power menu.
 Out of scope: visionOS gaze, SteamOS controller layouts/fan curves, Tizen bezel/HDMI-CEC, webOS Magic Remote, postmarketOS charging/emergency call, Manjaro kernel switching, NixOS generations, Garuda cloud sync/retroachievements, Tizen multi-view/PiP.
 
-## Shani Link GTK app features not surfaced in shell (agent ses_dfb6fec14ffemQj14WWvzn9a62)
+## Phone GTK app features not surfaced in shell (agent ses_dfb6fec14ffemQj14WWvzn9a62)
 
 1 Five of seven GTK pages have no shell entry point (Watch/Radio/NFC/Remote/Background/Screen; shell only --page=phone/contacts); 2 no Link settings UI (14 named switches in GTK Background page); 3 screen mirroring no shell controls (Check/Start/Share window/Stop, Touch toggle, report); 4 watch dashboard entirely GTK-only (steps ring, sleep stages, stress, HR/SpO2/BP, workouts, Find, Sync time); 5 Android USB tools reduced to one share call (GTK has 20+ verbs); 6 phone diagnostics reads unreachable (Notifications/Usage/Line/Wifi/Thermal/Location/Display via D-Bus); 7 live in-call controls missing from Calls (timer, mute, audio picker, DTMF, hold/swap/merge, recording, video); 8 SIP account manager no shell surface; 9 phone music control not in Media Player; 10 received-files list and receive switch missing; 11 shell always picks first device (GTK has per-serial cards); 12 generic BLE/GATT inspector; 13 live FM/SDR radio absent from shell Radio; 14 NFC read/write UI; 15 infrared remote learn/send; 16 pairing wizard QR/passkey flow unreachable.
 
@@ -1514,14 +1514,14 @@ Ranked by value × ease (top = do first). Static only.
 | 2 | **Agent approval bus-wide — a malicious app can approve its own tool calls.** `dev.shani.chronoa.Agent` exposes `Turn/Approve/Write/FindFiles` to any client; `Approve(id,decision)` is literally the user-consent gate. | `bridge/turn_filter.py:3`; `bridge/agent_contract.py:17-44` | Gate `Approve`/`Write` on the shell UI's sender (or a one-time token minted by the panel). |
 | 3 | **UI spoofing via Chronoa D-Bus.** Any process can call `Mascot.Show/Scale` and `Windows.Cue(text,hold)` → arbitrary text/noise drawn in the shell's Island. | `bridge/chronoa-bridge.py:67-98,327-387,444-446` | Check `sender` against the known shell/agent peers before broadcasting. |
 | 4 | **Any process can lock/reset idle/prevent locking.** `SetActive(true)`→shell lock; `SimulateUserActivity`; `Inhibit` → no auth. | `bridge/screensaver.py:82-94,70` | Restrict `SetActive`/`Inhibit` to known callers; keep `GetActive` open. |
-| 5 | **`dev.shani.Link` exposes contacts, call history, dial, notifications, location to any bus client.** `Search/Lookup`, `RecentCalls`, `Dial`, `Notifications`, `Location`, `SipAccount*`, `DeleteCall`. | `bridge/shani_link/service.py:38-140,227-239,484` (handlers take `_sender`, ignore it) | Sender-allowlist (shell + Link app); split read-only vs privileged interfaces. |
+| 5 | **`dev.shani.Shell.Phone` exposes contacts, call history, dial, notifications, location to any bus client.** `Search/Lookup`, `RecentCalls`, `Dial`, `Notifications`, `Location`, `SipAccount*`, `DeleteCall`. | `bridge/phone/service.py:38-140,227-239,484` (handlers take `_sender`, ignore it) | Sender-allowlist (shell + Link app); split read-only vs privileged interfaces. |
 | 6 | **Portal `OpenFile` returns user-chosen paths to any caller.** Impl-portal is normally reached via `xdg-desktop-portal` (which does checks); direct callers bypass that and harvest a path. | `bridge/portal.py:100-120,160-175,212` | Verify sender is `org.freedesktop.portal.Desktop` before serving. |
 | 7 | **No D-Bus Properties for shell state.** Current workspace, focused window, volume, dark mode exist only as a 200-key JSON blob from `state()` — pull-only, no `PropertiesChanged`, nothing bindable. | `shani/shell.qml:998-1218`; no `org.shani.Shell` anywhere | Export a small `org.shani.Shell` object with read-only properties + `PropertiesChanged`. |
-| 8 | **No D-Bus signals for shell events** (workspace change, notification, settings change, app open). The only emitted signals are compat-interface ones (Mascot/Windows, ScreenSaver `ActiveChanged`, MPRIS `Seeked`, Link `CallLogged`/`DeviceEvent`, appmenu `WindowRegistered`). External apps must poll. | `grep emit_signal bridge/*.py`: `screensaver.py:79`, `mpris-player.py:158,171`, `appmenu-registrar.py:59-63`, `shani_link/service.py:227,347,391` | Add `WorkspaceChanged`, `NotificationAdded`, `SettingsChanged`, `AppOpened` on the same facade as #7. |
-| 9 | **No service activation for most owned names.** Only the portal has a D-Bus `.service` file; `org.freedesktop.ScreenSaver`, `com.canonical.AppMenu.Registrar`, `dev.shani.Link`, `org.shani.Chronoa.*` are started ad-hoc by shell/process, so a client calling them cold gets `NameHasNoOwner`. | `find data -name '*.service'`: 3 files, only `data/portal/org.freedesktop.impl.portal.desktop.shani.service`; `data/systemd/shani-chronoa-bridge.service:4-10` | Ship `.service` files in `data/dbus/` for each owned name. |
+| 8 | **No D-Bus signals for shell events** (workspace change, notification, settings change, app open). The only emitted signals are compat-interface ones (Mascot/Windows, ScreenSaver `ActiveChanged`, MPRIS `Seeked`, Link `CallLogged`/`DeviceEvent`, appmenu `WindowRegistered`). External apps must poll. | `grep emit_signal bridge/*.py`: `screensaver.py:79`, `mpris-player.py:158,171`, `appmenu-registrar.py:59-63`, `phone/service.py:227,347,391` | Add `WorkspaceChanged`, `NotificationAdded`, `SettingsChanged`, `AppOpened` on the same facade as #7. |
+| 9 | **No service activation for most owned names.** Only the portal has a D-Bus `.service` file; `org.freedesktop.ScreenSaver`, `com.canonical.AppMenu.Registrar`, `dev.shani.Shell.Phone`, `org.shani.Chronoa.*` are started ad-hoc by shell/process, so a client calling them cold gets `NameHasNoOwner`. | `find data -name '*.service'`: 3 files, only `data/portal/org.freedesktop.impl.portal.desktop.shani.service`; `data/systemd/shani-chronoa-bridge.service:4-10` | Ship `.service` files in `data/dbus/` for each owned name. |
 | 10 | **Bus names/paths not documented as a stable API.** Names are strewn through bridge docstrings with no central table; no version property except portal's `version=3`. | `bridge/appmenu-registrar.py:23`, `screensaver.py:30-31`, `mpris-player.py:27-28`, `chronoa-bridge.py:50-63`, `service.py:38`, `portal.py:32`; README only shows CLI examples `README.md:332-345` | Publish one `docs/dbus-api.md` table: name / path / interface / methods / since-version. |
 | 11 | **No versioning or deprecation policy on D-Bus interfaces.** Contrast the CLI/IPC version gap already filed — the *D-Bus* surface has no `SHANI_DBUS_VERSION`, no `Version` property, no ABI contract. | XML definitions in `portal.py:24-30`, `screensaver.py:36-53`, `chronoa-bridge.py:65-98`, `service.py:56-140` all lack version | Add a `Version` property (u) to each interface + a documented deprecation rule. |
-| 12 | **All bridges open names with `BusNameOwnerFlags.NONE`, no queue/replace policy for graceful handover.** | `portal.py:212`, `screensaver.py:70`, `chronoa-bridge.py:415,444,446`, `shani_link/service.py:484`, `mpris-player.py:182` | Use `ALLOW_REPLACEMENT|REPLACE_EXISTING` on upgrade paths with an owner-change watch. |
+| 12 | **All bridges open names with `BusNameOwnerFlags.NONE`, no queue/replace policy for graceful handover.** | `portal.py:212`, `screensaver.py:70`, `chronoa-bridge.py:415,444,446`, `phone/service.py:484`, `mpris-player.py:182` | Use `ALLOW_REPLACEMENT|REPLACE_EXISTING` on upgrade paths with an owner-change watch. |
 | 13 | **Flatpak reachability of shell D-Bus names is undefined.** `flatperm.py` accepts `talk-name` flags and the UI exposes only that toggle; none of the shell's own names are declared/documented as needing a grant, so integrators can't know what to request. | `bridge/flatperm.py:39-40`; `docs/GAPS-RESEARCH.md:118` (ownership UI gap already filed — *this* is the missing name manifest) | Ship a `shani-shell` Flatpak permissions manifest listing each owned name. |
 | 14 | **No introspection-level docs for the relay contracts.** `org.shani.Chronoa.Mascot/Windows` are described only in a bridge docstring; the tool-call pill protocol (`Cue`) has no payload schema for third parties. | `bridge/chronoa-bridge.py:4-16,100-110` | Document payloads + emit standard introspection XML (already registered at :435-437 — just publish). |
 | 15 | **Portal is `FileChooser`-only as a public API** — Email/Share/Send and `org.freedesktop.FileManager1.ShowItems` are absent, so apps that target those freedesktop APIs can't integrate with the shell at all. | `data/portal/shani.portal:3` (`Interfaces=…FileChooser;`); `docs/GAPS-RESEARCH.md:96,404` (filed as feature gaps, not API surface) | Extend `shani.portal` Interfaces and implement the methods on `portal.py`. |
@@ -1654,21 +1654,21 @@ visionOS gaze-and-pinch windows and Mac Virtual Display; SteamOS community contr
 
 **Skipped / risk:** I did not verify any of these against a QML runtime, hardware or a TV remote — feasibility is inferred from existing bridges/`Niri` IPC calls, so item 9 (no compositor freeze event) is the least certain. Items 12 and 15 assume per-profile state and drive-scanning that would need a small new data store.
 
-## VERBATIM: Shani Link GTK app features not surfaced in shell
+## VERBATIM: Phone GTK app features not surfaced in shell
 
-# Fourteenth-pass gaps — shani-link GTK app features the QML shell never surfaces
+# Fourteenth-pass gaps — shani-shell GTK app features the QML shell never surfaces
 
-Scanned `shani-link/{README.md,shani_link/app/*,shani_link/{service,settings,android,fm_radio,nfc,ir_remote,moyoung}.py}` against `shani-shell/{shani/Services/Link.qml,Phone.qml,CallsWindow.qml,MessagesWindow.qml,bridge/link.py}`. Ranked by value × ease. Static only.
+Scanned `shani-shell/{README.md,phone/app/*,phone/{service,settings,android,fm_radio,nfc,ir_remote,moyoung}.py}` against `shani-shell/{shani/Services/Link.qml,Phone.qml,CallsWindow.qml,MessagesWindow.qml,bridge/link.py}`. Ranked by value × ease. Static only.
 
-**1. Five of seven GTK pages have no shell entry point — [high × trivial].** GTK has Phone, Watch, Devices, Radio, NFC, Remote, Background (`shani-link/shani_link/app/window.py:90-98`) with `--page=`/alias deep links (`:102-110`), but the shell only ever execs `--page=phone` and `--page=contacts` (`shani-shell/shani/Services/Phone.qml:41-58`; `Island.qml:51`). Watch/Radio/NFC/Remote/Background/Screen are invisible from the shell. *Sketch:* Shell launcher/menu tiles calling `shani-link-app --page=<id>`.
+**1. Five of seven GTK pages have no shell entry point — [high × trivial].** GTK has Phone, Watch, Devices, Radio, NFC, Remote, Background (`shani-shell/phone/app/window.py:90-98`) with `--page=`/alias deep links (`:102-110`), but the shell only ever execs `--page=phone` and `--page=contacts` (`shani-shell/shani/Services/Phone.qml:41-58`; `Island.qml:51`). Watch/Radio/NFC/Remote/Background/Screen are invisible from the shell. *Sketch:* Shell launcher/menu tiles calling `phone-app --page=<id>`.
 
-**2. No Link settings UI — [high × easy].** GTK's Background page exposes 14 named switches with explanations (`shani-link/shani_link/settings.py:22-37`, `app/switches.py:24-70`, `app/background.py:40-60`); the shell has zero way to view or set any of them. *Sketch:* `link.py settings [key] [on]` via D-Bus `Settings`/`SetSetting` (`service.py:49-50,350-357`) + a Link Settings panel.
+**2. No Link settings UI — [high × easy].** GTK's Background page exposes 14 named switches with explanations (`shani-shell/phone/settings.py:22-37`, `app/switches.py:24-70`, `app/background.py:40-60`); the shell has zero way to view or set any of them. *Sketch:* `link.py settings [key] [on]` via D-Bus `Settings`/`SetSetting` (`service.py:49-50,350-357`) + a Link Settings panel.
 
 **3. Screen mirroring has no shell controls — [high × medium].** GTK Screen page offers Check / Start / Share a window / Stop, an off-by-default Touch switch, a full last-action report, and names the phone-side sound/mic/camera buttons (`app/screen_share.py:78-145,161-274`). Shell has no equivalent (its Radio/Screenshot services are unrelated). *Sketch:* `link.py screen <status|start|start-window|stop>` + a tile with a Touch toggle and full report label.
 
 **4. Watch dashboard is entirely GTK-only — [high × medium].** Steps-vs-goal ring, 3-day bars, sleep stages, stress sparkline, on-demand heart rate / SpO₂ / blood pressure, workouts, Find, Sync time, watch Settings and "Send to watch" (`app/wearables.py:617-650`; `app/watch_dashboard.py:137-372`). `bridge/link.py:42-45` imports no watch module. *Sketch:* `bridge/watch.py` over `moyoung.health_summary()/measure()/find()`; QML cards with Theme styling.
 
-**5. Android USB tools are reduced to one "share" call — [high × medium].** GTK exposes battery/storage, screenshot, send file, list apps, paste-and-open link (`app/android.py:302-398`), but the engine also has screen recording, launch app, brightness, pull, plus notifications, screen time, telephony line, Wi-Fi, thermal, location and display reads (`shani_link/android.py:34-35,135-300`). *Sketch:* `link.py android <verb> [serial]`, show as a Devices tab.
+**5. Android USB tools are reduced to one "share" call — [high × medium].** GTK exposes battery/storage, screenshot, send file, list apps, paste-and-open link (`app/android.py:302-398`), but the engine also has screen recording, launch app, brightness, pull, plus notifications, screen time, telephony line, Wi-Fi, thermal, location and display reads (`phone/android.py:34-35,135-300`). *Sketch:* `link.py android <verb> [serial]`, show as a Devices tab.
 
 **6. Phone diagnostics reads never reach the shell — [medium-high × easy].** D-Bus `Phone` offers `Notifications`, `Usage`, `Line`, `Wifi`, `Thermal`, `Location`, `Display` (`service.py:105-111,323-329`); `bridge/link.py` uses none. *Sketch:* seven one-line bridge commands + a "Phone" status tile.
 
@@ -1690,9 +1690,9 @@ Scanned `shani-link/{README.md,shani_link/app/*,shani_link/{service,settings,and
 
 **15. Infrared remote learn/send — [low × medium].** GTK learns a button, picks a remote/key from `irsend`'s own lists, or sends a raw NEC/RC-6 code, with send-capability gating (`app/tools_pages.py:373-435`; `ir_remote.py`). Shell has nothing. *Sketch:* `bridge/ir.py <receive|remotes|keys|send>` + panel.
 
-**16. Pairing wizard's QR/passkey flow is unreachable from shell — [medium × easy].** GTK shows an adb Wi-Fi QR code, pairing-code entry and mDNS discovery (`app/connect_device.py:526-560`), Bluetooth confirm/passkey prompts (`:369-406`), and LAN pairing with Accept/Cancel (`:616-703`). Shell has only `kdeconnect-cli pair/unpair/ping` (`Phone.qml:21-28`). *Sketch:* one "Connect a phone" tile launching `shani-link-app --connect=android|bluetooth|kdeconnect`.
+**16. Pairing wizard's QR/passkey flow is unreachable from shell — [medium × easy].** GTK shows an adb Wi-Fi QR code, pairing-code entry and mDNS discovery (`app/connect_device.py:526-560`), Bluetooth confirm/passkey prompts (`:369-406`), and LAN pairing with Accept/Cancel (`:616-703`). Shell has only `kdeconnect-cli pair/unpair/ping` (`Phone.qml:21-28`). *Sketch:* one "Connect a phone" tile launching `phone-app --connect=android|bluetooth|kdeconnect`.
 
-*Skipped as instructed:* Messages/Calls/Phone comparison, Link engines, device management mechanics, clipboard share, kdeconnect, PBAP/MAP, tethering. Not checked: whether bridge import of `moyoung`/`android` is safe when shani-link is absent (the existing `_module()` helper suggests yes); hardware-dependent items 13–15 are untestable in the dev container.
+*Skipped as instructed:* Messages/Calls/Phone comparison, Link engines, device management mechanics, clipboard share, kdeconnect, PBAP/MAP, tethering. Not checked: whether bridge import of `moyoung`/`android` is safe when shani-shell is absent (the existing `_module()` helper suggests yes); hardware-dependent items 13–15 are untestable in the dev container.
 
 ---
 
@@ -1758,7 +1758,7 @@ Method: grepped all 351 QML modules + Services for `undo`/`redo`/`pushUndo`/`tra
 
 # 13th-pass audit — external service integrations & webhook/API surface (read-only, static)
 
-**Skipped (already in GAPS files):** webhook server (Chronoa's WhatsApp HMAC adapter), no log upload, shani-insights, remote desktop, IFTTT-style automation actions, CalDAV accounts, missing CardDAV, rclone mounts, GOA/Online Accounts, portal Notification/Email/Share, share-sheet→own-apps, shani-link SMS/calls.
+**Skipped (already in GAPS files):** webhook server (Chronoa's WhatsApp HMAC adapter), no log upload, shani-insights, remote desktop, IFTTT-style automation actions, CalDAV accounts, missing CardDAV, rclone mounts, GOA/Online Accounts, portal Notification/Email/Share, share-sheet→own-apps, shani-shell SMS/calls.
 
 **What exists (so the gaps are precise):** inbound notifications come only from the shell being a standard `org.freedesktop.Notifications` daemon (`shani/Services/Notifs.qml:1-2`; `notify-send`/`gdbus` work, `docs/voltkit-alignment.md:33`). The only HTTP listener in the tree is a folder share (`bridge/serve.py:1-16,32-34,218-223`); the only true webhook is in shani-chronoa (`usr/lib/shani-chronoa/shani_chronoa/channel_bridge.py:209-266`, feeds `Submit` D-Bus — Telegram/WhatsApp only, `ARCHITECTURE-TARGET.md:471`). Outward: `Services/Automations.qml:6-11,32-53` = 5 triggers / 6 actions (`run` is `sh -c`); `Services/Hooks.qml:3-5,17-19` = 6 local events. `bridge/cloud.py:2-18,29-37` mounts rclone drives only. No MQTT/Home Assistant/GitHub/GitLab/Slack/Discord/Matrix reference exists anywhere in shani-shell.
 
@@ -1874,7 +1874,7 @@ Research complete. Both gap docs read (1885 + 1283 lines); skipped the listed cr
 | **Contacts** | vCard files on disk (Contacts.qml:1-7). | Works offline. | Local writer queue (:88-98) | Yes | n/a |
 | **Backup** | Local snapshots (Backup.qml:62-105). | "The backup drive is not connected" (:97). | n/a | Yes | n/a |
 | **Updates** | Only firmware-told list (Updates.qml:29-36); no last-checked status. | Failed check → `known=false` → **empty summary** (:62,89-98). | n/a | n/a | None |
-| **shani-link** | GSConnect `sms.json` threads, contacts cache, call log, last battery (phone.py:39-41,286-299; devices.py:22). | Cached threads/contacts readable; offline device icon (devices.py:334). | **No send queue** (Link.qml:47) | Read yes | Per-device icon only |
+| **shani-shell** | GSConnect `sms.json` threads, contacts cache, call log, last battery (phone.py:39-41,286-299; devices.py:22). | Cached threads/contacts readable; offline device icon (devices.py:334). | **No send queue** (Link.qml:47) | Read yes | Per-device icon only |
 
 ## Ranked gaps (value × ease)
 
@@ -1884,7 +1884,7 @@ Research complete. Both gap docs read (1885 + 1283 lines); skipped the listed cr
 4. **LiveTV re-fetches the same playlist every open** — saved source not auto-loaded, no channel cache (LiveTv.qml:16,45-55). Sketch: cache parsed channels keyed by source + load saved source at startup.
 5. **Calendar writes can vanish** — EDS failure falls through to a Chronoa "ask", then only a toast (Agenda.qml:211-218). Sketch: queue failed payloads to statePath and replay when `available` flips true.
 6. **Chronoa prompts are dropped offline** — `deliver()` logs a message and returns (Chronoa.qml:45-49). Sketch: outbox unsent prompts; replay on `Bridge.connected`.
-7. **shani-link texts dropped when device unreachable** — `send()` fire-and-forget (Link.qml:47). Sketch: outbox under `~/.cache/shani-link`, retry when device becomes reachable.
+7. **shani-shell texts dropped when device unreachable** — `send()` fire-and-forget (Link.qml:47). Sketch: outbox under `~/.cache/shani-shell`, retry when device becomes reachable.
 8. **Models can't distinguish "ollama missing" from "none installed"** — `|| echo '[]'` (Models.qml:51). Sketch: probe command -v and show "Install ollama…" instead of empty state (:133-138).
 9. **Software ratings lie offline** — ODRS returns `[]` on any error (appstore.py:256-268), UI shows 0 stars. Sketch: return `null` and render "Ratings unavailable offline".
 10. **Updates check failure is indistinguishable from up-to-date** — `known=false` yields blank summary (Updates.qml:62,89-98). Sketch: persist last-good status and show "Could not check (offline)".
@@ -1893,7 +1893,7 @@ Research complete. Both gap docs read (1885 + 1283 lines); skipped the listed cr
 13. **Feeds shows no cache age** — `fetched` is stored but unread in UI (FeedsWindow.qml:186+). Sketch: render "as of …" beside the feed title.
 14. **Chronoa/Translate have no offline dictionary fallback** when the local model is down (TranslateWindow.qml:109). Sketch: ship a tiny wordnet lookup for common strings.
 
-Already good: Feeds (cache-first reader), Contacts/Photos/Camera/VoiceRecorder/Backup (fully local), Software browsing (AppStream cache), shani-link (cached threads).
+Already good: Feeds (cache-first reader), Contacts/Photos/Camera/VoiceRecorder/Backup (fully local), Software browsing (AppStream cache), shani-shell (cached threads).
 
 Skipped: didn't verify any behavior in a QML runtime or with a blackholed network — all verdicts are static, so "blank offline" is inferred from code paths. Risk: EDS may cache CalDAV more aggressively than the shell's own code implies; item 5's fallback path may be rarer than it looks.
 
@@ -2028,28 +2028,28 @@ Skipped: VM/Boxes/virt-manager feature parity, docs-only framing beyond the two 
 
 # Twelfth pass — Bluetooth/OBEX file-transfer depth
 
-Static only. Prior passes covered pairing, codec, OBEX-agent bridge tests, Nearby/LocalSend and KDE Connect; those are skipped. Sources: `shani/Services/{BtAgent,BtSend,ObexReceive,Nearby}.qml`, `shani/Modules/ControlCenter/SidebarDetails.qml`, `bridge/{bt-agent,obex-agent,link}.py`, `bridge/shani_link/{obex_receive,bt_pair,bt_telephony,phone_bluez}.py`, `tests/*`, `dev/shell-test.sh`.
+Static only. Prior passes covered pairing, codec, OBEX-agent bridge tests, Nearby/LocalSend and KDE Connect; those are skipped. Sources: `shani/Services/{BtAgent,BtSend,ObexReceive,Nearby}.qml`, `shani/Modules/ControlCenter/SidebarDetails.qml`, `bridge/{bt-agent,obex-agent,link}.py`, `bridge/phone/{obex_receive,bt_pair,bt_telephony,phone_bluez}.py`, `tests/*`, `dev/shell-test.sh`.
 
 ## Shell-fixable — ranked by value × ease
 
 1. **Incoming push has no auto-accept for known/trusted devices.** Every push asks (obex-agent.py:99-109; shell-side only a `notify-send` with Accept/Decline at ObexReceive.qml:56-59). The agent already resolves the sender's BlueZ device on the system bus at :82-97 — reuse it to auto-accept when `Trusted` and a new setting allows. GNOME/KDE offer exactly this for trusted peers.
 2. **No receive progress and no cancel.** obex-agent.py:111-128 subscribes to `PropertiesChanged` but reads only `Status` complete/error; `BytesTransferred` is ignored, and `Transfer1.Cancel` is never called. Sketch: emit `{"progress":…}` from the same signal and add a Cancel action that calls Transfer1.Cancel on the stored transfer path.
-3. **An ignored push hangs forever.** obex-agent.py:107 keeps `pending[id]` until an answer; ObexReceive.qml:57 sets no `-t`, and `-A` implies `--wait` (verified via `notify-send --help`). The shani-link twin has `DECIDE_SECONDS = 60` (obex_receive.py:37,220) — port that: 60 s QML timer → `answer(id,false)`.
+3. **An ignored push hangs forever.** obex-agent.py:107 keeps `pending[id]` until an answer; ObexReceive.qml:57 sets no `-t`, and `-A` implies `--wait` (verified via `notify-send --help`). The shani-shell twin has `DECIDE_SECONDS = 60` (obex_receive.py:37,220) — port that: 60 s QML timer → `answer(id,false)`.
 4. **No destination picker per file.** The target path is fixed at authorization time (obex-agent.py:104) from the global `obexDir`; the prompt shows only name and size (ObexReceive.qml:57-58). Sketch: add a FolderPicker to the push card and pass the chosen path in `answer()`.
 5. **No Bluetooth transfer history.** `received` is a counter and `last` a single path (ObexReceive.qml:16-17); BtSend keeps nothing. Sketch: append `{device,file,size,when,dir,result}` to a persisted list shown in Settings > Network > Bluetooth — the shell's Nearby UI similarly keeps only the last three (GAPS-RESEARCH.md:455).
 6. **Outgoing send has no progress, cancel, resume, or retry.** BtSend.qml:24-30 polls only the `Status` string every 0.5 s for a hard 600 iterations (5 min), no `BytesTransferred`, no `Transfer1.Cancel`, no error detail; :38-43 reports only success/failure via `notify-send`. Sketch: emit progress/cancel lines from the same loop and expose a transfer card in `SidebarDetails.qml:282-299`.
 7. **One file per send.** `BtSend.qml:12` is a single `file` string, :23 one `SendFile`; Share.qml:22 builds one target per device. Sketch: make `pending` an array and loop CreateSession→SendFile sequentially.
 8. **Send does not connect a paired-but-disconnected device.** BtSend.qml:14 filters on `paired` only; :41 gives the vague "is it paired, on and accepting files?" hint. Sketch: call `device.connect()` before `sendTo`, then surface the gdbus error string.
 9. **HFP call-audio routing exists in the bridge but no shell UI.** bt_telephony.py:224-249 already implements `audio_route()`/`set_audio_route()` ("pc"/"phone" via `RejectSCO`), yet bridge/link.py exposes only dial/answer/hangup (:251-304) and the call card has no routing toggle. Sketch: add `link.py audio-route` and a button; this is the direct fix for "ring in silence" cases, distinct from the WirePlumber A2DP↔HFP auto-switch gap in GAPS-RESEARCH.md:855.
-10. **PBAP call history is implemented in shani-link but not reachable from the shell.** phone_bluez.py:478-494 pulls `int/cch` vCards; bridge/link.py:121-128 `cmd_calls()` reads only cached `calls_log` rows. Sketch: add `link.py phone-calls <device>` and a "Phone's recent calls" row in the Phone panel.
-11. **No FTP/browser of phone files anywhere.** `phone_bluez.py` implements MAP/PBAP/OPP only (:47-52); "ftp" appears only as NFC URI constants (shani-link/nfc.py:67-71). Sketch: obexd `Client1.CreateSession(ftp)` + `Filesystem1.ListFolder/GetFile`, surfaced as a paired-phone node in Files. Needs a phone that offers FTP and obexd FTP support — high value, highest effort here.
+10. **PBAP call history is implemented in shani-shell but not reachable from the shell.** phone_bluez.py:478-494 pulls `int/cch` vCards; bridge/link.py:121-128 `cmd_calls()` reads only cached `calls_log` rows. Sketch: add `link.py phone-calls <device>` and a "Phone's recent calls" row in the Phone panel.
+11. **No FTP/browser of phone files anywhere.** `phone_bluez.py` implements MAP/PBAP/OPP only (:47-52); "ftp" appears only as NFC URI constants (shani-shell/nfc.py:67-71). Sketch: obexd `Client1.CreateSession(ftp)` + `Filesystem1.ListFolder/GetFile`, surfaced as a paired-phone node in Files. Needs a phone that offers FTP and obexd FTP support — high value, highest effort here.
 12. **Per-device auto-connect is absent.** One global switch (SettingsNetwork.qml:443-450) drives BtAgent.qml:52-66, whose regex `/^(audio|input)/` excludes phones, watches and everything else. Sketch: a per-address `autoConnect` set in Settings and use it in `reconnect()` instead of the icon regex.
 13. **Connection profiles are not exposed.** SidebarDetails.qml:141-168 shows a single Connected/Paired state; bt_pair.py:312 already reads `Device1.UUIDs`. Sketch: show A2DP/HFP/PBAP/MAP profile chips from `UUIDs` and call `ConnectProfile`/`DisconnectProfile` — this also tells the user why MAP/PBAP failed (phone_bluez.py:26-28 requires per-device consent on Android).
 14. **Trust is set before pairing succeeds.** SidebarDetails.qml:157 sets `modelData.trusted = true` then calls `pair()`; bt_pair.py:347-355 sets Trusted only after a successful Pair. Sketch: move the trust assignment into the success callback.
 15. **No device rename/alias.** SidebarDetails.qml:146-149 renders `modelData.name` read-only; bt_pair.py's `Device` has no alias setter. Sketch: a rename row calling `bluetoothctl alias <addr> <name>` via `Process`.
 16. **Pairing prompts have no timeout; displayed passkeys do.** BtAgent.qml:47 times out only `show`; `ask` (:15) and bridge/bt-agent.py:71-75 wait indefinitely. Sketch: the same 60 s timer calling `answer(false)`.
-17. **The default agent answers pairings it did not start.** bt-agent.py:137-138 requests the global default with KeyboardDisplay, while shani-link's pairing flow deliberately uses a private connection with its own agent (bt_pair.py:9-15). Sketch: ignore `AuthorizeService`/confirm for addresses outside an active shell pairing session.
-18. **Single OBEX agent slot with no handoff.** obex-agent.py:151-158 exits when another agent holds obexd (tested: test_obex_agent.py:154-158); shani-link's receiver backs off inside niri (obex_receive.py:84-92,168-173). Sketch: one shared agent (or a handoff switch) so a Chronoa-driven session does not silence the shell receiver.
+17. **The default agent answers pairings it did not start.** bt-agent.py:137-138 requests the global default with KeyboardDisplay, while shani-shell's pairing flow deliberately uses a private connection with its own agent (bt_pair.py:9-15). Sketch: ignore `AuthorizeService`/confirm for addresses outside an active shell pairing session.
+18. **Single OBEX agent slot with no handoff.** obex-agent.py:151-158 exits when another agent holds obexd (tested: test_obex_agent.py:154-158); shani-shell's receiver backs off inside niri (obex_receive.py:84-92,168-173). Sketch: one shared agent (or a handoff switch) so a Chronoa-driven session does not silence the shell receiver.
 
 ## Needs BlueZ / hardware / other stack
 
@@ -2577,7 +2577,7 @@ I've read all seven gap files (GAPS.md 1885 lines, GAPS-RESEARCH.md 772 lines), 
 ### Shell-fixable gaps (ranked value × ease)
 
 1. **Per-app output picker absent from the mixer.** `Audio.moveStream()` exists but app rows only expose volume/mute (`SidebarSliders.qml:75-92`). *Sketch: add a sink dropdown per app row calling `Audio.moveStream(modelData, sink)`.*
-2. **Echo cancellation is detection-only.** `echo_cancel_active()` never enables anything (`bridge/shani_link/audio.py:66-81`; `bt_telephony.py:276-291`). *Sketch: mirror the RNNoise filter-chain pattern (`SoundFx.qml:238-291`) with an AEC fragment + Settings toggle; the report must stop listing it as missing.*
+2. **Echo cancellation is detection-only.** `echo_cancel_active()` never enables anything (`bridge/phone/audio.py:66-81`; `bt_telephony.py:276-291`). *Sketch: mirror the RNNoise filter-chain pattern (`SoundFx.qml:238-291`) with an AEC fragment + Settings toggle; the report must stop listing it as missing.*
 3. **No separate mic monitoring level.** Mic slider is capture gain only (`SidebarSliders.qml:31-48`). *Sketch: monitoring slider over a monitor source + loopback, default off.*
 4. **Lock-screen media controls are shallow.** Only prev/play/next and art (`LockScreen.qml:416-445`); sidebar has player switching + seek (`SidebarNowPlaying.qml:80-92`). *Sketch: reuse the sidebar card, add seek bar, volume, `Media.cycle()`.*
 5. **Media keys follow a sticky preferred player.** `Media.current = preferred || playing || first` (`Services/Media.qml:13-15`); a newly-starting player is ignored while a preference is stored. *Sketch: prefer `isPlaying` unless pinned this session.*
@@ -2962,7 +2962,7 @@ Read the full GAPS.md (all six passes) and skipped its WCAG/live-region/AT-SPI-n
 | # | Gap (group) | Evidence | One-line sketch |
 |---|---|---|---|
 | 1 | **High contrast stops at the shell** (low vision). The toggle only swaps `Theme` tokens; GTK/libadwaita apps are explicitly set to `adw-gtk3`, and `Access.qml` pushes only screen-reader + text-scaling to gsettings. | `SettingsPage.qml:1308`, `Theme.qml:100`, `Access.qml:28-34`, `Appearance.qml:125-132` | On toggle, also set `org.gnome.desktop.a11y.interface high-contrast` and a real HighContrast GTK theme (or ship an adw HC variant). |
-| 2 | **Flash alerts die at the lock screen** (deaf). Incoming calls are urgency-2 and always alert, but `FlashAlert` returns immediately while locked — a deaf user gets no call/doorbell visual when the screen is locked. | `FlashAlert.qml:25`, `Notifs.qml:259-263`, `shani_link/.../sip_accounts.py:930`, `landline/__init__.py:435` | Let the overlay flash run over `WlSessionLock`, or render a persistent visual call card there. |
+| 2 | **Flash alerts die at the lock screen** (deaf). Incoming calls are urgency-2 and always alert, but `FlashAlert` returns immediately while locked — a deaf user gets no call/doorbell visual when the screen is locked. | `FlashAlert.qml:25`, `Notifs.qml:259-263`, `phone/.../sip_accounts.py:930`, `landline/__init__.py:435` | Let the overlay flash run over `WlSessionLock`, or render a persistent visual call card there. |
 | 3 | **Braille stack ships but is inert** (blind). `shani-accessibility` depends on `brltty`/`espeakup` yet has no `.install` enabling either; `/var/lib/brltty` is bind-mounted but nothing starts; plug-in only flips Orca's switch. | `shani-pkgbuilds/shani-accessibility/PKGBUILD:8-12` (no `.install` in dir), `image_profiles/.../fstab:546`, `Plugged.qml:143-146` | Enable brltty/espeakup units; add a Braille subsection (Orca prefs, per-display choice, status-cell message on shell events). |
 | 4 | **TTS has no voice/language/pitch choice** (blind/speech). Only three speed chips; the rate line hardcodes spd-say/espeak arguments. | `Speak.qml:20,24-25`, `SettingsPage.qml:1332-1345` | List `spd-say -v`/`espeak -v` voices and expose voice + pitch alongside rate. |
 | 5 | **Voice typing ≠ voice control** (motor). Dictation only transcribes and types via `wtype`; no spoken-command grammar, so "click OK"/"open Settings" are impossible. | `Dictation.qml:26-65` | Classify the transcript as command vs dictation before typing; dispatch commands over the existing AT-SPI/`wtype` paths. |
@@ -3165,7 +3165,7 @@ All sixth-pass verdicts are static — no runtime, hardware, PAM/polkit, TPM/MOK
 2. **[high]** mail.py IMAP calls no timeout (:376-382); Updates.qml:66-69 no timeout/re-entrancy guard — one hung shani-deploy wedges all checks; fwupdmgr likewise. Translate interactive requests inherit 300s batch timeout.
 3. **[high]** Captive-portal detection exists (Net.qml:22-40) but apps emit generic errors; Weather keeps stale values with no "as of"; Feeds stores fetched but never shows; Radio wipes list on any error; Mail no offline/empty distinction.
 4. **[med]** No 429/503 handling on geocoding/OSRM (curl -sf collapses generic); Feeds retry no backoff; multi-GB model/Flatpak installs on metered connections; Flathub streams no timeout.
-5. **[daemon-level]** Landline SIP TLS disables verification and read timeouts (shani-link/.../ua.py:186-193); deploy retries fixed delays and honour no proxy.
+5. **[daemon-level]** Landline SIP TLS disables verification and read timeouts (shani-shell/.../ua.py:186-193); deploy retries fixed delays and honour no proxy.
 Already good: Chronoa cloud LLM exponential backoff with jitter; most API probes bounded; Screenshot OCR fully local.
 
 ## VERBATIM: Search and navigation depth
@@ -3305,7 +3305,7 @@ Kundali: timezone always UTC (appends Z) — wrong Lagna (fixed); nine bridge co
 
 ## VERBATIM: Messages/Calls/Phone
 
-Architecture: GTK4 shani-link owns Messages/Calls; QML shell has entry points and modem dialog.
+Architecture: GTK4 shani-shell owns Messages/Calls; QML shell has entry points and modem dialog.
 Gaps: conversation search; inline Reply on text notifications; group threads; image attachments; SMS backup/export; drafts; speed dial/favorites in shell; call-waiting UI; tie recordings to caller; delivery/read status.
 Security: messages not E2EE, bodies echoed to notify-send; positive: bidi control chars stripped, switches default off.
 Dead: PhonePanel.add_tab() empty stub; openRecentCalls() opens Calls tab.
@@ -3749,7 +3749,7 @@ Named: network (`:786`), portal (`:796`), audio (`:812`), battery (`:820`). Unna
 `Bar.qml:691-697`: `onClicked: Niri.stopCasts()` with hint "click to stop". `Niri.qml:243-263` walks every `session_id` from `niri msg -j casts` and calls `stop-cast` on all of them. One tap on a small status chip silently tears down every screencast (e.g. a recording plus a meeting share) with no attribution or undo. *Fix sketch:* open a menu from `niri msg -j casts` with one Disconnect row per session, keeping a single "Stop all" as an explicit item.
 
 ### 12. Screen-share detection itself is a property heuristic prone to false positives (Medium × Medium)
-`Audio.qml:34-38`: `screenShared` is any `VideoSource` whose `properties["device.api"]` is empty. A virtual camera (OBS) or shani-link's phone-as-webcam that omits that property lights the red "Sharing" chip at `Bar.qml:691-697` and, via the existing coupling, forces quiet elsewhere; a real share whose source sets it is missed. *Fix sketch:* correlate with the actual `niri msg -j casts` sessions (the source already used by `Niri.qml:246`) instead of a node property.
+`Audio.qml:34-38`: `screenShared` is any `VideoSource` whose `properties["device.api"]` is empty. A virtual camera (OBS) or shani-shell's phone-as-webcam that omits that property lights the red "Sharing" chip at `Bar.qml:691-697` and, via the existing coupling, forces quiet elsewhere; a real share whose source sets it is missed. *Fix sketch:* correlate with the actual `niri msg -j casts` sessions (the source already used by `Niri.qml:246`) instead of a node property.
 
 ### 13. Low battery is colour-only with a notify-once policy (Medium × Easy)
 `Bar.qml:814-829`: the battery glyph turns red only when `percent < 0.15 && !charging`; the numeric percent at `:822-829` depends on `barBatteryPercent`. `Power.qml:97-115` warns once at 15 % and 7 % per discharge (`warned`), so after a notification is dismissed there is no persistent textual badge — just a tint that reverts while charging. *Fix sketch:* add a small always-on "low battery" chip/label while `percent < 0.15 && !charging`, independent of `barBatteryPercent`.
@@ -4956,7 +4956,7 @@ Read both GAPS files; honoured the skip list (consumption/gestures/DND/lock/flas
 
 1. **[H×easy] Converter completion is silent.** `Modules/Converter/ConverterWindow.qml:89-90,207-217` — `done`/`failed` only set inline row state; close the window and the finished file is never announced. Sketch: one `execDetached(["notify-send",…,Tr.t("Converted"),e.done])` at :89 with an `open` action.
 2. **[H×easy] Feed auto-refresh announces nothing.** `Services/Feeds.qml:88-96` (self-refresh timer), `:169` (refresh result) — new articles appear only inside the window. Sketch: in the `refresh` handler compare unread count, notify once per batch ("3 new stories in <feed>") with a `show` action.
-3. **[H×med] No single producer API.** Notifs.qml:1-2 has no post method; producers are scattered across `Services/*.qml` and `bridge/shani_link/*` using two mechanisms (raw D-Bus with hints vs bare `notify-send`, `notify.py:16-30`). Result: 8 app-name spellings ("Files", "Trim", "Signed", "Camera", "Screen recorder", "Shani", "Power", Tr.t("Power")), arbitrary icons, no shared dedup/hints/i18n path. Sketch: `Notifs.post({app,summary,body,icon,urgency,category,actions,group})` invoking `Notify`, migrate callers.
+3. **[H×med] No single producer API.** Notifs.qml:1-2 has no post method; producers are scattered across `Services/*.qml` and `bridge/phone/*` using two mechanisms (raw D-Bus with hints vs bare `notify-send`, `notify.py:16-30`). Result: 8 app-name spellings ("Files", "Trim", "Signed", "Camera", "Screen recorder", "Shani", "Power", Tr.t("Power")), arbitrary icons, no shared dedup/hints/i18n path. Sketch: `Notifs.post({app,summary,body,icon,urgency,category,actions,group})` invoking `Notify`, migrate callers.
 4. **[H×med] QML producers set almost no metadata.** Of ~60 `notify-send` calls, only alarms/battery pass `-u critical` (`Power.qml:108`, `WorldClock.qml:86`, `FocusTimer.qml:40`); zero pass `desktop-entry`, `category`, `sound-name` or `-t`. The category hint is *read* once (`Notifs.qml:47`) but only bridges ever set it (`incoming_call.py:275`, `missed_call.py:73-78`). Sketch: route all posts through #3's hints helper with category + desktop-entry derived from the caller.
 5. **[H×med] Every reminder dies with the shell.** Calendar: `Agenda.qml:42,236-241` keeps `told` in memory, so a restart inside the lead window re-notifies the same event; all-day events excluded (`:236`). Timers/alarms ring only via a live `notify-send` (`WorldClock.qml:86`, `FocusTimer.qml:40`) — shell closed at alarm time means no alarm. Sketch: persist fired keys to `statePath()` and hand alarms to a systemd user timer when the shell is down.
 6. **[M×easy] Notification failures are invisible.** All shell posts use `execDetached` with no exit handling (e.g. `FileActions.qml:174`, `Camera.qml:156`); bridge D-Bus posts catch and log-only (`incoming_call.py:283`, `missed_call.py:81-82`, `map_notify.py:211`). No daemon/no bus = silent loss for every completion and prompt. Sketch: post helper checks status and falls back to an in-shell banner/toast.
@@ -5007,7 +5007,7 @@ I've read both gap files and all the camera source. Here is the twentieth-pass r
 
 ## VERBATIM: Messages and Calls apps UX
 
-I read both gap docs and traced all five surfaces (`MessagesWindow.qml`, `CallsWindow.qml`, `Services/Link.qml`, `bridge/link.py`, `bridge/modem.py`, `Services/Modem.qml`, `Services/Phone.qml`, `shani-link/phone.py`, Contacts detail sheet). Findings are static only — no runtime or modem/phone verification. I avoided the explicit skip list (SMS OTP copy, clipboard push, `--share-text`, `calls` closeApps flag, app existence, Contacts QR/drag).
+I read both gap docs and traced all five surfaces (`MessagesWindow.qml`, `CallsWindow.qml`, `Services/Link.qml`, `bridge/link.py`, `bridge/modem.py`, `Services/Modem.qml`, `Services/Phone.qml`, `shani-shell/phone.py`, Contacts detail sheet). Findings are static only — no runtime or modem/phone verification. I avoided the explicit skip list (SMS OTP copy, clipboard push, `--share-text`, `calls` closeApps flag, app existence, Contacts QR/drag).
 
 ## Ranked gaps (value × ease)
 
@@ -5040,7 +5040,7 @@ I read both gap docs and traced all five surfaces (`MessagesWindow.qml`, `CallsW
 19. **No number blocking / spam control.** No block list exists in `Modem.qml` or `link.py`; incoming SMS/call notifications are unconditional (`Modem.qml:60-73,90-108`). *Sketch:* local block list filtered at the `sms`/`call` handlers, with a Settings page.
 20. **Message content on lock screen is only indirectly governed.** `notifHideContent` gates SmartReplies (`SmartReplies.qml:21`) and card previews, but modem SMS is posted with `notify-send` including the body (`Modem.qml:97-98`), bypassing the shell's own hide-content path. *Sketch:* suppress body / route through `Notifs` when hidden or locked.
 
-**Skipped / risk:** I did not re-file the shani-link GTK-side items already in the docs (dialog pad T9, backup/export store, speed dial, ring/find, SIP manager, device-per-card). Items 13–20 depend on shani-link/ModemManager capabilities I could only read statically — in particular #14 assumes the daemon exposes SMS state, and #20 assumes `notify-send` bypasses the shell's lock-screen content gate; both need a real device or a private-bus check before being trusted.
+**Skipped / risk:** I did not re-file the shani-shell GTK-side items already in the docs (dialog pad T9, backup/export store, speed dial, ring/find, SIP manager, device-per-card). Items 13–20 depend on shani-shell/ModemManager capabilities I could only read statically — in particular #14 assumes the daemon exposes SMS state, and #20 assumes `notify-send` bypasses the shell's lock-screen content gate; both need a real device or a private-bus check before being trusted.
 
 ## VERBATIM: File Properties & metadata UI depth
 
@@ -5218,7 +5218,7 @@ Read-only research complete — no files changed. Both gap documents were read f
 **17. [L×M] No transliteration in mixed-script search.** No transliteration code exists in the tree (grep finds only `Ime.qml` comments); typing "namaste" in the launcher cannot find a "नमस्ते" note, contact or file.
 *Sketch:* reuse the m17n itrans table as a romanization bridge for launcher ranking.
 
-**Context, not re-filed:** RTL/bidi was already in the third-pass a11y list ("no RTL mirroring"); the only mirroring in the tree remains per-message-bubble `layoutDirection` (`MessagesWindow.qml:98`), and bidi controls are merely stripped in `bridge/shani_link/phone.py:229`. Emoji pages, candidate windows/preedit, spellcheck, swipe/one-handed, and Indic handwriting OCR degradation were all in earlier passes and are skipped here.
+**Context, not re-filed:** RTL/bidi was already in the third-pass a11y list ("no RTL mirroring"); the only mirroring in the tree remains per-message-bubble `layoutDirection` (`MessagesWindow.qml:98`), and bidi controls are merely stripped in `bridge/phone/phone.py:229`. Emoji pages, candidate windows/preedit, spellcheck, swipe/one-handed, and Indic handwriting OCR degradation were all in earlier passes and are skipped here.
 
 **Skipped / risk:** Static reading only — no QML runtime, real fcitx5, touchscreen, or multi-monitor verification; items 2, 6 and 8 depend on fcitx5/Qt/AT-SPI behavior that could not be observed here.
 
@@ -5340,7 +5340,7 @@ Read both gap docs and skipped all twenty passes' items plus the parent's named 
 
 ## VERBATIM: Screen sharing & phone link UX
 
-I read both gap files (1,885 + 4,577 lines) and the twenty-pass indexes first, then traced `bridge/portal.py`, `Portal.qml`, `niri-portals.conf`, `Cast.qml`, `Recorder.qml`, `SidebarTiles/SidebarDetails.qml`, `Bar.qml`, `Island.qml`, `Services/Nearby.qml`, `Modules/Nearby/NearbyWindow.qml`, `bridge/nearby.py`, `Services/Phone.qml`, `Services/Link.qml`, `bridge/link.py`, `SettingsSharing.qml`, `Audio.qml`, `Niri.qml`, and shani-link's `screen_stream.py`, `screen_share.py`, `tether.py`, `phone.py`, `service.py`. Static only. Skip list honoured (recorder chip, cast consent, clipboard push, `--share-text`, Nearby basic flow, BT colour-only, peripheral battery, location/chamera chips); also excluded already-filed items: Sunshine's command-leak wording, portal-wlr remote-desktop control, dynamic-cast actions, GTK pages not surfaced, pairing wizard, BT codec/profiles/trust/rename/FTP/OBEX history, Nearby last-3 history, `notify-send -A` without expiry.
+I read both gap files (1,885 + 4,577 lines) and the twenty-pass indexes first, then traced `bridge/portal.py`, `Portal.qml`, `niri-portals.conf`, `Cast.qml`, `Recorder.qml`, `SidebarTiles/SidebarDetails.qml`, `Bar.qml`, `Island.qml`, `Services/Nearby.qml`, `Modules/Nearby/NearbyWindow.qml`, `bridge/nearby.py`, `Services/Phone.qml`, `Services/Link.qml`, `bridge/link.py`, `SettingsSharing.qml`, `Audio.qml`, `Niri.qml`, and shani-shell's `screen_stream.py`, `screen_share.py`, `tether.py`, `phone.py`, `service.py`. Static only. Skip list honoured (recorder chip, cast consent, clipboard push, `--share-text`, Nearby basic flow, BT colour-only, peripheral battery, location/chamera chips); also excluded already-filed items: Sunshine's command-leak wording, portal-wlr remote-desktop control, dynamic-cast actions, GTK pages not surfaced, pairing wizard, BT codec/profiles/trust/rename/FTP/OBEX history, Nearby last-3 history, `notify-send -A` without expiry.
 
 ## Ranked gaps (value × ease)
 
@@ -5351,14 +5351,14 @@ I read both gap files (1,885 + 4,577 lines) and the twenty-pass indexes first, t
 5. **[H×M] Nearby cannot send or receive text/links.** `bridge/nearby.py:10-14` ops are file-only; `NearbyWindow.qml:22-25` only opens `FilePicker`. LocalSend v2 has a text path. *Sketch:* `sendText` op + "Send a note/link" row; incoming text → confirm → clipboard.
 6. **[H×M] No receiver selection for Cast.** `Cast.qml:12-14` blindly execs gnome-network-displays despite supporting Miracast *and* Chromecast (`:2-4`), while the tile says only "Miracast" (`SidebarTiles.qml:376`). *Sketch:* enumerate Network Displays receivers over D-Bus → QML chooser before launch.
 7. **[H×M] Remote desktop has no session list, disconnect, or "being watched" cue.** `SettingsSharing.qml:153-166` only enables/disables the user unit; no bar chip, client count, or control action. *Sketch:* poll Sunshine clients; "Remote desktop in use" chip + Disconnect.
-8. **[H×M] No UI for using the phone's internet (reverse tethering).** `shani-link/tether.py:32-117` and D-Bus `Tether`/`UsbTether`/`WifiTether` (`service.py:100-104,331-341`) exist; shell only has outbound Wi-Fi hotspot (`Net.qml:76-82`) and `bridge/link.py:9-19` has no tether verb. *Sketch:* `link.py tether <on|off|state>` + Network tile.
+8. **[H×M] No UI for using the phone's internet (reverse tethering).** `shani-shell/tether.py:32-117` and D-Bus `Tether`/`UsbTether`/`WifiTether` (`service.py:100-104,331-341`) exist; shell only has outbound Wi-Fi hotspot (`Net.qml:76-82`) and `bridge/link.py:9-19` has no tether verb. *Sketch:* `link.py tether <on|off|state>` + Network tile.
 9. **[M×E] "Sharing" chip stops every cast with one click.** `Bar.qml:691-697` → `Niri.qml:243-263` loops all `session_id`s and calls `stop-cast` on each — no list, attribution, or confirm. *Sketch:* menu from `niri msg -j casts` with per-cast stop.
 10. **[M×E] Concurrent Nearby offers go unanswered when the window is closed.** `Nearby.qml:113-115` `if (running) return` means only the first offer gets the `-w` notification; the rest wait for the window or the 60 s timeout (`nearby.py:71`). *Sketch:* queue notifications sequentially, repost after each answer.
 11. **[M×E] Three destructive sharing actions are one-click.** KDE Connect unpair (`SidebarDetails.qml:429-435`), BT Forget (`:161-167`), usershare delete (`SettingsSharing.qml:187`) — no confirm/undo. *Sketch:* reuse the shell's two-tap pattern; Undo re-adds the share.
-12. **[M×E] No file/link send action on the Phone card.** `SidebarDetails.qml:441-443` offers only Ring/Ping/Send clipboard; `Link.share()` (`Link.qml:51`) has zero QML callers; shani-link can share URLs via `--share-link` (`phone.py:179,194`). *Sketch:* "Send file" + "Open link on phone" rows; let `Link.share` accept a URL.
+12. **[M×E] No file/link send action on the Phone card.** `SidebarDetails.qml:441-443` offers only Ring/Ping/Send clipboard; `Link.share()` (`Link.qml:51`) has zero QML callers; shani-shell can share URLs via `--share-link` (`phone.py:179,194`). *Sketch:* "Send file" + "Open link on phone" rows; let `Link.share` accept a URL.
 13. **[M×E] Phone-cast quality/framerate/audio are fixed by transport.** `screen_stream.py:72-76,1047-1050` hardcodes 8 fps/400 kbit (BT) and 24 fps/4 Mbit (USB); no CLI flag (`:1540-1572`); GTK page has only Start/Window/Stop/Touch (`screen_share.py:219-229`); desktop-audio pipeline exists but is not a choice (`:578-584`). *Sketch:* `--fps/--bitrate/--audio` + a QML quality row.
 14. **[M×M] Nearby devices are never remembered or trusted.** `nearby.py:210-226` keeps `known` in-process and the bridge dies with the window (`Nearby.qml:78-79`); no alias rename, trusted badge, or auto-accept. *Sketch:* persist fingerprint→alias/trust JSON; show a "Known" chip while keeping per-transfer confirm.
-15. **[M×M] Screen-share detection is a property heuristic.** `Audio.qml:34-38` treats any VideoSource without `device.api` as a cast; OBS virtual cam or shani-link's phone-as-webcam can trigger a false "Sharing" chip and forced quiet (`Notifs.qml:108`). *Sketch:* correlate with `niri msg -j casts` sessions instead.
+15. **[M×M] Screen-share detection is a property heuristic.** `Audio.qml:34-38` treats any VideoSource without `device.api` as a cast; OBS virtual cam or shani-shell's phone-as-webcam can trigger a false "Sharing" chip and forced quiet (`Notifs.qml:108`). *Sketch:* correlate with `niri msg -j casts` sessions instead.
 16. **[M×M] Remote desktop is buried in Settings › Sharing.** No tile in `SidebarTiles.qml:46`'s known list; only `SettingsSharing.qml:153-166`. *Sketch:* Control Center tile flipping the same user unit with active state.
 17. **[L×E] Failed Nearby transfers have no retry.** `NearbyWindow.qml:141-153` hides Cancel for done/failed and offers no retry. *Sketch:* "Retry" re-queues `pending` to the same fingerprint.
 18. **[M×E] `Cast.available` only checks binary presence.** `Cast.qml:15-19` probes `command -v`/`flatpak info`, not the ScreenCast portal; if portal-wlr is missing the tile stays enabled and `open()` fails silently in a detached process. *Sketch:* probe the portal interface and surface a note in the tile subtitle.
@@ -5535,7 +5535,7 @@ Skipped: the named skip-list items and all already-filed logs/diagnostics/dev-to
 
 ## VERBATIM: Audio system and TTS UX
 
-I've read both gap docs (1,885 + 4,838 lines) and all twenty-one pass indexes, then traced `Audio.qml`, `SidebarSliders.qml`, `Speak.qml`, `SystemSounds.qml`, `SoundFx.qml`, `SettingsSound.qml`, `SliderRow.qml`, `Osd.qml`, `Access.qml`, `Notifs.qml`, `bridge/shani_link/audio.py`, plus the shipped Piper TTS packages and Chronoa's `tts.py`/`voices.py`. Static only; nothing edited. Skip list honoured (notification-sound switches, alert volume/stream, TTS title-only, screen-share heuristic, dictation mute/capture/audio, BT colour-only) as well as all filed 9th-pass routing gaps (per-app output picker, AEC, mic monitoring, ducking, limiter, channel remap, echo-cancel, A2DP/HFP, graph viewer, TTS voice selection as such).
+I've read both gap docs (1,885 + 4,838 lines) and all twenty-one pass indexes, then traced `Audio.qml`, `SidebarSliders.qml`, `Speak.qml`, `SystemSounds.qml`, `SoundFx.qml`, `SettingsSound.qml`, `SliderRow.qml`, `Osd.qml`, `Access.qml`, `Notifs.qml`, `bridge/phone/audio.py`, plus the shipped Piper TTS packages and Chronoa's `tts.py`/`voices.py`. Static only; nothing edited. Skip list honoured (notification-sound switches, alert volume/stream, TTS title-only, screen-share heuristic, dictation mute/capture/audio, BT colour-only) as well as all filed 9th-pass routing gaps (per-app output picker, AEC, mic monitoring, ducking, limiter, channel remap, echo-cancel, A2DP/HFP, graph viewer, TTS voice selection as such).
 
 ## Ranked gaps (value × ease)
 

@@ -42,7 +42,7 @@ Singleton {
             + (dev.charging ? " · " + Tr.t("charging") : "");
     }
 
-    // Shani Link pages (shani-link-app, dev.shani.Link.App): the Phone page
+    // Phone pages (phone-app, dev.shani.Shell.Phone.App): the Phone page
     // holds the dial pad, Messages, Contacts, Music, Files and Remote. The
     // dial pad also dials the landline and the SIM modem, so these work even
     // when no KDE Connect phone is paired - Phone.available only gates the
@@ -52,20 +52,20 @@ Singleton {
     function openDial(number) {
         const n = (number || "").trim();
         if (!n)
-            Quickshell.execDetached(["shani-link-app", "--page", "phone"]);
+            Quickshell.execDetached(["phone-app", "--page", "phone"]);
         else
-            Quickshell.execDetached(["shani-link-app", "--page", "phone", "--dial=" + n]);
+            Quickshell.execDetached(["phone-app", "--page", "phone", "--dial=" + n]);
     }
     function openMessages(number) {
         const n = (number || "").trim();
-        Quickshell.execDetached(["shani-link-app", "--page", "phone", "--message=" + n]);
+        Quickshell.execDetached(["phone-app", "--page", "phone", "--message=" + n]);
     }
     // the address book: vCard files of its own, with the phone's contacts beside
     function openContacts() {
-        Quickshell.execDetached(["shani-link-app", "--page", "contacts"]);
+        Quickshell.execDetached(["phone-app", "--page", "contacts"]);
     }
     function openRecentCalls() {
-        Quickshell.execDetached(["shani-link-app", "--page", "phone"]);
+        Quickshell.execDetached(["phone-app", "--page", "phone"]);
     }
     function openPhone() { openDial(""); }
 

@@ -1183,7 +1183,7 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
 - **Twelve features, Nov 2026, each checked live** (dev/shell-parts/): Quick
   Look, writing tools, Archive Manager (create, one item, passwords), Media
   Player (tracks, subtitles, resume, tags, mini player), battery health,
-  clipboard with the phone (shani-link), smart replies, tidy and name, search by
+  clipboard with the phone (shani-shell), smart replies, tidy and name, search by
   meaning, Document Viewer (EPUB, comics, DjVu, forms), Maps (pan, zoom,
   directions), live wallpaper. The AI ones go through Chronoa's own interface:
   `Agent.Write` (text in, text out; no tools, no conversation) and
@@ -1281,7 +1281,7 @@ The shell talks D-Bus through `bridge/modem.py` (no mmcli in the image). Surfaci
 - Peripherals the image ships and the shell never used (audit of shani-peripherals):
   InputPlumber (added - controllers lent to the desktop over a game), NUT (a UPS
   said on a power cut), yubikey-manager (a key's OATH codes in the Authenticator).
-  Left to other apps by design: lirc, libnfc, rtl-sdr (Shani Link), ykman's admin
+  Left to other apps by design: lirc, libnfc, rtl-sdr (Phone), ykman's admin
   (Cassini); not used: libdvdcss (the Media Player has no DVD menus), linuxconsole.
 - Files gained copy / cut / paste, undo, the trash's put back and empty, search
   through folders, Properties, batch rename and bookmarks (bridge/files.py; 12 unit

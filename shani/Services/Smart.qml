@@ -23,7 +23,7 @@ Singleton {
             return { icon: "web-browser", text: "Open " + t.replace(/^https?:\/\//, "").replace(/^[^@/]+@/, "***@").slice(0, 40), run: () => Qt.openUrlExternally(t) };
         if (/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t))
             return { icon: "mail-unread", text: "Email " + t, run: () => Qt.openUrlExternally("mailto:" + t) };
-        // a number: Call lands on the Shani Link dial pad (Modem.callNumber
+        // a number: Call lands on the Phone dial pad (Modem.callNumber
         // opens Phone first when a phone link is available, else tel:).
         // a date or a card number fits the phone shape too — never offer to dial one
         if (/^\+?[\d][\d\s-]{7,15}\d$/.test(t) && !/^(\d{1,4}[-/.]){2}\d{1,4}$|^\d{16}$/.test(t))

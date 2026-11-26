@@ -14,7 +14,7 @@ One JSON answer per command, like every other bridge here:
     health.py spot <hr|spo2|bp>       one measurement from the watch
 
 Everything written stays in a sqlite database under XDG_DATA_HOME — nothing is
-uploaded, and there is no account. shani-link is optional: when the package, a
+uploaded, and there is no account. shani-shell is optional: when the package, a
 paired watch or the hardware is missing, the read commands still return the
 local journal with an `error` saying why the watch could not be reached.
 """
@@ -31,21 +31,21 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-NOT_INSTALLED = "shani-link is not installed"
+NOT_INSTALLED = "the phone backends are not installed"
 
 
 def _module(name: str):
-    """Import one piece of shani_link, or None when it is not there."""
+    """Import one piece of phone, or None when it is not there."""
     try:
         return __import__(name, fromlist=["*"])
     except Exception:  # noqa: BLE001 - any import failure means "no link here"
         return None
 
 
-watch = _module("shani_link.watch")
-moyoung = _module("shani_link.moyoung")
-gatt = _module("shani_link.gatt")
-phone_bluez = _module("shani_link.phone_bluez")
+watch = _module("phone.watch")
+moyoung = _module("phone.moyoung")
+gatt = _module("phone.gatt")
+phone_bluez = _module("phone.phone_bluez")
 
 
 def _ok(error: str | None = None) -> dict:
