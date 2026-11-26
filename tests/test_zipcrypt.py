@@ -155,14 +155,19 @@ def run_cli(*args, password=""):
     )
 
 
-@libarchive
-def test_the_command_line_makes_and_reports(tmp_path):
-    src = tmp_path / "one.txt"
-    src.write_text("x")
-    arc = tmp_path / "e.zip"
-    out = run_cli("make", str(arc), str(src), password="pw")
-    assert out.returncode == 0
-    assert zipcrypt.encrypted(str(arc)) is True
+def test_make_and_encrypted_are_not_second_commands():
+    """Archives makes protected archives and shows the Locked badge itself;
+    lock.py keeps these as library functions, not as CLI verbs."""
+    for verb, args in (
+        ("make", ["/tmp/e.zip", "/tmp/one.txt"]),
+        ("encrypted", ["/tmp/e.zip"]),
+    ):
+        out = run_cli(verb, *args, password="pw")
+        assert out.returncode == 2, (verb, out.stdout, out.stderr)
+        assert "zipcrypt.py extract" in out.stderr
+        assert f"zipcrypt.py {verb}" not in out.stderr
+    lock = (ROOT / "bridge/lock.py").read_text()
+    assert "_zip().make(" in lock and "_zip().encrypted(" in lock
 
 
 @libarchive
@@ -175,9 +180,19 @@ def test_the_command_line_reports_a_wrong_password(tmp_path):
     assert "wrongPassword" in out.stdout
 
 
-@libarchive
-def test_encrypted_answers_json(tmp_path):
+def test_encrypted_is_still_a_library_answer(tmp_path):
     arc = make_plain(tmp_path / "a.zip", {"one.txt": "1"})
-    out = run_cli("encrypted", str(arc))
-    assert out.returncode == 0
-    assert '"encrypted": false' in out.stdout
+    assert zipcrypt.encrypted(str(arc)) is False
+
+
+def test_the_archives_app_owns_both_encrypted_answers():
+    """Compress makes a protected archive; the Locked badge reports one."""
+    service = (ROOT / "shani/Services/Archive.qml").read_text()
+    window = (ROOT / "shani/Modules/Archives/ArchivesWindow.qml").read_text()
+    shell = (ROOT / "shani/shell.qml").read_text()
+    part = (ROOT / "dev/shell-parts/archives.sh").read_text()
+    assert "zip:encryption=aes256" in service and "--passphrase" in service
+    assert "root.wasProtected = true;" in service and 'Tr.t("Locked")' in window
+    assert "archiveProtected: !!Archive.wasProtected" in shell
+    assert "archive-compress-with-password-made" in part
+    assert "archive-reports-protected" in part
