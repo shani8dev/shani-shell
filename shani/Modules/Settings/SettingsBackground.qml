@@ -6,6 +6,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import qs.Common
+import qs.Services
 import "../../Common/ToolPath.js" as ToolPath
 
 ColumnLayout {
@@ -245,6 +246,43 @@ ColumnLayout {
                     font.pixelSize: Theme.px(10) * Theme.fontScale
                 }
             }
+        }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Phone and watch, with no window open")
+        hint: Tr.t("Each one runs only while its switch is on")
+        BusyNote {
+            Layout.fillWidth: true
+            visible: PhoneTools.busy
+            note: Tr.t("Reading…")
+            iconSize: Theme.px(16)
+        }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: Tr.t("%1 of %2 on", PhoneTools.switches.filter(s => s.on).length, PhoneTools.switches.length)
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: Theme.px(12) * Theme.fontScale
+        }
+        Repeater {
+            model: PhoneTools.switches
+            SwitchRow {
+                required property var modelData
+                Layout.fillWidth: true
+                text: modelData.label || ""
+                hint: modelData.detail || ""
+                checked: !!modelData.on
+                onToggled: on => PhoneTools.backgroundSet(modelData.key, on)
+            }
+        }
+        EmptyState {
+            visible: !PhoneTools.busy && PhoneTools.switches.length === 0
+            icon: "preferences-system"
+            title: Tr.t("No phone switches yet")
+            subtitle: Tr.t("The phone tools are not installed")
         }
     }
 }

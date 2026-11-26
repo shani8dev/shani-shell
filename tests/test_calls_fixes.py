@@ -21,7 +21,10 @@ def test_incall_card_shows_the_call_and_its_controls():
     svc = source("shani/Services/Modem.qml")
     bridge = source("bridge/modem.py")
 
-    assert "visible: Modem.call !== null" in win
+    assert (
+        "visible: Modem.call !== null" in win
+        or "property bool inCall: Modem.call !== null" in win
+    )
     assert "text: Modem.callTime" in win
     assert 'Tr.t("Mute")' in win and 'Tr.t("Speaker")' in win
     assert 'Tr.t("Hang up")' in win

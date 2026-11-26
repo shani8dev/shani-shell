@@ -32,7 +32,7 @@ machine with no phone backends still gets an answer instead of a traceback.
     devices.py landline-forget                 {ok,error,state}
 
 Helpers are overridable for tests, as in containers.py: SHANI_ADB, SHANI_DBUS,
-SHANI_KDECONNECT, SHANI_BLUETOOTHCTL, SHANI_NFC, SHANI_IR, SHANI_FM and
+SHANI_BLUETOOTHCTL, SHANI_NFC, SHANI_IR, SHANI_FM and
 SHANI_SCREEN_MODE.
 """
 
@@ -482,18 +482,12 @@ def cmd_connect(kind: str, value: str = "", code: str = "") -> dict:
             "Bluetooth pairing",
         )
     if kind == "phone":
+        # A phone needs no companion app here: Wi-Fi debugging uses the same
+        # adb pairing as an Android device on a cable.
         if not value:
-            return _ok("give the phone id to pair")
-        return _run(
-            _tool("SHANI_KDECONNECT", "kdeconnect-cli")
-            + [
-                "-d",
-                value,
-                "--pair",
-            ],
-            "phone pairing",
-        )
-    return _ok("connect android, bluetooth or phone")
+            return _ok("give the phone's Wi-Fi debugging address to pair")
+        return cmd_connect("android", value, code)
+    return _ok("connect android or bluetooth")
 
 
 SCREEN_AREAS = ("window", "screen")

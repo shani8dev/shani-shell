@@ -1,8 +1,7 @@
 pragma Singleton
-// One "Share…" for file(s) (after the share sheets of macOS and Windows): the
-// phone (KDE Connect), a paired Bluetooth device, a device on the Wi-Fi with LocalSend
-// (nearby devices of any kind — the image's AirDrop), a folder opened as a QR
-// link on this network, email, or the clipboard — as the file itself
+// One "Share…" for file(s): a paired phone, a paired Bluetooth device, a
+// device on the same Wi-Fi, a folder opened as a QR link on this network,
+// email, or the clipboard — as the file itself
 // (text/uri-list, so it pastes into Files or a chat) or its path.
 // The sheet (Modules/Share/ShareSheet.qml) lists them, recents first.
 import Quickshell

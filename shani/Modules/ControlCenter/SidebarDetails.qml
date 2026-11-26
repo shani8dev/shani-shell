@@ -470,17 +470,24 @@ ColumnLayout {
         }
     }
 
+    // Connecting a phone uses what the phone already has: Bluetooth pairing, or
+    // adb over Wi-Fi debugging (pairing code or QR). Nothing is installed on it.
     ColumnLayout {
-        visible: Ui.expanded === "phone" && Phone.available
+        id: phoneDetails
+        visible: Ui.expanded === "phone"
         Layout.fillWidth: true
         spacing: 2
-        onVisibleChanged: if (visible) { Phone.search(); Link.refresh(); }
+        property string connectKind: "bluetooth"  // bluetooth | android
+        property string pairAddress: ""
+        property string pairCode: ""
+
+        onVisibleChanged: if (visible) { Devices.refresh(); Link.refresh(); }
         SectionTitle {
-            text: Tr.t("Phones · KDE Connect")
-            IconButton { icon: "view-refresh"; size: Theme.px(24); Accessible.name: Tr.t("Search again"); onClicked: Phone.search() }
+            text: Tr.t("Phones")
+            IconButton { icon: "view-refresh"; size: Theme.px(24); Accessible.name: Tr.t("Look for phones again"); onClicked: { Devices.refresh(); Link.refresh(); } }
         }
         Repeater {
-            model: Phone.devices
+            model: Link.devices
             ColumnLayout {
                 id: devRow
                 required property var modelData
@@ -490,37 +497,113 @@ ColumnLayout {
                 ListRow {
                     Layout.fillWidth: true
                     icon: "phone"
-                    title: devRow.modelData.name
-                    subtitle: devRow.modelData.paired ? (devRow.modelData.reachable ? "Connected" : "Paired · not nearby") : "Nearby · click to pair"
+                    title: devRow.modelData.name || devRow.modelData.id
+                    subtitle: devRow.modelData.reachable ? Tr.t("Connected")
+                        : devRow.modelData.paired ? Tr.t("Paired · not nearby") : Tr.t("Nearby")
                     trailing: Phone.batteryText(devRow.linkDev)
                     selected: devRow.modelData.paired && devRow.modelData.reachable
-                    onClicked: if (!devRow.modelData.paired) Phone.pair(devRow.modelData.id)
-                    IconButton {
-                        visible: devRow.modelData.paired
-                        icon: "edit-delete"
-                        size: Theme.px(24)
-                        Accessible.name: "Unpair " + devRow.modelData.name
-                        onClicked: Phone.unpair(devRow.modelData.id)
-                    }
-                }
-                RowLayout {
-                    visible: devRow.modelData.paired && devRow.modelData.reachable
-                    Layout.leftMargin: Theme.px(40)
-                    spacing: Theme.px(6)
-                    Button { text: Tr.t("Ring"); onClicked: Phone.ring(devRow.modelData.id) }
-                    Button { text: Tr.t("Ping"); onClicked: Phone.ping(devRow.modelData.id) }
-                    Button { text: Tr.t("Send clipboard"); onClicked: Phone.sendClipboard(devRow.modelData.id) }
+                    onClicked: Ui.openDevices()
                 }
             }
         }
-        Text {
-            visible: Phone.devices.length === 0
+        EmptyState {
+            visible: Link.devices.length === 0
+            icon: "phone"
+            title: Tr.t("No phone connected yet")
+            subtitle: Tr.t("Pair one below with Bluetooth or Wi-Fi debugging")
+        }
+        SettingsSection {
             Layout.fillWidth: true
-            text: Tr.t("No phone found. Open KDE Connect on the phone, on the same Wi-Fi, then search again.")
-            color: Theme.dim
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
+            title: Tr.t("Connect a phone")
+            hint: Tr.t("Both ways use what the phone already has. Nothing to install on it.")
+            Picks {
+                label: Tr.t("How to connect")
+                options: [
+                    { label: Tr.t("Bluetooth"), value: "bluetooth" },
+                    { label: Tr.t("Wi-Fi debugging"), value: "android" }
+                ]
+                current: phoneDetails.connectKind
+                onPicked: v => phoneDetails.connectKind = v
+            }
+            ColumnLayout {
+                visible: phoneDetails.connectKind === "bluetooth"
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("On the phone, turn on Bluetooth and leave its Settings screen open. Then pick the phone here.")
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                Repeater {
+                    model: Bluetooth.devices.values.slice().sort((a, b) => (b.connected - a.connected) || (b.paired - a.paired))
+                    ListRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        icon: modelData.icon || "bluetooth-active"
+                        title: modelData.name || modelData.address
+                        subtitle: modelData.connected ? Tr.t("Connected") : modelData.pairing ? Tr.t("Pairing…") : modelData.paired ? Tr.t("Paired") : Tr.t("Available")
+                        selected: modelData.connected
+                        onClicked: {
+                            if (modelData.paired) modelData.connect();
+                            else Devices.connect("bluetooth", modelData.address);
+                        }
+                    }
+                }
+                EmptyState {
+                    visible: Bluetooth.devices.values.length === 0
+                    icon: "bluetooth-active"
+                    title: Tr.t("No Bluetooth devices nearby")
+                    subtitle: Tr.t("Turn Bluetooth on here and on the phone, then look again")
+                }
+            }
+            ColumnLayout {
+                visible: phoneDetails.connectKind === "android"
+                Layout.fillWidth: true
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("On the phone, open Settings → Developer options → Wireless debugging. Pair it with a code or a QR code; it then connects without a cable.")
+                    color: Theme.dim
+                    wrapMode: Text.Wrap
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
+                ColumnLayout {
+                    visible: phoneDetails.pairKind === "code"
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    TextField {
+                        Layout.fillWidth: true
+                        label: Tr.t("Address")
+                        placeholder: Tr.t("The address shown on the phone, like 192.168.1.20:37099")
+                        text: phoneDetails.pairAddress
+                        onTextChanged: phoneDetails.pairAddress = text
+                    }
+                    TextField {
+                        Layout.fillWidth: true
+                        label: Tr.t("Code")
+                        placeholder: Tr.t("The six-digit code shown on the phone")
+                        text: phoneDetails.pairCode
+                        onTextChanged: phoneDetails.pairCode = text
+                    }
+                    Button {
+                        text: Tr.t("Pair over Wi-Fi")
+                        kind: "primary"
+                        enabled: !Devices.busy && phoneDetails.pairAddress.trim() !== "" && phoneDetails.pairCode.trim() !== ""
+                        onClicked: Devices.connect("android", phoneDetails.pairAddress.trim(), phoneDetails.pairCode.trim())
+                    }
+                }
+                BusyNote { visible: Devices.busy; note: Tr.t("Connecting…") }
+                InfoBanner {
+                    visible: Devices.note !== "" && !Devices.busy
+                    Layout.fillWidth: true
+                    text: Devices.note
+                    tone: "info"
+                }
+            }
         }
     }
 
@@ -557,7 +640,7 @@ ColumnLayout {
         Text {
             visible: Mirror.devices.length === 0
             Layout.fillWidth: true
-            text: Tr.t("Connect an Android phone by USB, with USB debugging on (Developer options), and allow this computer on the phone.")
+            text: Tr.t("Connect an Android phone by USB or Wi-Fi debugging (Developer options), then allow this computer on the phone.")
             color: Theme.dim
             wrapMode: Text.Wrap
             font.family: Theme.font

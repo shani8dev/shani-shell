@@ -16,8 +16,8 @@ Bar	board-bar desktop-rest phone-bar
 Calculator	app-calculator	
 CalendarPanel	app-calendar	
 CalibrateOverlay	calibrate-touch	
-CallsWindow	app-calls calls-app	
-DevicesWindow	app-devices devices-window devices-android-info devices-screen devices-fm devices-gadgets	native devices window
+CallsWindow	app-calls calls-app calls-status calls-dialpad calls-history calls-in-call calls-music calls-files calls-remote calls-incoming	phone windows and tabs
+DevicesWindow	app-devices devices-window devices-android-info devices-screen devices-phone-link devices-gadgets	native devices window
 IncomingCall	96-call-ringing modem-call calls-incoming	shell-drawn call card
 CameraPanel	87-photo-countdown app-camera	
 CaptionBar	61-captions captions	
@@ -47,7 +47,7 @@ FilePickerPanel	-	a layer-shell Overlay the nested niri does not composite; the 
 FilesPanel	app-files files-all-pictures files-cloud files-compare files-copy-history files-copy-paused files-devices files-job files-lock files-properties files-tabs files-thumbs files-unlock files-usb-write	
 FlashAlert	67-flash flash-alert	
 FontsPanel	app-fonts fonts-file	
-HealthWindow	app-health	
+HealthWindow	app-health health-dashboard health-empty	watch dashboard
 HotCorners	-	invisible input regions in the screen corners: nothing is drawn
 IrcWindow	app-irc	
 Island	24-island-approval 53-island-activity island-approval island-ask island-caffeine island-dnd island-media island-record island-rest island-timer island-working	
@@ -62,7 +62,7 @@ LogsPanel	app-logs
 Magnifier	63-magnifier magnifier	
 MailWindow	app-mail mail-list	
 MapsPanel	app-maps maps-online-place maps-online-route maps-place maps-route maps-saved	
-MediaPlayerWindow	app-media-player app-media-player-audio app-media-player-library app-media-player-song app-media-player-video	
+MediaPlayerWindow	app-media-player app-media-player-audio app-media-player-library app-media-player-song app-media-player-video radio-fm radio-fm-idle radio-fm-playing	FM is a Radio source
 MessagesWindow	app-messages messages-app	
 ModelsWindow	app-models	
 ModemDialog	95-sms 96-call-ringing modem-call modem-sms-composer	
@@ -93,7 +93,7 @@ RulerPanel	ruler
 ScannerPanel	app-document-scanner	
 ScreenCorners	desktop-rest	the rounded screen corners are drawn in every shot
 ServicesWindow	app-services services-app	
-SettingsWindow	71-settings-categories 72-settings-backup 72-settings-input 73-settings-apps 74-settings-date-language 75-settings-about 76-settings-layouts 77-settings-account 78-settings-look 79-settings-sound 86-settings-displays 88-settings-shortcuts 89-settings-privacy settings-about settings-access settings-account settings-apps settings-automations settings-backup settings-battery settings-chronoa settings-date-language settings-displays settings-input settings-journal settings-main settings-modules settings-network settings-notifications settings-personal settings-personal-colours settings-power settings-power-keys settings-printers settings-privacy settings-screen-time settings-search settings-search-empty settings-search-empty-folders settings-search-proxy settings-security settings-sharing settings-sharing-nearby settings-sound settings-storage settings-terminal settings-time settings-users settings-windows	
+SettingsWindow	71-settings-categories 72-settings-backup 72-settings-input 73-settings-apps 74-settings-date-language 75-settings-about 76-settings-layouts 77-settings-account 78-settings-look 79-settings-sound 86-settings-displays 88-settings-shortcuts 89-settings-privacy settings-about settings-access settings-account settings-apps settings-automations settings-backup settings-battery settings-chronoa settings-date-language settings-displays settings-input settings-journal settings-main settings-modules settings-network settings-notifications settings-personal settings-personal-colours settings-power settings-power-keys settings-printers settings-privacy settings-screen-time settings-search settings-search-empty settings-search-empty-folders settings-search-proxy settings-security settings-sharing settings-sharing-nearby settings-background settings-sound settings-storage settings-terminal settings-time settings-users settings-windows	settings and phone background
 ShareSheet	70-share-sheet share-sheet	
 Sidebar	25-sidebar 45-sidebar-shelf 55-sidebar-tiles-mic cc-access cc-audio cc-bluetooth cc-display cc-focus cc-main cc-phone cc-power cc-record cc-timer cc-vpn cc-wifi	
 SoftwareWindow	app-software app-software-page	

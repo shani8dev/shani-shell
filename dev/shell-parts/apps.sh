@@ -7,6 +7,23 @@
 # change it, save it, keep its permissions and its line endings, and not lose
 # what was typed when the editor is closed.
 export SHANI_QS_CONFIG=/work/shani
+
+# every app's icon is one the image's icon themes have: Health named
+# "heart-filled", which no installed theme ships, and the dock, the rail and
+# its title bar drew the missing-icon pattern
+missing=$(python3 - <<'PY'
+import importlib.machinery, importlib.util, os
+loader = importlib.machinery.SourceFileLoader("shani_cli", "/work/bin/shani")
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("shani_cli", loader)); loader.exec_module(m)
+have = set()
+for root in ("/usr/share/icons", "/usr/share/pixmaps"):
+    for _, _, files in os.walk(root):
+        have.update(f.rsplit(".", 1)[0] for f in files)
+print(" ".join(f"{name}:{spec[3]}" for name, spec in m.APPS.items() if spec[3] not in have))
+PY
+)
+[ -z "$missing" ] && result apps-icons-exist PASS || result apps-icons-exist FAIL "no such icon: $missing"
+
 app() { python3 /work/bin/shani app "$@" >/dev/null 2>&1; }
 errs() { grep -c -E "TypeError|ReferenceError|is not a function|is not defined|Unable to assign" /work/out/logs/qs.log; }
 A=/tmp/apps-test; rm -rf $A; mkdir -p $A

@@ -12,6 +12,40 @@ CONTACTS="$DATA_HOME/contacts"
 CALLS_FILE="$DATA_HOME/calls.json"
 CALLS_BACKUP=/tmp/calls-part-backup.json
 
+# The other three tabs read bridge/phone_tools.py. One stand-in answers music,
+# files, remote, link and audio from one state file, and the bridge logs each
+# ask. Parent wires the same SHANI_* overrides into the shell's own process;
+# exporting them here also checks the bridge calls made by this part.
+PHONE_TOOLS_FAKE=/work/dev/fake-phone-tools.py
+export SHANI_PHONE_TOOLS_STATE=/tmp/fake-phone-tools.json
+export SHANI_PHONE_TOOLS_LOG=/tmp/fake-phone-tools-calls
+export SHANI_MUSIC="python3 $PHONE_TOOLS_FAKE music"
+export SHANI_FILES_SEND="python3 $PHONE_TOOLS_FAKE files-send"
+export SHANI_FILES_LOG=/tmp/fake-phone-files-calls
+export SHANI_PHONE_REMOTE="python3 $PHONE_TOOLS_FAKE remote"
+export SHANI_PHONE_REMOTE_LOG=/tmp/fake-phone-remote-calls
+export SHANI_PHONE_LINK="python3 $PHONE_TOOLS_FAKE link"
+export SHANI_PHONE_LINK_LOG=/tmp/fake-phone-link-calls
+export SHANI_AUDIO="python3 $PHONE_TOOLS_FAKE audio"
+export SHANI_AUDIO_LOG=/tmp/fake-phone-audio-calls
+export SHANI_FILES_DIR=/tmp/fake-phone-files-inbox
+mkdir -p "$SHANI_FILES_DIR"
+printf 'a received photo\n' > "$SHANI_FILES_DIR/Asha-photo.jpg"
+printf 'a file to send\n' > /tmp/calls-send.txt
+rm -f "$SHANI_PHONE_TOOLS_STATE" "$SHANI_PHONE_TOOLS_LOG" "$SHANI_FILES_LOG" \
+      "$SHANI_PHONE_REMOTE_LOG" "$SHANI_PHONE_LINK_LOG" "$SHANI_AUDIO_LOG"
+python3 "$PHONE_TOOLS_FAKE" seed
+python3 /work/bridge/phone_tools.py music status 2>/dev/null | grep -q 'Mono Train' \
+    && result calls-phone-tools-bridge PASS \
+    || result calls-phone-tools-bridge FAIL "$(python3 /work/bridge/phone_tools.py music status 2>&1)"
+
+phone_press() {
+    for label in "$@"; do
+        timeout 20 python3 "$A11Y" press "$label" >/dev/null 2>&1 && return 0
+    done
+    return 1
+}
+
 # a contact whose number is the caller's, so a few typed digits suggest a name
 mkdir -p "$CONTACTS"
 cat > "$CONTACTS/call-test-asha.vcf" <<'VCF'
@@ -122,6 +156,138 @@ waitfor "not d['incoming'] and d['incomingId'] != 'c2'" 8 \
     || result calls-decline-clears-card FAIL "$(q "['incoming'], d['incomingId']")"
 grep -q '^c2 decline$' "$ACTIONS" 2>/dev/null \
     && result calls-decline-recorded PASS || result calls-decline-recorded FAIL "$(cat "$ACTIONS" 2>&1)"
+
+# ---- the status header, the drawn pad and the address book -------------------
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" find "Ready" >/dev/null 2>&1 \
+        && result calls-status-header PASS || result calls-status-header FAIL "no ready summary in the status header"
+    # the pad's keys are buttons with names such as "2 ABC" and "0, or plus"
+    phone_press "button:^2 ABC$" \
+        && result calls-dial-pad-key PASS || result calls-dial-pad-key FAIL "the 2 key was not pressable"
+    waitfor "d['callsPad'] == '2'" 6 \
+        && result calls-dial-pad-fills PASS || result calls-dial-pad-fills FAIL "$(q "['callsPad']")"
+    phone_press "button:^0, or plus$"
+    waitfor "d['callsPad'] == '20'" 6 \
+        && result calls-dial-pad-plus PASS || result calls-dial-pad-plus FAIL "$(q "['callsPad']")"
+    # a contact is picked by click; typing stays only a way to find one
+    ipc callsOpen 98444
+    waitfor "d['callsPad'] == '98444'" 6
+    timeout 20 python3 "$A11Y" find "Asha Patil" >/dev/null 2>&1 \
+        && result calls-contact-suggested PASS || result calls-contact-suggested FAIL "no contact for 98444"
+    phone_press "Asha Patil" \
+        && result calls-contact-pickable PASS || result calls-contact-pickable FAIL "the contact was not pressable"
+    waitfor "d['callsPad'] == '9844444444'" 6 \
+        && result calls-contact-picks-number PASS \
+        || result calls-contact-picks-number FAIL "$(q "['callsPad']")"
+    timeout 20 python3 "$A11Y" find "Asha Patil" >/dev/null 2>&1 \
+        && result calls-history-row PASS || result calls-history-row FAIL "the seeded call is not listed"
+else
+    for n in status-header dial-pad-key dial-pad-fills dial-pad-plus contact-suggested \
+             contact-pickable contact-picks-number history-row; do
+        result calls-$n SKIP "no accessibility client"
+    done
+fi
+shot calls-status 0.3
+shot calls-dialpad 0.3
+shot calls-history 0.3
+
+# ---- a live call: the in-call controls are drawn by the shell ----------------
+# /tmp/modem-ask is the dev modem's input; one active call, then terminated.
+rm -f /tmp/modem-answers
+echo '{"call": {"path": "/c/calls-part", "number": "9844444444", "state": "active", "incoming": false}}' > /tmp/modem-ask
+waitfor "d['modemCall'] == 'active:9844444444'" 8 \
+    && result calls-in-call-shown PASS || result calls-in-call-shown FAIL "$(q "['modemCall']")"
+if [ -f "$A11Y" ]; then
+    for pair in "mute:Mute" "speaker:Speaker" "hangup:Hang up" "hold:Hold" "keypad:Keypad"; do
+        n=${pair%%:*}; label=${pair#*:}
+        timeout 20 python3 "$A11Y" find "^$label$" >/dev/null 2>&1 \
+            && result calls-in-call-$n PASS || result calls-in-call-$n FAIL "no $label control"
+    done
+    phone_press "button:^Mute$" && sleep 0.4
+    grep -q '"mute"' /tmp/modem-answers 2>/dev/null \
+        && result calls-in-call-mute-recorded PASS \
+        || result calls-in-call-mute-recorded FAIL "$(cat /tmp/modem-answers 2>&1)"
+    phone_press "button:^Keypad$"
+    timeout 20 python3 "$A11Y" find "5 JKL" >/dev/null 2>&1 \
+        && result calls-in-call-dtmf-pad PASS || result calls-in-call-dtmf-pad FAIL "no keypad in the call"
+else
+    for n in mute speaker hangup hold keypad mute-recorded dtmf-pad; do
+        result calls-in-call-$n SKIP "no accessibility client"
+    done
+fi
+shot calls-in-call 0.3
+echo '{"call": {"path": "/c/calls-part", "number": "9844444444", "state": "terminated", "incoming": false}}' > /tmp/modem-ask
+waitfor "d['modemCall'] == ''" 6 \
+    && result calls-in-call-ends PASS || result calls-in-call-ends FAIL "$(q "['modemCall']")"
+
+# ---- the other three tabs, each behind its own bridge answers ----------------
+if [ -f "$A11Y" ]; then
+    phone_press "radio button:^Music$" \
+        && result calls-music-tab PASS || result calls-music-tab FAIL "the Music tab was not pressable"
+    waitfor "d['phoneMusicTitle'] == 'Mono Train' and d['phoneMusicState'] == 'Playing'" 10 \
+        && result calls-music-state PASS || result calls-music-state FAIL "$(q "['phoneMusicTitle'], d['phoneMusicState']")"
+    timeout 20 python3 "$A11Y" find "Mono Train" >/dev/null 2>&1 \
+        && result calls-music-shown PASS || result calls-music-shown FAIL "the music tab is blank"
+    phone_press "button:^Play or pause$"
+    waitfor "d['phoneMusicState'] == 'Paused'" 8 \
+        && result calls-music-pause PASS || result calls-music-pause FAIL "$(q "['phoneMusicState']")"
+    phone_press "button:^Next$"
+    waitfor "d['phoneMusicTitle'] == 'Quiet Streets'" 8 \
+        && result calls-music-next PASS || result calls-music-next FAIL "$(q "['phoneMusicTitle']")"
+
+    phone_press "radio button:^Files$" \
+        && result calls-files-tab PASS || result calls-files-tab FAIL "the Files tab was not pressable"
+    waitfor "d['phoneFiles'] >= 1" 10 \
+        && result calls-files-listed PASS || result calls-files-listed FAIL "$(q "['phoneFiles']")"
+    timeout 20 python3 "$A11Y" find "Asha-photo.jpg" >/dev/null 2>&1 \
+        && result calls-files-shown PASS || result calls-files-shown FAIL "the received file is not listed"
+    phone_press "switch:^Receive files from the phone$" "check box:^Receive files from the phone$"
+    waitfor "d['phoneFilesReceive'] == False" 8 \
+        && result calls-files-receive-switch PASS || result calls-files-receive-switch FAIL "$(q "['phoneFilesReceive']")"
+    phone_press "switch:^Receive files from the phone$" "check box:^Receive files from the phone$"
+    waitfor "d['phoneFilesReceive'] == True" 8 \
+        && result calls-files-receive-on PASS || result calls-files-receive-on FAIL "$(q "['phoneFilesReceive']")"
+    phone_press "button:^Choose a file to send$"
+    waitfor "d['pickerShown']" 6
+    ipc filePickerSelect /tmp/calls-send.txt; ipc filePickerAccept; sleep 0.6
+    grep -q '/tmp/calls-send.txt' "$SHANI_FILES_LOG" 2>/dev/null \
+        && result calls-files-send PASS || result calls-files-send FAIL "$(cat "$SHANI_FILES_LOG" 2>&1)"
+
+    phone_press "radio button:^Remote$" \
+        && result calls-remote-tab PASS || result calls-remote-tab FAIL "the Remote tab was not pressable"
+    waitfor "d['phoneRemoteOn'] == True" 8 \
+        && result calls-remote-on PASS || result calls-remote-on FAIL "$(q "['phoneRemoteOn']")"
+    phone_press "button:^Take a photo$"
+    waitfor "'shutter' in d['phoneRemoteNote']" 8 \
+        && result calls-remote-key PASS || result calls-remote-key FAIL "$(q "['phoneRemoteNote']")"
+    grep -q 'press shutter' "$SHANI_PHONE_REMOTE_LOG" 2>/dev/null \
+        && result calls-remote-logged PASS || result calls-remote-logged FAIL "$(cat "$SHANI_PHONE_REMOTE_LOG" 2>&1)"
+    # off is an empty state with one way back on
+    python3 "$PHONE_TOOLS_FAKE" remote off >/dev/null
+    sleep 0.5                      # let any queued status read finish first
+    phone_press "radio button:^Calls$"
+    phone_press "radio button:^Remote$"
+    waitfor "d['phoneRemoteOn'] == False" 8 || true
+    sleep 0.5
+    ok=0
+    for i in $(seq 1 12); do
+        phone_press "button:^Turn on$" && { ok=1; break; }
+        sleep 0.25
+    done
+    [ "$ok" = 1 ] && result calls-remote-empty-state PASS \
+        || result calls-remote-empty-state FAIL "no way back on"
+    waitfor "d['phoneRemoteOn'] == True" 8 \
+        && result calls-remote-turn-on PASS || result calls-remote-turn-on FAIL "$(q "['phoneRemoteOn']")"
+else
+    for n in music-tab music-state music-shown music-pause music-next files-tab files-listed \
+             files-shown files-receive-switch files-receive-on files-send remote-tab remote-on \
+             remote-key remote-logged remote-empty-state remote-turn-on; do
+        result calls-$n SKIP "no accessibility client"
+    done
+fi
+shot calls-music 0.3
+shot calls-files 0.3
+shot calls-remote 0.3
 
 ipc callsClose
 waitfor "d['callsShown'] == False" 6 && result calls-closes PASS \

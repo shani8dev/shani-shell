@@ -6,6 +6,12 @@ Rectangle {
     id: root
     property alias text: input.text
     property alias input: input
+    // callers that fill the pad from the history move the caret directly
+    property alias cursorPosition: input.cursorPosition
+    property alias selectionStart: input.selectionStart
+    property alias selectionEnd: input.selectionEnd
+    function insert(position, value) { input.insert(position, value) }
+    function remove(position, length) { input.remove(position, length) }
     property alias readOnly: input.readOnly
     property string placeholder
     // the same thing under Qt's own name, so a panel written against
