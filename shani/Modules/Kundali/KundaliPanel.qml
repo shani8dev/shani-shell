@@ -253,9 +253,17 @@ AppWindow {
         const parts = (shift ? s.slice(0, -2) : s).split(":");
         return shift + Number(parts[0]) * 60 + Number(parts[1]);
     }
-    function timelineRows() {
-        const rows = ((win.times || {}).muhurtas || []).map(p =>
+    function allMuhurtas() {
+        const t = win.times || {};
+        return ["muhurtas", "varjyam", "amrit_kaal"].reduce((all, key) =>
+            all.concat((t[key] || []).map(p => Object.assign({ key: key }, p))), []);
+    }
+    function muhurtaRows() {
+        return win.allMuhurtas().map(p =>
             ({ start: p.start, end: p.end, name: p.name, tone: p.auspicious ? "ok" : "warn" }));
+    }
+    function timelineRows() {
+        const rows = win.muhurtaRows();
         choghadiyaRows().forEach(p => rows.push({ start: p.start, end: p.end, name: p.name,
             tone: p.nature === "good" ? "ok" : (p.nature === "bad" ? "error" : "neutral") }));
         ((win.times || {}).horas || []).forEach(p => rows.push({ start: p.start, end: p.end,
@@ -850,7 +858,7 @@ AppWindow {
             spacing: Theme.space(3)
             PeriodBar {
                 label: Tr.t("Muhurtas")
-                periods: (win.times || {}).muhurtas || []
+                periods: win.muhurtaRows()
             }
             PeriodBar {
                 label: Tr.t("Choghadiya")
@@ -871,7 +879,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.space(2)
                 Repeater {
-                    model: (win.times || {}).muhurtas || []
+                    model: win.allMuhurtas()
                     StatusPill {
                         required property var modelData
                         tone: modelData.auspicious ? "ok" : "warn"
