@@ -71,6 +71,14 @@ export SHANI_REPORT_TOOL=/work/bridge/system-report.py SHANI_HEALTH_TOOL=/work/b
 # Settings > System: stand-ins for fwupd, shani-health, mdadm, lvs, resolvectl…
 # and the bridge tools that read them (dev/fake-system-env.sh is a harness part).
 . /work/dev/fake-system-env.sh
+# The access and sharing depth pages share the System pages' fixtures, but their
+# root helper is not a system_* bridge: keep these overrides out of the System
+# harness file so it never redirects what another feature reads.
+export SHANI_EXPORTS_FILE="$FS/exports" SHANI_EXPORTFS="$FS/bin-nfs/exportfs" \
+       SHANI_SMB_DROPIN="$FS/smb-dropin.conf" SHANI_TESTPARM="$FS/bin-smb/testparm" \
+       SHANI_PAM_U2F_CONF="$FS/pam_u2f.conf" SHANI_PAM_YUBICO_CONF="$FS/pam_yubico.conf" \
+       SHANI_PKCS11_MAP_FILE="$FS/subject_mapping" SHANI_SSHD=/work/dev/fake-sshd.py \
+       SHANI_VISUDO=/work/dev/fake-visudo.py
 # Settings > Security > Encryption and boot: gen-efi's stand-in answers the same
 # JSON as the real tool. "env" stands in for pkexec: no password is asked, and
 # every call still goes through the bridge's privileged-command path.
