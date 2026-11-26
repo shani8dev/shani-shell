@@ -76,6 +76,7 @@ def test_command_catalog():
         "volume-create",
         "volume-remove",
         "volume-prune",
+        "gpu-status",
     }
 
 
@@ -249,3 +250,28 @@ def test_errors_do_not_reach_podman(tmp_path, podman):
 
 def state_exists(tmp_path):
     return (tmp_path / "state.json").exists()
+
+
+def test_gpu_needs_a_cdi_spec(tmp_path, podman):
+    env, _ = podman
+    cdi = tmp_path / "cdi"
+    cdi.mkdir()
+    env = dict(env, SHANI_CDI_DIR=str(cdi))
+    assert run(tmp_path, env, "gpu-status") == (
+        {"cdi": False, "directory": str(cdi)},
+        0,
+    )
+    out, rc = run(tmp_path, env, "container-run", "gpu", "alpine", "--gpu")
+    assert rc == 1 and "nvidia-container-toolkit is not in the image" in out["error"]
+    log = calls(tmp_path) if (tmp_path / "calls").exists() else ""
+    assert "podman run" not in log
+
+    (cdi / "nvidia.yaml").write_text("nvidia.com/gpu=all:\n")
+    assert run(tmp_path, env, "gpu-status")[0]["cdi"] is True
+    assert run(tmp_path, env, "container-run", "gpu", "alpine", "--gpu") == (
+        {"ok": True},
+        0,
+    )
+    log = calls(tmp_path)
+    assert "--device nvidia.com/gpu=all" in log
+    assert "--security-opt label=disable" in log

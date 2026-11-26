@@ -3,7 +3,8 @@
 neither bridge imports the other. Every command prints its own JSON: one object or
 list, or streamed {"line": ...} objects followed by {"ok": True}/{"error": ...}.
 
-    container-run NAME IMAGE [--ports P] [--volumes V] [--env E] [--command C]
+    container-run NAME IMAGE [--ports P] [--volumes V] [--env E] [--command C] [--gpu]
+    gpu-status                 whether a CDI spec lets Podman use the graphics card
     container-shell NAME       argv for xdg-terminal-exec, not launched here
     logs-follow NAME           stream podman logs --follow
     container-pause|container-resume|container-kill NAME
@@ -50,7 +51,10 @@ COMMANDS = (
     "volume-create",
     "volume-remove",
     "volume-prune",
+    "gpu-status",
 )
+
+CDI_DIR = os.environ.get("SHANI_CDI_DIR", "/etc/cdi")
 
 _PORT = re.compile(r"^[A-Za-z0-9._:-]+$")
 _PATH = re.compile(r"^(?:[A-Za-z0-9][A-Za-z0-9_.-]*|/[A-Za-z0-9_./@+-]*)$")
@@ -97,6 +101,14 @@ def _json(r, fallback):
         return json.loads(fallback)
 
 
+def _gpu_status() -> dict:
+    try:
+        cdi = any(f.endswith((".yaml", ".yml")) for f in os.listdir(CDI_DIR))
+    except OSError:
+        cdi = False
+    return {"cdi": cdi, "directory": CDI_DIR}
+
+
 def _container_run(args: list[str]):
     if len(args) < 2:
         return {"error": "container-run needs a name and an image"}
@@ -108,8 +120,11 @@ def _container_run(args: list[str]):
     bad = None
     while tail:
         k = tail.pop(0)
+        if k == "--gpu":
+            opts[k] = "yes"
+            continue
         if k not in ("--ports", "--volumes", "--env", "--command") or not tail:
-            bad = "run options: --ports --volumes --env --command"
+            bad = "run options: --ports --volumes --env --command --gpu"
             break
         opts[k] = tail.pop(0)
     ports = [p for p in opts.get("--ports", "").split(",") if p]
@@ -131,7 +146,15 @@ def _container_run(args: list[str]):
         return {"error": "not a command"}
     if bad:
         return {"error": bad}
+    if opts.get("--gpu") and not _gpu_status()["cdi"]:
+        return {
+            "error": "The graphics card needs a CDI spec at %s/nvidia.yaml; "
+            "nvidia-container-toolkit is not in the image. Use a toolbox with "
+            "the graphics card instead." % CDI_DIR
+        }
     av = ["run", "-d", "--name", name]
+    if opts.get("--gpu"):
+        av += ["--device", "nvidia.com/gpu=all", "--security-opt", "label=disable"]
     for p in ports:
         av += ["-p", p]
     for v in vols:
@@ -367,6 +390,8 @@ def run(cmd: str, args: list[str]) -> int:
                 if NAME.match(args[0])
                 else {"error": "not a name"}
             )
+        elif cmd == "gpu-status":
+            r = _gpu_status()
         elif cmd == "volume-prune":
             rr = _run(PODMAN, "volume", "prune", "-f", timeout=120)
             r = (
