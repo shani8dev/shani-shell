@@ -25,6 +25,13 @@ AppWindow {
     property string editEmail: ""
     property string editUid: ""
     property string editGroups: ""
+    // the rest of the card, from the reference editor; typing stays optional
+    property string editBirthday: ""
+    property var editAddresses: []
+    property string editOrg: ""
+    property string editRole: ""
+    property string editUrls: ""
+    property string editNote: ""
     // typed phone/email rows in the editor (the bridge already stores arrays)
     property var editPhones: []
     property var editEmails: []
@@ -34,6 +41,9 @@ AppWindow {
     property bool showGroupField: false
     property string groupFilter: Tr.t("All")
     property int currentIndex: -1          // keyboard selection, keyed by uid not row index
+    property string source: "local"        // "local" or "phone" (read-only)
+    property bool selecting: false         // click several cards, then export or delete
+    property var chosen: []                // uids, never row indexes
 
     // delete asks first: two taps, the second within 4 s
     property string confirmDelete: ""
@@ -71,8 +81,34 @@ AppWindow {
         const rows = win.editEmails.map(x => Object.assign({}, x));
         rows[i][key] = value; win.editEmails = rows;
     }
+    function setAddress(i, key, value) {
+        const rows = win.editAddresses.map(x => Object.assign({}, x));
+        rows[i][key] = value; win.editAddresses = rows;
+    }
+    function toggleSelected(uid) {
+        const at = win.chosen.indexOf(uid);
+        win.chosen = at < 0 ? win.chosen.concat([uid]) : win.chosen.filter(x => x !== uid);
+    }
+    function toggleSelecting() {
+        win.selecting = !win.selecting;
+        win.chosen = [];
+        win.currentIndex = -1;
+    }
+    function activateRow(c) {
+        if (!c) return;
+        if (win.selecting && win.source === "local") win.toggleSelected(c.uid);
+        else win.showContact(c);
+    }
+    function savePhoneContact(c) {
+        if (!c) return;
+        Contacts.savePhone(c);
+        win.showDetail = false;
+        win.source = "local";
+    }
     function showContact(c) {
         if (!c) return;
+        // while choosing several, a row picks itself instead of opening a sheet
+        if (win.selecting && win.source === "local") { win.toggleSelected(c.uid); return; }
         const rows = win.visibleContacts();
         const at = rows.findIndex(x => x.uid === c.uid);
         if (at >= 0) win.currentIndex = at;
@@ -80,6 +116,7 @@ AppWindow {
         win.showDetail = true;
     }
     function visibleContacts() {
+        if (win.source === "phone") return Contacts.phoneContacts;
         if (win.groupFilter === Tr.t("Favourites")) return Contacts.favoriteContacts;
         if (Contacts.isSmartList(win.groupFilter)) return Contacts.contactsInList(win.groupFilter);
         return win.groupFilter === Tr.t("All") ? Contacts.shown
@@ -96,12 +133,15 @@ AppWindow {
     function newContact() {
         win.mode = "add"; win.editName = ""; win.editPhone = ""; win.editEmail = "";
         win.editUid = ""; win.editGroups = ""; win.editPhones = []; win.editEmails = [];
+        win.editBirthday = ""; win.editAddresses = []; win.editOrg = ""; win.editRole = "";
+        win.editUrls = ""; win.editNote = "";
         win.avatarPath = ""; win.showGroupField = false; win.currentIndex = -1;
     }
     // Apple Contacts / GNOME Contacts both hand a number straight to Messages
     function messageContact(c) {
         if (!c) return;
-        const numbers = (c.phones || []).map(p => String(p.number || "").trim()).filter(n => n !== "");
+        const numbers = (c.phones || []).map(p => String(p.number || "").trim())
+            .concat((c.numbers || []).map(n => String(n || "").trim())).filter(n => n !== "");
         if (!numbers.length) { Contacts.say(Tr.t("This contact has no phone number")); return; }
         Ui.messagesNumber = numbers[0];
         Ui.messages = true;
@@ -176,6 +216,7 @@ AppWindow {
             if (win.showDetail) win.showDetail = false;
             else if (win.mode !== "list") win.mode = "list";
             else if (win.showDuplicates) win.showDuplicates = false;
+            else if (win.selecting) win.toggleSelecting();
             else Ui.contacts = false;
         }
         Keys.onPressed: e => {
@@ -187,7 +228,10 @@ AppWindow {
                 win.step(e.key === Qt.Key_Down ? 1 : -1); e.accepted = true;
             } else if (win.mode === "list" && !win.showDuplicates && e.key === Qt.Key_Return && win.currentIndex >= 0) {
                 const rows = win.visibleContacts();
-                if (rows[win.currentIndex]) win.showContact(rows[win.currentIndex]);
+                if (rows[win.currentIndex]) {
+                    if (win.selecting && win.source === "local") win.toggleSelected(rows[win.currentIndex].uid);
+                    else win.showContact(rows[win.currentIndex]);
+                }
                 e.accepted = true;
             }
         }
@@ -234,9 +278,18 @@ AppWindow {
                     filters: ["vcf"], onPicked: paths => { if (paths.length) Contacts.exportAll(paths[0]); } })
             }
             Button {
+                visible: win.mode === "list" && !win.showDuplicates && win.source === "local"
+                text: win.selecting ? Tr.t("Cancel selection") : Tr.t("Select…")
+                flat: true
+                checked: win.selecting
+                Accessible.name: win.selecting ? Tr.t("Cancel selecting contacts") : Tr.t("Select several contacts")
+                onClicked: win.toggleSelecting()
+            }
+            Button {
                 visible: win.mode === "list" && !win.showDuplicates
                 text: Tr.t("New contact")
                 kind: "primary"
+                enabled: win.source === "local"
                 onClicked: win.newContact()
             }
             Button {
@@ -255,7 +308,11 @@ AppWindow {
                     const c = Contacts.contacts.find(x => x.uid === win.editUid) || {};
                     const detail = { phones: win.editPhones, emails: win.editEmails,
                         given: c.given || "", family: c.family || "",
-                        favorite: !!c.favorite, avatar: win.avatarPath || c.avatar || "" };
+                        favorite: !!c.favorite, avatar: win.avatarPath || c.avatar || "",
+                        birthday: win.editBirthday.trim(), addresses: win.editAddresses,
+                        org: win.editOrg.trim(), role: win.editRole.trim(),
+                        urls: win.editUrls.split(/\n+/).map(s => s.trim()).filter(s => s),
+                        note: win.editNote };
                     if (win.mode === "add") Contacts.add(win.editName, win.editPhone, win.editEmail, groups, detail);
                     else Contacts.edit(win.editUid, win.editName, win.editPhone, win.editEmail, groups, detail);
                     win.mode = "list";
@@ -264,10 +321,17 @@ AppWindow {
         }
 
         // ---- edit form ----
-        ColumnLayout {
+        Flickable {
             visible: win.mode === "add" || win.mode === "edit"
             Layout.fillWidth: true
-            spacing: Theme.px(6)
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: width
+            contentHeight: editForm.implicitHeight
+            ColumnLayout {
+                id: editForm
+                width: parent.width
+                spacing: Theme.px(6)
 
             TextField {
                 Layout.fillWidth: true
@@ -389,12 +453,84 @@ AppWindow {
                 text: win.editGroups
                 onTextChanged: win.editGroups = text
             }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Birthday, year-month-day")
+                label: Tr.t("Birthday")
+                text: win.editBirthday
+                error: text !== "" && !/^\d{4}-\d{2}-\d{2}$|^--\d{2}-\d{2}$/.test(text.trim())
+                    ? Tr.t("Use year-month-day, or month-day") : ""
+                onTextChanged: win.editBirthday = text
+            }
+            Text { text: Tr.t("Address"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+            Repeater {
+                model: win.editAddresses
+                RowLayout {
+                    required property int index
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
+                    TextField {
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Street")
+                        label: Tr.t("Street address %1", index + 1)
+                        text: modelData.street || ""
+                        onTextChanged: win.setAddress(index, "street", text)
+                    }
+                    TextField {
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("City")
+                        label: Tr.t("City %1", index + 1)
+                        text: modelData.locality || ""
+                        onTextChanged: win.setAddress(index, "locality", text)
+                    }
+                    IconButton {
+                        size: Theme.px(24); icon: "list-remove"
+                        tip: Tr.t("Remove address %1", index + 1)
+                        accessibleName: tip
+                        onClicked: { const rows = win.editAddresses.slice(); rows.splice(index, 1); win.editAddresses = rows; }
+                    }
+                }
+            }
+            Button {
+                text: Tr.t("Add address"); flat: true
+                Accessible.name: Tr.t("Add another address")
+                onClicked: win.editAddresses = win.editAddresses.concat([{ type: "home", street: "", locality: "", region: "", code: "", country: "" }])
+            }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Organisation")
+                label: Tr.t("Organisation")
+                text: win.editOrg
+                onTextChanged: win.editOrg = text
+            }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Role")
+                label: Tr.t("Role")
+                text: win.editRole
+                onTextChanged: win.editRole = text
+            }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Websites, one per line")
+                label: Tr.t("Websites")
+                text: win.editUrls
+                onTextChanged: win.editUrls = text
+            }
+            TextField {
+                Layout.fillWidth: true
+                placeholder: Tr.t("Note")
+                label: Tr.t("Note")
+                text: win.editNote
+                onTextChanged: win.editNote = text
+            }
             Text {
                 visible: Contacts.error !== ""
                 text: Contacts.error
                 color: Theme.red
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
+            }
             }
         }
 
@@ -472,6 +608,24 @@ AppWindow {
             visible: win.mode === "list" && !win.showDuplicates
             Layout.fillWidth: true
             spacing: Theme.px(6)
+            Choice {
+                text: Tr.t("My contacts")
+                selected: win.source === "local"
+                Accessible.name: Tr.t("Show my contacts")
+                onClicked: { win.source = "local"; win.selecting = false; win.chosen = []; win.currentIndex = -1; }
+            }
+            Choice {
+                text: Tr.t("From the phone")
+                selected: win.source === "phone"
+                Accessible.name: Tr.t("Show contacts from the phone")
+                onClicked: { win.source = "phone"; win.selecting = false; win.chosen = []; win.currentIndex = -1; Contacts.refreshPhone(); }
+            }
+        }
+
+        Flow {
+            visible: win.mode === "list" && !win.showDuplicates
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
             Repeater {
                 model: [["name", "Name"], ["given", "Given"], ["family", "Family"]]
                 Choice {
@@ -494,6 +648,49 @@ AppWindow {
                     selected: win.groupFilter === modelData
                     onClicked: win.groupFilter = modelData
                 }
+            }
+        }
+
+        // ---- one action for all chosen cards ----
+        RowLayout {
+            visible: win.mode === "list" && !win.showDuplicates && win.source === "local" && win.selecting
+            Layout.fillWidth: true
+            spacing: Theme.px(6)
+            Text {
+                text: Tr.t("%1 chosen", win.chosen.length)
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: Theme.px(12) * Theme.fontScale
+                Accessible.role: Accessible.StatusBar
+                Accessible.name: text
+            }
+            Item { Layout.fillWidth: true }
+            Button {
+                text: Tr.t("Export chosen"); flat: true
+                enabled: win.chosen.length > 0
+                Accessible.name: Tr.t("Export the chosen contacts")
+                onClicked: FilePicker.open({ mode: "save", title: Tr.t("Export contacts"), defaultName: "contacts.vcf",
+                    filters: ["vcf"], onPicked: paths => { if (paths.length) Contacts.exportAll(paths[0], win.chosen); } })
+            }
+            ConfirmButton {
+                id: deleteChosen
+                implicitWidth: Math.max(Theme.touchTarget, deleteChosen.armedText.length * 8 + 28)
+                implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                text: Tr.t("Delete chosen")
+                armedText: Tr.t("Tap again to delete")
+                kind: deleteChosen.armed ? "danger" : "plain"
+                enabled: win.chosen.length > 0
+                Accessible.name: Tr.t("Delete chosen contacts")
+                onConfirmed: {
+                    Contacts.removeMany(win.chosen);
+                    win.chosen = [];
+                    win.selecting = false;
+                }
+            }
+            Button {
+                text: Tr.t("Done"); flat: true
+                Accessible.name: Tr.t("Stop selecting contacts")
+                onClicked: win.toggleSelecting()
             }
         }
 
@@ -521,6 +718,26 @@ AppWindow {
                     anchors.rightMargin: Theme.px(6)
                     spacing: Theme.px(10)
                     z: 2                 // the icon actions must win over the row's z:1 click catcher
+                    Rectangle {
+                        visible: win.selecting && win.source === "local"
+                        width: Math.max(Theme.px(22), Theme.touchTarget)
+                        height: width
+                        radius: width / 2
+                        color: win.chosen.indexOf(modelData.uid) >= 0 ? Theme.accent : "transparent"
+                        border.width: 2
+                        border.color: Theme.dim
+                        Icon {
+                            anchors.centerIn: parent
+                            visible: win.chosen.indexOf(modelData.uid) >= 0
+                            name: "object-select"; size: Theme.px(14); color: Theme.accentInk
+                        }
+                        Accessible.role: Accessible.CheckBox
+                        Accessible.checked: win.chosen.indexOf(modelData.uid) >= 0
+                        Accessible.name: Tr.t("Select") + " " + (modelData.name || Tr.t("Unnamed"))
+                        Accessible.onToggleAction: win.toggleSelected(modelData.uid)
+                        // a second KeyFocus in the row would steal the row's own key path
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.toggleSelected(modelData.uid) }
+                    }
                     Rectangle {
                         width: Theme.px(30); height: Theme.px(30)
                         radius: width / 2
@@ -572,18 +789,21 @@ AppWindow {
                         onClicked: win.messageContact(modelData)
                     }
                     IconButton {
+                        visible: win.source === "local"
                         size: Theme.px(28)
                         icon: modelData.favorite ? "starred" : "non-starred"
                         tip: modelData.favorite ? "Remove from favourites" : "Add to favourites"
                         onClicked: Contacts.toggleFavorite(modelData.uid)
                     }
                     IconButton {
+                        visible: win.source === "local"
                         size: Theme.px(28)
                         icon: modelData.uid === Contacts.myUid ? "starred" : "avatar-default"
                         tip: modelData.uid === Contacts.myUid ? Tr.t("This is you") : Tr.t("This is me")
                         onClicked: Contacts.toggleMe(modelData.uid)
                     }
                     IconButton {
+                        visible: win.source === "local"
                         size: Theme.px(28)
                         icon: "user-trash"
                         tip: win.confirmDelete === modelData.uid
@@ -614,11 +834,13 @@ AppWindow {
             }
             EmptyState {
                 anchors.centerIn: parent
-                visible: list.count === 0 && !Contacts.busy
+                visible: list.count === 0 && !Contacts.busy && !Contacts.phoneBusy
                 icon: "contact-new"
-                title: Contacts.query !== "" ? Tr.t("No matches for %1", Contacts.query)
+                title: win.source === "phone" ? Tr.t("No contacts on the phone")
+                    : Contacts.query !== "" ? Tr.t("No matches for %1", Contacts.query)
                     : win.groupFilter === Tr.t("Favourites") ? Tr.t("No favourites yet") : Tr.t("No contacts yet")
-                subtitle: Contacts.query !== "" ? Tr.t("Try a different name or number")
+                subtitle: win.source === "phone" ? Tr.t("Connect a phone to see its contacts here")
+                    : Contacts.query !== "" ? Tr.t("Try a different name or number")
                     : win.groupFilter === Tr.t("Favourites") ? Tr.t("Star a contact to see it here")
                     : Tr.t("Add one above, or import a .vcf file")
             }
@@ -650,7 +872,9 @@ AppWindow {
             visible: win.mode === "list" && !win.showDuplicates
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            text: Tr.t("%1 contact%2 · Esc closes", Contacts.contacts.length, Contacts.contacts.length === 1 ? "" : "s")
+            text: win.source === "phone"
+                ? Tr.t("%1 phone contact%2 · Esc closes", Contacts.phoneContacts.length, Contacts.phoneContacts.length === 1 ? "" : "s")
+                : Tr.t("%1 contact%2 · Esc closes", Contacts.contacts.length, Contacts.contacts.length === 1 ? "" : "s")
             color: Theme.faint
             font.family: Theme.font
             font.pixelSize: Theme.px(10) * Theme.fontScale
@@ -676,7 +900,8 @@ AppWindow {
                 id: detailCol
                 anchors { fill: parent; margins: Theme.px(12) }
                 spacing: Theme.px(6)
-                property var c: Contacts.contacts.find(x => x.uid === win.detailUid) || {}
+                property var c: (win.source === "phone" ? Contacts.phoneContacts : Contacts.contacts).find(x => x.uid === win.detailUid) || {}
+                property bool isPhone: win.source === "phone"
                 RowLayout {
                     Layout.fillWidth: true
                     Rectangle {
@@ -710,7 +935,8 @@ AppWindow {
                     }
                 }
                 Repeater {
-                    model: detailCol.c.phones || []
+                    // phone rows carry `numbers`; local cards carry typed `phones`
+                    model: detailCol.c.phones || (detailCol.c.numbers || []).map(n => ({ type: "cell", number: n }))
                     RowLayout {
                         required property var modelData
                         Layout.fillWidth: true
@@ -731,7 +957,7 @@ AppWindow {
                     }
                 }
                 Repeater {
-                    model: detailCol.c.emails || []
+                    model: (detailCol.c.emails || []).map(e => typeof e === "string" ? { type: "home", address: e } : e)
                     RowLayout {
                         required property var modelData
                         Layout.fillWidth: true
@@ -789,6 +1015,13 @@ AppWindow {
                     }
                     Button { Layout.fillWidth: true; text: Tr.t("Close"); onClicked: win.showDetail = false }
                     Button {
+                        visible: detailCol.isPhone
+                        Layout.fillWidth: true; text: Tr.t("Save here"); kind: "primary"
+                        Accessible.name: Tr.t("Save this phone contact to my contacts")
+                        onClicked: win.savePhoneContact(detailCol.c)
+                    }
+                    Button {
+                        visible: !detailCol.isPhone
                         Layout.fillWidth: true; text: Tr.t("Edit"); kind: "primary"
                         enabled: !!(detailCol.c.uid)
                         onClicked: {
@@ -802,6 +1035,12 @@ AppWindow {
                             win.editGroups = (c.groups || []).join(", ");
                             win.editPhones = (c.phones || []).map(x => Object.assign({}, x));
                             win.editEmails = (c.emails || []).map(x => Object.assign({}, x));
+                            win.editBirthday = c.birthday || "";
+                            win.editAddresses = (c.addresses || []).map(x => Object.assign({}, x));
+                            win.editOrg = c.org || "";
+                            win.editRole = c.role || "";
+                            win.editUrls = (c.urls || []).join("\n");
+                            win.editNote = c.note || "";
                             win.avatarPath = c.avatar || "";
                             win.showGroupField = (c.groups || []).length > 0;
                         }

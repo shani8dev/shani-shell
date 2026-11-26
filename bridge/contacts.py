@@ -9,7 +9,10 @@
     contacts.py import '<path>'     a .vcf path, or '{"path": "…"}' (same contract)
     contacts.py get '<uid>'         one contact as JSON
     contacts.py vcard '<uid>'       one contact's raw vCard (for a QR code)
-    contacts.py export-all          every card concatenated, as .vcf text
+    contacts.py export-all [UIDS]   every card (or just these uids), as .vcf text
+    contacts.py phone               [{uid, name, numbers, emails}] from the phone
+    contacts.py save-phone '<json>' copy a phone contact here, with a fresh uid
+    contacts.py delete-many '["uid", …]'   delete several cards at once
     contacts.py list [QUERY] [sort] sort: name (default), given or family
 
 List prints a JSON array; writes print {"ok": true, "uid": "…"} (import prints
@@ -19,6 +22,11 @@ book, and the first write creates it. The book lives in the shell's vCard folder
 `$XDG_DATA_HOME/shani-shell/contacts/` (see `phone/contacts.py`: `folder()` and
 `paths.data_home()`) — one `.vcf` per contact, named by its UID.
 `SHANI_CONTACTS_DIR` overrides that folder for tests.
+
+The phone is a different, read-only source: `phone` asks the phone tools for
+its contacts and never writes to the phone. `SHANI_CONTACTS_PHONE_TOOL`
+overrides the reader for tests (argv in, JSON out; no arguments are passed).
+`SHANI_PHONE_TOOL` stays reserved for the Phone service's own tool.
 
 When `phone.contacts` is importable (the shell ships it in `bridge/`), its
 `folder()` is the folder and its `parse`/`serialize` rules are the format's
@@ -31,9 +39,12 @@ vCard files, and this tool reads exactly those.
 
 from __future__ import annotations
 
+import calendar
 import json
 import os
 import re
+import shlex
+import subprocess
 import sys
 import tempfile
 import unicodedata
@@ -198,13 +209,20 @@ def parse(text: str) -> list[dict]:
                 "self": False,
                 "favorite": False,
                 "avatar": "",
+                "birthday": "",
+                "addresses": [],
+                "org": "",
+                "role": "",
+                "urls": [],
+                "note": "",
                 "extras": [],
             }
             continue
         if current is None:
             continue
-        # Keep fields we don't edit (ADR, BDAY, ORG, NOTE, URL, …) verbatim so a
-        # later save cannot silently destroy them.
+        # Unknown properties (X-*, PRODID, …) stay verbatim so a later save
+        # cannot silently destroy them. The fields the editor owns are parsed
+        # into named values and written back by serialize().
         if name not in (
             "BEGIN",
             "VERSION",
@@ -217,6 +235,12 @@ def parse(text: str) -> list[dict]:
             "X-SHANI-SELF",
             "X-SHANI-FAVORITE",
             "PHOTO",
+            "BDAY",
+            "ADR",
+            "ORG",
+            "ROLE",
+            "NOTE",
+            "URL",
             "END",
         ):
             current["extras"].append(line)
@@ -263,6 +287,31 @@ def parse(text: str) -> list[dict]:
             current["favorite"] = value.strip().lower() in ("1", "true", "yes")
         elif name == "PHOTO":
             current["avatar"] = _unescape(value.strip())
+        elif name == "BDAY":
+            current["birthday"] = value
+        elif name == "ADR":
+            parts = [_unescape(p) for p in _split(value, ";")] + [""] * 7
+            current["addresses"].append(
+                {
+                    "type": _type(_param(head, "TYPE"), "home"),
+                    "po": parts[0],
+                    "extended": parts[1],
+                    "street": parts[2],
+                    "locality": parts[3],
+                    "region": parts[4],
+                    "code": parts[5],
+                    "country": parts[6],
+                }
+            )
+        elif name == "ORG":
+            current["org"] = _unescape(_split(value, ";")[0])
+        elif name == "ROLE":
+            current["role"] = _unescape(value)
+        elif name == "NOTE":
+            current["note"] = _unescape(value)
+        elif name == "URL":
+            # A URI is not vCard text: commas and semicolons belong to it.
+            current["urls"].append(value)
     for c in found:
         if not c["name"]:
             joined = " ".join(p for p in (c.get("given", ""), c.get("family", "")) if p)
@@ -346,7 +395,41 @@ def serialize(contact: dict) -> str:
         lines.append("X-SHANI-FAVORITE:1")
     if contact.get("avatar"):
         lines.append("PHOTO;VALUE=URI:" + _escape(str(contact["avatar"])))
+    if str(contact.get("birthday", "")).strip():
+        lines.append("BDAY:" + str(contact["birthday"]).strip())
+    for item in contact.get("addresses") or []:
+        if not isinstance(item, dict):
+            continue
+        parts = [
+            _escape(str(item.get(key, "") or ""))
+            for key in (
+                "po",
+                "extended",
+                "street",
+                "locality",
+                "region",
+                "code",
+                "country",
+            )
+        ]
+        kind = _type(str(item.get("type", "home")), "home")
+        lines.append(f"ADR;TYPE={kind}:" + ";".join(parts))
+    if str(contact.get("org", "")).strip():
+        lines.append("ORG:" + _escape(str(contact["org"])))
+    if str(contact.get("role", "")).strip():
+        lines.append("ROLE:" + _escape(str(contact["role"])))
+    if str(contact.get("note", "")).strip():
+        lines.append("NOTE:" + _escape(str(contact["note"])))
+    for url in contact.get("urls") or []:
+        value = str(url).strip()
+        if value:
+            lines.append("URL:" + value)
+    # a card read before these fields were owned may still carry them in extras
+    owned = {"BDAY", "ADR", "ORG", "ROLE", "NOTE", "URL"}
     for extra in contact.get("extras") or []:
+        head = extra.split(":", 1)[0].split(".")[-1].split(";", 1)[0].strip().upper()
+        if head in owned:
+            continue
         if ":" in extra and extra not in lines:
             lines.append(extra)
     lines.append("END:VCARD")
@@ -401,6 +484,30 @@ def _to_json(contact: dict) -> dict:
         "self": bool(contact.get("self", False)),
         "favorite": bool(contact.get("favorite", False)),
         "avatar": str(contact.get("avatar", "") or ""),
+        "birthday": str(contact.get("birthday", "") or ""),
+        "addresses": [
+            {
+                k: str(v or "")
+                for k, v in (address or {}).items()
+                if k
+                in (
+                    "type",
+                    "po",
+                    "extended",
+                    "street",
+                    "locality",
+                    "region",
+                    "code",
+                    "country",
+                )
+            }
+            for address in (contact.get("addresses") or [])
+            if isinstance(address, dict)
+        ],
+        "org": str(contact.get("org", "") or ""),
+        "role": str(contact.get("role", "") or ""),
+        "urls": [str(u) for u in (contact.get("urls") or []) if str(u).strip()],
+        "note": str(contact.get("note", "") or ""),
     }
 
 
@@ -532,7 +639,152 @@ def _from_payload(payload: dict, name: str) -> dict:
         "self": bool(payload.get("self", False)),
         "favorite": bool(payload.get("favorite", False)),
         "avatar": str(payload.get("avatar", "") or ""),
+        "birthday": str(payload.get("birthday", "") or "").strip(),
+        "addresses": [
+            {
+                key: str(item.get(key, "") or "")
+                for key in (
+                    "type",
+                    "po",
+                    "extended",
+                    "street",
+                    "locality",
+                    "region",
+                    "code",
+                    "country",
+                )
+            }
+            for item in (payload.get("addresses") or [])
+            if isinstance(item, dict)
+            and any(
+                str(item.get(k, "") or "").strip()
+                for k in (
+                    "street",
+                    "locality",
+                    "region",
+                    "code",
+                    "country",
+                    "po",
+                    "extended",
+                )
+            )
+        ],
+        "org": str(payload.get("org", "") or "").strip(),
+        "role": str(payload.get("role", "") or "").strip(),
+        "urls": [str(u).strip() for u in (payload.get("urls") or []) if str(u).strip()],
+        "note": str(payload.get("note", "") or ""),
     }
+
+
+# --- the phone's book (read-only) and bulk actions -------------------------------
+
+
+def phone_contacts() -> list[dict]:
+    """Contacts on the connected phone, or [] when none is connected.
+
+    The phone tools own the read; this bridge only normalises their answer.
+    SHANI_CONTACTS_PHONE_TOOL replaces that reader in tests. No arguments are
+    passed to it, so a stand-in can reject options the real reader rejects.
+    """
+    override = shlex.split(os.environ.get("SHANI_CONTACTS_PHONE_TOOL", ""))
+    tool = override or [
+        sys.executable,
+        str(Path(__file__).with_name("android_tools.py")),
+        "contacts",
+        "list",
+    ]
+    try:
+        done = subprocess.run(tool, capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if done.returncode != 0:
+        return []
+    try:
+        data = json.loads(done.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if isinstance(data, dict):
+        data = data.get("contacts") or []
+    if not isinstance(data, list):
+        return []
+    rows = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        numbers = [
+            str(n).strip()
+            for n in (
+                item.get("numbers") or ([item["number"]] if item.get("number") else [])
+            )
+            if str(n).strip()
+        ]
+        emails = [
+            str(e).strip()
+            for e in (
+                item.get("emails") or ([item["email"]] if item.get("email") else [])
+            )
+            if str(e).strip()
+        ]
+        if not name and not numbers and not emails:
+            continue
+        rows.append(
+            {
+                "uid": str(item.get("uid") or "").strip()
+                or ("phone:" + (name or numbers[0])),
+                "name": name or numbers[0],
+                "numbers": numbers,
+                "emails": emails,
+            }
+        )
+    return rows
+
+
+def save_phone(contact: dict) -> dict:
+    """Copy one phone contact here under a fresh uid; never overwrite a card."""
+    if not isinstance(contact, dict):
+        raise ValueError("expected a JSON object")
+    name = str(contact.get("name") or "").strip()
+    numbers = [str(n).strip() for n in (contact.get("numbers") or []) if str(n).strip()]
+    emails = [str(e).strip() for e in (contact.get("emails") or []) if str(e).strip()]
+    if not name and not numbers and not emails:
+        raise ValueError("a phone contact needs a name or a number")
+    shown = name or numbers[0]
+    payload = {
+        "name": shown,
+        "phones": [{"type": "cell", "number": n} for n in numbers],
+        "emails": [{"type": "home", "address": e} for e in emails],
+    }
+    return save(_from_payload(payload, shown))
+
+
+def delete_contacts(uids: list[str]) -> dict:
+    """Delete several cards once: say what went and what was already missing."""
+    deleted, missing = [], []
+    for uid in dict.fromkeys(uids):
+        target = str(uid).strip()
+        if not target:
+            continue
+        (deleted if delete_contact(target) else missing).append(target)
+    return {"ok": True, "deleted": deleted, "missing": missing}
+
+
+def valid_birthday(value: str) -> bool:
+    """YYYY-MM-DD or --MM-DD, with a real month and day."""
+    text = str(value or "").strip()
+    if not text:
+        return True
+    if re.fullmatch(r"--\d{2}-\d{2}", text):
+        year, month, day = 2000, int(text[2:4]), int(text[5:7])
+    else:
+        found = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", text)
+        if not found:
+            return False
+        year, month, day = (int(part) for part in found.groups())
+    try:
+        return 1 <= month <= 12 and 1 <= day <= calendar.monthrange(year, month)[1]
+    except ValueError:
+        return False
 
 
 def main(argv: list[str]) -> int:
@@ -543,6 +795,33 @@ def main(argv: list[str]) -> int:
         )
         return 3
     command = argv[1]
+    if command == "phone":
+        print(json.dumps(phone_contacts(), ensure_ascii=False))
+        return 0
+    if command in ("save-phone", "delete-many"):
+        if len(argv) < 3:
+            print(f"Invalid argument: {command} needs a value", file=sys.stderr)
+            return 3
+        try:
+            payload = json.loads(argv[2])
+        except json.JSONDecodeError as exc:
+            print(f"Invalid argument: {exc}", file=sys.stderr)
+            return 3
+        if command == "save-phone":
+            try:
+                saved = save_phone(payload)
+            except ValueError as exc:
+                print(f"Invalid argument: {exc}", file=sys.stderr)
+                return 3
+            print(json.dumps({"ok": True, "uid": saved["uid"]}))
+            return 0
+        if isinstance(payload, dict):
+            payload = payload.get("uids")
+        if not isinstance(payload, list):
+            print("Invalid argument: delete-many needs a list of uids", file=sys.stderr)
+            return 3
+        print(json.dumps(delete_contacts([str(uid) for uid in payload])))
+        return 0
     if command in ("list", "search"):
         query = argv[2] if len(argv) > 2 else ""
         sort_by = argv[3] if len(argv) > 3 else "name"
@@ -580,7 +859,23 @@ def main(argv: list[str]) -> int:
             print(_file(raw).read_text(encoding="utf-8", errors="replace"), end="")
             return 0
         if command == "export-all":
+            uids = None
+            if raw:
+                try:
+                    asked = json.loads(raw)
+                except json.JSONDecodeError as exc:
+                    print(f"Invalid argument: {exc}", file=sys.stderr)
+                    return 3
+                if not isinstance(asked, list):
+                    print(
+                        "Invalid argument: export-all needs a list of uids",
+                        file=sys.stderr,
+                    )
+                    return 3
+                uids = set(str(uid) for uid in asked)
             for card in all_contacts():
+                if uids is not None and card["uid"] not in uids:
+                    continue
                 source = _file(card["uid"])
                 if source.is_file():
                     print(source.read_text(encoding="utf-8", errors="replace"), end="")
@@ -604,6 +899,14 @@ def main(argv: list[str]) -> int:
             if not isinstance(payload, dict):
                 print("Invalid argument: expected a JSON object", file=sys.stderr)
                 return 3
+        if command in ("add", "edit") and not valid_birthday(
+            payload.get("birthday", "")
+        ):
+            print(
+                "Invalid argument: birthday must be year-month-day or --month-day",
+                file=sys.stderr,
+            )
+            return 3
         if command == "add":
             name = str(payload.get("name", "")).strip()
             if not name:
@@ -632,8 +935,17 @@ def main(argv: list[str]) -> int:
                 edited["favorite"] = bool(existing.get("favorite"))
             if "avatar" not in payload:
                 edited["avatar"] = str(existing.get("avatar", "") or "")
-            # Editing only the fields the UI owns must not drop vCard fields we
-            # don't expose (birthday, address, org, notes, URLs, …).
+            # Editing only the fields the UI owns must not drop the others.
+            for key, empty in (
+                ("birthday", ""),
+                ("addresses", []),
+                ("org", ""),
+                ("role", ""),
+                ("urls", []),
+                ("note", ""),
+            ):
+                if key not in payload:
+                    edited[key] = existing.get(key) or empty
             edited["extras"] = existing.get("extras", [])
             saved = save(edited)
             print(json.dumps({"ok": True, "uid": saved["uid"]}))
