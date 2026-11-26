@@ -16,6 +16,10 @@ AppWindow {
     onGone: Ui.photos = false
     implicitWidth: Theme.px(1000)
     implicitHeight: Theme.px(700)
+    // the details pane is the only fixed side column: a column beside the grid
+    // on a desktop, the header's menu button opens it as a drawer on a phone
+    sidePane: detailsPane
+    Connections { target: win; function onDetailPathChanged() { detailsPane.open = false; } }
 
     readonly property string pictures: Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
     property var photos: []           // [{ path, time (s), month "November 2026" }]
@@ -33,6 +37,7 @@ AppWindow {
     property var selected: []         // multi-select: batch trash / album add
     property string detailPath: ""    // the photo the details panel describes
     property bool detailsShown: false
+    property bool moreShown: false     // compact: advanced filters fold behind "More"
     property var meta: ({})           // path -> { rating, tags, favorite }, kept in shani-photos/meta.json
     property string folderFilter: ""  // a folder (relative to Pictures) the view is scoped to
     property int minRating: 0         // 0 = any rating, else "this many stars and up"
@@ -687,7 +692,9 @@ AppWindow {
         ColumnLayout {
             anchors.fill: parent
             spacing: Theme.px(10)
-            RowLayout {
+            // a Flow, not a RowLayout: on a phone the chips wrap instead of
+            // pushing the last filters off the edge
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
@@ -711,6 +718,8 @@ AppWindow {
                         selected: win.view === modelData[0]
                         onClicked: {
                             win.view = modelData[0];
+                            // a phone opens the matching controls with the view
+                            if (win.compact) win.moreShown = win.view !== "photos";
                             if (modelData[0] === "places") win.scanPlaces();
                         }
                     }
@@ -737,26 +746,36 @@ AppWindow {
                 }
                 SearchField {
                     id: photoSearch
-                    Layout.preferredWidth: Theme.px(180)
+                    width: Math.min(Theme.px(180), parent.width)
                     placeholder: Tr.t("Search photos…")
                     label: Tr.t("Search photos")
                     text: win.searchText
                     onTextChanged: win.searchText = text
                 }
-                Item { Layout.fillWidth: true }
+                // on a phone the advanced filters live behind this one chip
+                Choice {
+                    visible: win.compact
+                    text: Tr.t("More")
+                    selected: win.moreShown
+                    onClicked: win.moreShown = !win.moreShown
+                }
                 // ---- albums ----
                 Flow {
-                    Layout.fillWidth: true
+                    width: parent.width
                     spacing: Theme.px(4)
                     visible: win.albums.length > 0
                     Repeater {
                         model: win.albums
                         delegate: Rectangle {
                             required property var modelData
-                            implicitWidth: Math.min(label.implicitWidth + 30, 120)
-                            height: Theme.px(26)
+                            implicitWidth: Math.min(Math.max(label.implicitWidth + 30, Theme.touchTarget), 160)
+                            implicitHeight: Math.max(Theme.px(26), Theme.touchTarget)
                             radius: Theme.px(13)
                             color: win.activeAlbum === modelData.name ? Theme.accent : (area.containsMouse ? Theme.hover : Theme.surface1)
+                            Accessible.role: Accessible.Button
+                            Accessible.name: modelData.name
+                            Accessible.checked: win.activeAlbum === modelData.name
+                            Accessible.onPressAction: area.clicked()
                             Text {
                                 id: label
                                 anchors.centerIn: parent
@@ -766,7 +785,8 @@ AppWindow {
                                 font.pixelSize: Theme.px(10) * Theme.fontScale
                                 elide: Text.ElideMiddle
                             }
-                            MouseArea { id: area; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { win.activeAlbum = win.activeAlbum === modelData.name ? "" : modelData.name; } }
+                            MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { win.activeAlbum = win.activeAlbum === modelData.name ? "" : modelData.name; } }
+                            KeyFocus { name: modelData.name; onActivated: win.activeAlbum = win.activeAlbum === modelData.name ? "" : modelData.name }
                         }
                     }
                 }
@@ -815,7 +835,17 @@ AppWindow {
                 }
                 IconButton { size: Theme.px(30); icon: "view-refresh"; tip: Tr.t("Look again"); onClicked: win.scan() }
                 IconButton { size: Theme.px(30); icon: "folder-pictures"; tip: Tr.t("Open Pictures in Files"); onClicked: Files.show(win.pictures) }
-                IconButton { size: Theme.px(30); icon: "document-properties"; tip: Tr.t("Details"); on: win.detailsShown; onClicked: win.detailsShown = !win.detailsShown }
+                IconButton {
+                    size: Theme.px(30)
+                    icon: "document-properties"
+                    tip: Tr.t("Details")
+                    on: win.detailsShown
+                    onClicked: {
+                        win.detailsShown = !win.detailsShown;
+                        // on a phone only one secondary pane is open at a time
+                        if (win.compact) { win.filmstrip = false; detailsPane.open = win.detailsShown; }
+                    }
+                }
             }
             // sort order on its own row: the toolbar above is already full at
             // the default width, which used to push the last sort off-screen.
@@ -905,6 +935,7 @@ AppWindow {
                     }
                 }
                 Text {
+                    visible: !win.compact
                     text: Tr.t("[ / ] to step")
                     color: Theme.dim
                     font.family: Theme.font
@@ -912,9 +943,9 @@ AppWindow {
                 }
             }
             // ---- People: name chips + assign a name to the selection -------------
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
-                visible: win.view === "people"
+                visible: win.view === "people" && (!win.compact || win.moreShown)
                 spacing: Theme.px(4)
                 Text {
                     text: Tr.t("People")
@@ -929,7 +960,7 @@ AppWindow {
                     onClicked: win.personFilter = ""
                 }
                 Flow {
-                    Layout.fillWidth: true
+                    width: parent.width
                     spacing: Theme.px(4)
                     Repeater {
                         model: win.people
@@ -943,7 +974,7 @@ AppWindow {
                 }
                 TextField {
                     id: personField
-                    Layout.preferredWidth: Theme.px(130)
+                    width: Math.min(Theme.px(130), parent.width)
                     placeholderText: Tr.t("Name for selection")
                     label: Tr.t("Person name")
                     text: win.personName
@@ -967,9 +998,9 @@ AppWindow {
                 onAction: personField.forceActiveFocus()
             }
             // ---- Places: group by GPS location, open the map ---------------------
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
-                visible: win.view === "places"
+                visible: win.view === "places" && (!win.compact || win.moreShown)
                 spacing: Theme.px(4)
                 Text {
                     text: win.placesReady ? Tr.t("%1 places", win.places.length) : Tr.t("Reading locations…")
@@ -984,7 +1015,7 @@ AppWindow {
                     onClicked: win.placeFilter = ""
                 }
                 Flow {
-                    Layout.fillWidth: true
+                    width: parent.width
                     spacing: Theme.px(4)
                     Repeater {
                         model: win.places
@@ -1015,8 +1046,9 @@ AppWindow {
                 onAction: win.scanPlaces()
             }
             // ---- keyword tags and saved searches (smart albums) ------------------
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
+                visible: !win.compact || win.moreShown
                 spacing: Theme.px(4)
                 Text {
                     text: Tr.t("Tags")
@@ -1031,7 +1063,7 @@ AppWindow {
                     onClicked: win.tagFilter = ""
                 }
                 Flow {
-                    Layout.fillWidth: true
+                    width: parent.width
                     spacing: Theme.px(4)
                     Repeater {
                         model: win.allTags
@@ -1045,7 +1077,7 @@ AppWindow {
                 }
                 TextField {
                     id: tagNameField
-                    Layout.preferredWidth: Theme.px(150)
+                    width: Math.min(Theme.px(150), parent.width)
                     placeholderText: Tr.t("Tag, e.g. Family > Kids")
                     label: Tr.t("Keyword tag")
                     text: win.tagName
@@ -1057,14 +1089,15 @@ AppWindow {
             }
             Text {
                 Layout.fillWidth: true
-                visible: win.allTags.length === 0
+                visible: win.allTags.length === 0 && (!win.compact || win.moreShown)
                 text: Tr.t("No keyword tags yet — select photos and add one (use > to nest)")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
+                visible: !win.compact || win.moreShown
                 spacing: Theme.px(4)
                 Text {
                     text: Tr.t("Smart albums")
@@ -1079,7 +1112,7 @@ AppWindow {
                     onClicked: win.activeSmart = ""
                 }
                 Flow {
-                    Layout.fillWidth: true
+                    width: parent.width
                     spacing: Theme.px(4)
                     Repeater {
                         model: win.smartAlbums
@@ -1093,7 +1126,7 @@ AppWindow {
                 }
                 TextField {
                     id: smartField
-                    Layout.preferredWidth: Theme.px(130)
+                    width: Math.min(Theme.px(130), parent.width)
                     placeholderText: Tr.t("Smart album name")
                     label: Tr.t("Smart album name")
                     text: win.smartName
@@ -1104,16 +1137,16 @@ AppWindow {
             }
             Text {
                 Layout.fillWidth: true
-                visible: win.smartAlbums.length === 0
+                visible: win.smartAlbums.length === 0 && (!win.compact || win.moreShown)
                 text: Tr.t("No smart albums yet — set a filter and save it")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
             // batch operations on the multi-selection (Ctrl/Shift-click tiles)
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
-                visible: win.selected.length > 0
+                visible: win.selected.length > 0 && (!win.compact || win.moreShown)
                 spacing: Theme.px(6)
                 Text {
                     text: Tr.t("%1 selected", win.selected.length)
@@ -1123,7 +1156,7 @@ AppWindow {
                 }
                 TextField {
                     id: albumField
-                    Layout.preferredWidth: Theme.px(140)
+                    width: Math.min(Theme.px(140), parent.width)
                     placeholderText: Tr.t("Album name")
                     text: win.newAlbumName
                     onTextChanged: win.newAlbumName = text
@@ -1132,7 +1165,7 @@ AppWindow {
                 Button { text: Tr.t("Favorite"); flat: true; onClicked: win.favoriteSelected() }
                 TextField {
                     id: renameField
-                    Layout.preferredWidth: Theme.px(170)
+                    width: Math.min(Theme.px(170), parent.width)
                     placeholderText: Tr.t("Pattern, e.g. Venice-2026-###")
                     label: Tr.t("Rename pattern")
                     text: win.renamePattern
@@ -1185,7 +1218,12 @@ AppWindow {
                 Choice {
                     text: Tr.t("Filmstrip")
                     selected: win.filmstrip
-                    onClicked: { win.filmstrip = !win.filmstrip; savePrefs(); }
+                    onClicked: {
+                        win.filmstrip = !win.filmstrip;
+                        // on a phone the filmstrip and details never show together
+                        if (win.compact && win.filmstrip) { win.detailsShown = false; detailsPane.open = false; }
+                        savePrefs();
+                    }
                 }
                 Text {
                     text: win.tileSize + " px"
@@ -1196,7 +1234,15 @@ AppWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                visible: win.filmstrip && win.shown.length > 0
+                visible: win.filmstrip && win.shown.length > 0 && !(win.compact && win.detailsShown)
+                IconButton {
+                    visible: win.compact
+                    icon: "go-previous"
+                    size: Theme.px(28)
+                    tip: Tr.t("Back")
+                    accessibleName: Tr.t("Back")
+                    onClicked: { win.filmstrip = false; savePrefs(); }
+                }
                 ListView {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.px(72)
@@ -1359,14 +1405,17 @@ AppWindow {
                                         Viewer.open(p);
                                     }
                                 }
-                                RowLayout {
-                                    anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(4) }
-                                    spacing: Theme.px(2)
+                                // always visible and tappable: a hover-only action
+                                // is unreachable on a touch screen; a Flow wraps
+                                // the five big targets inside a narrow phone tile
+                                Flow {
+                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.px(2) }
+                                    layoutDirection: Qt.RightToLeft
+                                    spacing: 0
                                     IconButton {
                                         size: Theme.px(22)
                                         icon: "media-playlist-play"
                                         tip: Tr.t("Slideshow from here")
-                                        opacity: tileArea.containsMouse ? 1 : 0.7
                                         onClicked: { Viewer.open(tile.modelData.path); Viewer.toggleSlideshow(); }
                                     }
                                     IconButton {
@@ -1374,28 +1423,24 @@ AppWindow {
                                         icon: win.favoriteOf(tile.modelData.path) ? "starred" : "non-starred"
                                         tip: Tr.t("Favorite")
                                         on: win.favoriteOf(tile.modelData.path)
-                                        opacity: tileArea.containsMouse ? 1 : 0.7
                                         onClicked: win.toggleFavorite(tile.modelData.path)
                                     }
                                     IconButton {
                                         size: Theme.px(22)
                                         icon: "folder-open"
                                         tip: Tr.t("Reveal in Files")
-                                        opacity: tileArea.containsMouse ? 1 : 0.7
                                         onClicked: win.reveal(tile.modelData.path)
                                     }
                                     IconButton {
                                         size: Theme.px(22)
                                         icon: "user-trash"
                                         tip: Tr.t("Move to trash")
-                                        opacity: tileArea.containsMouse ? 1 : 0.7
                                         onClicked: { Viewer.trash(); win.scan(); }
                                     }
                                     IconButton {
                                         size: Theme.px(22)
                                         icon: "document-edit"
                                         tip: Tr.t("Adjust…")
-                                        opacity: tileArea.containsMouse ? 1 : 0.7
                                         onClicked: win.adjust(tile.modelData.path)
                                     }
                                 }
@@ -1449,19 +1494,34 @@ AppWindow {
                 }
             }
             // ---- EXIF, rating and tags for the last-clicked photo ------------------
-            Rectangle {
-                visible: win.detailsShown
-                Layout.preferredWidth: Theme.px(260)
-                Layout.minimumWidth: Theme.px(200)
-                Layout.fillHeight: true
-                radius: Theme.radiusSmall
-                color: Theme.surface1
-                border.width: 1
-                border.color: Theme.stroke
-                ColumnLayout {
+            // a column beside the grid on a desktop; on a phone the header's menu
+            // button opens it as a drawer over the grid, with its own Back
+            SidePane {
+                id: detailsPane
+                compact: win.compact
+                paneWidth: Theme.px(260)
+                label: Tr.t("Details")
+                visible: win.detailsShown || detailsPane.open
+                Connections { target: detailsPane; function onOpenChanged() { if (detailsPane.open) { win.filmstrip = false; win.detailsShown = true; } } }
+                Rectangle {
                     anchors.fill: parent
-                    anchors.margins: Theme.px(10)
-                    spacing: Theme.px(8)
+                    anchors.margins: Theme.px(6)
+                    radius: Theme.radiusSmall
+                    color: Theme.surface1
+                    border.width: 1
+                    border.color: Theme.stroke
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: Theme.px(10)
+                        spacing: Theme.px(8)
+                        IconButton {
+                            visible: detailsPane.compact
+                            icon: "go-previous"
+                            size: Theme.px(28)
+                            tip: Tr.t("Back")
+                            accessibleName: Tr.t("Back")
+                            onClicked: { detailsPane.open = false; win.detailsShown = false; }
+                        }
                     Text {
                         Layout.fillWidth: true
                         text: win.detailPath ? win.detailPath.split("/").pop() : Tr.t("No photo selected")
@@ -1499,26 +1559,26 @@ AppWindow {
                         font.family: Theme.font
                         font.pixelSize: Theme.px(11) * Theme.fontScale
                     }
-                    Row {
-                        spacing: Theme.px(2)
+                    Flow {
+                        spacing: 0
                         Repeater {
                             model: 5
-                            Text {
+                            Choice {
                                 required property int index
                                 text: (index + 1) <= win.ratingOf(win.detailPath) ? "★" : "☆"
-                                color: Theme.accent
-                                font.pixelSize: Theme.px(18) * Theme.fontScale
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.setRating(win.detailPath, index + 1) }
+                                selected: win.ratingOf(win.detailPath) === index + 1
+                                accessibleName: Tr.t("Rate %1 stars", index + 1)
+                                onClicked: win.setRating(win.detailPath, index + 1)
                             }
                         }
                     }
                     Row {
                         spacing: Theme.px(2)
-                        Text {
+                        Choice {
                             text: win.favoriteOf(win.detailPath) ? "★" : "☆"
-                            color: win.favoriteOf(win.detailPath) ? "#ffd54a" : Theme.dim
-                            font.pixelSize: Theme.px(18) * Theme.fontScale
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.toggleFavorite(win.detailPath) }
+                            selected: win.favoriteOf(win.detailPath)
+                            accessibleName: Tr.t("Favorite")
+                            onClicked: win.toggleFavorite(win.detailPath)
                         }
                         Text {
                             text: win.favoriteOf(win.detailPath) ? Tr.t("Favorite") : Tr.t("Not favorite")
@@ -1543,6 +1603,7 @@ AppWindow {
                         IconButton { size: Theme.px(24); icon: "system-run"; tip: Tr.t("Open with… (O)"); onClicked: win.openWith(win.detailPath) }
                     }
                     Item { Layout.fillHeight: true }
+                    }
                 }
             }
             }  // RowLayout
