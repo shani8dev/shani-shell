@@ -258,6 +258,17 @@ def _bt_phones() -> list[dict]:
     return rows
 
 
+def _forgotten_file() -> Path:
+    return Path(os.environ.get("SHANI_ADB_FORGOTTEN", "/tmp/shani-android-forgotten"))
+
+
+def _is_forgotten(serial: str) -> bool:
+    try:
+        return _forgotten_file().read_text(encoding="utf-8").strip() == serial
+    except OSError:
+        return False
+
+
 def _connected() -> tuple[str, str, str, str]:
     """(serial, name, via, problem): the one reachable phone, or why there is none."""
     code, out, err = _adb("devices", "-l")
@@ -276,6 +287,8 @@ def _connected() -> tuple[str, str, str, str]:
         ready = [r for r in rows if r[1] == "device"]
         if len(ready) == 1:
             serial = ready[0][0]
+            if _is_forgotten(serial):
+                return "", "", "", "This phone was forgotten. Pair it again to use it."
             _code, prop, _err = _adb(
                 "shell", "getprop", "ro.product.model", serial=serial
             )
@@ -1155,6 +1168,11 @@ def cmd_pair(kind: str, value: str = "", code: str = "") -> dict:
         ok, why, name, address = _pair_wifi(value, code)
     else:
         return _answer("pair needs bluetooth or wifi", paired=False)
+    if ok:
+        try:
+            _forgotten_file().unlink(missing_ok=True)
+        except OSError:
+            pass
     return _answer("" if ok else why, paired=ok, name=name, address=address)
 
 
@@ -1181,7 +1199,13 @@ def cmd_forget() -> dict:
             )
     for device in _known_wifi():
         _adb("disconnect", device, timeout=20)
-    paired = bool(_bt_phones()) or bool(_known_wifi())
+    serial, _name, _via, _problem = _connected()
+    if serial:
+        try:
+            _forgotten_file().write_text(serial + "\n", encoding="utf-8")
+        except OSError:
+            pass
+    paired = bool(_bt_phones()) or bool(_known_wifi()) or bool(serial)
     return _answer("; ".join(errors)[:200], paired=paired)
 
 
