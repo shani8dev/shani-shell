@@ -96,17 +96,18 @@ Item {
         anchors.fill: parent
         columnSpacing: Theme.px(8)
         rowSpacing: Theme.px(8)
-        // soft wrap: a narrow screen draws one column at a time, wide ones fill
-        columns: root.narrow ? 1 : Math.max(1, Math.min(Math.floor(grid.width / Theme.px(118)), 8))
+        // a narrow screen (a phone) is a phone's app drawer: four icons across;
+        // wide ones fill as many 118 px columns as fit
+        columns: root.narrow ? 4 : Math.max(1, Math.min(Math.floor(grid.width / Theme.px(118)), 8))
         Repeater {
             model: root.visibleApps
             Rectangle {
                 id: tile
                 required property var modelData
                 required property int index
-                Layout.preferredWidth: Theme.px(118)
+                Layout.preferredWidth: root.narrow ? Math.floor((grid.width - grid.columnSpacing * 3) / 4) : Theme.px(118)
                 Layout.fillHeight: true
-                implicitHeight: Theme.px(110)
+                implicitHeight: root.narrow ? Theme.px(92) : Theme.px(110)
                 radius: Theme.px(16)
                 color: root.selected === tile.modelData ? Theme.accentSoft : "transparent"
                 Accessible.role: Accessible.ListItem

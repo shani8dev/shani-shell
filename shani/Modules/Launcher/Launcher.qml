@@ -56,7 +56,10 @@ PanelWindow {
     property bool hoverArmed: false
     // the app grids' column count, the same expression the grid itself uses,
     // so Up/Down move by one real row whatever the window width is
-    readonly property int gridCols: Math.max(1, Math.floor(list.width / Theme.px(132)))
+    // a phone's app drawer: four icons across, as a phone has them
+    readonly property bool phone: FormFactor.of(win.screen ? win.screen.name : "").profile === "phone"
+    readonly property int gridCols: phone ? 4 : Math.max(1, Math.floor(list.width / Theme.px(132)))
+    readonly property real phoneCell: Math.floor((list.width - Theme.px(8) * 3) / 4)
     // a page of results for PageUp/PageDown (six grid rows when there is a grid)
     readonly property int pageRows: Math.max(1, Math.min(8, win.gridCols) * 6)
     property string category: "All"
@@ -726,7 +729,9 @@ PanelWindow {
             search.text = Ui.launcherQuery;
             sel = 0;
             category = "All";
-            search.forceActiveFocus();
+            // a phone opens on its apps; the keyboard comes when the search box is tapped
+            if (FormFactor.of(win.screen ? win.screen.name : "").profile !== "phone" || Ui.launcherQuery !== "")
+                search.forceActiveFocus();
         }
     }
 
@@ -981,7 +986,10 @@ PanelWindow {
                                         Accessible.role: Accessible.ListItem
                                         Accessible.name: (tile.modelData.title || "") + (tile.modelData.subtitle ? ", " + tile.modelData.subtitle : "")
                                         Layout.fillWidth: true
-                                        implicitHeight: Theme.px(112)
+                                        // a phone: four equal columns, however long a name (it wraps)
+                                        Layout.preferredWidth: win.phone ? win.phoneCell : -1
+                                        Layout.maximumWidth: win.phone ? win.phoneCell : Number.POSITIVE_INFINITY
+                                        implicitHeight: win.phone ? Theme.px(88) : Theme.px(112)
                                         radius: Theme.px(18)
                                         color: isSel ? Theme.accentSoft : (win.hoverArmed && tileArea.containsMouse ? Theme.hover : "transparent")
                                         border.width: isSel ? 1 : 0
@@ -997,7 +1005,7 @@ PanelWindow {
                                             spacing: Theme.px(8)
                                             IconImage {
                                                 Layout.alignment: Qt.AlignHCenter
-                                                implicitSize: 54
+                                                implicitSize: win.phone ? 44 : 54
                                                 source: Quickshell.iconPath(tile.modelData.app, "application-x-executable")
                                             }
                                             Text {

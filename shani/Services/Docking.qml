@@ -67,7 +67,8 @@ Singleton {
         } else if (state !== "") {
             startMadeFor(all, leaving);
         }
-        Settings.data.layoutByDock = all;
+        if (JSON.stringify(all) !== JSON.stringify(Settings.data.layoutByDock || {}))
+            Settings.data.layoutByDock = all;
         was = state;
     }
     // the first time in a situation the desktop layout does not suit: its own
@@ -113,7 +114,10 @@ Singleton {
             if (!Settings.loaded) return;
             // the very first start in a situation the desktop layout does not suit
             // (a phone, a handheld, a TV box, a board): its own layout from the start
-            if (Settings.data.layoutFollowsDock && root.state !== "" && !(Settings.data.layoutByDock || {})[root.state]) {
+            // (only then is anything written: a save at every start could land on a
+            // change made in the same moment and undo it)
+            if (Settings.data.layoutFollowsDock && root.state !== "" && !(Settings.data.layoutByDock || {})[root.state]
+                    && root.startsMadeFor.indexOf(root.kindOf(root.state)) >= 0) {
                 const all = Object.assign({}, Settings.data.layoutByDock || {});
                 root.startMadeFor(all, root.snapshot());
                 Settings.data.layoutByDock = all;

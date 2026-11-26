@@ -377,6 +377,18 @@ PanelWindow {
         // the two system buttons, then the apps: a hairline between, so each group reads as one
         DockSeparator { visible: !win.phone }
 
+        // a phone's dock opens all its apps (a phone's app drawer); swiping up from
+        // the bottom edge does the same (Modules/EdgeStrips)
+        DockTile {
+            id: appsTile
+            visible: win.phone
+            on: Ui.launcher
+            tip: Tr.t("All apps")
+            icon: "view-app-grid"
+            onActivated: Ui.toggleLauncher("")
+            Icon { anchors.centerIn: parent; name: "view-app-grid"; size: parent.width * 0.5; color: appsTile.on ? Theme.accent : Theme.text }
+        }
+
         Repeater {
             model: win.phone ? win.items.filter(x => x.pinned).slice(0, 5) : win.items
             Item {

@@ -26,6 +26,8 @@ AppWindow {
     id: win
     property var openWithPaths: []
     appName: "Files"
+    sidePane: placesPane
+    Connections { target: Files; function onPathChanged() { placesPane.open = false; } }
     visible: Ui.files
     onGone: Files.hide()
     margins: 0
@@ -601,7 +603,7 @@ AppWindow {
                 spacing: Theme.px(6)
 
                 IconButton { icon: "go-previous"; size: Theme.px(30); tip: Tr.t("Back"); enabled: Files.canBack; onClicked: Files.back() }
-                IconButton { icon: "go-next"; size: Theme.px(30); tip: Tr.t("Forward"); enabled: Files.canForward; onClicked: Files.forward() }
+                IconButton { visible: !win.compact; icon: "go-next"; size: Theme.px(30); tip: Tr.t("Forward"); enabled: Files.canForward; onClicked: Files.forward() }
                 IconButton { icon: "go-up"; size: Theme.px(30); tip: Tr.t("Up"); enabled: Files.canUp; onClicked: Files.up() }
 
                 Icon { name: "folder"; size: Theme.px(20); color: Theme.accent }
@@ -626,7 +628,7 @@ AppWindow {
 
                 TextField {
                     id: searchBox
-                    Layout.preferredWidth: Theme.px(210)
+                    Layout.preferredWidth: win.compact ? Theme.px(120) : Theme.px(210)
                     placeholder: Tr.t("Search this folder")
                     label: Tr.t("Search this folder")
                     onTextChanged: { Files.searchText = text; dir.query = Files.searchDeep ? "" : text; deepTimer.restart(); }
@@ -698,9 +700,20 @@ AppWindow {
                 IconButton { icon: "help-faq"; size: Theme.px(30); tip: Tr.t("Keyboard shortcuts (Ctrl+/)"); onClicked: win.toggleShortcuts(); Accessible.name: Tr.t("Keyboard shortcuts") }
             }
 
-            // search categories: the chips feed the listing's extension filters
-            RowLayout {
+            // search categories: the chips feed the listing's extension filters; a row
+            // that scrolls sideways when it is wider than the window (a phone)
+            Flickable {
+                id: catScroll
                 Layout.fillWidth: true
+                Layout.preferredHeight: catRow.implicitHeight
+                contentWidth: catRow.implicitWidth
+                contentHeight: height
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+            RowLayout {
+                id: catRow
+                width: Math.max(implicitWidth, catScroll.width)
                 spacing: Theme.px(6)
                 Text {
                     text: Tr.t("Show:")
@@ -752,6 +765,7 @@ AppWindow {
                 }
                 Item { Layout.fillWidth: true }
             }
+            }
 
             // split pane toolbar
             RowLayout {
@@ -786,13 +800,15 @@ AppWindow {
                 Layout.fillHeight: true
                 spacing: Theme.px(10)
 
-                // the places
+                // the places: a column beside the files, a drawer on a narrow window (a phone)
+                SidePane {
+                    id: placesPane
+                    compact: win.compact
+                    paneWidth: Theme.px(176)
+                    label: Tr.t("Places")
                 ColumnLayout {
-                    // a fixed column: the rows inside would otherwise stretch it to half the window
-                    Layout.preferredWidth: Theme.px(176)
-                    Layout.maximumWidth: Theme.px(176)
-                    Layout.fillWidth: false
-                    Layout.fillHeight: true
+                    anchors.fill: parent
+                    anchors.margins: placesPane.compact ? Theme.px(10) : 0
                     spacing: 2
                     Text {
                         text: Tr.t("Places")
@@ -1015,6 +1031,7 @@ AppWindow {
                         onClicked: Files.openUsb("format")
                     }
                     Item { Layout.fillHeight: true }
+                }
                 }
 
                 // the folder (main pane)
@@ -1744,7 +1761,7 @@ AppWindow {
                     Layout.preferredWidth: Theme.px(230)
                     Layout.minimumWidth: Theme.px(190)   // keep the empty state readable
                     Layout.fillHeight: true
-                    visible: Files.showPreview && !Files.splitActive
+                    visible: Files.showPreview && !Files.splitActive && !win.compact
                     radius: Theme.radiusSmall
                     color: Theme.alpha(Theme.bg, 0.35)
                     border.width: 1
