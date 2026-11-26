@@ -59,6 +59,14 @@ _NAKSHATRAS = astronomy.NAKSHATRAS
 # The seven moving karanas; the four fixed ones are inserted at their slots.
 _MOVING_KARANAS = ["Bava", "Balava", "Kaulava", "Taitila", "Gara", "Vanija", "Vishti"]
 _FIXED_KARANAS = {0: "Kimstughna", 45: "Shakuni", 46: "Chatushpada", 47: "Naga"}
+_NAK_SIZE = 360.0 / 27.0  # 13 degrees 20 minutes
+_TITHI_NAMES = (
+    [f"Shukla {name}" for name in _TITHIS[:14]]
+    + ["Shukla Purnima"]
+    + [f"Krishna {name}" for name in _TITHIS[:14]]
+    + ["Krishna Amavasya"]
+)
+_LIMB_WIDTHS = {"tithi": 12.0, "nakshatra": _NAK_SIZE, "yoga": _NAK_SIZE, "karana": 6.0}
 
 # Eighth-of-the-day tables, 1-based parts from sunrise, Sunday first.
 _RAHU_PARTS = (8, 2, 7, 5, 6, 4, 3)
@@ -292,6 +300,84 @@ def _minutes(left: datetime, right: datetime) -> str:
     return f"{total // 60:02d}:{total % 60:02d}"
 
 
+def _sidereal_pair(jd: float) -> tuple[float, float]:
+    """Sun and Moon sidereal (Lahiri) longitudes at a Julian day."""
+    ayan = astronomy.ayanamsa_lahiri(jd)
+    return (
+        _norm(astronomy._sun_longitude(jd) - ayan),
+        _norm(astronomy._moon_longitude(jd) - ayan),
+    )
+
+
+def _limb_angle(jd: float, kind: str) -> float:
+    """The angle whose successive slices name a limb (degrees, 0..360)."""
+    sun, moon = _sidereal_pair(jd)
+    if kind in ("tithi", "karana"):
+        return _norm(moon - sun)
+    if kind == "nakshatra":
+        return moon
+    return _norm(moon + sun)
+
+
+def _limb_name(kind: str, angle: float) -> str:
+    if kind == "tithi":
+        return _TITHI_NAMES[int(angle / 12.0) % 30]
+    if kind == "nakshatra":
+        return _NAKSHATRAS[int(angle / _NAK_SIZE) % 27]
+    if kind == "yoga":
+        return _YOGAS[int(angle / _NAK_SIZE) % 27]
+    half = int(angle / 6.0) % 60
+    if half in _FIXED_KARANAS:
+        return _FIXED_KARANAS[half]
+    moving = half - 1 if half <= 44 else half - 48 + 44
+    return _MOVING_KARANAS[moving % 7]
+
+
+def _limb_end(start: datetime, kind: str) -> tuple[datetime, float]:
+    """Bisect the next boundary of a limb after ``start`` (UTC instant)."""
+    width = _LIMB_WIDTHS[kind]
+    jd0 = _jd(start)
+    angle0 = _limb_angle(jd0, kind)
+    target = (math.floor(angle0 / width) + 1) * width
+
+    def progress(jd: float) -> float:
+        return angle0 + (_limb_angle(jd, kind) - angle0) % 360.0
+
+    left = jd0
+    right = jd0 + 0.02  # about 29 minutes
+    while progress(right) < target:
+        right += 0.02
+    for _ in range(40):
+        middle = (left + right) / 2
+        if progress(middle) < target:
+            left = middle
+        else:
+            right = middle
+    return _utc_from_jd((left + right) / 2), target
+
+
+def _limbs(sunrise: datetime | None, zone: ZoneInfo, day: date_type) -> dict:
+    if sunrise is None:
+        return {
+            kind: {
+                "name": None,
+                "ends_at": None,
+                "next": None,
+                "note": "No sunrise on this date",
+            }
+            for kind in _LIMB_WIDTHS
+        }
+    result = {}
+    for kind in ("tithi", "nakshatra", "yoga", "karana"):
+        end, boundary = _limb_end(sunrise, kind)
+        result[kind] = {
+            "name": _limb_name(kind, _limb_angle(_jd(sunrise), kind)),
+            "ends_at": _clock(end, zone, day),
+            "next": _limb_name(kind, boundary),
+        }
+    return result
+
+
 def _rise_set(
     day: date_type, lat: float, lon: float, zone: ZoneInfo
 ) -> tuple[dict, dict, dict, dict]:
@@ -334,13 +420,13 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
     zone = ZoneInfo(zone_name)
     if not -90 <= lat <= 90 or not -180 <= lon <= 180:
         raise ValueError("latitude must be -90..90 and longitude -180..180")
-    sun, moon, _sunrise, _sunset = _rise_set(day, lat, lon, zone)
+    sun, moon, sunrise, _sunset = _rise_set(day, lat, lon, zone)
     return {
         "date": day.isoformat(),
         "place": {"latitude": lat, "longitude": lon, "timezone": zone_name},
         "sun": sun,
         "moon": moon,
-        "limbs": {},
+        "limbs": _limbs(sunrise, zone, day),
         "muhurtas": [],
         "choghadiya": {},
         "horas": [],
