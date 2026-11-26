@@ -13,6 +13,11 @@ One JSON answer per command, like every other bridge here:
     health.py workouts                the journaled workouts, newest first
     health.py spot <hr|spo2|bp>       one measurement from the watch
     health.py watch-connect state|on|off   read or set the companion switch
+    health.py sync-time                    set the paired watch's clock
+    health.py watch-settings               read the watch's settings
+    health.py watch-set <setting> <value>  change one watch setting
+    health.py watch-notify <text>           show a short message on the watch
+    health.py watch-profile <cm> <kg> <age> <gender>  give the watch its profile
 
 Everything written stays in a sqlite database under XDG_DATA_HOME — nothing is
 uploaded, and there is no account. shani-shell is optional: when the package, a
@@ -26,6 +31,7 @@ import csv
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
@@ -618,6 +624,147 @@ def cmd_find_watch() -> dict:
     return {**_ok(), "note": str(answer or "")}
 
 
+# ---- watch actions: the one call to the watch's owner -----------------------
+
+
+_WATCH_ARGS = (
+    "setting",
+    "value",
+    "what",
+    "text",
+    "kind",
+    "sender",
+    "height_cm",
+    "weight_kg",
+    "age",
+    "gender",
+)
+
+
+def _watch_action(arguments: dict) -> dict:
+    """The single call to the paired watch (or its stand-in), returning data.
+
+    `phone.watch` is the one owner of the watch; no logic is copied here. A dev
+    stand-in takes the same verbs and values and refuses the same bad ones.
+    """
+    tool = os.environ.get("SHANI_WATCH_ACTION_TOOL", "").strip()
+    if not tool:
+        # A live part cannot export into an already-started shell, so the dev
+        # watch file carries the stand-in's path (the bridge already reads it).
+        tool = str(_fake_watch().get("action_tool") or "").strip()
+    if tool:
+        words = [str(arguments.get("action") or "")]
+        words += [
+            str(arguments[k])
+            for k in _WATCH_ARGS
+            if k in arguments and arguments[k] not in (None, "")
+        ]
+        try:
+            proc = subprocess.run(
+                [sys.executable, tool, "action"] + words,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            return _ok("watch stand-in: " + str(exc)[:120])
+        try:
+            data = json.loads(proc.stdout)
+        except (TypeError, ValueError):
+            return _ok("watch stand-in did not answer")
+        if not isinstance(data, dict):
+            return _ok("watch stand-in did not answer")
+        settings = (
+            data.get("settings") if isinstance(data.get("settings"), dict) else {}
+        )
+        if proc.returncode != 0 or not data.get("ok"):
+            return {
+                **_ok(str(data.get("error") or "watch action failed")[:160]),
+                "note": "",
+                "settings": settings,
+            }
+        return {**_ok(), "note": str(data.get("note") or ""), "settings": settings}
+
+    if not watch:
+        return {**_ok(NOT_INSTALLED), "note": "", "settings": {}}
+    run = getattr(watch, "run", None) or getattr(watch, "_run", None)
+    if run is None:
+        return {**_ok(NOT_INSTALLED), "note": "", "settings": {}}
+    try:
+        answer = run(arguments)
+    except Exception as exc:  # noqa: BLE001 - no radio is an answer, not a crash
+        return {**_ok(str(exc)[:160]), "note": "", "settings": {}}
+    return {**_ok(), "note": str(answer or ""), "settings": {}}
+
+
+def cmd_sync_time() -> dict:
+    """Set the watch's clock from this computer."""
+    return _watch_action({"action": "sync_time"})
+
+
+def cmd_watch_settings() -> dict:
+    """Read the watch's own settings."""
+    return _watch_action({"action": "settings"})
+
+
+def cmd_watch_set(setting: str, value: str) -> dict:
+    """Change one setting; bool settings take on/off, enums take their word."""
+    setting = str(setting or "").strip().lower().replace(" ", "_")
+    value = str(value or "").strip().lower()
+    if not setting or not value:
+        return {**_ok("set needs a setting and a value"), "note": "", "settings": {}}
+    return _watch_action({"action": "set", "setting": setting, "value": value})
+
+
+def cmd_watch_notify(text: str) -> dict:
+    """Show a short message on the watch."""
+    text = str(text or "").strip()
+    if not text:
+        return {**_ok("notify needs text"), "note": "", "settings": {}}
+    return _watch_action(
+        {
+            "action": "notify",
+            "text": text[:200],
+            "kind": "other",
+            "sender": "Health",
+        }
+    )
+
+
+def cmd_watch_profile(height: str, weight: str, age: str, gender: str) -> dict:
+    """Give the watch the profile it uses for calories; it cannot measure it."""
+    values = (height, weight, age, gender)
+    if any(v in (None, "") for v in values):
+        return {
+            **_ok("profile needs height, weight, age and gender"),
+            "note": "",
+            "settings": {},
+        }
+    try:
+        numbers = [int(float(v)) for v in values[:3]]
+    except (TypeError, ValueError):
+        return {
+            **_ok("height, weight and age must be numbers"),
+            "note": "",
+            "settings": {},
+        }
+    if min(numbers) <= 0:
+        return {
+            **_ok("height, weight and age must be above zero"),
+            "note": "",
+            "settings": {},
+        }
+    return _watch_action(
+        {
+            "action": "profile",
+            "height_cm": numbers[0],
+            "weight_kg": numbers[1],
+            "age": numbers[2],
+            "gender": str(gender).strip().lower(),
+        }
+    )
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(json.dumps({"error": "usage: health.py <command> [args]"}))
@@ -641,6 +788,18 @@ def main() -> int:
         answer = cmd_find_watch()
     elif cmd == "watch-connect":
         answer = cmd_watch_connect(args[0] if args else "state")
+    elif cmd == "sync-time":
+        answer = cmd_sync_time()
+    elif cmd == "watch-settings":
+        answer = cmd_watch_settings()
+    elif cmd == "watch-set":
+        answer = cmd_watch_set(
+            args[0] if args else "", args[1] if len(args) > 1 else ""
+        )
+    elif cmd == "watch-notify":
+        answer = cmd_watch_notify(args[0] if args else "")
+    elif cmd == "watch-profile":
+        answer = cmd_watch_profile(*(args + [""] * 4)[:4])
     else:
         print(json.dumps({"error": "unknown command: " + cmd}))
         return 2

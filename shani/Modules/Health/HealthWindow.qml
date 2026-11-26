@@ -23,6 +23,10 @@ AppWindow {
     property string awakeText: ""
     property string workoutKind: ""
     property string workoutMinutes: ""
+    property string profileHeight: ""
+    property string profileWeight: ""
+    property string profileAge: ""
+    property string profileGender: "female"
     readonly property bool hasJournal: Health.history.some(d => d.steps > 0 || d.deep_min > 0 || d.light_min > 0 || d.awake_min > 0) || Health.workouts.length > 0
     readonly property bool hasWatch: Health.connected && (!!Health.device || !!Health.deviceModel || Health.lastRead !== "")
     readonly property int steps2DaysAgo: Health.history.length >= 3 ? Math.max(0, Number(Health.history[Health.history.length - 3].steps) || 0) : 0
@@ -248,11 +252,23 @@ AppWindow {
                 }
             }
 
-            // ---- activity: ring, km/kcal and the last three days --------------
+            // ---- two columns: each cell takes its width from this grid, never
+            //      from its content (a content-sized Flow grew without end).
+            GridLayout {
+                id: cards
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                columns: 2
+                columnSpacing: Theme.px(10)
+                rowSpacing: Theme.px(10)
+
+            // ---- activity: full width — the ring and three bars need it -----
             Rectangle {
                 objectName: "health-activity"
                 visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                Layout.columnSpan: 2
                 Layout.preferredHeight: Theme.px(170)
                 clip: true
                 radius: Theme.radiusSmall
@@ -399,10 +415,12 @@ AppWindow {
                 Component.onCompleted: activityRing.requestPaint()
             }
 
-            // ---- today's tiles -------------------------------------------------
+            // ---- today's tiles: three side by side need the full width --------
             RowLayout {
                 visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                Layout.columnSpan: 2
                 spacing: Theme.px(8)
 
                 Rectangle {
@@ -513,6 +531,7 @@ AppWindow {
                 objectName: "health-stress"
                 visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
+                Layout.preferredWidth: 0
                 implicitHeight: Theme.px(122)
                 radius: Theme.radiusSmall
                 color: Theme.surface1
@@ -529,6 +548,7 @@ AppWindow {
                             color: Theme.dim
                             font.family: Theme.font
                             font.pixelSize: Theme.px(10) * Theme.fontScale
+                            Accessible.name: text
                         }
                         Text {
                             text: win.stressValues().length ? String(win.stressValues()[win.stressValues().length - 1]) : "—"
@@ -570,49 +590,24 @@ AppWindow {
                 }
             }
 
-            // ---- a week of steps ---------------------------------------------
-            Text {
-                visible: win.hasWatch || win.hasJournal
-                Layout.fillWidth: true
-                text: Tr.t("Steps this week")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
-            Sparkline {
-                visible: win.hasWatch || win.hasJournal
-                Layout.fillWidth: true
-                values: Health.stepsWeek
-                maximum: Health.stepsGoal
-                color: Theme.accent
-                Accessible.role: Accessible.Graphic
-                Accessible.name: Tr.t("Steps over the last seven days")
-            }
-            EmptyState {
-                objectName: "health-loading"
-                visible: !Health.loaded
-                icon: "activity"
-                title: Tr.t("Reading your journal…")
-                subtitle: Tr.t("Nothing leaves this computer")
-                actionText: Tr.t("Try again")
-                onAction: Health.refresh()
-            }
-
-            // ---- sleep stages -------------------------------------------------
-            Text {
-                visible: win.hasWatch || win.hasJournal
-                Layout.fillWidth: true
-                text: Tr.t("Sleep stages")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
+            // ---- sleep stages: one column beside stress ------------------------
             ColumnLayout {
                 visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
+                Layout.preferredWidth: 0
                 spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Sleep stages")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                    Accessible.name: text
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(4)
                 Repeater {
                     model: [
                         [Tr.t("Deep"), Health.sleep.deep, Theme.blue],
@@ -686,21 +681,62 @@ AppWindow {
                     font.pixelSize: Theme.px(10) * Theme.fontScale
                     Accessible.name: text
                 }
+                }
             }
 
-            // ---- daily trend --------------------------------------------------
-            Text {
+            // ---- a week of steps: full width -----------------------------------
+            ColumnLayout {
                 visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
-                text: Tr.t("Daily trend")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
-                font.weight: Font.DemiBold
+                Layout.preferredWidth: 0
+                Layout.columnSpan: 2
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Steps this week")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                Sparkline {
+                    Layout.fillWidth: true
+                    values: Health.stepsWeek
+                    maximum: Health.stepsGoal
+                    color: Theme.accent
+                    Accessible.role: Accessible.Graphic
+                    Accessible.name: Tr.t("Steps over the last seven days")
+                }
             }
-            ListView {
-                id: trend
+            EmptyState {
+                objectName: "health-loading"
+                visible: !Health.loaded
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                Layout.columnSpan: 2
+                icon: "activity"
+                title: Tr.t("Reading your journal…")
+                subtitle: Tr.t("Nothing leaves this computer")
+                actionText: Tr.t("Try again")
+                onAction: Health.refresh()
+            }
+
+            // ---- daily trend: one column beside workouts ---------------------
+            ColumnLayout {
                 visible: win.hasWatch || win.hasJournal
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Daily trend")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                ListView {
+                id: trend
                 Layout.fillWidth: true
                 implicitHeight: Theme.px(120)
                 clip: true
@@ -744,21 +780,25 @@ AppWindow {
                     title: Tr.t("No history yet")
                     subtitle: Tr.t("Log a day or import a CSV/JSON file to see a trend")
                 }
+                }
             }
 
-            // ---- workouts -----------------------------------------------------
-            Text {
+            // ---- workouts: the other column -----------------------------------
+            ColumnLayout {
                 visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
-                text: Tr.t("Workouts")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.px(13) * Theme.fontScale
-                font.weight: Font.DemiBold
-            }
-            ListView {
+                Layout.preferredWidth: 0
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Workouts")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                ListView {
                 id: workouts
-                visible: win.hasWatch || win.hasJournal
                 Layout.fillWidth: true
                 implicitHeight: Math.min(Theme.px(180), Health.workouts.length * Theme.px(48))
                 clip: true
@@ -809,20 +849,26 @@ AppWindow {
                     title: Tr.t("No workouts yet")
                     subtitle: Tr.t("Log one below — or import a file")
                 }
+                }
             }
 
-            // ---- spot checks --------------------------------------------------
-            Text {
+            // ---- spot checks: full width --------------------------------------
+            ColumnLayout {
                 Layout.fillWidth: true
-                text: Health.measures.length ? Tr.t("Last: %1", Health.reading(Health.measures[0]))
-                    : Tr.t("Spot checks need a worn watch")
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
-                Accessible.role: Accessible.StatusBar
-                Accessible.name: text
-            }
-            Flow {
+                Layout.preferredWidth: 0
+                Layout.columnSpan: 2
+                spacing: Theme.px(4)
+                Text {
+                    Layout.fillWidth: true
+                    text: Health.measures.length ? Tr.t("Last: %1", Health.reading(Health.measures[0]))
+                        : Tr.t("Spot checks need a worn watch")
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    Accessible.role: Accessible.StatusBar
+                    Accessible.name: text
+                }
+                Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 Button {
@@ -843,30 +889,140 @@ AppWindow {
                     Accessible.name: Tr.t("Measure blood pressure now")
                     onClicked: Health.spot("bp")
                 }
+                }
             }
 
-            // ---- find my watch ------------------------------------------------
-            // The phone backends already know how to ring a paired watch.
-            Text {
+            // ---- watch controls: the engine's own actions, full width ---------
+            ColumnLayout {
                 Layout.fillWidth: true
-                text: Tr.t("Make a paired watch ring so you can find it")
-                color: Theme.faint
-                font.family: Theme.font
-                font.pixelSize: Theme.px(11) * Theme.fontScale
-                wrapMode: Text.Wrap
-                Accessible.role: Accessible.StatusBar
-                Accessible.name: text
-            }
-            Button {
-                text: Tr.t("Find my watch")
-                flat: true
-                Accessible.name: Tr.t("Ring the paired watch")
-                enabled: !Health.busy
-                onClicked: Health.findWatch()
+                Layout.preferredWidth: 0
+                Layout.columnSpan: 2
+                spacing: Theme.px(6)
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Watch controls")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: Health.watchNote !== ""
+                    text: Health.watchNote
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                    wrapMode: Text.Wrap
+                    Accessible.role: Accessible.StatusBar
+                    Accessible.name: text
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Button {
+                        text: Tr.t("Set the watch's time")
+                        flat: true
+                        enabled: !Health.busy
+                        onClicked: Health.watchSyncTime()
+                    }
+                    Button {
+                        text: Tr.t("Read watch settings")
+                        flat: true
+                        enabled: !Health.busy
+                        onClicked: Health.watchSettings()
+                    }
+                    Button {
+                        text: Tr.t("Find my watch")
+                        flat: true
+                        Accessible.name: Tr.t("Ring the paired watch")
+                        enabled: !Health.busy
+                        onClicked: Health.findWatch()
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Text {
+                        text: Tr.t("Raise to wake")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    Repeater {
+                        model: [["on", Tr.t("On")], ["off", Tr.t("Off")]]
+                        Choice {
+                            required property var modelData
+                            text: modelData[1]
+                            accessibleName: Tr.t("Set raise to wake %1", modelData[1])
+                            selected: String(Health.watchSettingsData["raise_to_wake"] || "") === modelData[0]
+                            enabled: !Health.busy
+                            onClicked: Health.watchSet("raise_to_wake", modelData[0])
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Button {
+                        text: Tr.t("Send a test message")
+                        flat: true
+                        enabled: !Health.busy
+                        onClicked: Health.watchNotify(Tr.t("Hello from this computer"))
+                    }
+                    TextField {
+                        Layout.preferredWidth: Theme.px(72)
+                        label: Tr.t("Height in centimeters")
+                        placeholder: Tr.t("cm")
+                        mode: "digits"
+                        text: win.profileHeight
+                        onTextChanged: win.profileHeight = text
+                    }
+                    TextField {
+                        Layout.preferredWidth: Theme.px(72)
+                        label: Tr.t("Weight in kilograms")
+                        placeholder: Tr.t("kg")
+                        mode: "digits"
+                        text: win.profileWeight
+                        onTextChanged: win.profileWeight = text
+                    }
+                    TextField {
+                        Layout.preferredWidth: Theme.px(56)
+                        label: Tr.t("Age in years")
+                        placeholder: Tr.t("years")
+                        mode: "digits"
+                        text: win.profileAge
+                        onTextChanged: win.profileAge = text
+                    }
+                    Choice {
+                        text: Tr.t("Female")
+                        accessibleName: Tr.t("Female")
+                        selected: win.profileGender === "female"
+                        onClicked: win.profileGender = "female"
+                    }
+                    Choice {
+                        text: Tr.t("Male")
+                        accessibleName: Tr.t("Male")
+                        selected: win.profileGender === "male"
+                        onClicked: win.profileGender = "male"
+                    }
+                    Button {
+                        text: Tr.t("Send my profile")
+                        flat: true
+                        enabled: !Health.busy
+                        onClicked: Health.watchProfile(win.profileHeight, win.profileWeight,
+                                                       win.profileAge, win.profileGender)
+                    }
+                }
             }
 
-            // ---- manual log ---------------------------------------------------
-            RowLayout {
+            // ---- manual log: full width, typing only as a custom value --------
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                Layout.columnSpan: 2
+                spacing: Theme.px(6)
+                RowLayout {
                 Layout.fillWidth: true
                 Flow {
                     Layout.fillWidth: true
@@ -953,6 +1109,8 @@ AppWindow {
                     onClicked: win.submit()
                 }
             }
+            }
         }
     }
+}
 }
