@@ -426,6 +426,10 @@ ShellRoot {
         function feedsExport(path: string) { Feeds.exportTo(path); }
         function feedsImport(path: string) { Feeds.run("import", [path]); }
         function feedsInterval(minutes: int) { Feeds.setInterval(minutes); }
+        // the tag filter and the next-unread jump are driven by the same service
+        // the window uses, so a script or a check picks the same values
+        function feedsSetTags(feed: string, tags: string) { Feeds.setTags(feed, tags); }
+        function feedsNextUnread() { Feeds.nextUnread(); }
         function mailOpen() { Ui.closeAll(); Ui.mail = true; Mail.state(); Mail.refresh(); }
         function mailSearch(q: string) { Mail.search(q); }
         function mailClose() { Ui.mail = false; }
@@ -1287,7 +1291,7 @@ ShellRoot {
                 playerSeekable: Media.current ? Media.current.canSeek : false,
                 callRecording: CallRecorder.recording,
                 callFile: CallRecorder.file,
-                cameraShown: Camera.open, notes: Ui.notes, feedsShown: Ui.feeds, mailShown: Ui.mail, textEditor: Ui.textEditor,
+                cameraShown: Camera.open, notes: Ui.notes, feedsShown: Ui.feeds, feedsOpenId: Feeds.openId, feedsTags: Feeds.tags, feedsRows: Feeds.feeds.map(f => f.title + ":" + (f.tags || []).join("/")), feedsNote: Feeds.note, mailShown: Ui.mail, textEditor: Ui.textEditor,
                 servicesShown: Ui.servicesApp, servicesTab: SysServices.tab,
                 servicesCount: SysServices.services.length, timersCount: SysServices.timers.length,
                 cronCount: SysServices.cron.length, servicesNote: SysServices.note,

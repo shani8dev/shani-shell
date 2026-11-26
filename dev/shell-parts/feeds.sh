@@ -62,6 +62,34 @@ until [ "$(python3 -c 'import json; print(len(json.load(open("/root/.config/shan
 n=$(python3 -c 'import json; print(len(json.load(open("/root/.config/shani-shell/feeds.json"))["feeds"]))' 2>/dev/null)
 [ "$n" = 2 ] && result feeds-opml-import-is-idempotent PASS || result feeds-opml-import-is-idempotent FAIL "$n feeds"
 
+# ---- the tag filter and the next-unread jump, both through the reader's service ----
+A11Y=${A11Y:-/testbed/lib/a11y_client.py}
+ipc feedsSetTags http://127.0.0.1:8731/atom news
+waitfor "'news' in (d.get('feedsTags') or [])" 8 \
+    && result feeds-tag-list-reported PASS || result feeds-tag-list-reported FAIL "$(q "['feedsTags'], d['feedsNote']")"
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" press "radio button:^news" >/dev/null 2>&1 \
+        && result feeds-tag-chip PASS || result feeds-tag-chip FAIL "the tag filter has no chip"
+    shot feeds-tag-filter 0.3
+    timeout 20 python3 "$A11Y" find "Example atom" >/dev/null 2>&1 \
+        && result feeds-tag-filter-shows-tagged PASS || result feeds-tag-filter-shows-tagged FAIL "the tagged feed is not listed"
+    timeout 20 python3 "$A11Y" find "Example feed" >/dev/null 2>&1 \
+        && result feeds-tag-filter-hides-others FAIL "the untagged feed is still listed" \
+        || result feeds-tag-filter-hides-others PASS
+    timeout 20 python3 "$A11Y" press "radio button:^All" >/dev/null 2>&1
+else
+    for n in tag-chip tag-filter-shows-tagged tag-filter-hides-others; do
+        result feeds-$n SKIP "no accessibility client"
+    done
+fi
+# the button asks the same nextunread command the bridge exposes
+waitfor "d.get('feedsOpenId') not in (None, '')" 8
+before=$(q "['feedsOpenId']")
+ipc feedsNextUnread
+waitfor "d.get('feedsOpenId') not in (None, '', '$before')" 10 \
+    && result feeds-next-unread PASS "$(q "['feedsOpenId']") (was $before)" \
+    || result feeds-next-unread FAIL "$(q "['feedsOpenId'], d['feedsNote']") (was $before)"
+
 # ---- refreshing on its own -------------------------------------------------
 ipc feedsInterval 30
 i=0; until [ "$(python3 -c 'import json; print(json.load(open("/root/.config/shani-shell/feeds.json")).get("interval"))' 2>/dev/null)" = 30 ] || [ $i -ge 20 ]; do sleep 0.25; i=$((i+1)); done
