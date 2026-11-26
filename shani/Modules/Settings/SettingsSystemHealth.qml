@@ -1,5 +1,5 @@
-// Settings > System health: checks run on request, with every result shown in
-// plain words. This page only reads; it does not change anything it reports.
+// Settings > System health: checks run on request, plus how hardware alerts
+// are spread across the CPUs. This page only reads; it changes nothing.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -18,6 +18,9 @@ ColumnLayout {
     property bool noteOk: true
     property bool ranFromButton: false
     readonly property string tool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_HEALTH_TOOL"), "system_health.py")
+    readonly property string bgTool: ToolPath.of(Quickshell.env("SHANI_SYSTEM_BG_TOOL"), "system_background.py")
+    property var irq: ({})
+    property bool irqLoaded: false
 
     onActiveChanged: if (active) load()
     Component.onCompleted: if (active) load()
@@ -40,12 +43,23 @@ ColumnLayout {
         const o = Object.assign({}, Ui.systemState || {});
         o.health = {
             checks: page.checks.map(c => (c.title || c.key || "") + ": " + page.statusLabel(c.status)),
-            error: page.error
+            error: page.error,
+            irq: { balanced: !!page.irq.balanced, cpus: page.irq.cpus || 0 }
         };
         Ui.systemState = o;
     }
-    function load() { page.busy = true; page.ranFromButton = false; if (listProc) listProc.running = true; publish(); }
-    function run() { page.busy = true; page.note = ""; page.ranFromButton = true; if (listProc) listProc.running = true; publish(); }
+    function load() {
+        page.busy = true; page.ranFromButton = false;
+        if (listProc) listProc.running = true;
+        if (irqProc) irqProc.running = true;
+        publish();
+    }
+    function run() {
+        page.busy = true; page.note = ""; page.ranFromButton = true;
+        if (listProc) listProc.running = true;
+        if (irqProc) irqProc.running = true;
+        publish();
+    }
 
     Process {
         id: listProc
@@ -74,6 +88,22 @@ ColumnLayout {
                 page.noteOk = false;
             }
             publish();
+        }
+    }
+
+    // Interrupts moved here from Background services: the same read bridge,
+    // shown with the other hardware health facts.
+    Process {
+        id: irqProc
+        command: ["python3", page.bgTool, "irq"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try { r = JSON.parse(text) || {}; } catch (e) { r = { error: Tr.t("This section could not be read") }; }
+                page.irq = r;
+                page.irqLoaded = true;
+                publish();
+            }
         }
     }
 
@@ -111,6 +141,44 @@ ColumnLayout {
             icon: "dialog-ok"
             title: Tr.t("Nothing to report")
             subtitle: Tr.t("No checks were reported. Run them to see how this computer is doing.")
+        }
+    }
+
+    SettingsSection {
+        Layout.fillWidth: true
+        title: Tr.t("Interrupts")
+        hint: Tr.t("How hardware alerts are spread across the computer's CPUs.")
+        ListRow {
+            Layout.fillWidth: true
+            interactive: false
+            icon: "preferences-system"
+            title: Tr.t("Balanced across CPUs")
+            subtitle: page.irq.balanced ? Tr.t("yes") : Tr.t("no")
+        }
+        ListRow {
+            Layout.fillWidth: true
+            interactive: false
+            icon: "preferences-system"
+            title: Tr.t("CPU count")
+            subtitle: String(page.irq.cpus || 0)
+        }
+        Repeater {
+            model: page.irq.lines || []
+            Text {
+                required property var modelData
+                Layout.fillWidth: true
+                text: modelData
+                color: Theme.dim
+                wrapMode: Text.Wrap
+                font.family: Theme.mono
+                font.pixelSize: Theme.px(10) * Theme.fontScale
+            }
+        }
+        EmptyState {
+            visible: page.irqLoaded && (page.irq.lines || []).length === 0 && !page.irq.error
+            icon: "preferences-system"
+            title: Tr.t("No interrupt details")
+            subtitle: Tr.t("No interrupt lines were reported.")
         }
     }
 

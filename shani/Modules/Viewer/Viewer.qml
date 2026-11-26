@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
+import "../../Common/FilesReveal.js" as FilesReveal
 import "../../Common/Gestures.js" as Hold
 import "../../Common/Markup.js" as Markup
 
@@ -42,10 +43,7 @@ AppWindow {
 
     // jump from the picture to its folder in Files, with the picture chosen;
     // a URL is not a file on disk, so there is nothing to show
-    function reveal(path) {
-        const p = String(path || ""); if (!p.startsWith("/")) return;
-        const at = p.lastIndexOf("/"); Files.show(at === 0 ? "/" : p.substring(0, at)); Files.select(p, "single");
-    }
+    function reveal(path) { return FilesReveal.show(path, Files); }
 
     // ---- Save as: let the person name the copy (CoreImage's Save As). The edit
     // service still writes its "(edited)" file; move that one file to the picked

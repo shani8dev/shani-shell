@@ -28,6 +28,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
+import "../Common/ServiceRun.js" as ServiceRun
 import "../Common/Format.js" as Format
 import "../Common/ToolPath.js" as ToolPath
 
@@ -49,12 +50,7 @@ Singleton {
     property bool busy: false
     property string note: ""               // last successful job
     property string what: ""               // the command currently in flight
-    function run(what, args) {
-        root.what = what;
-        root.busy = true;
-        root.error = "";
-        return true;
-    }
+    function run(what, args) { return ServiceRun.begin(root, what); }
     function finished(what, text, code) {
         root.busy = false;
         if (code === 127) {

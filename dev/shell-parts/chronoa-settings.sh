@@ -37,6 +37,48 @@ grep -qiE "pkexec|sudo" "$LOG" && result chronoa-switch-no-root FAIL "$(head -3 
     || result chronoa-switch-no-root PASS
 shot chronoa-settings-status 0.4
 
+# an API key is written by the engine's SettingsSet, not by gsettings. The
+# marker is the key's NAME; the key itself is never published to the shell.
+ipc providerKey openai mock-key-123
+waitfor "d['chronoaState'].get('keys',{}).get('last') == 'openai-api-key'" 8 \
+    && result chronoa-key-sent PASS || result chronoa-key-sent FAIL "$(q "['chronoaState']")"
+waitfor "d['chronoaState'].get('keys',{}).get('error', 'pending') == ''" 8 \
+    && result chronoa-key-no-error PASS || result chronoa-key-no-error FAIL "$(q "['chronoaState']")"
+q "['chronoaState']" | grep -qF "mock-key-123" \
+    && result chronoa-key-not-exposed FAIL "$(q "['chronoaState']")" \
+    || result chronoa-key-not-exposed PASS
+
+# the engine's settings page: rows from SettingsList, grouped, no product
+# name from the engine's labels and no secret value in the shell's state.
+waitfor "d['chronoaState'].get('settings',{}).get('ready') == True and d['chronoaState'].get('settings',{}).get('count',0) >= 5" 10 \
+    && result chronoa-engine-settings-read PASS "$(q "['chronoaState']['settings']['names']")" \
+    || result chronoa-engine-settings-read FAIL "$(q "['chronoaState']")"
+q "['chronoaState']" | grep -qF "OpenAI" \
+    && result chronoa-settings-plain-labels FAIL "$(q "['chronoaState']")" \
+    || result chronoa-settings-plain-labels PASS
+q "['chronoaState']" | grep -qF "secretsHidden': True" \
+    && result chronoa-secrets-hidden PASS || result chronoa-secrets-hidden FAIL "$(q "['chronoaState']")"
+
+# a plain write goes through; a consent switch on asks first, then confirms
+ipc chronoaSettingAsk privacy-mode balanced
+waitfor "d['chronoaState'].get('settings',{}).get('lastWrite') == 'privacy-mode'" 8 \
+    && result chronoa-setting-plain-write PASS || result chronoa-setting-plain-write FAIL "$(q "['chronoaState']")"
+ipc chronoaSettingAsk input-control-enabled true
+waitfor "d['chronoaState'].get('settings',{}).get('pending') == 'input-control-enabled'" 8 \
+    && result chronoa-consent-asks-first PASS || result chronoa-consent-asks-first FAIL "$(q "['chronoaState']")"
+q "['chronoaState']['settings']['confirmations']" | grep -qF "set:input-control-enabled" \
+    && result chronoa-consent-asked-too-early FAIL "$(q "['chronoaState']")" \
+    || result chronoa-consent-asked-too-early PASS
+ipc chronoaSettingConfirm
+waitfor "d['chronoaState'].get('settings',{}).get('lastWrite') == 'input-control-enabled'" 8 \
+    && result chronoa-consent-confirmed PASS || result chronoa-consent-confirmed FAIL "$(q "['chronoaState']")"
+ipc chronoaSettingPreset chat
+waitfor "d['chronoaState'].get('settings',{}).get('pending') == 'chat'" 8 \
+    && result chronoa-preset-asks-first PASS || result chronoa-preset-asks-first FAIL "$(q "['chronoaState']")"
+ipc chronoaSettingConfirm
+waitfor "'preset:chat' in d['chronoaState'].get('settings',{}).get('confirmations',[])" 8 \
+    && result chronoa-preset-confirmed PASS || result chronoa-preset-confirmed FAIL "$(q "['chronoaState']")"
+
 # every section comes from Agent.Inventory and shows the stand-in's own rows.
 # The marker is a value from dev/fake-chronoa-agent.py, not a label written in
 # this check, so a page that renders only headings cannot pass.

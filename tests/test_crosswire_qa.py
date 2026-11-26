@@ -301,6 +301,18 @@ def test_reveal_shows_the_dir_and_selects_the_file():
         s = path.read_text(encoding="utf-8")
         if "function reveal(" not in s:
             continue
+        impl = bind(s, obj, "reveal")
+        if "FilesReveal.show(path, Files)" in s:
+            # the four viewers now call one shared path-split helper; load it
+            # into the node stub the same way QML imports it
+            helper = (ROOT / "shani/Common/FilesReveal.js").read_text(encoding="utf-8")
+            helper = helper.replace(".pragma library", "")
+            helper = helper.replace(
+                "function show(path, files)",
+                "var FilesReveal = {}; FilesReveal.show = function(path, files)",
+                1,
+            )
+            impl = helper + "\n" + impl
         prog = """
         var calls = [];
         var Files = {
@@ -318,7 +330,7 @@ def test_reveal_shows_the_dir_and_selects_the_file():
         feed("/x");
         feed("http://host/y");
         process.stdout.write(JSON.stringify(calls));
-        """ % (bind(s, obj, "reveal"), obj)
+        """ % (impl, obj)
         out = node(prog)
         assert out == [
             ["show", "/home/u/Pictures"],
@@ -404,7 +416,8 @@ def test_notes_link_delegate_has_a_translated_accessible_name():
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 def test_calendar_event_note_body_carries_date_location_and_description():
     s = src(CALENDAR)
-    prog = r"""
+    prog = (
+        r"""
 var Time = {
   clockPadded: function(t){ t=String(t||""); return t.length>=5?t:t.padStart(5,"0"); },
   dayKey: function(when){ var d=when instanceof Date?when:typeof when==="string"?new Date(when):new Date(Number(when)||Date.now()); if(!d||isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); },
@@ -413,11 +426,14 @@ var Time = {
 };
     var Tr = { t: function (x) { return x; } };
     var win = {};
-    """ + bind(s, "win", "isoDay", "eventNoteBody") + r"""
+    """
+        + bind(s, "win", "isoDay", "eventNoteBody")
+        + r"""
     var body = win.eventNoteBody({ summary: "Standup", start: 1764000000,
                                    location: "Room 1", description: "agenda" });
     process.stdout.write(JSON.stringify({ body: body, day: win.isoDay(1764000000000) }));
     """
+    )
     out = node(prog)
     assert out["body"].startswith("# Standup")
     assert "[[%s]]" % out["day"] in out["body"]

@@ -12,7 +12,7 @@ AppWindow {
     id: win
     appName: "Devices"
     visible: Ui.devices
-    onGone: Ui.devices = false
+    onGone: { Ui.devices = false; Ui.devicesTab = ""; }
     implicitWidth: Theme.px(760)
     implicitHeight: Theme.px(640)
 
@@ -77,7 +77,12 @@ AppWindow {
     property string landlineCode: ""
 
     function refreshAll() { Devices.refresh(); Lines.refresh(); Mirror.refresh(); PhoneTools.refresh(); AndroidTools.refresh(); }
-    onVisibleChanged: if (visible) refreshAll()
+    // a link from Settings names the tab to land on; consume it once, so a
+    // later ordinary open still shows the last tab the person chose
+    onVisibleChanged: if (visible) {
+        if (Ui.devicesTab !== "") win.tab = Ui.devicesTab;
+        refreshAll()
+    }
     Component.onCompleted: refreshAll()
 
     // Paired phones, read from the two services that already know them. A phone

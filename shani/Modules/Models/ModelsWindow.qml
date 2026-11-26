@@ -202,6 +202,15 @@ AppWindow {
                 font.pixelSize: Theme.px(12) * Theme.fontScale
             }
 
+            InfoBanner {
+                Layout.fillWidth: true
+                visible: AIProviders.syncError !== ""
+                tone: "error"
+                text: AIProviders.syncError
+                Accessible.role: Accessible.AlertMessage
+                Accessible.name: AIProviders.syncError
+            }
+
             // connected providers
             Repeater {
                 model: AIProviders.providers

@@ -1,6 +1,6 @@
-// Settings > Background work: a short read of jobs set to run later, process
-// priority, interrupt spread and the audit log. All four are read only — a
-// person's own jobs open in the Services and timers window instead.
+// Settings > Background work: jobs set to run later and process priority, both
+// read only. Interrupt spread lives under System health, the audit log under
+// Security. The phone switches live in the Background app.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -18,11 +18,9 @@ ColumnLayout {
     property string topic: "schedules"
     property var topics: [
         { v: "schedules", label: Tr.t("Scheduled work") },
-        { v: "priority", label: Tr.t("Process priority") },
-        { v: "irq", label: Tr.t("Interrupts") },
-        { v: "audit", label: Tr.t("Audit log") }
+        { v: "priority", label: Tr.t("Process priority") }
     ]
-    property var verbs: ["schedules", "priority", "irq", "audit"]
+    property var verbs: ["schedules", "priority"]
     property var results: ({})
     property int i: -1
     property bool busy: false
@@ -40,20 +38,14 @@ ColumnLayout {
         reader.running = false;
         reader.running = true;
     }
-    function yn(x) { return x ? Tr.t("yes") : Tr.t("no"); }
     function obj(v) { return page.results[v] || {}; }
-    function linesOf(v) { return (page.results[v] || {}).lines || []; }
     function publish() {
         const o = Object.assign({}, Ui.systemState || {});
         const sch = page.obj("schedules");
         const pri = page.obj("priority");
-        const irq = page.obj("irq");
-        const aud = page.obj("audit");
         o.background = {
             schedules: sch.files || [],
             priority: { installed: pri.installed || "", active: pri.active || "" },
-            irq: { balanced: !!irq.balanced, cpus: irq.cpus || 0 },
-            audit: (aud.events || []).map(e => e.type || ""),
             topic: page.topic
         };
         Ui.systemState = o;
@@ -177,118 +169,13 @@ ColumnLayout {
 
     SettingsSection {
         Layout.fillWidth: true
-        visible: page.topic === "irq"
-        title: Tr.t("Interrupts")
-        hint: Tr.t("How hardware alerts are spread across the computer's CPUs.")
-        ListRow {
-            Layout.fillWidth: true
-            interactive: false
-            icon: "preferences-system"
-            title: Tr.t("Balanced across CPUs")
-            subtitle: page.yn(page.obj("irq").balanced)
-        }
-        ListRow {
-            Layout.fillWidth: true
-            interactive: false
-            icon: "preferences-system"
-            title: Tr.t("CPU count")
-            subtitle: String(page.obj("irq").cpus || 0)
-        }
-        Repeater {
-            model: page.linesOf("irq")
-            Text {
-                required property var modelData
-                Layout.fillWidth: true
-                text: modelData
-                color: Theme.dim
-                wrapMode: Text.Wrap
-                font.family: Theme.mono
-                font.pixelSize: Theme.px(10) * Theme.fontScale
-            }
-        }
-        EmptyState {
-            visible: !page.busy && page.linesOf("irq").length === 0 && !(page.obj("irq").error)
-            icon: "preferences-system"; title: Tr.t("No interrupt details")
-            subtitle: Tr.t("No interrupt lines were reported.")
-        }
-    }
-
-    SettingsSection {
-        Layout.fillWidth: true
-        visible: page.topic === "audit"
-        title: Tr.t("Audit log")
-        hint: Tr.t("Records shown word for word, with no grading or verdict.")
-        EmptyState {
-            visible: !page.busy && (page.obj("audit").events || []).length === 0
-            icon: "format-list-unordered"; title: Tr.t("No audit records")
-            subtitle: Tr.t("No audit records were reported.")
-        }
-        Repeater {
-            model: (page.obj("audit").events || [])
-            ColumnLayout {
-                id: ev
-                required property var modelData
-                Layout.fillWidth: true
-                ListRow {
-                    Layout.fillWidth: true
-                    interactive: false
-                    icon: "format-list-unordered"
-                    title: ev.modelData.type || Tr.t("Record")
-                    subtitle: ev.modelData.time || ""
-                }
-                Text {
-                    Layout.fillWidth: true
-                    visible: (ev.modelData.detail || "") !== ""
-                    text: ev.modelData.detail || ""
-                    color: Theme.dim
-                    wrapMode: Text.Wrap
-                    font.family: Theme.mono
-                    font.pixelSize: Theme.px(10) * Theme.fontScale
-                }
-            }
-        }
-    }
-
-    SettingsSection {
-        Layout.fillWidth: true
         title: Tr.t("Phone and watch, with no window open")
-        hint: Tr.t("Each one runs only while its switch is on")
+        hint: Tr.t("Each one runs only while its switch is on. The grouped switches live in the Background app.")
         Button {
-            text: Tr.t("Open the Background page")
+            text: Tr.t("Open the Background app")
             flat: true
-            Accessible.name: Tr.t("Open the Background page with the grouped switches")
+            Accessible.name: Tr.t("Open the Background app with the grouped switches")
             onClicked: { Ui.closeAll(); Ui.backgroundServices = true; }
-        }
-        BusyNote {
-            Layout.fillWidth: true
-            visible: PhoneTools.busy
-            note: Tr.t("Reading…")
-            iconSize: Theme.px(16)
-        }
-        Text {
-            Layout.fillWidth: true
-            wrapMode: Text.Wrap
-            text: Tr.t("%1 of %2 on", PhoneTools.switches.filter(s => s.on).length, PhoneTools.switches.length)
-            color: Theme.dim
-            font.family: Theme.font
-            font.pixelSize: Theme.px(12) * Theme.fontScale
-        }
-        Repeater {
-            model: PhoneTools.switches
-            SwitchRow {
-                required property var modelData
-                Layout.fillWidth: true
-                text: modelData.label || ""
-                hint: modelData.detail || ""
-                checked: !!modelData.on
-                onToggled: on => PhoneTools.backgroundSet(modelData.key, on)
-            }
-        }
-        EmptyState {
-            visible: !PhoneTools.busy && PhoneTools.switches.length === 0
-            icon: "preferences-system"
-            title: Tr.t("No phone switches yet")
-            subtitle: Tr.t("The phone tools are not installed")
         }
     }
 }
