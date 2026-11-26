@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Stands in for mdadm, pvs, vgs, lvs, btrfs, compsize and smartctl
+"""Stands in for mdadm, pvs, vgs, lvs, btrfs, compsize, smartctl and systemctl
 (tests/test_system_disks.py): invoked by basename through symlinks, with fixed,
-realistic reports and no writes. SHANI_MDSTAT may point at a fixture file.
+realistic reports and no writes. SHANI_MDSTAT may point at a fixture file;
+FAKE_SYSTEM_DISKS_SCRUB at a scrub-status fixture and FAKE_SYSTEM_DISKS_SMARTD_STATE
+at smartd.service's state.
 
 Every call is appended to $FAKE_SYSTEM_DISKS/calls as "name args...". Set
 FAKE_SYSTEM_DISKS_FAIL to space-separated commands that should fail, optionally
-with an argument to match, e.g. "vgs btrfs:usage smartctl:sdb".
+with an argument to match, e.g. "vgs btrfs:usage btrfs:df smartctl:sdb".
 """
 
 import json
@@ -101,6 +103,15 @@ elif prog == "btrfs":
 ID 257 gen 42 top level 5 path @home
 ID 258 gen 42 top level 5 path @var
 ID 259 gen 42 top level 257 path @home/.snapshots""")
+    elif args == ["fi", "show", "/"]:
+        print("""Label: 'shani_root' uuid: 4d2e1f80-1234-4c56-8a90-abcdef123456
+\tTotal devices 1 FS bytes used 6.41GiB
+\tdevid    1 size 100.00GiB used 6.41GiB path /dev/sda2""")
+    elif args == ["fi", "df", "/"]:
+        print("""Data, single: total=40.00GiB, used=6.38GiB
+System, DUP: total=8.00MiB, used=16.00KiB
+Metadata, DUP: total=2.00GiB, used=32.00MiB
+GlobalReserve, single: total=16.00MiB, used=0.00B""")
     elif args == ["filesystem", "usage", "/"]:
         print("""Overall:
     Device size:                 100.00GiB
@@ -109,7 +120,12 @@ ID 259 gen 42 top level 257 path @home/.snapshots""")
     Used:                         40.00GiB
     Free (estimated):             57.00GiB""")
     elif args == ["filesystem", "scrub", "status", "/"]:
-        print("""UUID: 4d2e1f80-1234-4c56-8a90-abcdef123456
+        fixture = os.environ.get("FAKE_SYSTEM_DISKS_SCRUB")
+        if fixture and os.path.isfile(fixture):
+            with open(fixture, encoding="utf-8") as fh:
+                print(fh.read(), end="")
+        else:
+            print("""UUID: 4d2e1f80-1234-4c56-8a90-abcdef123456
 Scrub started:    Wed Nov 25 10:00:00 2026
 Status:           finished
 Duration:         0:00:09
@@ -153,6 +169,11 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
 """
         % model
     )
+
+elif prog == "systemctl":
+    if args != ["is-active", "smartd.service"]:
+        die("systemctl: only is-active smartd.service is supported")
+    print(os.environ.get("FAKE_SYSTEM_DISKS_SMARTD_STATE", "active"))
 
 else:
     die("unknown tool: " + prog)

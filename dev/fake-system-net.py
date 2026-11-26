@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Stands in for resolvectl, systemctl, ss, avahi-browse, caddy and cloudflared
-(tests/test_system_net.py): fixed, realistic status output, never a write to the
-machine. `fake-system-net.py fixtures` makes the config fixtures in
-$FAKE_SYSTEM_NET; each tool call logs its argv to $FAKE_SYSTEM_NET/calls. A
-token-looking file sits in the fake cloudflared directory to catch a bridge
-that reads what it must only check for.
+"""Stands in for resolvectl, systemctl, ss, avahi-browse, caddy, cloudflared and
+fail2ban-client (tests/test_system_net.py): fixed, realistic status output,
+never a write to the machine. `fake-system-net.py fixtures` makes the config
+fixtures in $FAKE_SYSTEM_NET; each tool call logs its argv to
+$FAKE_SYSTEM_NET/calls. A token-looking file sits in the fake cloudflared
+directory to catch a bridge that reads what it must only check for.
+
+FAKE_SYSTEM_NET_F2B_REFUSE=1 answers fail2ban status with the daemon's socket
+refusal (exit 255); FAKE_SYSTEM_NET_F2B_ABSENT=1 answers like a tool that is not
+runnable. Every other argv is rejected with exit 2.
 """
 
 import os, sys, time, traceback
@@ -126,6 +130,32 @@ elif prog == "cloudflared":
         print("""ID                                   NAME        CREATED
 6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8  home        2025-01-02
 9c8b7a65-4321-4fed-8000-1234567890ab  workshop    2025-03-14""")
+    else:
+        sys.exit(2)
+elif prog == "fail2ban-client":
+    if os.environ.get("FAKE_SYSTEM_NET_F2B_ABSENT") == "1":
+        sys.stderr.write("fail2ban-client: command not found\n")
+        sys.exit(127)
+    if os.environ.get("FAKE_SYSTEM_NET_F2B_REFUSE") == "1":
+        print(
+            "ERROR   Permission denied to socket: "
+            "/var/run/fail2ban/fail2ban.sock, (you must be root)"
+        )
+        sys.exit(255)
+    if a == ["status"]:
+        print("Status\n|- Number of jail:\t1\n`- Jail list:\tsshd")
+    elif a == ["status", "sshd"]:
+        print(
+            "Status for the jail: sshd\n"
+            "|- Filter\n"
+            "|  |- Currently failed:\t0\n"
+            "|  |- Total failed:\t0\n"
+            "|  `- Journal matches:\t_SYSTEMD_UNIT=sshd.service + _COMM=sshd\n"
+            "`- Actions\n"
+            "   |- Currently banned:\t2\n"
+            "   |- Total banned:\t7\n"
+            "   `- Banned IP list:\t192.0.2.44 198.51.100.7"
+        )
     else:
         sys.exit(2)
 else:

@@ -17,11 +17,18 @@ token, key or password is never copied into an answer.
     system_net.py cloudflared   {"installed","config","credentials",
                                  "tunnels":[{"id","name"}],"error"}
     system_net.py mail          {"relay","host","detail","error"}
+    system_net.py fail2ban      {"installed","available","jails":[str],
+                                 "counts":{"number","currently_banned",
+                                 "total_banned","currently_failed"},
+                                 "banned":[str],
+                                 "per_jail":[{"name","counts","banned","error"}],
+                                 "error"}
 
 Every external tool, file and directory has a SHANI_* override for tests:
 SHANI_RESOLV_CONF, SHANI_RESOLVECTL, SHANI_SYSTEM_SYSTEMCTL, SHANI_SS, SHANI_SYSCTL_FILE,
 SHANI_AVAHI_BROWSE, SHANI_CADDYFILE, SHANI_CADDY, SHANI_CLOUDFLARED_DIR,
-SHANI_CLOUDFLARED and SHANI_EXIM_CONF. Status queries get five seconds each.
+SHANI_CLOUDFLARED, SHANI_EXIM_CONF and SHANI_FAIL2BAN_CLIENT. Status queries get
+five seconds each.
 """
 
 from __future__ import annotations
@@ -50,9 +57,21 @@ CLOUDFLARED_DIR = os.path.expanduser(
 )
 CLOUDFLARED = shlex.split(os.environ.get("SHANI_CLOUDFLARED", "cloudflared"))
 EXIM_CONF = os.environ.get("SHANI_EXIM_CONF", "/etc/mail/exim.conf")
+FAIL2BAN_CLIENT = shlex.split(
+    os.environ.get("SHANI_FAIL2BAN_CLIENT", "fail2ban-client")
+)
 
 HOSTNAME = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$")
 LINK = re.compile(r"^Link\s+\d+\s+\(([^)]+)\)")
+
+COUNT_LABEL = "Number of jail:"
+JAIL_LIST_LABEL = "Jail list:"
+CURRENTLY_BANNED = "Currently banned:"
+TOTAL_BANNED = "Total banned:"
+CURRENTLY_FAILED = "Currently failed:"
+BANNED_LIST = "Banned IP list:"
+COUNT_KEYS = ("number", "currently_banned", "total_banned", "currently_failed")
+MAX_JAILS = 20
 
 
 def _run(cmd: list[str], *args: str, timeout: int = TIMEOUT):
@@ -79,6 +98,44 @@ def _unit(name: str) -> str:
 
 def _text(path: str) -> str:
     return Path(path).read_text(encoding="utf-8", errors="replace")
+
+
+def _field(lines: list[str], label: str) -> str:
+    """Value after a label found anywhere in a line: fail2ban draws a tree."""
+    for raw in lines:
+        cut = raw.find(label)
+        if cut >= 0:
+            return raw[cut + len(label) :].strip()
+    return ""
+
+
+def _parse_fail2ban(lines: list[str]) -> dict:
+    """Status lines → the counts, jail names and banned addresses reported."""
+    counts = dict.fromkeys(COUNT_KEYS)
+    for key, label in (
+        ("number", COUNT_LABEL),
+        ("currently_banned", CURRENTLY_BANNED),
+        ("total_banned", TOTAL_BANNED),
+        ("currently_failed", CURRENTLY_FAILED),
+    ):
+        value = _field(lines, label)
+        counts[key] = int(value) if value.isdigit() else None
+    return {
+        "counts": counts,
+        "jails": _field(lines, JAIL_LIST_LABEL).split(),
+        "banned": _field(lines, BANNED_LIST).split(),
+    }
+
+
+def _refusal(status: int, *streams: str) -> str:
+    """A failed read speaks in the tool's own words, not an empty answer."""
+    said = [
+        line.strip()
+        for stream in streams
+        for line in stream.splitlines()
+        if line.strip()
+    ]
+    return " ".join(said) if said else f"exited {status}"
 
 
 def resolver() -> dict:
@@ -318,6 +375,45 @@ def mail() -> dict:
     return out
 
 
+def fail2ban() -> dict:
+    """Jails and banned addresses from read-only fail2ban-client status calls."""
+    out = {
+        "installed": bool(shutil.which(FAIL2BAN_CLIENT[0])),
+        "available": False,
+        "jails": [],
+        "counts": dict.fromkeys(COUNT_KEYS),
+        "banned": [],
+        "per_jail": [],
+        "error": "",
+    }
+    if not out["installed"]:
+        return out
+    r = _run(FAIL2BAN_CLIENT, "status")
+    if r.returncode != 0:
+        out["error"] = _refusal(r.returncode, r.stdout, r.stderr)
+        return out
+    out["available"] = True
+    top = _parse_fail2ban((r.stdout + r.stderr).splitlines())
+    out["jails"] = top["jails"]
+    out["counts"] = top["counts"]
+    out["banned"] = top["banned"]
+    for jail in top["jails"][:MAX_JAILS]:
+        row = {
+            "name": jail,
+            "counts": dict.fromkeys(COUNT_KEYS),
+            "banned": [],
+            "error": "",
+        }
+        jr = _run(FAIL2BAN_CLIENT, "status", jail)
+        if jr.returncode != 0:
+            row["error"] = _refusal(jr.returncode, jr.stdout, jr.stderr)
+        else:
+            parsed = _parse_fail2ban((jr.stdout + jr.stderr).splitlines())
+            row["counts"], row["banned"] = parsed["counts"], parsed["banned"]
+        out["per_jail"].append(row)
+    return out
+
+
 VERBS = {
     "resolver": resolver,
     "inbound": inbound,
@@ -325,6 +421,7 @@ VERBS = {
     "caddy": caddy,
     "cloudflared": cloudflared,
     "mail": mail,
+    "fail2ban": fail2ban,
 }
 
 
@@ -332,6 +429,9 @@ def main(argv: list[str]) -> int:
     verb = argv[1] if len(argv) > 1 else ""
     if verb not in VERBS:
         print(json.dumps({"error": "not a known verb"}))
+        return 2
+    if verb == "fail2ban" and len(argv) > 2:
+        print(json.dumps({"error": "fail2ban takes no arguments"}))
         return 2
     print(json.dumps(VERBS[verb]()))
     return 0

@@ -1,8 +1,9 @@
 """bridge/system_net.py against the stand-ins in dev/fake-system-net.py:
 the resolver file and the resolver's own status, listening ports and sshd,
 discovered services with a timeout that cannot hang, the Caddyfile's sites
-without its secret, a tunnel listing without its token, and mail's smart host.
-Every answer is one JSON object; no caller-supplied word reaches an argv.
+without its secret, a tunnel listing without its token, mail's smart host, and
+fail2ban's jails, banned addresses and refusals. Every answer is one JSON
+object; no caller-supplied word reaches an argv.
 """
 
 import json
@@ -17,7 +18,15 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 BRIDGE = ROOT / "bridge" / "system_net.py"
 FAKE = ROOT / "dev" / "fake-system-net.py"
-TOOLS = ("resolvectl", "systemctl", "ss", "avahi-browse", "caddy", "cloudflared")
+TOOLS = (
+    "resolvectl",
+    "systemctl",
+    "ss",
+    "avahi-browse",
+    "caddy",
+    "cloudflared",
+    "fail2ban-client",
+)
 
 
 @pytest.fixture
@@ -41,6 +50,7 @@ def env(tmp_path):
         SHANI_CLOUDFLARED_DIR=str(tmp_path / "cloudflared-config"),
         SHANI_CLOUDFLARED="cloudflared",
         SHANI_EXIM_CONF=str(tmp_path / "exim.conf"),
+        SHANI_FAIL2BAN_CLIENT="fail2ban-client",
     )
     subprocess.run(
         [sys.executable, str(FAKE), "fixtures"], env=e, check=True, capture_output=True
@@ -134,5 +144,59 @@ def test_no_caller_word_reaches_an_argv(tmp_path, env):
     r, rc = run(env, "resolver", "; touch " + str(pwn))
     assert rc == 0 and r["target"] == "resolv.conf.real"  # extra words ignored
     assert "error" in run(env, "resolver;id")[0]
+    assert not pwn.exists()
+    assert "touch" not in (tmp_path / "calls").read_text()
+
+
+def test_fail2ban_jails_banned_addresses_and_counts(tmp_path, env):
+    r, rc = run(env, "fail2ban")
+    assert rc == 0 and r["installed"] and r["available"] and r["error"] == ""
+    assert r["jails"] == ["sshd"]
+    assert r["counts"]["number"] == 1
+    assert r["counts"]["currently_banned"] is None  # top level did not say
+    assert r["counts"]["total_banned"] is None
+    assert r["counts"]["currently_failed"] is None
+    assert r["banned"] == []  # only the jail names are in the top-level answer
+    assert len(r["per_jail"]) == 1
+    row = r["per_jail"][0]
+    assert row["name"] == "sshd" and row["error"] == ""
+    assert row["counts"] == {
+        "number": None,
+        "currently_banned": 2,
+        "total_banned": 7,
+        "currently_failed": 0,
+    }
+    assert row["banned"] == ["192.0.2.44", "198.51.100.7"]
+    calls = (tmp_path / "calls").read_text()
+    assert "fail2ban-client status\n" in calls
+    assert "fail2ban-client status sshd\n" in calls
+
+
+def test_fail2ban_refusal_is_not_an_empty_jail_list(tmp_path, env):
+    r, rc = run(dict(env, FAKE_SYSTEM_NET_F2B_REFUSE="1"), "fail2ban")
+    assert rc == 0 and r["installed"] and r["available"] is False
+    assert r["jails"] == [] and r["per_jail"] == [] and r["banned"] == []
+    assert all(value is None for value in r["counts"].values())
+    assert "Permission denied to socket" in r["error"]
+    assert "you must be root" in r["error"]
+    calls = (tmp_path / "calls").read_text()
+    assert "fail2ban-client status sshd" not in calls  # no follow-up on refusal
+
+
+def test_fail2ban_missing_tool_is_honest(env):
+    r, rc = run(dict(env, SHANI_FAIL2BAN_CLIENT="no-such-fail2ban-client"), "fail2ban")
+    assert rc == 0 and r["installed"] is False and r["available"] is False
+    assert r["jails"] == [] and r["per_jail"] == [] and r["error"] == ""
+    assert all(value is None for value in r["counts"].values())
+
+    unrunnable, _ = run(dict(env, FAKE_SYSTEM_NET_F2B_ABSENT="1"), "fail2ban")
+    assert unrunnable["installed"] and unrunnable["available"] is False
+    assert "command not found" in unrunnable["error"]
+
+
+def test_fail2ban_no_caller_word_reaches_an_argv(tmp_path, env):
+    pwn = tmp_path / "pwn-f2b"
+    r, rc = run(env, "fail2ban", "; touch " + str(pwn))
+    assert rc == 2 and "error" in r
     assert not pwn.exists()
     assert "touch" not in (tmp_path / "calls").read_text()

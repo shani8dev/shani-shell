@@ -43,6 +43,7 @@ COMMANDS = {
     "shani-upgrade-adviser": "shani-upgrade-adviser.sh",
     "gen-efi": "gen-efi.sh",
     "shani-backup": "cli.py",
+    "shani-cassini-save": "shani-cassini-save.sh",
 }
 
 
