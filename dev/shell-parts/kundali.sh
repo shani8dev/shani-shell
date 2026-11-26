@@ -41,6 +41,10 @@ if [ -f "$A11Y" ]; then
             && result "kundali-chip-$(printf %s "$label" | tr ' ' -)" PASS \
             || result "kundali-chip-$(printf %s "$label" | tr ' ' -)" FAIL "no chip: $label"
     done
+    # the three ways India draws a chart
+    timeout 20 python3 "$A11Y" press "radio button:^South Indian chart$" >/dev/null 2>&1; shot kundali-chart-south 1.5
+    timeout 20 python3 "$A11Y" press "radio button:^East Indian chart$" >/dev/null 2>&1; shot kundali-chart-east 1.5
+    timeout 20 python3 "$A11Y" press "radio button:^North Indian chart$" >/dev/null 2>&1
     timeout 20 python3 "$A11Y" press "radio button:^Ashtakavarga$" >/dev/null 2>&1; shot kundali-ashtakavarga 2.5
     timeout 20 python3 "$A11Y" press "radio button:^Every calculation$" >/dev/null 2>&1
     timeout 20 python3 "$A11Y" press "radio button:^Strength$" >/dev/null 2>&1

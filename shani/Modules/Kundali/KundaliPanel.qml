@@ -18,7 +18,7 @@ AppWindow {
     onGone: Ui.kundali = false
     margins: 0
     implicitWidth: Theme.px(980)
-    implicitHeight: Theme.px(760)
+    implicitHeight: Theme.px(940)
 
     // ---- what the person chose ---------------------------------------------
     property string mode: "kundali"         // kundali (a birth) or panchang (a day)
@@ -772,7 +772,12 @@ AppWindow {
                 icon: "view-grid"
                 title: Tr.t("Chart %1", win.varga)
                 subtitle: win.vargaNames[win.varga] || ""
-                actions: [ SegmentedTabs { options: [Tr.t("North"), Tr.t("South")]; segmentWidth: Theme.px(64); currentIndex: win.chartStyle === "south" ? 1 : 0; onActivated: index => win.chartStyle = index === 1 ? "south" : "north" } ]
+                // the three ways India draws a chart
+            actions: [
+                Choice { text: Tr.t("North"); selected: win.chartStyle === "north"; Accessible.name: Tr.t("North Indian chart"); onClicked: win.chartStyle = "north" },
+                Choice { text: Tr.t("South"); selected: win.chartStyle === "south"; Accessible.name: Tr.t("South Indian chart"); onClicked: win.chartStyle = "south" },
+                Choice { text: Tr.t("East"); selected: win.chartStyle === "east"; Accessible.name: Tr.t("East Indian chart"); onClicked: win.chartStyle = "east" }
+            ]
                 KundaliChart {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: Math.min(Theme.px(440), parent.width)
