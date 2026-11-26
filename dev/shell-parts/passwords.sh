@@ -10,6 +10,11 @@ shot app-passwords 0.3
 if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" press "button:^Show Wi-Fi: Home$" >/dev/null 2>&1
     waitfor "d['passwordsRevealed'] == 'Wi-Fi: Home'" 6 && result passwords-revealed PASS || result passwords-revealed FAIL "$(q "['passwordsRevealed']")"
+    # the Passkeys tab says what this machine can actually do, not what a
+    # browser might support somewhere else
+    timeout 20 python3 "$A11Y" press "radio button:^Passkeys$" >/dev/null 2>&1
+    timeout 20 python3 "$A11Y" find "Security-key device" >/dev/null 2>&1 \
+        && result passwords-passkey-capabilities PASS || result passwords-passkey-capabilities FAIL "the capabilities section is not drawn"
 fi
 # a GPG key made (the passphrase through gpg's loopback, never a command line)
 printf 'key-pass\n' | python3 /work/bridge/passwords.py gpg-new "Asha Patil" asha@example.org >/dev/null
