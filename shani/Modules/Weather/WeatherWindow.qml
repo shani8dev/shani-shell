@@ -150,6 +150,7 @@ AppWindow {
                 }
                 Text {
                     Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                     visible: Weather.alerts.length > 0
                     text: Tr.t("Based on the forecast, not an official warning")
                     color: Theme.faint
@@ -454,7 +455,7 @@ AppWindow {
                             Layout.preferredHeight: Theme.px(34)
                             spacing: Theme.px(12)
                             Text {
-                                Layout.preferredWidth: Theme.px(90)
+                                Layout.preferredWidth: win.compact ? Theme.px(60) : Theme.px(90)
                                 text: dayRow.modelData.day
                                 color: Theme.text
                                 font.family: Theme.font
@@ -469,6 +470,7 @@ AppWindow {
                             Text { text: Math.round(dayRow.modelData.lo) + "°"; color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(13) * Theme.fontScale; font.features: { "tnum": 1 } }
                             // the day's range on the week's scale
                             Item {
+                                visible: !win.compact
                                 Layout.preferredWidth: Theme.px(110)
                                 Layout.preferredHeight: Theme.px(6)
                                 readonly property real low: Math.min(...Weather.forecast.map(f => f.lo))
@@ -527,6 +529,7 @@ AppWindow {
                 Item { Layout.fillHeight: true }
                 Text {
                     Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                     text: Tr.t("Forecast by Open-Meteo") + " · " + Tr.t("Air quality by Open-Meteo")
                     color: Theme.faint
                     horizontalAlignment: Text.AlignRight

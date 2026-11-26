@@ -15,12 +15,18 @@ import "../../Common/Markup.js" as Markup
 AppWindow {
     id: win
     appName: "Document Viewer"
+    sidePane: pagesPane
+    property real panelWidth: Theme.px(280)      // desktop cards beside the page
     property string note: ""
     // one extras panel at a time: bookmarks, links, attachments, annotations
     property string extraPanel: ""
     property bool mergeSplitShown: false
     property bool printShown: false
-    function toggleExtra(name) { extraPanel = extraPanel === name ? "" : name; }
+    function toggleExtra(name) {
+        extraPanel = extraPanel === name ? "" : name;
+        // on a phone one pane at a time: a card closes the page drawer and form
+        if (extraPanel !== "" && win.compact) { pagesPane.open = false; PdfViewer.formShown = false; }
+    }
     // jump from the document to its folder in Files, with the file chosen
     function reveal(path) {
         const p = String(path || ""); if (!p.startsWith("/")) return;
@@ -75,13 +81,20 @@ AppWindow {
         anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
         z: 20
         visible: win.note !== ""
-        implicitWidth: noteText.implicitWidth + 20
-        implicitHeight: Theme.px(30)
+        width: Math.min(noteText.implicitWidth + Theme.px(20), parent.width - Theme.px(24))
+        height: Theme.px(30)
         radius: Theme.px(8)
         color: Theme.alpha(Theme.surface1, 0.96)
         border.width: 1
         border.color: Theme.border
-        Text { id: noteText; anchors.centerIn: parent; text: win.note; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+        Text {
+            id: noteText
+            anchors.centerIn: parent
+            width: parent.width - Theme.px(16)
+            text: win.note
+            elide: Text.ElideRight
+            color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+        }
         Timer { interval: 4000; onTriggered: win.note = ""; running: parent.visible }
     }
     visible: PdfViewer.shown
@@ -168,8 +181,9 @@ AppWindow {
                 font.family: Theme.font
                 font.pixelSize: Theme.px(11) * Theme.fontScale
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
+                spacing: Theme.px(6)
                 Button {
                     text: Tr.t("Choose PDFs…")
                     flat: true
@@ -182,7 +196,6 @@ AppWindow {
                     onClicked: FilePicker.open({ mode: "save", title: Tr.t("Merged PDF"), defaultName: "merged.pdf",
                         onPicked: paths => { if (paths && paths.length) win.mergeOut = paths[0]; } })
                 }
-                Item { Layout.fillWidth: true }
                 Button { kind: "primary"; text: Tr.t("Merge"); enabled: win.mergePaths.length >= 2 && win.mergeOut !== ""; onClicked: win.doMerge() }
             }
             SectionTitle { Layout.fillWidth: true; text: Tr.t("Split") }
@@ -338,8 +351,17 @@ AppWindow {
             win.pdfAnnoMode = false;
             win.clearMarks();
             win.note = "";
+            pagesPane.open = false;
         }
-        function onPageChanged() { if (win.strokes.length) win.clearMarks(); }
+        function onPageChanged() { if (win.strokes.length) win.clearMarks(); pagesPane.open = false; }
+    }
+    // the header's menu button opens the pages drawer: on a phone that closes
+    // whichever card was filling the window, so only one pane is ever open
+    Connections {
+        target: pagesPane
+        function onOpenChanged() {
+            if (pagesPane.open && win.compact) { win.extraPanel = ""; PdfViewer.formShown = false; }
+        }
     }
     Item {
         id: blurCard
@@ -350,7 +372,8 @@ AppWindow {
             anchors.margins: Theme.px(16)
             spacing: Theme.px(8)
 
-            RowLayout {
+            // a Flow wraps the many tools instead of pushing them off a phone
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 IconButton { icon: "go-first"; size: Theme.px(28); tip: Tr.t("First page"); onClicked: PdfViewer.firstPage() }
@@ -358,7 +381,7 @@ AppWindow {
                 IconButton { icon: "edit-undo"; size: Theme.px(28); tip: Tr.t("Back"); keys: "["; enabled: PdfViewer.canNavBack; onClicked: PdfViewer.navBack() }
                 IconButton { icon: "edit-redo"; size: Theme.px(28); tip: Tr.t("Forward"); keys: "]"; enabled: PdfViewer.canNavForward; onClicked: PdfViewer.navForward() }
                 Text {
-                    Layout.fillWidth: true
+                    width: Math.min(Theme.px(360), parent.width)
                     horizontalAlignment: Text.AlignHCenter
                     text: PdfViewer.name + (PdfViewer.label !== "" ? "  ·  " + PdfViewer.label : "")
                     color: Theme.text
@@ -369,7 +392,7 @@ AppWindow {
                 }
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextSpread() }
                 IconButton { icon: "go-last"; size: Theme.px(28); tip: Tr.t("Last page"); onClicked: PdfViewer.lastPage() }
-                IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: PdfViewer.toggleSidebar() }
+                IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: { PdfViewer.toggleSidebar(); if (PdfViewer.showSidebar && win.compact) pagesPane.open = true; } }
                 IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); on: win.printShown; onClicked: win.printShown = !win.printShown }
                 IconButton { icon: "draw-freehand"; size: Theme.px(28); tip: Tr.t("Mark up this page"); on: win.pdfAnnoMode; onClicked: { win.pdfAnnoMode = !win.pdfAnnoMode; } }
                 IconButton { icon: "weather-clear-night"; size: Theme.px(28); tip: Tr.t("Night mode"); on: PdfViewer.night; onClicked: PdfViewer.setNight(!PdfViewer.night) }
@@ -383,7 +406,10 @@ AppWindow {
                     visible: PdfViewer.formFields.length > 0
                     text: Tr.t("Fill in (%1)", PdfViewer.formFields.length)
                     kind: PdfViewer.formShown ? "primary" : ""
-                    onClicked: PdfViewer.formShown = !PdfViewer.formShown
+                    onClicked: {
+                        PdfViewer.formShown = !PdfViewer.formShown;
+                        if (PdfViewer.formShown && win.compact) { pagesPane.open = false; win.extraPanel = ""; }
+                    }
                 }
                 IconButton { icon: "user-bookmarks"; size: Theme.px(28); tip: Tr.t("Your bookmarks"); on: win.extraPanel === "bookmarks"; onClicked: win.toggleExtra("bookmarks") }
                 IconButton { icon: "insert-link"; size: Theme.px(28); tip: Tr.t("Links in this PDF"); on: win.extraPanel === "links"; onClicked: win.toggleExtra("links") }
@@ -393,48 +419,59 @@ AppWindow {
             }
 
             // search bar: find text (pdftotext -bbox) + jump-to-page box
-            RowLayout {
+            // the query keeps the row; the search options wrap below it on a phone
+            ColumnLayout {
                 visible: PdfViewer.shown
                 Layout.fillWidth: true
-                spacing: Theme.px(6)
-                TextField {
-                    id: searchField
+                spacing: Theme.px(4)
+                RowLayout {
                     Layout.fillWidth: true
-                    placeholder: Tr.t("Find in document…")
-                    label: Tr.t("Find in document")
-                    onAccepted: PdfViewer.search(searchField.text)
+                    spacing: Theme.px(6)
+                    TextField {
+                        id: searchField
+                        Layout.fillWidth: true
+                        placeholder: Tr.t("Find in document…")
+                        label: Tr.t("Find in document")
+                        onAccepted: PdfViewer.search(searchField.text)
+                    }
+                    IconButton { icon: "go-up"; size: Theme.px(28); tip: Tr.t("Find previous"); onClicked: PdfViewer.findPrev() }
+                    IconButton { icon: "go-down"; size: Theme.px(28); tip: Tr.t("Find next"); onClicked: PdfViewer.findNext() }
                 }
-                IconButton { icon: "go-up"; size: Theme.px(28); tip: Tr.t("Find previous"); onClicked: PdfViewer.findPrev() }
-                IconButton { icon: "go-down"; size: Theme.px(28); tip: Tr.t("Find next"); onClicked: PdfViewer.findNext() }
-                Choice {
-                    text: Tr.t("Case")
-                    selected: PdfViewer.caseSensitive
-                    onClicked: { PdfViewer.caseSensitive = !PdfViewer.caseSensitive; if (PdfViewer.searchText) PdfViewer.search(PdfViewer.searchText); }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Choice {
+                        text: Tr.t("Case")
+                        selected: PdfViewer.caseSensitive
+                        onClicked: { PdfViewer.caseSensitive = !PdfViewer.caseSensitive; if (PdfViewer.searchText) PdfViewer.search(PdfViewer.searchText); }
+                    }
+                    Choice {
+                        text: Tr.t("Word")
+                        selected: PdfViewer.wholeWord
+                        onClicked: { PdfViewer.wholeWord = !PdfViewer.wholeWord; if (PdfViewer.searchText) PdfViewer.search(PdfViewer.searchText); }
+                    }
+                    Choice {
+                        text: Tr.t("Wrap")
+                        selected: PdfViewer.wrapSearch
+                        onClicked: PdfViewer.wrapSearch = !PdfViewer.wrapSearch
+                    }
+                    Text {
+                        width: Math.min(Theme.px(260), parent.width)
+                        text: PdfViewer.searchLabel !== "" ? PdfViewer.searchLabel : (PdfViewer.searchState !== "" ? PdfViewer.searchState : PdfViewer.label)
+                        color: Theme.dim
+                        elide: Text.ElideRight
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(11) * Theme.fontScale
+                    }
+                    TextField {
+                        id: jumpField
+                        width: Theme.px(80)
+                        placeholder: Tr.t("Page…")
+                        label: Tr.t("Go to page")
+                        onAccepted: PdfViewer.jumpTo(jumpField.text)
+                    }
+                    IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Go to page"); onClicked: PdfViewer.jumpTo(jumpField.text) }
                 }
-                Choice {
-                    text: Tr.t("Word")
-                    selected: PdfViewer.wholeWord
-                    onClicked: { PdfViewer.wholeWord = !PdfViewer.wholeWord; if (PdfViewer.searchText) PdfViewer.search(PdfViewer.searchText); }
-                }
-                Choice {
-                    text: Tr.t("Wrap")
-                    selected: PdfViewer.wrapSearch
-                    onClicked: PdfViewer.wrapSearch = !PdfViewer.wrapSearch
-                }
-                Text {
-                    text: PdfViewer.searchLabel !== "" ? PdfViewer.searchLabel : (PdfViewer.searchState !== "" ? PdfViewer.searchState : PdfViewer.label)
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: Theme.px(11) * Theme.fontScale
-                }
-                TextField {
-                    id: jumpField
-                    Layout.preferredWidth: Theme.px(80)
-                    placeholder: Tr.t("Page…")
-                    label: Tr.t("Go to page")
-                    onAccepted: PdfViewer.jumpTo(jumpField.text)
-                }
-                IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Go to page"); onClicked: PdfViewer.jumpTo(jumpField.text) }
             }
 
             RowLayout {
@@ -442,106 +479,113 @@ AppWindow {
                 Layout.fillHeight: true
                 spacing: Theme.px(8)
 
-                // page thumbnails sidebar (+ outline/bookmarks underneath)
-                Rectangle {
+                // page thumbnails (+ outline) beside the page, a drawer on a phone
+                SidePane {
+                    id: pagesPane
                     visible: PdfViewer.showSidebar
-                    Layout.preferredWidth: Theme.px(132)
-                    Layout.fillHeight: true
-                    radius: Theme.radiusSmall
-                    color: Theme.hover
-                    clip: true
-                    ColumnLayout {
+                    compact: win.compact
+                    paneWidth: Theme.px(176)
+                    label: Tr.t("Thumbnails")
+                    Rectangle {
                         anchors.fill: parent
-                        anchors.margins: Theme.px(4)
-                        spacing: Theme.px(4)
-                        Flickable {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            contentWidth: thumbCol.width
-                            contentHeight: thumbCol.height
-                            Column {
-                                id: thumbCol
-                                spacing: Theme.px(4)
-                                Repeater {
-                                    model: PdfViewer.pages
-                                    Rectangle {
-                                        required property var modelData
-                                        required property int index
-                                        width: Theme.px(116)
-                                        height: Theme.px(150)
-                                        radius: Theme.radiusSmall
-                                        color: index === PdfViewer.page ? Theme.alpha(Theme.accent, 0.22) : Theme.surface1
-                                        border.width: index === PdfViewer.page ? 2 : 0
-                                        border.color: Theme.accent
-                                        Image {
-                                            anchors.fill: parent
-                                            anchors.margins: Theme.px(5)
-                                            source: "file://" + modelData.split("/").map(encodeURIComponent).join("/")
-                                            fillMode: Image.PreserveAspectFit
-                                            smooth: true
-                                            cache: true
-                                            asynchronous: true
-                                            sourceSize: Qt.size(240, 300)
-                                        }
-                                        Text {
-                                            anchors.bottom: parent.bottom
-                                            anchors.right: parent.right
-                                            anchors.margins: Theme.px(4)
-                                            text: String(index + 1)
-                                            color: Theme.dim
-                                            font.family: Theme.font
-                                            font.pixelSize: Theme.px(10) * Theme.fontScale
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: PdfViewer.goTo(index)
-                                        }
-                                        Accessible.role: Accessible.Button
-                                        Accessible.name: Tr.t("Page %1", index + 1)
-                                        KeyFocus { onActivated: PdfViewer.goTo(index) }
-                                    }
-                                }
-                            }
-                        }
-                        // outline / bookmarks (PyMuPDF)
-                        Rectangle {
-                            visible: PdfViewer.outline.length > 0
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: Theme.px(140)
-                            radius: Theme.radiusSmall
-                            color: Theme.surface1
-                            clip: true
+                        radius: Theme.radiusSmall
+                        color: Theme.hover
+                        clip: true
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: pagesPane.compact ? Theme.px(10) : Theme.px(4)
+                            spacing: Theme.px(4)
                             Flickable {
-                                anchors.fill: parent
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
-                                contentWidth: outlineCol.width
-                                contentHeight: outlineCol.height
+                                contentWidth: thumbCol.width
+                                contentHeight: thumbCol.height
                                 Column {
-                                    id: outlineCol
-                                    spacing: 1
+                                    id: thumbCol
+                                    spacing: Theme.px(4)
                                     Repeater {
-                                        model: PdfViewer.outline
-                                        Text {
+                                        model: PdfViewer.pages
+                                        Rectangle {
                                             required property var modelData
                                             required property int index
-                                            width: Theme.px(110)
-                                            text: "  ".repeat(modelData.level) + modelData.title
-                                            color: Theme.text
-                                            font.family: Theme.font
-                                            font.pixelSize: Theme.px(10) * Theme.fontScale
-                                            elide: Text.ElideRight
+                                            width: Theme.px(116)
+                                            height: Theme.px(150)
+                                            radius: Theme.radiusSmall
+                                            color: index === PdfViewer.page ? Theme.alpha(Theme.accent, 0.22) : Theme.surface1
+                                            border.width: index === PdfViewer.page ? 2 : 0
+                                            border.color: Theme.accent
+                                            Image {
+                                                anchors.fill: parent
+                                                anchors.margins: Theme.px(5)
+                                                source: "file://" + modelData.split("/").map(encodeURIComponent).join("/")
+                                                fillMode: Image.PreserveAspectFit
+                                                smooth: true
+                                                cache: true
+                                                asynchronous: true
+                                                sourceSize: Qt.size(240, 300)
+                                            }
+                                            Text {
+                                                anchors.bottom: parent.bottom
+                                                anchors.right: parent.right
+                                                anchors.margins: Theme.px(4)
+                                                text: String(index + 1)
+                                                color: Theme.dim
+                                                font.family: Theme.font
+                                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                            }
                                             MouseArea {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: PdfViewer.goToOutline(index)
+                                                onClicked: PdfViewer.goTo(index)
                                             }
                                             Accessible.role: Accessible.Button
-                                            Accessible.name: modelData.title
-                                            KeyFocus { onActivated: PdfViewer.goToOutline(index) }
+                                            Accessible.name: Tr.t("Page %1", index + 1)
+                                            KeyFocus { onActivated: PdfViewer.goTo(index) }
+                                        }
+                                    }
+                                }
+                            }
+                            // outline / bookmarks (PyMuPDF)
+                            Rectangle {
+                                visible: PdfViewer.outline.length > 0
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Theme.px(140)
+                                radius: Theme.radiusSmall
+                                color: Theme.surface1
+                                clip: true
+                                Flickable {
+                                    anchors.fill: parent
+                                    clip: true
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    contentWidth: outlineCol.width
+                                    contentHeight: outlineCol.height
+                                    Column {
+                                        id: outlineCol
+                                        spacing: 1
+                                        Repeater {
+                                            model: PdfViewer.outline
+                                            Text {
+                                                required property var modelData
+                                                required property int index
+                                                width: Theme.px(110)
+                                                height: Math.max(Theme.px(20), Theme.touchTarget)
+                                                verticalAlignment: Text.AlignVCenter
+                                                text: "  ".repeat(modelData.level) + modelData.title
+                                                color: Theme.text
+                                                font.family: Theme.font
+                                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                                                elide: Text.ElideRight
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: PdfViewer.goToOutline(index)
+                                                }
+                                                Accessible.role: Accessible.Button
+                                                Accessible.name: modelData.title
+                                                KeyFocus { onActivated: PdfViewer.goToOutline(index) }
+                                            }
                                         }
                                     }
                                 }
@@ -769,7 +813,7 @@ AppWindow {
                                 id: toolsCol
                                 anchors { fill: parent; margins: Theme.px(6) }
                                 spacing: Theme.px(4)
-                                RowLayout {
+                                Flow {
                                     Layout.fillWidth: true
                                     spacing: Theme.px(3)
                                     Repeater {
@@ -786,7 +830,6 @@ AppWindow {
                                             onClicked: { win.tool = modelData.id; PdfViewer.setZoom(1); }
                                         }
                                     }
-                                    Item { Layout.fillWidth: true }
                                     Button { text: Tr.t("Undo"); flat: true; enabled: win.strokes.length > 0; onClicked: win.undoStroke() }
                                     Button { text: Tr.t("Clear"); flat: true; enabled: win.strokes.length > 0; onClicked: win.clearMarks() }
                                     Button { text: Tr.t("Done"); flat: true; onClicked: { win.pdfAnnoMode = false; win.strokes = []; } }
@@ -801,22 +844,27 @@ AppWindow {
                                         onTextChanged: win.textInput = text
                                     }
                                 }
-                                RowLayout {
+                                Flow {
                                     Layout.fillWidth: true
                                     spacing: Theme.px(4)
                                     Text { text: Tr.t("Colour"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                                     Repeater {
-                                        model: ["#e5484d", "#f5d90a", "#46a758", "#0091ff", "#ffffff"]
+                                        model: [ { c: "#e5484d", n: Tr.t("Red") }, { c: "#f5d90a", n: Tr.t("Yellow") }, { c: "#46a758", n: Tr.t("Green") }, { c: "#0091ff", n: Tr.t("Blue") }, { c: "#ffffff", n: Tr.t("White") } ]
                                         Rectangle {
-                                            required property string modelData
-                                            width: Theme.px(18); height: Theme.px(18); radius: Theme.px(9)
-                                            color: modelData
-                                            border.width: win.penColor === modelData ? 2 : 0
+                                            required property var modelData
+                                            width: Math.max(Theme.touchTarget, Theme.px(18))
+                                            height: width
+                                            radius: width / 2
+                                            color: modelData.c
+                                            border.width: win.penColor === modelData.c ? 2 : 0
                                             border.color: Theme.accent
-                                            MouseArea { anchors.fill: parent; onClicked: win.penColor = modelData }
+                                            MouseArea { anchors.fill: parent; onClicked: win.penColor = modelData.c }
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: modelData.n
+                                            Accessible.checked: win.penColor === modelData.c
+                                            KeyFocus { onActivated: win.penColor = modelData.c }
                                         }
                                     }
-                                    Item { Layout.fillWidth: true }
                                     Text { text: Tr.t("Size"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                                     Repeater {
                                         model: [0.005, 0.008, 0.014]
@@ -906,8 +954,9 @@ AppWindow {
                                 Image {
                                     required property var modelData
                                     required property int index
-                                    width: Theme.px(640)
-                                    height: Theme.px(800)
+                                    // the page scales to the space it has, not a fixed desktop width
+                                    width: Math.min(Theme.px(640), Math.max(0, contFlick.width - Theme.px(16)))
+                                    height: width * 1.25
                                     x: 8
                                     source: "file://" + PdfViewer.shownPage(modelData).split("/").map(encodeURIComponent).join("/")
                                     fillMode: Image.PreserveAspectFit
@@ -925,13 +974,22 @@ AppWindow {
                 // the form's fields, one control each; the copy is saved beside the PDF
                 Rectangle {
                     visible: PdfViewer.formShown
-                    Layout.preferredWidth: Theme.px(280)
+                    // a phone gives the open form the whole width; desktop keeps its column
+                    Layout.preferredWidth: win.compact ? parent.width : panelWidth
+                    Layout.maximumWidth: win.compact ? parent.width : panelWidth
                     Layout.fillHeight: true
                     radius: Theme.radiusSmall
                     color: Theme.surface1
+                    IconButton {
+                        visible: win.compact
+                        z: 2
+                        anchors { top: parent.top; right: parent.right; margins: Theme.px(6) }
+                        icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Back"); onClicked: PdfViewer.formShown = false
+                    }
                     Flickable {
                         anchors.fill: parent
                         anchors.margins: Theme.px(10)
+                        anchors.topMargin: win.compact ? Theme.px(56) : Theme.px(10)
                         contentHeight: formCol.implicitHeight
                         clip: true
                         ColumnLayout {
@@ -1016,7 +1074,9 @@ AppWindow {
                 // ---- bookmarks / links / attachments / annotations -----------------
                 Rectangle {
                     visible: win.extraPanel !== ""
-                    Layout.preferredWidth: Theme.px(280)
+                    // the open card gets the whole phone width, a column on desktop
+                    Layout.preferredWidth: win.compact ? parent.width : panelWidth
+                    Layout.maximumWidth: win.compact ? parent.width : panelWidth
                     Layout.fillHeight: true
                     radius: Theme.radiusSmall
                     color: Theme.surface1
@@ -1036,7 +1096,12 @@ AppWindow {
                                 font.pixelSize: Theme.px(12) * Theme.fontScale
                                 font.weight: Font.DemiBold
                             }
-                            IconButton { icon: "window-close"; size: Theme.px(22); tip: Tr.t("Close"); onClicked: win.extraPanel = "" }
+                            IconButton {
+                                icon: win.compact ? "go-previous" : "window-close"
+                                size: Theme.px(28)
+                                tip: win.compact ? Tr.t("Back") : Tr.t("Close")
+                                onClicked: win.extraPanel = ""
+                            }
                         }
                         Flickable {
                             Layout.fillWidth: true
@@ -1072,6 +1137,8 @@ AppWindow {
                                             Layout.fillWidth: true
                                             Text {
                                                 Layout.fillWidth: true
+                                                Layout.preferredHeight: Math.max(Theme.px(20), Theme.touchTarget)
+                                                verticalAlignment: Text.AlignVCenter
                                                 text: modelData.title + "  ·  " + (modelData.page + 1)
                                                 color: Theme.text
                                                 font.family: Theme.font
@@ -1093,9 +1160,9 @@ AppWindow {
                                     Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        implicitHeight: Theme.px(30)
+                                        implicitHeight: Math.max(Theme.px(30), Theme.touchTarget)
                                         radius: Theme.px(8)
-                                        color: linkArea.containsMouse ? Theme.hover : "transparent"
+                                        color: linkArea.containsMouse || linkArea.pressed ? Theme.hover : "transparent"
                                         Text {
                                             anchors.fill: parent
                                             anchors.margins: Theme.px(6)
@@ -1107,6 +1174,10 @@ AppWindow {
                                             elide: Text.ElideMiddle
                                         }
                                         MouseArea { id: linkArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: PdfViewer.followLink(modelData) }
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: modelData.kind === "uri" ? modelData.uri
+                                            : modelData.kind === "goto" ? Tr.t("Page %1", modelData.target) : modelData.name
+                                        KeyFocus { onActivated: PdfViewer.followLink(modelData) }
                                     }
                                 }
 
@@ -1143,7 +1214,7 @@ AppWindow {
                                     Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        implicitHeight: annText.implicitHeight + Theme.px(12)
+                                        implicitHeight: Math.max(annText.implicitHeight + Theme.px(12), Theme.touchTarget)
                                         radius: Theme.px(8)
                                         color: Theme.surface2
                                         Column {
@@ -1198,7 +1269,7 @@ AppWindow {
             }
 
             // fit / continuous / rotation toolbar
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 IconButton { icon: "zoom-fit-best"; size: Theme.px(28); tip: Tr.t("Fit page (F)"); on: PdfViewer.fitMode === "page"; onClicked: PdfViewer.setFit("page") }
@@ -1209,7 +1280,7 @@ AppWindow {
                 IconButton { icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: PdfViewer.rotate() }
                 IconButton { icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: PdfViewer.rotateCCW() }
                 Text {
-                    Layout.fillWidth: true
+                    width: Math.min(Theme.px(360), parent.width)
                     horizontalAlignment: Text.AlignHCenter
                     text: (PdfViewer.spreadLabel !== "" ? PdfViewer.spreadLabel + "  ·  " : "") + Tr.t("← → to turn pages · Esc closes")
                         + (PdfViewer.rotation !== 0 ? "  ·  " + PdfViewer.rotation + "°" : "")

@@ -13,6 +13,7 @@ import qs.Modules.Notes
 AppWindow {
     id: win
     appName: "Notes"
+    sidePane: notebooksPane
     visible: Ui.notes
     onGone: Ui.notes = false
     margins: 0
@@ -56,6 +57,8 @@ AppWindow {
     Connections {
         target: Services.QuickNotes
         function onCurrentChanged() {
+            // picking a note in the drawer leaves it, on a phone
+            notebooksPane.open = false;
             // switching notes cancels the pending two-tap delete (the button
             // exists by the time a real note switch happens)
             if (deleteNoteConfirm) deleteNoteConfirm.disarm();
@@ -80,13 +83,13 @@ AppWindow {
             anchors.fill: parent
             spacing: 0
 
-            // Sidebar: notebooks + notes list
-            Rectangle {
-                Layout.preferredWidth: Theme.px(260)
-                Layout.fillHeight: true
-                color: Theme.surface1
-                radius: Theme.radiusLarge
-
+            // Sidebar: notebooks + notes list — a column, a drawer on a phone
+            SidePane {
+                id: notebooksPane
+                compact: win.compact
+                paneWidth: Theme.px(260)
+                label: Tr.t("Notebooks")
+                Rectangle { anchors.fill: parent; color: Theme.surface1; radius: Theme.radiusLarge }
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.px(8)
@@ -108,7 +111,7 @@ AppWindow {
                         Choice {
                             text: Tr.t("All")
                             selected: win.selectedNotebook === ""
-                            onClicked: win.selectedNotebook = ""
+                            onClicked: { win.selectedNotebook = ""; notebooksPane.open = false; }
                         }
                         Repeater {
                             model: Services.QuickNotes.notebooks
@@ -116,13 +119,13 @@ AppWindow {
                                 required property string modelData
                                 text: modelData
                                 selected: win.selectedNotebook === modelData
-                                onClicked: win.selectedNotebook = modelData
+                                onClicked: { win.selectedNotebook = modelData; notebooksPane.open = false; }
                             }
                         }
-                        IconButton { size: Theme.px(28); icon: "list-add"; tip: Tr.t("New notebook"); onClicked: Services.QuickNotes.createNotebook(Tr.t("New notebook")) }
+                        IconButton { size: Theme.touchTarget; icon: "list-add"; tip: Tr.t("New notebook"); onClicked: Services.QuickNotes.createNotebook(Tr.t("New notebook")) }
                         ConfirmButton {
                             id: deleteNotebookConfirm
-                            size: Theme.px(28)
+                            size: Theme.touchTarget
                             visible: win.selectedNotebook !== ""
                             icon: "list-remove"
                             tip: Tr.t("Remove the notebook %1").arg(win.selectedNotebook)
@@ -154,6 +157,7 @@ AppWindow {
                         delegate: ItemDelegate {
                             required property var modelData
                             width: ListView.view.width
+                            implicitHeight: Theme.touchTarget
                             text: modelData.name + (modelData.notebook ? "  ·  " + modelData.notebook : "")
                             onClicked: Services.QuickNotes.open(modelData.name, modelData.notebook)
                         }
@@ -182,7 +186,7 @@ AppWindow {
                         delegate: Rectangle {
                             required property var modelData
                             width: noteList.width
-                            implicitHeight: noteText.implicitHeight + prevText.implicitHeight + Theme.px(10)
+                            implicitHeight: Math.max(Theme.touchTarget, noteText.implicitHeight + prevText.implicitHeight + Theme.px(10))
                             radius: Theme.radiusSmall
                             color: modelData.id === Services.QuickNotes.current ? Theme.accentSoft
                                 : rowMouse.containsMouse ? Theme.hover : "transparent"
@@ -320,7 +324,7 @@ AppWindow {
                         }
                         Button { text: Tr.t("Add tag"); enabled: tagField.text !== ""; onClicked: win.addTagFromField() }
                         IconButton {
-                            size: Theme.px(28)
+                            size: Theme.touchTarget
                             icon: "list-remove"
                             tip: win.tagFilter === "" ? Tr.t("Select a tag above to remove it")
                                                       : Tr.t("Remove tag %1").arg(win.tagFilter)
@@ -345,10 +349,10 @@ AppWindow {
                 Layout.fillHeight: true
                 spacing: 0
 
-                // Toolbar
-                RowLayout {
+                // Toolbar: wraps on a phone instead of running off the edge
+                Flow {
+                    id: formatBar
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Theme.px(40)
                     spacing: Theme.px(4)
                     Layout.margins: Theme.px(8)
 
@@ -356,7 +360,7 @@ AppWindow {
                     // every other note app lets you, instead of in a file manager.
                     TextField {
                         id: titleField
-                        Layout.fillWidth: true
+                        width: Math.min(formatBar.width, Theme.px(320))
                         placeholderText: Tr.t("No note selected")
                         label: Tr.t("Note title")
                         text: Services.QuickNotes.current
@@ -407,9 +411,9 @@ AppWindow {
 
                 // Knowledge-base actions get their own row: reading view,
                 // pin, links, versions, moving and both export formats.
-                RowLayout {
+                Flow {
+                    id: actionBar
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Theme.px(40)
                     spacing: Theme.px(4)
                     Layout.margins: Theme.px(8)
                     Button {
@@ -680,6 +684,7 @@ AppWindow {
                             delegate: ItemDelegate {
                                 required property string modelData
                                 width: ListView.view.width
+                                implicitHeight: Theme.touchTarget
                                 text: modelData.split("/").pop()
                                 Accessible.name: Tr.t("Version %1").arg(modelData.split("/").pop())
                                 onClicked: { win.historyIndex = index; Services.QuickNotes.previewVersion(modelData); }
@@ -713,6 +718,7 @@ AppWindow {
                             delegate: ItemDelegate {
                                 required property string modelData
                                 width: ListView.view.width
+                                implicitHeight: Theme.touchTarget
                                 text: modelData
                                 Accessible.name: Tr.t("Backlink from %1").arg(modelData)
                                 onClicked: Services.QuickNotes.open(modelData)
@@ -808,6 +814,7 @@ AppWindow {
                             delegate: ItemDelegate {
                                 required property string modelData
                                 width: ListView.view.width
+                                implicitHeight: Theme.touchTarget
                                 text: modelData
                                 Accessible.name: Tr.t("Restore note %1").arg(modelData)
                                 onClicked: { Services.QuickNotes.restore(modelData); win.showTrash = false; }

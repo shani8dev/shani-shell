@@ -198,11 +198,10 @@ AppWindow {
                 }
             }
 
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Text {
-                    Layout.fillWidth: true
                     text: win.wordCount + " words · " + win.charCount + " characters"
                           + (win.reverse ? " · scrolling up" : " · scrolling down")
                     color: Theme.dim
@@ -224,6 +223,7 @@ AppWindow {
                     size: Theme.px(26); onClicked: win.setSpeed(10)
                 }
                 Text {
+                    visible: !win.compact
                     text: "Space play · + / - speed · Home / End jump"
                     color: Theme.dim
                     font.family: Theme.font

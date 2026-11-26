@@ -168,14 +168,19 @@ AppWindow {
             spacing: Theme.px(10)
 
 
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
-                Choice { text: Tr.t("Standard"); selected: win.tab === "standard"; onClicked: win.tab = "standard" }
-                Choice { text: Tr.t("Scientific"); selected: win.tab === "scientific"; onClicked: win.tab = "scientific" }
-                Choice { text: Tr.t("Financial"); selected: win.tab === "financial"; onClicked: win.tab = "financial" }
-                Choice { text: Tr.t("Programming"); selected: win.tab === "programming"; onClicked: win.tab = "programming" }
-                Choice { text: Tr.t("Converter"); selected: win.tab === "converter"; onClicked: win.tab = "converter" }
+                Repeater {
+                    model: [["standard", Tr.t("Standard")], ["scientific", Tr.t("Scientific")], ["financial", Tr.t("Financial")],
+                        ["programming", Tr.t("Programming")], ["converter", Tr.t("Converter")]]
+                    Choice {
+                        required property var modelData
+                        text: modelData[1]
+                        selected: win.tab === modelData[0]
+                        onClicked: win.tab = modelData[0]
+                    }
+                }
             }
 
             Rectangle {
@@ -244,6 +249,7 @@ AppWindow {
                         text: modelData.label
                         kind: modelData.kind || "plain"
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         Layout.fillHeight: true
                         Layout.preferredHeight: Theme.px(44)
                         onClicked: {
@@ -289,6 +295,7 @@ AppWindow {
                         text: modelData.label
                         kind: "plain"
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         Layout.fillHeight: true
                         Layout.preferredHeight: Theme.px(38)
                         onClicked: Services.Calculator.press(modelData.key)
@@ -358,14 +365,18 @@ AppWindow {
                 visible: win.tab === "financial"
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
-                    Choice { text: Tr.t("Future value"); selected: win.finOp === "fv"; onClicked: { win.finOp = "fv"; win.doFinancial(); } }
-                    Choice { text: Tr.t("Present value"); selected: win.finOp === "pv"; onClicked: { win.finOp = "pv"; win.doFinancial(); } }
-                    Choice { text: Tr.t("Rate"); selected: win.finOp === "rate"; onClicked: { win.finOp = "rate"; win.doFinancial(); } }
-                    Choice { text: Tr.t("SL"); selected: win.finOp === "sl"; onClicked: { win.finOp = "sl"; win.doFinancial(); } }
-                    Choice { text: Tr.t("DDB"); selected: win.finOp === "ddb"; onClicked: { win.finOp = "ddb"; win.doFinancial(); } }
+                    Repeater {
+                        model: [["fv", Tr.t("Future value")], ["pv", Tr.t("Present value")], ["rate", Tr.t("Rate")], ["sl", Tr.t("SL")], ["ddb", Tr.t("DDB")]]
+                        Choice {
+                            required property var modelData
+                            text: modelData[1]
+                            selected: win.finOp === modelData[0]
+                            onClicked: { win.finOp = modelData[0]; win.doFinancial(); }
+                        }
+                    }
                 }
                 GridLayout {
                     Layout.fillWidth: true
@@ -403,6 +414,7 @@ AppWindow {
                             text: modelData.label
                             kind: "plain"
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             Layout.fillHeight: true
                             Layout.preferredHeight: Theme.px(38)
                             onClicked: Services.Calculator.press(modelData.key)
@@ -530,6 +542,7 @@ AppWindow {
                             text: modelData.label
                             kind: "plain"
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             Layout.fillHeight: true
                             Layout.preferredHeight: Theme.px(38)
                             onClicked: Services.Calculator.press(modelData.key)

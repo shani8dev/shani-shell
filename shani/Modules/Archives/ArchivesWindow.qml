@@ -126,7 +126,8 @@ AppWindow {
             anchors.fill: parent
             spacing: Theme.px(10)
 
-            RowLayout {
+            // the file actions wrap below the name on a narrow window
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Icon { name: "package-x-generic"; size: Theme.px(22); color: Theme.accent }
@@ -138,7 +139,7 @@ AppWindow {
                     Accessible.name: Tr.t("Locked")
                 }
                 ColumnLayout {
-                    Layout.fillWidth: true
+                    width: Math.max(Theme.px(160), parent.width - Theme.px(280))
                     spacing: 0
                     Text {
                         Layout.fillWidth: true
@@ -184,11 +185,13 @@ AppWindow {
             }
 
             // ---- Recently opened archives (File Roller / Ark) ----------------
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: Archive.file === "" && Archive.toCompress.length === 0 && Archive.recent.length > 0
                 spacing: Theme.px(8)
                 Text {
+                    height: Math.max(Theme.px(24), Theme.touchTarget)
+                    verticalAlignment: Text.AlignVCenter
                     text: Tr.t("Recent files")
                     color: Theme.dim
                     font.family: Theme.font
@@ -323,7 +326,7 @@ AppWindow {
             // Ark-style folder navigation and sort: the list is the current
             // directory, not the whole archive, with a synthetic folder per
             // subdirectory so archives without dir entries still navigate.
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: Archive.entries.length > 0
                 spacing: Theme.px(8)
@@ -335,7 +338,9 @@ AppWindow {
                     onClicked: { Archive.up(); win.cursor = 0; list.currentIndex = 0; }
                 }
                 Text {
-                    Layout.fillWidth: true
+                    width: Math.max(Theme.px(120), Math.min(Theme.px(280), parent.width - Theme.px(240)))
+                    height: Math.max(Theme.px(24), Theme.touchTarget)
+                    verticalAlignment: Text.AlignVCenter
                     text: Archive.currentDir === "" ? Archive.name : Archive.name + "/" + Archive.currentDir
                     color: Theme.dim
                     elide: Text.ElideMiddle
@@ -360,11 +365,13 @@ AppWindow {
                     onClicked: Archive.setSortOrder("size")
                 }
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: Archive.entries.length > 0
                 spacing: Theme.px(8)
                 Text {
+                    height: Math.max(Theme.px(24), Theme.touchTarget)
+                    verticalAlignment: Text.AlignVCenter
                     text: Tr.t("Extract into")
                     color: Theme.faint
                     font.family: Theme.font
@@ -396,7 +403,9 @@ AppWindow {
                     onClicked: win.runTest()
                 }
                 Text {
-                    Layout.fillWidth: true
+                    width: Math.max(Theme.px(120), Math.min(Theme.px(280), parent.width - Theme.px(300)))
+                    height: Math.max(Theme.px(24), Theme.touchTarget)
+                    verticalAlignment: Text.AlignVCenter
                     visible: Archive.testing || Archive.testResult !== ""
                     text: Archive.testing ? Tr.t("Working…") : Archive.testResult
                     color: Theme.dim
@@ -405,13 +414,13 @@ AppWindow {
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: Archive.entries.length > 0
                 spacing: Theme.px(8)
                 TextField {
                     id: entrySearch
-                    Layout.fillWidth: true
+                    width: Math.max(Theme.px(140), Math.min(Theme.px(280), parent.width - Theme.px(200)))
                     placeholderText: Tr.t("Find a file in the archive")
                     label: Tr.t("Find a file in the archive")
                     text: win.entryFilter
@@ -469,9 +478,13 @@ AppWindow {
                         readonly property int depth: modelData.path.split("/").length - 1
                         readonly property bool chosen: Archive.isSelected(row.modelData.path)
                         width: list.width
-                        height: Theme.px(26)
+                        height: Math.max(Theme.px(26), Theme.touchTarget)
                         Accessible.role: Accessible.ListItem
                         Accessible.name: row.modelData.path
+                        KeyFocus {
+                            name: row.modelData.path
+                            onActivated: Archive.selectEntry(row.modelData.path, "toggle", win.visiblePaths)
+                        }
                         Rectangle {
                             anchors.fill: parent
                             radius: Theme.radiusSmall
@@ -507,8 +520,8 @@ AppWindow {
                                 visible: !row.modelData.virtual
                                 selected: row.chosen
                                 text: row.chosen ? "✓" : ""
-                                implicitWidth: Theme.px(16)
-                                implicitHeight: Theme.px(16)
+                                implicitWidth: Math.max(Theme.px(16), Theme.touchTarget)
+                                implicitHeight: implicitWidth
                                 Accessible.role: Accessible.CheckBox
                                 Accessible.name: row.modelData.path
                                 onClicked: Archive.selectEntry(row.modelData.path, "toggle", win.visiblePaths)
@@ -565,10 +578,11 @@ AppWindow {
                 }
                 // the empty state is actionable: open one, retry a failed open,
                 // or clear a filter that hid every entry
-                RowLayout {
+                Flow {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
                     anchors.margins: Theme.px(8)
+                    width: Math.min(parent.width - Theme.px(16), Theme.px(400))
                     visible: Archive.entries.length === 0 && !Archive.reading && !win.working
                     spacing: Theme.px(8)
                     Button {

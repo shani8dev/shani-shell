@@ -43,6 +43,7 @@ AppWindow {
             spacing: Theme.px(10)
 
             RowLayout {
+                visible: !win.compact
                 Layout.fillWidth: true
                 Icon { name: "drive-harddisk"; size: Theme.px(20); color: Theme.accent }
                 Text {
@@ -60,6 +61,36 @@ AppWindow {
                 }
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Back (Esc)"); enabled: DiskUsage.history.length > 0; onClicked: DiskUsage.back() }
                 IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Rescan"); onClicked: DiskUsage.refresh() }
+            }
+            // on a phone the path gets its own line and the choices wrap below it
+            ColumnLayout {
+                visible: win.compact
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Icon { name: "drive-harddisk"; size: Theme.px(20); color: Theme.accent }
+                    Text {
+                        Layout.fillWidth: true
+                        text: DiskUsage.current !== "" ? DiskUsage.current.replace(Quickshell.env("HOME"), "~") : ""
+                        color: Theme.text
+                        elide: Text.ElideMiddle
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(15) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                    }
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
+                    Repeater {
+                        model: [["map", Tr.t("Map")], ["big", Tr.t("Biggest files")], ["dupes", Tr.t("Duplicates")]]
+                        Choice { required property var modelData; text: modelData[1]; selected: DiskUsage.view === modelData[0]; onClicked: DiskUsage.setView(modelData[0]) }
+                    }
+                    IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Back (Esc)"); enabled: DiskUsage.history.length > 0; onClicked: DiskUsage.back() }
+                    IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Rescan"); onClicked: DiskUsage.refresh() }
+                }
             }
 
             // the biggest files, or the duplicates: a list, each line marked with a click
@@ -96,7 +127,7 @@ AppWindow {
                     delegate: Rectangle {
                         required property var modelData
                         width: moreList.width
-                        height: Theme.px(modelData.head ? 26 : 30)
+                        height: modelData.head ? Theme.px(26) : Math.max(Theme.px(30), Theme.touchTarget)
                         radius: Theme.px(6)
                         color: !modelData.head && DiskUsage.isMarked(modelData.path) ? Qt.alpha(Theme.danger, 0.18) : (rowArea.containsMouse && !modelData.head ? Theme.hover : "transparent")
                         MouseArea { id: rowArea; anchors.fill: parent; hoverEnabled: true; enabled: !parent.modelData.head; onClicked: DiskUsage.toggleMark(parent.modelData.path) }
@@ -122,6 +153,11 @@ AppWindow {
                         Accessible.checked: !modelData.head && DiskUsage.isMarked(modelData.path)
                         Accessible.onToggleAction: if (!modelData.head) DiskUsage.toggleMark(modelData.path)
                         Accessible.onPressAction: if (!modelData.head) DiskUsage.toggleMark(modelData.path)
+                        KeyFocus {
+                            name: modelData.head ? "" : modelData.path
+                            enabled: !modelData.head
+                            onActivated: DiskUsage.toggleMark(modelData.path)
+                        }
                     }
                 }
             }
@@ -255,7 +291,7 @@ AppWindow {
                     required property var modelData
                     required property int index
                     width: markedList.width
-                    height: Theme.px(30)
+                    height: Math.max(Theme.px(30), Theme.touchTarget)
                     radius: Theme.px(8)
                     color: "transparent"
                     RowLayout {

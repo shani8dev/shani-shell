@@ -15,6 +15,7 @@ import qs.Services
 AppWindow {
     id: win
     appName: "PDF Signer"
+    sidePane: controlsPane
     visible: Ui.pdfSigner
     onGone: PdfSigner.close()
     margins: 0
@@ -151,191 +152,219 @@ AppWindow {
                     }
                 }
 
-                // placement + fill controls, beside the page
-                ColumnLayout {
-                    Layout.preferredWidth: Theme.px(300)
-                    Layout.fillHeight: true
-                    spacing: Theme.px(8)
+                // placement + fill controls: a column beside the page, a drawer on a phone
+                SidePane {
+                    id: controlsPane
+                    compact: win.compact
+                    paneWidth: Theme.px(300)
+                    label: Tr.t("Signature")
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: controlsPane.compact ? Theme.px(10) : 0
+                        contentWidth: width
+                        contentHeight: controlsCol.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        ColumnLayout {
+                            id: controlsCol
+                            width: parent.width
+                            spacing: Theme.px(8)
 
-                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Signature") }
-                    Button {
-                        Layout.fillWidth: true
-                        text: Tr.t("Choose signature")
-                        onClicked: sigFileDlg.open()
-                    }
-                    TextField {
-                        id: sigField
-                        Layout.fillWidth: true
-                        placeholder: Tr.t("Signature image path")
-                        label: Tr.t("Signature image path")
-                        text: PdfSigner.signature
-                        onAccepted: PdfSigner.setSignature(text)
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: Tr.t("X  ·  Y  ·  SCALE")
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.px(6)
-                        TextField {
-                            id: xField
-                            Layout.fillWidth: true
-                            placeholder: "x"
-                            label: Tr.t("Signature x position")
-                            text: String(PdfSigner.x)
-                            onAccepted: PdfSigner.setPosition(text, yField.text)
-                        }
-                        TextField {
-                            id: yField
-                            Layout.fillWidth: true
-                            placeholder: "y"
-                            label: Tr.t("Signature y position")
-                            text: String(PdfSigner.y)
-                            onAccepted: PdfSigner.setPosition(xField.text, text)
-                        }
-                        TextField {
-                            id: scaleField
-                            Layout.fillWidth: true
-                            placeholder: "scale"
-                            label: Tr.t("Signature scale")
-                            text: String(PdfSigner.scale)
-                            onAccepted: PdfSigner.setScale(text)
-                        }
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: Tr.t("x / y / scale place the signature on the page")
-                        color: Theme.faint
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
-                    }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: controlsPane.compact
+                                IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Back"); onClicked: controlsPane.open = false }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: Tr.t("Signature")
+                                    color: Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(13) * Theme.fontScale
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                            SectionTitle { Layout.fillWidth: true; visible: !controlsPane.compact; text: Tr.t("Signature") }
+                            Button {
+                                Layout.fillWidth: true
+                                text: Tr.t("Choose signature")
+                                onClicked: sigFileDlg.open()
+                            }
+                            TextField {
+                                id: sigField
+                                Layout.fillWidth: true
+                                placeholder: Tr.t("Signature image path")
+                                label: Tr.t("Signature image path")
+                                text: PdfSigner.signature
+                                onAccepted: PdfSigner.setSignature(text)
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: Tr.t("X  ·  Y  ·  SCALE")
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.px(6)
+                                TextField {
+                                    id: xField
+                                    Layout.fillWidth: true
+                                    placeholder: "x"
+                                    label: Tr.t("Signature x position")
+                                    text: String(PdfSigner.x)
+                                    onAccepted: PdfSigner.setPosition(text, yField.text)
+                                }
+                                TextField {
+                                    id: yField
+                                    Layout.fillWidth: true
+                                    placeholder: "y"
+                                    label: Tr.t("Signature y position")
+                                    text: String(PdfSigner.y)
+                                    onAccepted: PdfSigner.setPosition(xField.text, text)
+                                }
+                                TextField {
+                                    id: scaleField
+                                    Layout.fillWidth: true
+                                    placeholder: "scale"
+                                    label: Tr.t("Signature scale")
+                                    text: String(PdfSigner.scale)
+                                    onAccepted: PdfSigner.setScale(text)
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: Tr.t("x / y / scale place the signature on the page")
+                                color: Theme.faint
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                            }
 
-                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Fill text") }
-                    TextField {
-                        id: fillField
-                        Layout.fillWidth: true
-                        placeholder: Tr.t("Type text to fill…")
-                        label: Tr.t("Fill text")
-                        text: PdfSigner.fillText
-                        onAccepted: PdfSigner.setFillText(text)
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: Tr.t("X  ·  Y")
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.px(6)
-                        TextField {
-                            id: textXField
-                            Layout.fillWidth: true
-                            placeholder: "x"
-                            label: Tr.t("Fill text x position")
-                            text: String(PdfSigner.textX)
-                            onAccepted: PdfSigner.setTextPosition(text, textYField.text)
-                        }
-                        TextField {
-                            id: textYField
-                            Layout.fillWidth: true
-                            placeholder: "y"
-                            label: Tr.t("Fill text y position")
-                            text: String(PdfSigner.textY)
-                            onAccepted: PdfSigner.setTextPosition(textXField.text, text)
-                        }
-                    }
+                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Fill text") }
+                            TextField {
+                                id: fillField
+                                Layout.fillWidth: true
+                                placeholder: Tr.t("Type text to fill…")
+                                label: Tr.t("Fill text")
+                                text: PdfSigner.fillText
+                                onAccepted: PdfSigner.setFillText(text)
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: Tr.t("X  ·  Y")
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.px(6)
+                                TextField {
+                                    id: textXField
+                                    Layout.fillWidth: true
+                                    placeholder: "x"
+                                    label: Tr.t("Fill text x position")
+                                    text: String(PdfSigner.textX)
+                                    onAccepted: PdfSigner.setTextPosition(text, textYField.text)
+                                }
+                                TextField {
+                                    id: textYField
+                                    Layout.fillWidth: true
+                                    placeholder: "y"
+                                    label: Tr.t("Fill text y position")
+                                    text: String(PdfSigner.textY)
+                                    onAccepted: PdfSigner.setTextPosition(textXField.text, text)
+                                }
+                            }
 
-                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Pages, stamps, password") }
-                    TextField {
-                        Layout.fillWidth: true
-                        placeholder: "1-3,5"
-                        label: Tr.t("Pages to stamp")
-                        text: PdfSigner.pageRange
-                        onAccepted: PdfSigner.setPageRange(text)
-                    }
-                    TextField {
-                        id: stampTextField
-                        Layout.fillWidth: true
-                        placeholder: Tr.t("Stamp text")
-                        label: Tr.t("Stamp text")
-                        text: PdfSigner.stampText
-                        onAccepted: PdfSigner.setStampText(text)
-                    }
-                    Button {
-                        Layout.fillWidth: true
-                        text: PdfSigner.stampDate || PdfSigner.stampPageNumber
-                            ? Tr.t("Stamp date and page numbers ✓") : Tr.t("Stamp date and page numbers")
-                        onClicked: { PdfSigner.stampDate = !PdfSigner.stampDate; PdfSigner.stampPageNumber = PdfSigner.stampDate; }
-                    }
-                    TextField {
-                        id: passwordField
-                        Layout.fillWidth: true
-                        placeholder: Tr.t("Password")
-                        label: Tr.t("Password")
-                        text: PdfSigner.password
-                        secret: true
-                        onAccepted: PdfSigner.setPassword(text)
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.px(6)
-                        Button {
-                            Layout.fillWidth: true
-                            text: Tr.t("Protect with password")
-                            onClicked: PdfSigner.protect()
-                        }
-                        Button {
-                            Layout.fillWidth: true
-                            text: Tr.t("Show signatures")
-                            onClicked: PdfSigner.signatures()
-                        }
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.px(6)
-                        Button { text: Tr.t("Export bookmarks"); onClicked: PdfSigner.exportBookmarks() }
-                        Button { text: Tr.t("Import bookmarks"); onClicked: bmFileDlg.open() }
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: PdfSigner.rangeError !== ""
-                        text: PdfSigner.rangeError
-                        color: Theme.red
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
-                    }
+                            SectionTitle { Layout.fillWidth: true; text: Tr.t("Pages, stamps, password") }
+                            TextField {
+                                Layout.fillWidth: true
+                                placeholder: "1-3,5"
+                                label: Tr.t("Pages to stamp")
+                                text: PdfSigner.pageRange
+                                onAccepted: PdfSigner.setPageRange(text)
+                            }
+                            TextField {
+                                id: stampTextField
+                                Layout.fillWidth: true
+                                placeholder: Tr.t("Stamp text")
+                                label: Tr.t("Stamp text")
+                                text: PdfSigner.stampText
+                                onAccepted: PdfSigner.setStampText(text)
+                            }
+                            Button {
+                                Layout.fillWidth: true
+                                text: PdfSigner.stampDate || PdfSigner.stampPageNumber
+                                    ? Tr.t("Stamp date and page numbers ✓") : Tr.t("Stamp date and page numbers")
+                                onClicked: { PdfSigner.stampDate = !PdfSigner.stampDate; PdfSigner.stampPageNumber = PdfSigner.stampDate; }
+                            }
+                            TextField {
+                                id: passwordField
+                                Layout.fillWidth: true
+                                placeholder: Tr.t("Password")
+                                label: Tr.t("Password")
+                                text: PdfSigner.password
+                                secret: true
+                                onAccepted: PdfSigner.setPassword(text)
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.px(6)
+                                Button {
+                                    Layout.fillWidth: true
+                                    text: Tr.t("Protect with password")
+                                    onClicked: PdfSigner.protect()
+                                }
+                                Button {
+                                    Layout.fillWidth: true
+                                    text: Tr.t("Show signatures")
+                                    onClicked: PdfSigner.signatures()
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.px(6)
+                                Button { text: Tr.t("Export bookmarks"); onClicked: PdfSigner.exportBookmarks() }
+                                Button { text: Tr.t("Import bookmarks"); onClicked: bmFileDlg.open() }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: PdfSigner.rangeError !== ""
+                                text: PdfSigner.rangeError
+                                color: Theme.red
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                            }
 
-                    Item { Layout.fillHeight: true }
+                            Item { Layout.fillHeight: true }
 
-                    Button {
-                        Layout.fillWidth: true
-                        text: PdfSigner.saving ? Tr.t("Saving…") : Tr.t("Save signed copy")
-                        kind: "primary"
-                        enabled: !PdfSigner.saving && PdfSigner.file !== ""
-                        onClicked: PdfSigner.save()
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: PdfSigner.pdfSignerFile !== "" || PdfSigner.status !== "" || PdfSigner.error !== ""
-                        text: PdfSigner.error !== "" ? PdfSigner.error : (PdfSigner.pdfSignerFile !== "" ? PdfSigner.pdfSignerFile : PdfSigner.status)
-                        color: PdfSigner.error !== "" ? Theme.red : Theme.dim
-                        elide: Text.ElideMiddle
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(11) * Theme.fontScale
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: Tr.t("Saves “%1 - signed.pdf” beside the original · Esc closes").arg(PdfSigner.name || "doc.pdf")
-                        color: Theme.faint
-                        horizontalAlignment: Text.AlignHCenter
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(10) * Theme.fontScale
+                            Button {
+                                Layout.fillWidth: true
+                                text: PdfSigner.saving ? Tr.t("Saving…") : Tr.t("Save signed copy")
+                                kind: "primary"
+                                enabled: !PdfSigner.saving && PdfSigner.file !== ""
+                                onClicked: PdfSigner.save()
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: PdfSigner.pdfSignerFile !== "" || PdfSigner.status !== "" || PdfSigner.error !== ""
+                                text: PdfSigner.error !== "" ? PdfSigner.error : (PdfSigner.pdfSignerFile !== "" ? PdfSigner.pdfSignerFile : PdfSigner.status)
+                                color: PdfSigner.error !== "" ? Theme.red : Theme.dim
+                                elide: Text.ElideMiddle
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(11) * Theme.fontScale
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: Tr.t("Saves “%1 - signed.pdf” beside the original · Esc closes").arg(PdfSigner.name || "doc.pdf")
+                                color: Theme.faint
+                                horizontalAlignment: Text.AlignHCenter
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(10) * Theme.fontScale
+                            }
+
+                        }
                     }
                 }
             }

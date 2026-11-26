@@ -60,6 +60,14 @@ export SHANI_REPORT_TOOL=/work/bridge/system-report.py SHANI_HEALTH_TOOL=/work/b
 # Settings > System: stand-ins for fwupd, shani-health, mdadm, lvs, resolvectl…
 # and the bridge tools that read them (dev/fake-system-env.sh is a harness part).
 . /work/dev/fake-system-env.sh
+# Settings > Security > Encryption and boot: gen-efi's stand-in answers the same
+# JSON as the real tool. "env" stands in for pkexec: no password is asked, and
+# every call still goes through the bridge's privileged-command path.
+export SHANI_SECURITY_BOOT_TOOL=/work/bridge/system_security_boot.py
+export SHANI_GEN_EFI=/work/dev/fake-gen-efi.py
+export SHANI_SECURITY_PKEXEC=env FAKE_GEN_EFI_DIR=/tmp/fake-gen-efi
+mkdir -p "$FAKE_GEN_EFI_DIR"
+printf '%s' "${FAKE_GEN_EFI_STATE:-encrypted-tpm}" > "$FAKE_GEN_EFI_DIR/state"
 # Settings > Power > what can wake this computer: the bridge reads a stand-in
 # /sys (dev/shell-parts/wake-sources.sh makes it), and the administrator
 # actions are recorded, not run (dev/fake-admin.sh; the real one: dev/admin-test.sh)

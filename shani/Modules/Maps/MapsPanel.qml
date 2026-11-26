@@ -456,12 +456,13 @@ AppWindow {
                 IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Find my location"); onClicked: { win.locationAsked = true; Location.refresh(); } }
             }
 
-            RowLayout {
+            // a Flow: the field takes the whole row on a phone, and the actions wrap below
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 TextField {
                     id: mapSearch
-                    Layout.fillWidth: true
+                    width: win.compact ? col.width : Math.max(Theme.px(220), col.width - Theme.px(300))
                     placeholder: Tr.t("Search city or place")
                     label: Tr.t("Search city or place")
                     text: win.searchField || Ui.mapsQuery || ""
@@ -532,15 +533,20 @@ AppWindow {
                 wrapMode: Text.WordWrap
             }
             // what OpenStreetMap knows of it: open when, a phone, a website (a click opens it)
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: win.placeHours !== "" || win.placePhone !== "" || win.placeWebsite !== ""
                 spacing: Theme.px(12)
-                Text { visible: win.placeHours !== ""; text: Tr.t("Open: %1", win.placeHours); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text {
+                    visible: win.placeHours !== ""
+                    width: win.compact ? col.width : implicitWidth
+                    wrapMode: Text.WordWrap
+                    text: Tr.t("Open: %1", win.placeHours)
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
                 Button { visible: win.placePhone !== ""; flat: true; text: win.placePhone; onClicked: Quickshell.execDetached(["xdg-open", "tel:" + win.placePhone.replace(/\s/g, "")]) }
                 Button { visible: win.placeWebsite !== ""; flat: true; text: Tr.t("Website"); onClicked: Quickshell.execDetached(["xdg-open", win.placeWebsite]) }
                 Button { visible: win.checkHostTarget() !== ""; flat: true; text: Tr.t("Check host"); Accessible.name: Tr.t("Check host in Network Tools"); onClicked: win.checkHost() }
-                Item { Layout.fillWidth: true }
             }
 
             // ---- the map: as many tiles as fill it, dragged to pan, wheel or +/- to zoom ----
@@ -721,7 +727,7 @@ AppWindow {
                 Layout.fillWidth: true
                 visible: win.routeAsked
                 spacing: Theme.px(6)
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
                     Repeater {
@@ -733,6 +739,10 @@ AppWindow {
                             onClicked: { win.routeProfile = modelData[0]; win.directions(); }
                         }
                     }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(6)
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignRight

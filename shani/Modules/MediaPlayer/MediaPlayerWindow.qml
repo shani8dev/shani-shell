@@ -25,6 +25,21 @@ AppWindow {
     visible: PlayQueue.shown
     onGone: { if (mini) setMini(false); PlayQueue.close(); }
     margins: 0
+    // the queue folds into the header's drawer on a narrow window, and closes
+    // when a track in it is picked (the way Files closes its Places drawer)
+    sidePane: queuePane
+    Connections { target: PlayQueue; function onCurrentChanged() { queuePane.open = false; if (win.compact) win.listShown = false; } }
+    // on a phone one pane fills the window; Back leaves it for what is playing
+    readonly property bool pageReplaced: win.compact && !win.mini && win.page !== "playing"
+    readonly property bool paneReplaced: win.compact && !win.mini &&
+        (win.page !== "playing" || win.recentShown || win.audiobookShown || queuePane.open)
+    readonly property int rowH: Math.max(Theme.px(30), Theme.touchTarget)
+    function backToPlayer() {
+        win.page = "playing";
+        win.listShown = false; win.recentShown = false; win.audiobookShown = false;
+        win.streamShown = false; win.tracksShown = false; win.infoShown = false;
+        queuePane.open = false;
+    }
     // the mini player: a small floating picture, on every workspace (Niri's pinning)
     property bool mini: false
     header: !mini
@@ -61,6 +76,7 @@ AppWindow {
     onCoverChanged: PlayQueue.coverShown = cover
 
     property bool listShown: false
+    onListShownChanged: if (win.compact) queuePane.open = listShown
     // library | playing: the music in ~/Music, or what is playing (a video always shows)
     // (PlayQueue.page: the IPC and `shani app media-player` can ask for either)
     property alias page: pageHolder.value
@@ -374,6 +390,35 @@ AppWindow {
                 Layout.fillHeight: true
                 spacing: 0
 
+                // a phone shows one pane: Back leaves a page, a recent list or
+                // the queue and returns to what is playing
+                RowLayout {
+                    z: 10                              // above the recent / audiobook cards
+                    visible: win.paneReplaced
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(10)
+                    Layout.rightMargin: Theme.px(10)
+                    Layout.topMargin: Theme.px(6)
+                    spacing: Theme.px(8)
+                    IconButton {
+                        icon: "go-previous"
+                        tip: Tr.t("Back to the player")
+                        accessibleName: Tr.t("Back to the player")
+                        onClicked: win.backToPlayer()
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: queuePane.open ? Tr.t("Queue") : win.recentShown ? Tr.t("Recent media")
+                            : win.audiobookShown ? Tr.t("Audiobook") : win.page === "library" ? Tr.t("Library")
+                            : win.page === "radio" ? Tr.t("Radio") : win.page === "live" ? Tr.t("Live TV") : Tr.t("Other apps")
+                        color: Theme.text
+                        elide: Text.ElideRight
+                        font.family: Theme.font
+                        font.pixelSize: Theme.px(13) * Theme.fontScale
+                        font.weight: Font.DemiBold
+                    }
+                }
+
                 MusicLibraryView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -416,7 +461,7 @@ AppWindow {
                     RowLayout {
                         z: 3
                         anchors.centerIn: parent
-                        visible: win.mini && miniHover.hovered
+                        visible: win.mini                 // a tap reaches them; no hover needed
                         spacing: Theme.px(14)
                         IconButton { size: Theme.px(40); icon: "media-skip-backward"; tip: Tr.t("Previous"); onClicked: PlayQueue.previous() }
                         IconButton { size: Theme.px(52); on: true; icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"; tip: Tr.t("Play or pause"); onClicked: win.toggle() }
@@ -426,7 +471,7 @@ AppWindow {
                     IconButton {
                         z: 3
                         anchors { top: parent.top; right: parent.right; margins: Theme.px(8) }
-                        visible: win.mini && miniHover.hovered
+                        visible: win.mini                 // a tap reaches it; no hover needed
                         icon: "view-restore"
                         tip: Tr.t("Back to the full player") + " (I)"
                         onClicked: win.setMini(false)
@@ -451,8 +496,8 @@ AppWindow {
                         }
                         Image {
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: Theme.px(260)
-                            Layout.preferredHeight: Theme.px(260)
+                            Layout.preferredWidth: Math.min(Theme.px(260), parent.width - Theme.px(40))
+                            Layout.preferredHeight: Math.min(Theme.px(260), parent.width - Theme.px(40))
                             visible: win.cover !== ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
@@ -615,7 +660,7 @@ AppWindow {
                     Rectangle {
                         anchors { right: parent.right; bottom: parent.bottom; margins: Theme.px(12) }
                         visible: win.tracksShown
-                        width: Theme.px(300)
+                        width: Math.min(parent.width - Theme.px(24), Theme.px(300))
                         implicitHeight: tracksCol.implicitHeight + 24
                         radius: Theme.radiusSmall
                         color: Theme.alpha(Theme.bg, 0.94)
@@ -701,7 +746,7 @@ AppWindow {
                                 id: chapterList
                                 Layout.fillWidth: true
                                 visible: PlayQueue.chapters.length > 0
-                                implicitHeight: Math.min(180, PlayQueue.chapters.length * 30)
+                                implicitHeight: Math.min(Theme.px(180), PlayQueue.chapters.length * win.rowH)
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
                                 model: PlayQueue.chapters
@@ -711,7 +756,7 @@ AppWindow {
                                     required property int index
                                     readonly property bool now: chapterNow(chapterRow.modelData)
                                     width: chapterList.width
-                                    height: Theme.px(28)
+                                    height: win.rowH
                                     radius: Theme.radiusSmall
                                     color: chapterRow.now ? Theme.accentSoft : chapterArea.containsMouse ? Theme.hover : "transparent"
                                     RowLayout {
@@ -746,7 +791,7 @@ AppWindow {
                     Rectangle {
                         anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
                         visible: win.streamShown
-                        width: Theme.px(320)
+                        width: Math.min(parent.width - Theme.px(24), Theme.px(320))
                         implicitHeight: streamCol.implicitHeight + 24
                         radius: Theme.radiusSmall
                         color: Theme.alpha(Theme.bg, 0.96)
@@ -782,7 +827,7 @@ AppWindow {
                         objectName: "media:properties"
                         anchors { left: parent.left; bottom: parent.bottom; margins: Theme.px(12) }
                         visible: win.infoShown && !win.mini
-                        width: Theme.px(320)
+                        width: Math.min(parent.width - Theme.px(24), Theme.px(320))
                         implicitHeight: Math.min(infoCol.implicitHeight + 24, parent.height - 100)
                         radius: Theme.radiusSmall
                         color: Theme.alpha(Theme.bg, 0.96)
@@ -838,7 +883,7 @@ AppWindow {
 
                 // ---- where it is: click or drag to seek ----
                 Item {
-                    visible: !win.mini
+                    visible: !win.mini && !win.pageReplaced
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.px(22)
                     Layout.leftMargin: Theme.px(14)
@@ -894,12 +939,12 @@ AppWindow {
                     KeyFocus { enabled: seekArea.enabled; slider: true; onStep: dir => player.position = Math.max(0, Math.min(player.duration, player.position + dir * 10000)) }
                 }
 
-                // ---- the controls ----
-                RowLayout {
-                    visible: !win.mini
+                // ---- the controls: Flow wraps them on a narrow window ----
+                Flow {
+                    visible: !win.mini && !win.pageReplaced
                     Layout.fillWidth: true
                     Layout.margins: Theme.px(10)
-                    spacing: Theme.px(4)
+                    spacing: Theme.px(6)
                     IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous") + " (P)"; enabled: PlayQueue.current !== ""; onClicked: PlayQueue.previous() }
                     IconButton {
                         icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"
@@ -913,7 +958,7 @@ AppWindow {
                     IconButton { icon: "media-playback-stop"; tip: Tr.t("Stop"); enabled: PlayQueue.current !== ""; onClicked: PlayQueue.stop() }
                     IconButton { icon: "folder-open"; tip: Tr.t("Show in Files"); enabled: PlayQueue.current !== "" && !PlayQueue.isStream; onClicked: win.reveal() }
                     Text {
-                        Layout.leftMargin: Theme.px(8)
+                        leftPadding: Theme.px(8)
                         text: PlayQueue.clock(seekArea.pressed ? seekArea.at / 1000 : PlayQueue.position) + " / " + PlayQueue.clock(PlayQueue.duration)
                         color: Theme.dim
                         font.family: Theme.font
@@ -922,7 +967,7 @@ AppWindow {
                     }
                     TextField {
                         id: goField
-                        Layout.preferredWidth: Theme.px(90)
+                        width: Theme.px(90)
                         placeholder: "mm:ss"
                         label: Tr.t("Go to time")
                         input.font.features: { "tnum": 1 }
@@ -930,13 +975,12 @@ AppWindow {
                     }
                     Button { text: Tr.t("Go"); flat: true; enabled: PlayQueue.current !== ""; onClicked: { if (!win.goToTime(goField.text)) win.goError = true; else win.goError = false; } }
                     Text { visible: win.goError; text: Tr.t("Bad time"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
-                    Item { Layout.fillWidth: true }
                     Button { text: "A"; flat: true; checked: PlayQueue.loopA >= 0; onClicked: PlayQueue.setLoopA(PlayQueue.position); Accessible.name: Tr.t("Set loop start") }
                     Button { text: "B"; flat: true; checked: PlayQueue.loopB > PlayQueue.loopA; onClicked: PlayQueue.setLoopB(PlayQueue.position); Accessible.name: Tr.t("Set loop end") }
                     Button { text: Tr.t("Loop off"); flat: true; visible: PlayQueue.loopActive; onClicked: PlayQueue.clearLoop() }
                     // speed: a pick, not a number to type
                     Text {
-                        Layout.fillWidth: true
+                        leftPadding: Theme.px(4)
                         text: Tr.t("Speed")
                         color: Theme.dim
                         font.family: Theme.font
@@ -964,8 +1008,8 @@ AppWindow {
                         onClicked: PlayQueue.muted = !PlayQueue.muted
                     }
                     Item {
-                        Layout.preferredWidth: Theme.px(90)
-                        Layout.preferredHeight: Theme.px(22)
+                        width: Theme.px(90)
+                        height: Math.max(Theme.px(22), Theme.touchTarget)
                         Accessible.role: Accessible.Slider
                         Accessible.name: Tr.t("Volume") + ": " + Math.round(PlayQueue.volume * 100) + " %"
                         Rectangle {
@@ -1016,18 +1060,29 @@ AppWindow {
                 }
             }
 
-            // ---- the queue: the folder's other files ----
-            Rectangle {
-                Layout.fillHeight: true
-                Layout.preferredWidth: Theme.px(280)
-                visible: win.listShown && !win.mini
-                color: Theme.surface1
+            // ---- the queue: a column on a wide window, a drawer on a phone ----
+            SidePane {
+                id: queuePane
+                compact: win.compact
+                paneWidth: win.listShown ? Theme.px(280) : 0
+                label: Tr.t("Queue")
+                visible: (win.listShown || queuePane.open) && !win.mini
+                onOpenChanged: if (win.compact) win.listShown = open
+                Rectangle { anchors.fill: parent; color: Theme.surface1 }
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.px(10)
                     spacing: Theme.px(6)
                     RowLayout {
                         Layout.fillWidth: true
+                        spacing: Theme.px(6)
+                        IconButton {
+                            visible: win.compact
+                            icon: "go-previous"
+                            tip: Tr.t("Back to the player")
+                            accessibleName: Tr.t("Back to the player")
+                            onClicked: { queuePane.open = false; win.listShown = false; }
+                        }
                         SectionTitle { Layout.fillWidth: true; text: Tr.t("Queue") + "  ·  " + PlayQueue.queue.length }
                         Button { text: Tr.t("Clear"); flat: true; enabled: PlayQueue.queue.length > 0; onClicked: PlayQueue.clear() }
                     }
@@ -1077,7 +1132,7 @@ AppWindow {
                             required property int index
                             readonly property bool now: PlayQueue.index === index
                             width: ListView.view.width
-                            height: Theme.px(32)
+                            height: win.rowH
                             radius: Theme.radiusSmall
                             color: now ? Theme.accentSoft : rowArea.containsMouse ? Theme.hover : "transparent"
                             Accessible.role: Accessible.ListItem
@@ -1113,8 +1168,8 @@ AppWindow {
             z: 5
             anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
             visible: win.recentShown && !win.mini && (win.page === "library" || win.page === "playing")
-            width: Theme.px(320)
-            implicitHeight: Math.min(360, recentCol.implicitHeight + 24)
+            width: win.compact ? parent.width - Theme.px(24) : Math.min(parent.width - Theme.px(24), Theme.px(320))
+            implicitHeight: win.compact ? parent.height - Theme.px(24) : Math.min(Theme.px(360), recentCol.implicitHeight + 24)
             radius: Theme.radiusSmall
             color: Theme.alpha(Theme.bg, 0.96)
             border.width: 1
@@ -1140,7 +1195,7 @@ AppWindow {
                     Layout.fillWidth: true
                     // implicitHeight only counts the header: without this the
                     // card renders as a title with no rows in it
-                    Layout.preferredHeight: Math.min(Theme.px(238), Math.max(Theme.px(34), PlayQueue.recent.length * Theme.px(34)))
+                    Layout.preferredHeight: Math.min(Theme.px(238), Math.max(win.rowH, PlayQueue.recent.length * win.rowH))
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     model: PlayQueue.recentRows
@@ -1148,7 +1203,7 @@ AppWindow {
                         id: recentRow
                         required property var modelData
                         width: ListView.view.width
-                        height: Theme.px(34)
+                        height: win.rowH
                         radius: Theme.radiusSmall
                         color: recentArea.containsMouse ? Theme.hover : "transparent"
                         Accessible.role: Accessible.ListItem
@@ -1217,7 +1272,7 @@ AppWindow {
         z: 6
         anchors { top: parent.top; right: parent.right; margins: Theme.px(12) }
         visible: win.audiobookShown && !win.mini && (win.page === "library" || win.page === "playing")
-        width: Theme.px(360)
+        width: Math.min(parent.width - Theme.px(24), Theme.px(360))
         implicitHeight: Math.min(parent.height - Theme.px(24), bookCol.implicitHeight + Theme.px(24))
         radius: Theme.radiusSmall
         color: Theme.alpha(Theme.bg, 0.96)
@@ -1253,7 +1308,7 @@ AppWindow {
             ListView {
                 id: continueList
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(Theme.px(120), Math.max(Theme.px(30), PlayQueue.continueRows.length * Theme.px(30)))
+                Layout.preferredHeight: Math.min(Theme.px(120), Math.max(win.rowH, PlayQueue.continueRows.length * win.rowH))
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 model: PlayQueue.continueRows
@@ -1261,7 +1316,7 @@ AppWindow {
                     id: contRow
                     required property var modelData
                     width: continueList.width
-                    height: Theme.px(30)
+                    height: win.rowH
                     radius: Theme.radiusSmall
                     color: contArea.containsMouse ? Theme.hover : "transparent"
                     Accessible.role: Accessible.ListItem
@@ -1379,7 +1434,7 @@ AppWindow {
             ListView {
                 id: timelineList
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(Theme.px(150), Math.max(Theme.px(34), win.timelineRows.length * Theme.px(30)))
+                Layout.preferredHeight: Math.min(Theme.px(150), Math.max(win.rowH, win.timelineRows.length * win.rowH))
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 model: win.timelineRows
@@ -1387,7 +1442,7 @@ AppWindow {
                     id: tlRow
                     required property var modelData
                     width: timelineList.width
-                    height: Theme.px(30)
+                    height: win.rowH
                     radius: Theme.radiusSmall
                     color: tlArea.containsMouse ? Theme.hover : "transparent"
                     Accessible.role: Accessible.ListItem

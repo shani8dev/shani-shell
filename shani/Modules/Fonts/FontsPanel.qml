@@ -345,7 +345,8 @@ AppWindow {
                 }
                 Item {
                     Layout.fillWidth: true
-                    implicitHeight: Theme.px(28)
+                    // touch: the whole track is the slider's target, not the 16px knob
+                    implicitHeight: Math.max(Theme.px(28), Theme.touchTarget)
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width

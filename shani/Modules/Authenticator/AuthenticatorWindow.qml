@@ -180,12 +180,12 @@ AppWindow {
             anchors.fill: parent
             spacing: Theme.px(10)
 
-            RowLayout {
+            // both actions wrap below each other on a narrow window
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Button { kind: "primary"; text: Tr.t("Scan a QR code on the screen"); enabled: win.available && !writer.running; onClicked: { win.note = Tr.t("Draw a box round the QR code…"); win.run(["scan-screen"]); } }
                 Button { text: win.adding ? Tr.t("Cancel") : Tr.t("Enter a setup key"); flat: true; onClicked: { win.adding = !win.adding; if (!win.adding) win.clearForm(); } }
-                Item { Layout.fillWidth: true }
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -201,7 +201,7 @@ AppWindow {
                 }
                 Button { text: win.grouped ? Tr.t("List") : Tr.t("Group by issuer"); flat: true; checked: win.grouped; onClicked: win.grouped = !win.grouped }
             }
-            RowLayout {
+            Flow {
                 visible: win.issuers.length > 1
                 Layout.fillWidth: true
                 spacing: Theme.px(4)

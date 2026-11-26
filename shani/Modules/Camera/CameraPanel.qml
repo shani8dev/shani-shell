@@ -21,6 +21,10 @@ AppWindow {
     margins: 0
     implicitWidth: Theme.px(720)
     implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
+    // the last capture is a narrow column beside the quick actions on a
+    // desktop; on a phone the header's menu button opens it as a drawer
+    sidePane: capturePane
+    Connections { target: Camera; function onLastChanged() { if (win.compact && Camera.last !== "") capturePane.open = true; } }
 
     // Camera-like keys: Space shoots, C switches mode, G/F/B/T toggle the
     // overlays, X/Z nudge zoom and exposure. A focused control already takes
@@ -48,11 +52,20 @@ AppWindow {
         id: blurCard
         anchors.fill: parent
 
-        ColumnLayout {
-            id: col
-            x: 20; y: 20
-            width: parent.width - 40
-            spacing: Theme.px(12)
+        // the whole panel scrolls on a phone: the wrapped settings rows and
+        // gallery can be taller than the screen
+        Flickable {
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: col.implicitHeight + Theme.px(40)
+            clip: true
+            flickableDirection: Flickable.VerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            ColumnLayout {
+                id: col
+                x: 20; y: 20
+                width: parent.width - 40
+                spacing: Theme.px(12)
 
             RowLayout {
                 Layout.fillWidth: true
@@ -159,7 +172,8 @@ AppWindow {
                 }
             }
 
-            RowLayout {
+            // a Flow so a phone wraps the chips instead of cutting them off
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Repeater {
@@ -171,14 +185,13 @@ AppWindow {
                         onClicked: Camera.selected = modelData.index
                     }
                 }
-                Item { Layout.fillWidth: true }
                 Choice { text: Tr.t("Photo"); selected: Camera.mode === "photo"; onClicked: Camera.mode = "photo" }
                 Choice { text: Tr.t("Video"); selected: Camera.mode === "video"; onClicked: Camera.mode = "video" }
                 Choice { text: Tr.t("Mic"); selected: Camera.withAudio; onClicked: Camera.withAudio = !Camera.withAudio }
             }
 
             // capture settings: self-timer, picture format, video codec
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Text { text: Tr.t("Timer"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
@@ -191,7 +204,6 @@ AppWindow {
                         onClicked: Camera.selfTimer = modelData[0]
                     }
                 }
-                Item { Layout.fillWidth: true }
                 Text { text: Tr.t("Photo"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Choice { text: "PNG"; selected: Camera.photoFormat === "png"; onClicked: Camera.photoFormat = "png" }
                 Choice { text: "JPG"; selected: Camera.photoFormat === "jpg"; onClicked: Camera.photoFormat = "jpg" }
@@ -202,13 +214,12 @@ AppWindow {
 
             // studio toggles: overlays, a three-shot strip, and the two still
             // adjustments the cam backend can apply (in the PNG step)
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Choice { text: Tr.t("Grid"); selected: Camera.grid; onClicked: Camera.grid = !Camera.grid }
                 Choice { text: Tr.t("Flash"); selected: Camera.flash; onClicked: Camera.flash = !Camera.flash }
                 Choice { text: Tr.t("Burst"); selected: Camera.burst; onClicked: Camera.burst = !Camera.burst }
-                Item { Layout.fillWidth: true }
                 Text { text: Tr.t("Exposure"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
                 Choice { text: "-"; onClicked: Camera.exposure = Math.max(-2, Camera.exposure - 0.5); Accessible.name: Tr.t("Less exposure") }
                 Text { text: Camera.exposure.toFixed(1) + " EV"; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale; Accessible.name: Tr.t("Exposure %1 EV", Camera.exposure.toFixed(1)) }
@@ -247,25 +258,46 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(12)
-                Rectangle {
-                    Layout.preferredWidth: Theme.px(220)
-                    Layout.preferredHeight: Theme.px(140)
-                    radius: Theme.radiusSmall
-                    color: Theme.hover
-                    Image {
+                // the thumbnail folds into a drawer on a phone, so the quick
+                // actions below keep the whole screen width
+                SidePane {
+                    id: capturePane
+                    compact: win.compact
+                    paneWidth: Theme.px(220)
+                    label: Tr.t("Details")
+                    ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: Theme.px(6)
-                        source: /\.(png|jpg)$/i.test(Camera.last) ? "file://" + Camera.last : ""
-                        fillMode: Image.PreserveAspectFit
-                        visible: /\.(png|jpg)$/i.test(Camera.last)
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        text: Camera.available ? "No capture yet" : "No camera found"
-                        color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: Theme.px(12) * Theme.fontScale
-                        visible: Camera.last === ""
+                        spacing: Theme.px(4)
+                        IconButton {
+                            visible: capturePane.compact
+                            icon: "go-previous"
+                            size: Theme.px(28)
+                            tip: Tr.t("Back")
+                            accessibleName: Tr.t("Back")
+                            onClicked: capturePane.open = false
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.px(140)
+                            Layout.maximumHeight: Theme.px(140)
+                            radius: Theme.radiusSmall
+                            color: Theme.hover
+                            Image {
+                                anchors.fill: parent
+                                anchors.margins: Theme.px(6)
+                                source: /\.(png|jpg)$/i.test(Camera.last) ? "file://" + Camera.last : ""
+                                fillMode: Image.PreserveAspectFit
+                                visible: /\.(png|jpg)$/i.test(Camera.last)
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                text: Camera.available ? "No capture yet" : "No camera found"
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                                visible: Camera.last === ""
+                            }
+                        }
                     }
                 }
                 ColumnLayout {
@@ -279,14 +311,15 @@ AppWindow {
                         font.pixelSize: Theme.px(12) * Theme.fontScale
                         wrapMode: Text.WordWrap
                     }
-                    RowLayout {
+                    Flow {
+                        Layout.fillWidth: true
                         spacing: Theme.px(6)
-                        Choice { text: Tr.t("Open folder"); onClicked: Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); }
-                        Choice { text: Tr.t("Open"); enabled: Camera.last !== ""; onClicked: Camera.openCapture(Camera.last) }
-                        Choice { text: Tr.t("Share"); enabled: Camera.last !== ""; onClicked: Share.open(Camera.last) }
-                        Choice { text: Tr.t("Copy path"); enabled: Camera.last !== ""; onClicked: Camera.copyPath(Camera.last); }
-                        Choice { text: Tr.t("Reveal"); enabled: Camera.last !== ""; onClicked: Camera.reveal(Camera.last) }
-                        Choice { text: Tr.t("Trim video"); visible: /\.(webm|mp4)$/i.test(Camera.last); onClicked: { const p = Camera.last; Camera.closeCamera(); VideoTrimmer.open(p); } }
+                        Choice { text: Tr.t("Open folder"); onClicked: { Qt.openUrlExternally("file://" + (Camera.last ? Camera.last.substring(0, Camera.last.lastIndexOf("/")) : Camera.photosDir)); capturePane.open = false; } }
+                        Choice { text: Tr.t("Open"); enabled: Camera.last !== ""; onClicked: { Camera.openCapture(Camera.last); capturePane.open = false; } }
+                        Choice { text: Tr.t("Share"); enabled: Camera.last !== ""; onClicked: { Share.open(Camera.last); capturePane.open = false; } }
+                        Choice { text: Tr.t("Copy path"); enabled: Camera.last !== ""; onClicked: { Camera.copyPath(Camera.last); capturePane.open = false; } }
+                        Choice { text: Tr.t("Reveal"); enabled: Camera.last !== ""; onClicked: { Camera.reveal(Camera.last); capturePane.open = false; } }
+                        Choice { text: Tr.t("Trim video"); visible: /\.(webm|mp4)$/i.test(Camera.last); onClicked: { const p = Camera.last; capturePane.open = false; Camera.closeCamera(); VideoTrimmer.open(p); } }
                     }
                 }
             }
@@ -333,30 +366,36 @@ AppWindow {
                 reuseItems: true
                 cacheBuffer: 400
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(180, count * 44)
+                Layout.preferredHeight: Math.min(Theme.px(320), count * Theme.px(80))
                 model: Camera.galleryView
                 spacing: Theme.px(4)
                 delegate: Rectangle {
                     id: captureRow
                     required property var modelData
                     width: ListView.view.width
-                    height: Theme.px(44)
+                    // the actions wrap into a second line on a phone; the row
+                    // grows with them instead of clipping the tap targets
+                    height: Math.max(Theme.px(44), galActions.implicitHeight + Theme.px(34))
                     radius: Theme.radiusSmall
                     color: galArea.containsMouse ? Theme.hover : "transparent"
                     Accessible.role: Accessible.ListItem
                     Accessible.name: modelData.name + ", " + modelData.when
-                    RowLayout {
+                    ColumnLayout {
                         anchors.fill: parent
                         anchors.leftMargin: Theme.px(10)
                         anchors.rightMargin: Theme.px(6)
-                        spacing: Theme.px(6)
+                        anchors.topMargin: Theme.px(2)
+                        anchors.bottomMargin: Theme.px(2)
+                        spacing: 0
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
                             Text { Layout.fillWidth: true; text: modelData.name; color: Theme.text; elide: Text.ElideMiddle; font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale }
                             Text { Layout.fillWidth: true; text: modelData.when; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(10) * Theme.fontScale }
                         }
-                        Row {
+                        Flow {
+                            id: galActions
+                            Layout.fillWidth: true
                             spacing: Theme.px(2)
                             Repeater {
                                 model: 5
@@ -368,18 +407,18 @@ AppWindow {
                                     onClicked: Camera.rate(captureRow.modelData.path, index + 1)
                                 }
                             }
+                            IconButton {
+                                icon: captureRow.modelData.favorite ? "starred" : "non-starred"
+                                on: captureRow.modelData.favorite
+                                size: Theme.px(26)
+                                tip: Tr.t("Favorite capture")
+                                accessibleName: tip
+                                onClicked: Camera.toggleFavorite(captureRow.modelData.path)
+                            }
+                            IconButton { icon: "folder-publicshare"; size: Theme.px(26); tip: Tr.t("Share capture"); accessibleName: tip; onClicked: Share.open(captureRow.modelData.path) }
+                            IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy capture path"); accessibleName: tip; onClicked: Camera.copyPath(captureRow.modelData.path) }
+                            IconButton { icon: "edit-delete"; size: Theme.px(26); tip: Tr.t("Delete capture"); Accessible.name: Tr.t("Delete capture"); onClicked: Camera.trash(modelData.path) }
                         }
-                        IconButton {
-                            icon: captureRow.modelData.favorite ? "starred" : "non-starred"
-                            on: captureRow.modelData.favorite
-                            size: Theme.px(26)
-                            tip: Tr.t("Favorite capture")
-                            accessibleName: tip
-                            onClicked: Camera.toggleFavorite(captureRow.modelData.path)
-                        }
-                        IconButton { icon: "folder-publicshare"; size: Theme.px(26); tip: Tr.t("Share capture"); accessibleName: tip; onClicked: Share.open(captureRow.modelData.path) }
-                        IconButton { icon: "edit-copy"; size: Theme.px(26); tip: Tr.t("Copy capture path"); accessibleName: tip; onClicked: Camera.copyPath(captureRow.modelData.path) }
-                        IconButton { icon: "edit-delete"; size: Theme.px(26); tip: Tr.t("Delete capture"); Accessible.name: Tr.t("Delete capture"); onClicked: Camera.trash(modelData.path) }
                     }
                     MouseArea { id: galArea; anchors.fill: parent; z: -1; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Viewer.open(modelData.path) }
                     KeyFocus { onActivated: Viewer.open(modelData.path) }
@@ -393,6 +432,7 @@ AppWindow {
                 font.pixelSize: Theme.px(10) * Theme.fontScale
                 wrapMode: Text.WordWrap
                 Accessible.name: text
+            }
             }
         }
     }

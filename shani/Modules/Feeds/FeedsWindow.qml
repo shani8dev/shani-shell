@@ -12,12 +12,14 @@ AppWindow {
     appName: "Feeds"
     visible: Ui.feeds
     onGone: Ui.feeds = false
+    sidePane: feedsPane
     implicitWidth: Theme.px(1000)
     implicitHeight: Theme.px(660)
 
     property string tagFilter: ""   // the category the feed list is narrowed to
     property bool savedShown: false // show the saved pile instead of a feed
     property var audioFeeds: []     // feeds whose items carried an audio enclosure
+    property bool articleShown: false // a narrow window shows one pane: a tap replaces the list
 
     // a feed or the saved pile must win over an old search: otherwise the list
     // keeps showing search results and the click looks inert
@@ -86,8 +88,10 @@ AppWindow {
     Connections {
         target: Feeds
         function onCurrentChanged() {
+            feedsPane.open = false;
             if (tagField && Feeds.current !== "") tagField.text = Feeds.tagsFor(Feeds.current);
         }
+        function onOpenIdChanged() { feedsPane.open = false; }  // an article pick closes the drawer
         function onItemsChanged() { win.rememberAudio(); }
     }
 
@@ -120,14 +124,18 @@ AppWindow {
         spacing: Theme.px(10)
 
         // ---- what you subscribe to ------------------------------------------
-        Rectangle {
-            Layout.preferredWidth: Theme.px(240)
-            Layout.fillHeight: true
-            radius: Theme.radius
-            color: Theme.alpha(Theme.text, 0.035)
-            border.width: 1
-            border.color: Theme.stroke
-
+        SidePane {
+            id: feedsPane
+            compact: win.compact
+            paneWidth: Theme.px(240)
+            label: Tr.t("Feeds")
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.radius
+                color: Theme.alpha(Theme.text, 0.035)
+                border.width: 1
+                border.color: Theme.stroke
+            }
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Theme.px(10)
@@ -310,7 +318,9 @@ AppWindow {
 
         // ---- what is in the feed --------------------------------------------
         ColumnLayout {
-            Layout.preferredWidth: Theme.px(300)
+            visible: !win.compact || !win.articleShown
+            Layout.fillWidth: true
+            Layout.maximumWidth: win.compact ? Number.MAX_VALUE : Theme.px(300)
             Layout.fillHeight: true
             spacing: Theme.px(4)
 
@@ -389,6 +399,7 @@ AppWindow {
                     onClicked: {
                         if (Feeds.query !== "" || win.savedShown) Feeds.openArticleAt(modelData.url, modelData.id);
                         else Feeds.show(Feeds.current, modelData.id);
+                        win.articleShown = true;
                     }
                 }
             }
@@ -407,13 +418,22 @@ AppWindow {
 
         // ---- the article -----------------------------------------------------
         ColumnLayout {
+            visible: !win.compact || win.articleShown
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: Theme.px(4)
 
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
+                IconButton {
+                    visible: win.compact
+                    icon: "go-previous"
+                    size: Theme.px(28)
+                    tip: Tr.t("Back")
+                    accessibleName: Tr.t("Back")
+                    onClicked: win.articleShown = false
+                }
                 Text {
                     text: Tr.t("Reader")
                     color: Theme.dim
@@ -430,7 +450,6 @@ AppWindow {
                     selected: Feeds.readerMode === "full"
                     onClicked: Feeds.setReaderMode("full")
                 }
-                Item { Layout.fillWidth: true }
                 Text {
                     visible: !Net.online
                     text: Tr.t("Offline")
@@ -440,6 +459,7 @@ AppWindow {
                     Accessible.name: text
                 }
                 Text {
+                    visible: !win.compact
                     text: Tr.t("j/k move · r unread · f save")
                     color: Theme.faint
                     font.family: Theme.font
@@ -496,7 +516,7 @@ AppWindow {
                         font.family: Theme.font
                         font.pixelSize: Theme.px(Feeds.readerMode === "compact" ? 12 : 14) * Theme.fontScale
                     }
-                    RowLayout {
+                    Flow {
                         Layout.fillWidth: true
                         spacing: Theme.px(6)
                         visible: Feeds.openId !== ""
@@ -523,7 +543,6 @@ AppWindow {
                             kind: "outline"
                             onClicked: Qt.openUrlExternally(Feeds.articleEnclosure)
                         }
-                        Item { Layout.fillWidth: true }
                     }
                     Item { Layout.preferredHeight: 20 }
                 }

@@ -10,10 +10,12 @@ import qs.Services
 AppWindow {
     id: win
     appName: "IRC"
+    sidePane: channelsPane
     visible: Ui.irc
     onGone: Ui.irc = false
     implicitWidth: Theme.px(1000)
     implicitHeight: Theme.px(660)
+    property bool showNicks: false   // on a phone the people list replaces the timeline
 
     onVisibleChanged: Irc.shown = visible
     Component.onCompleted: Irc.shown = visible
@@ -48,6 +50,8 @@ AppWindow {
     Connections {
         target: Irc
         function onMessageArrived() { Qt.callLater(() => timeline.positionViewAtEnd()); }
+        // picking a channel in the drawer leaves it, on a phone
+        function onActiveChannelChanged() { channelsPane.open = false; win.showNicks = false; }
     }
 
     ColumnLayout {
@@ -64,14 +68,14 @@ AppWindow {
             border.width: 1
             border.color: Theme.stroke
 
-            RowLayout {
+            Flow {
                 id: form
-                anchors.fill: parent
-                anchors.margins: Theme.px(6)
+                // the fields wrap on a phone instead of running off its edge
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.px(6) }
                 spacing: Theme.px(8)
                 TextField {
                     id: serverField; objectName: "irc-server"
-                    Layout.preferredWidth: Theme.px(200)
+                    width: win.compact ? Math.max(Theme.px(120), form.width - Theme.px(96)) : Theme.px(200)
                     label: Tr.t("IRC server")
                     placeholder: Tr.t("irc.libera.chat")
                     text: Irc.server
@@ -82,7 +86,7 @@ AppWindow {
                 }
                 TextField {
                     id: portField; objectName: "irc-port"
-                    Layout.preferredWidth: Theme.px(80)
+                    width: Theme.px(80)
                     label: Tr.t("Port")
                     mode: "digits"
                     text: String(Irc.port)
@@ -92,7 +96,7 @@ AppWindow {
                 }
                 TextField {
                     id: nickField; objectName: "irc-nick"
-                    Layout.preferredWidth: Theme.px(140)
+                    width: win.compact ? form.width : Theme.px(140)
                     label: Tr.t("Nickname")
                     placeholder: Tr.t("Your nickname")
                     text: Irc.nick
@@ -122,7 +126,6 @@ AppWindow {
                     onClicked: Irc.reconnect()
                     Accessible.name: text
                 }
-                Item { Layout.fillWidth: true }
             }
         }
         InfoBanner {
@@ -151,64 +154,69 @@ AppWindow {
             Layout.fillHeight: true
             spacing: Theme.px(8)
 
-            // ---- channels -----------------------------------------------------
-            Rectangle {
-                Layout.preferredWidth: Theme.px(210)
-                Layout.fillHeight: true
-                radius: Theme.radius
-                color: Theme.alpha(Theme.text, 0.035)
-                border.width: 1; border.color: Theme.stroke
-                ColumnLayout {
+            // ---- channels: a column beside the chat, a drawer on a phone -----
+            SidePane {
+                id: channelsPane
+                compact: win.compact
+                paneWidth: Theme.px(210)
+                label: Tr.t("Channels")
+                Rectangle {
                     anchors.fill: parent
-                    anchors.margins: Theme.px(8)
-                    spacing: Theme.px(6)
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.px(4)
-                        TextField {
-                            id: joinField; objectName: "irc-join"
+                    radius: Theme.radius
+                    color: Theme.alpha(Theme.text, 0.035)
+                    border.width: 1; border.color: Theme.stroke
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: Theme.px(8)
+                        spacing: Theme.px(6)
+                        RowLayout {
                             Layout.fillWidth: true
-                            label: Tr.t("Channel")
-                            placeholder: Tr.t("#channel")
-                            onAccepted: win.joinClicked()
-                            Accessible.name: Tr.t("Channel")
+                            spacing: Theme.px(4)
+                            TextField {
+                                id: joinField; objectName: "irc-join"
+                                Layout.fillWidth: true
+                                label: Tr.t("Channel")
+                                placeholder: Tr.t("#channel")
+                                onAccepted: win.joinClicked()
+                                Accessible.name: Tr.t("Channel")
+                            }
+                            Button {
+                                id: joinButton
+                                text: Tr.t("Join")
+                                enabled: joinField.text.trim() !== ""
+                                onClicked: win.joinClicked()
+                                Accessible.name: Tr.t("Join a channel")
+                            }
                         }
-                        Button {
-                            id: joinButton
-                            text: Tr.t("Join")
-                            enabled: joinField.text.trim() !== ""
-                            onClicked: win.joinClicked()
-                            Accessible.name: Tr.t("Join a channel")
-                        }
-                    }
-                    ListView {
-                        id: channelsView
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        model: Irc.channels
-                        delegate: ListRow {
-                            width: channelsView.width
-                            icon: "group"
-                            title: modelData
-                            subtitle: (Irc.mentions[modelData] || 0) > 0 ? Tr.t("%1 mentions", Irc.mentions[modelData]) : ""
-                            trailing: (Irc.unread[modelData] || 0) > 0 ? String(Irc.unread[modelData]) : ""
-                            selected: modelData === Irc.activeChannel
-                            color: modelData === Irc.activeChannel ? Theme.alpha(Theme.accent, 0.2) : "transparent"
-                            Accessible.role: Accessible.ListItem
-                            Accessible.name: modelData
-                                + ((Irc.unread[modelData] || 0) > 0 ? ", " + Tr.t("%1 unread", Irc.unread[modelData]) : "")
-                                + ((Irc.mentions[modelData] || 0) > 0 ? ", " + Tr.t("%1 mentions", Irc.mentions[modelData]) : "")
-                            onClicked: Irc.markRead(modelData)
-                        }
-                        EmptyState {
-                            objectName: "irc-channels-empty"
-                            anchors.centerIn: parent
-                            width: parent.width - Theme.px(12)
-                            visible: Irc.channels.length === 0
-                            icon: "group"
-                            title: Tr.t("No channels — connect and join one")
-                            subtitle: Tr.t("Connect above, then join a channel with the field above")
+                        ListView {
+                            id: channelsView
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            model: Irc.channels
+                            delegate: ListRow {
+                                width: channelsView.width
+                                icon: "group"
+                                title: modelData
+                                subtitle: (Irc.mentions[modelData] || 0) > 0 ? Tr.t("%1 mentions", Irc.mentions[modelData]) : ""
+                                trailing: (Irc.unread[modelData] || 0) > 0 ? String(Irc.unread[modelData]) : ""
+                                selected: modelData === Irc.activeChannel
+                                color: modelData === Irc.activeChannel ? Theme.alpha(Theme.accent, 0.2) : "transparent"
+                                Accessible.role: Accessible.ListItem
+                                Accessible.name: modelData
+                                    + ((Irc.unread[modelData] || 0) > 0 ? ", " + Tr.t("%1 unread", Irc.unread[modelData]) : "")
+                                    + ((Irc.mentions[modelData] || 0) > 0 ? ", " + Tr.t("%1 mentions", Irc.mentions[modelData]) : "")
+                                onClicked: Irc.markRead(modelData)
+                            }
+                            EmptyState {
+                                objectName: "irc-channels-empty"
+                                anchors.centerIn: parent
+                                width: parent.width - Theme.px(12)
+                                visible: Irc.channels.length === 0
+                                icon: "group"
+                                title: Tr.t("No channels — connect and join one")
+                                subtitle: Tr.t("Connect above, then join a channel with the field above")
+                            }
                         }
                     }
                 }
@@ -216,6 +224,8 @@ AppWindow {
 
             // ---- timeline -----------------------------------------------------
             Rectangle {
+                // on a phone the people list takes this space instead
+                visible: !win.compact || !win.showNicks
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.radius
@@ -282,13 +292,22 @@ AppWindow {
                             onClicked: win.sendClicked()
                             Accessible.name: Tr.t("Send a message")
                         }
+                        IconButton {
+                            visible: win.compact
+                            icon: "user"
+                            tip: Tr.t("Show people")
+                            accessibleName: Tr.t("Show people in this channel")
+                            onClicked: win.showNicks = true
+                        }
                     }
                 }
             }
 
-            // ---- nick list ----------------------------------------------------
+            // ---- nick list: beside the chat, a full pane on a phone -----------
             Rectangle {
-                Layout.preferredWidth: Theme.px(150)
+                visible: !win.compact || win.showNicks
+                Layout.fillWidth: win.compact
+                Layout.preferredWidth: win.compact ? 0 : Theme.px(150)
                 Layout.fillHeight: true
                 radius: Theme.radius
                 color: Theme.alpha(Theme.text, 0.035)
@@ -297,12 +316,23 @@ AppWindow {
                     anchors.fill: parent
                     anchors.margins: Theme.px(8)
                     spacing: Theme.px(6)
-                    Text {
+                    RowLayout {
                         Layout.fillWidth: true
-                        text: Tr.t("People")
-                        color: Theme.dim
-                        font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
-                        font.weight: Font.DemiBold
+                        spacing: Theme.px(4)
+                        IconButton {
+                            visible: win.compact
+                            icon: "go-previous"
+                            tip: Tr.t("Back to messages")
+                            accessibleName: Tr.t("Back to the conversation")
+                            onClicked: win.showNicks = false
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: Tr.t("People")
+                            color: Theme.dim
+                            font.family: Theme.font; font.pixelSize: Theme.px(12) * Theme.fontScale
+                            font.weight: Font.DemiBold
+                        }
                     }
                     ListView {
                         id: nicksView

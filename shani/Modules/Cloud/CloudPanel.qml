@@ -17,6 +17,7 @@ import qs.Services
 AppWindow {
     id: win
     appName: "Cloud sync"
+    sidePane: formPane
     visible: Ui.cloudSync
     onGone: win.visible = false
     implicitWidth: Theme.px(860)
@@ -108,19 +109,23 @@ AppWindow {
                 Layout.fillHeight: true
                 spacing: Theme.px(12)
 
-                // ---- new job -------------------------------------------------------
-                Flickable {
-                    Layout.preferredWidth: Theme.px(330)
-                    Layout.fillHeight: true
-                    contentWidth: width
-                    contentHeight: form.implicitHeight
-                    clip: true
-                    flickableDirection: Flickable.VerticalFlick
-                    boundsBehavior: Flickable.StopAtBounds
-                    ColumnLayout {
-                        id: form
-                        width: parent.width
-                        spacing: Theme.px(8)
+                // ---- new job: a column, a drawer on a phone -----------------------
+                SidePane {
+                    id: formPane
+                    compact: win.compact
+                    paneWidth: Theme.px(330)
+                    label: Tr.t("New sync job")
+                    Flickable {
+                        anchors.fill: parent
+                        contentWidth: width
+                        contentHeight: form.implicitHeight
+                        clip: true
+                        flickableDirection: Flickable.VerticalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        ColumnLayout {
+                            id: form
+                            anchors { left: parent.left; right: parent.right; top: parent.top }
+                            spacing: Theme.px(8)
                         Text {
                             text: Tr.t("New sync job")
                             color: Theme.text
@@ -223,8 +228,9 @@ AppWindow {
                             kind: "primary"
                             text: Tr.t("Add job")
                             enabled: CloudSync.available
-                            onClicked: win.add()
+                            onClicked: { win.add(); formPane.open = false; }   // the new job is on the list: leave the drawer
                         }
+                    }
                     }
                 }
 
@@ -256,7 +262,7 @@ AppWindow {
                                 Layout.fillWidth: true
                                 MouseArea {
                                     Layout.fillWidth: true
-                                    implicitHeight: title.implicitHeight
+                                    implicitHeight: Math.max(Theme.touchTarget, title.implicitHeight)
                                     onClicked: win.selected = win.selected === row.modelData.id ? "" : row.modelData.id
                                     Text {
                                         id: title
@@ -351,12 +357,32 @@ AppWindow {
                                 text: row.modelData.error
                             }
                             // ---- settings and history, revealed by the title ----------
+                            // on a phone the details fill the pane: one tap back collapses them
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: win.compact && win.selected === row.modelData.id
+                                spacing: Theme.px(4)
+                                IconButton {
+                                    icon: "go-previous"
+                                    tip: Tr.t("Back to jobs")
+                                    accessibleName: Tr.t("Back to the job list")
+                                    onClicked: win.selected = ""
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: Tr.t("Job details")
+                                    color: Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: Theme.px(11) * Theme.fontScale
+                                }
+                            }
                             GridLayout {
                                 Layout.fillWidth: true
                                 visible: win.selected === row.modelData.id
                                 columns: 2
                                 Text { text: Tr.t("Conflicts"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
-                                RowLayout {
+                                Flow {
+                                    Layout.fillWidth: true
                                     spacing: Theme.px(4)
                                     Repeater {
                                         model: [["rename", Tr.t("Rename")], ["keepboth", Tr.t("Keep both")], ["skip", Tr.t("Skip")]]

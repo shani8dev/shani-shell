@@ -49,6 +49,8 @@ IMG=shani-shell-dev
 # then only root can give it back, and the container does it.
 own() {
     if podman unshare true 2>/dev/null; then
+        # a fresh checkout has no out/ yet: the summary is written here before any box runs
+        mkdir -p "$REPO/out/logs" "$REPO/out/shots" "$REPO/out/renders"
         podman unshare chown -R 0:0 "$REPO/out" 2>/dev/null || true
     else
         docker run --rm -v "$REPO":/work $IMG sh -c "mkdir -p /work/out/logs /work/out/shots /work/out/renders && chown -R $(id -u):$(id -g) /work/out/logs /work/out/shots /work/out/renders" 2>/dev/null || true
@@ -83,7 +85,15 @@ box() {
     # be a phone rather than a small window (dev/session.sh)
     shape=; [ -n "${SHANI_WIDTH:-}" ] && shape="$shape -e SHANI_WIDTH=$SHANI_WIDTH"
     shape="$shape -e SHANI_SCREEN=${SHANI_SCREEN:-1080}"
-    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK $tb $ch $on $ff $shape -v "$REPO":/work "$@"
+    # SHANI_APPS: the apps the apps / apps-phone parts open (all when unset)
+    [ -n "${SHANI_APPS:-}" ] && shape="$shape -e SHANI_APPS=$(printf %s "$SHANI_APPS" | tr " " ,)"
+    # SHANI_CHECK_MEMORY: a ceiling for the container. A shell that grows without
+    # end (a layout loop once took qs to 12 GB) is killed inside its own box
+    # instead of sending the host's OOM killer after the person's desktop.
+    mem="--memory=${SHANI_CHECK_MEMORY:-6g} --memory-swap=${SHANI_CHECK_MEMORY:-6g}"
+    # PYTHONDONTWRITEBYTECODE: no root-owned __pycache__ left in the checkout
+    # (only sudo could remove a worktree the box had run in)
+    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK -e PYTHONDONTWRITEBYTECODE=1 $mem $tb $ch $on $ff $shape -v "$REPO":/work "$@"
 }
 run() {
     case "$1" in

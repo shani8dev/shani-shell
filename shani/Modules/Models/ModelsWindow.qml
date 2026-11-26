@@ -40,10 +40,11 @@ AppWindow {
         spacing: Theme.px(8)
 
         // ---- header ----
-        RowLayout {
+        // the tabs wrap on a phone instead of running off the edge
+        Flow {
             Layout.fillWidth: true
+            spacing: Theme.px(6)
             // the title is the window's own (AppWindow's header), not repeated here
-            Item { Layout.fillWidth: true }
             Button { text: Tr.t("Local models"); checked: win.tab === "local"; onClicked: win.tab = "local" }
             Button { text: Tr.t("AI providers"); checked: win.tab === "providers"; onClicked: win.tab = "providers" }
             Button { text: Tr.t("Refresh"); flat: true; onClicked: Models.refresh() }

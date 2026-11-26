@@ -241,12 +241,12 @@ AppWindow {
                     }
                     Item { Layout.fillWidth: true }
                 }
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
                     TextField {
                         id: convFrom
-                        Layout.fillWidth: true
+                        width: Theme.px(140)
                         label: Tr.t("From zone")
                         placeholder: "Asia/Kolkata"
                         objectName: "clocks-convert-from"
@@ -254,7 +254,7 @@ AppWindow {
                     }
                     TextField {
                         id: convTo
-                        Layout.fillWidth: true
+                        width: Theme.px(140)
                         label: Tr.t("To zone")
                         placeholder: "Europe/London"
                         objectName: "clocks-convert-to"
@@ -262,7 +262,7 @@ AppWindow {
                     }
                     TextField {
                         id: convTime
-                        Layout.preferredWidth: Theme.px(78)
+                        width: Theme.px(78)
                         label: Tr.t("Time HH:MM")
                         placeholder: "09:00"
                         objectName: "clocks-convert-time"
@@ -313,7 +313,7 @@ AppWindow {
                     spacing: Theme.px(6)
 
                     // groups are named in the form, then filter the list here
-                    RowLayout {
+                    Flow {
                         Layout.fillWidth: true
                         spacing: Theme.px(4)
                         visible: WorldClock.groups.length > 0
@@ -481,7 +481,11 @@ AppWindow {
                             }
                         }
                         Item { Layout.fillWidth: true }
-                        Text { text: win.alarmDays.length === 0 ? Tr.t("Every day") : Tr.t("Selected days"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                        Text {
+                            visible: !win.compact
+                            text: win.alarmDays.length === 0 ? Tr.t("Every day") : Tr.t("Selected days")
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                        }
                     }
 
                     // step through snooze lengths like GNOME Clocks' 9 minutes,
@@ -682,7 +686,7 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.px(11) * Theme.fontScale
                 }
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     spacing: Theme.px(4)
                     Repeater {

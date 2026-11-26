@@ -185,6 +185,8 @@ AppWindow {
                 Button { text: Tr.t("Use"); flat: true; onClicked: win.setEndpoint(endpointField.text) }
                 Button { text: Tr.t("Check"); flat: true; onClicked: win.checkEndpoint() }
                 Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
                     text: win.statusText
                     color: win.statusOk ? Theme.accent : Theme.danger
                     font.family: Theme.font
@@ -325,13 +327,16 @@ AppWindow {
                     }
                 }
             }
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Button { text: Tr.t("Paste"); flat: true; onClicked: { input.text = Quickshell.clipboardText || ""; win.go(); } }
                 Button { text: Tr.t("Clear"); flat: true; onClicked: { win.cancel(); input.text = ""; } }
-                Item { Layout.fillWidth: true }
-                Text { text: Tr.t("On this computer — nothing is sent anywhere"); color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale }
+                Text {
+                    visible: !win.compact
+                    text: Tr.t("On this computer — nothing is sent anywhere")
+                    color: Theme.faint; font.family: Theme.font; font.pixelSize: Theme.px(11) * Theme.fontScale
+                }
                 Button { text: Tr.t("Read aloud"); enabled: win.result !== "" && win.error === ""; onClicked: Speak.speaking ? Speak.stop() : Speak.speak(win.result) }
                 Button { text: Tr.t("Prompter"); enabled: win.result !== "" && win.error === ""; onClicked: { Quickshell.clipboardText = win.result; Ui.teleprompter = true; } }
                 Button {
@@ -342,6 +347,15 @@ AppWindow {
                 }
                 Timer { id: copiedTimer; interval: 1800; onTriggered: win.copied = false }
                 Button { kind: "primary"; text: Tr.t("Translate"); enabled: input.text.trim() !== "" && !win.working; onClicked: win.go() }
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                visible: win.compact
+                text: Tr.t("On this computer — nothing is sent anywhere")
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Theme.px(11) * Theme.fontScale
             }
         }
     }

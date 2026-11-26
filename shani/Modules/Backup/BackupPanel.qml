@@ -36,6 +36,8 @@ AppWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
                     text: Tr.t("Restore from snapshot")
                     color: Theme.text
                     font.family: Theme.font

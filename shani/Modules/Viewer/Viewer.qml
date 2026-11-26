@@ -256,7 +256,7 @@ AppWindow {
                             model: [[0, 0], [1, 0], [0, 1], [1, 1]]
                             Rectangle {
                                 required property var modelData
-                                width: Theme.px(18); height: width; radius: width / 2
+                                width: Math.max(Theme.touchTarget, Theme.px(18)); height: width; radius: width / 2
                                 color: "white"
                                 x: modelData[0] * frame.width - width / 2
                                 y: modelData[1] * frame.height - height / 2
@@ -442,8 +442,9 @@ AppWindow {
                 }
             }
 
-            // toolbar: zoom, rotate + flip, slideshow, grid, thumbs, actions
-            RowLayout {
+            // toolbar: zoom, rotate + flip, slideshow, grid, thumbs, actions.
+            // a Flow, so every control wraps onto another row on a phone
+            Flow {
                 visible: !win.immersive
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
@@ -453,7 +454,7 @@ AppWindow {
                 IconButton { icon: "document-save"; size: Theme.px(28); tip: Tr.t("100% (1)"); on: Viewer.zoomMode === "100"; onClicked: Viewer.zoomActual() }
                 IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("200% (2)"); on: Viewer.zoomMode === "200"; onClicked: Viewer.zoom200() }
                 Text {
-                    Layout.fillWidth: true
+                    width: win.compact ? parent.width : Theme.px(120)
                     horizontalAlignment: Text.AlignHCenter
                     text: Math.round(Viewer.zoom * 100) + "%" + (Viewer.rotation !== 0 ? "  ·  " + Viewer.rotation + "°" : "")
                         + (Viewer.flipH ? "  ·  " + Tr.t("mirrored") : "")
@@ -477,7 +478,7 @@ AppWindow {
             }
             // editing: the crop's shape, and how it is kept - a copy, or in place
             // (the original goes to the trash, where it can be put back)
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
                 visible: !win.immersive && Viewer.editing
                 spacing: Theme.px(6)
@@ -496,7 +497,7 @@ AppWindow {
                     model: Viewer.drawing ? [["#e01b24", Tr.t("Red")], ["#f6d32d", Tr.t("Yellow")], ["#33d17a", Tr.t("Green")], ["#3584e4", Tr.t("Blue")], ["#ffffff", Tr.t("White")], ["#000000", Tr.t("Black")]] : []
                     Rectangle {
                         required property var modelData
-                        width: Theme.px(22); height: width; radius: width / 2
+                        width: Math.max(Theme.touchTarget, Theme.px(22)); height: width; radius: width / 2
                         color: modelData[0]
                         border.width: Viewer.penColor === modelData[0] ? 3 : 1
                         border.color: Viewer.penColor === modelData[0] ? Theme.accent : Theme.border
@@ -519,7 +520,6 @@ AppWindow {
                     Choice { required property var modelData; text: modelData[1]; selected: Viewer.resizeTo === modelData[0]; onClicked: Viewer.resizeTo = modelData[0] }
                 }
                 IconButton { visible: Viewer.drawing; enabled: Viewer.strokes.length > 0; icon: "edit-undo"; size: Theme.px(26); tip: Tr.t("Undo the last stroke"); onClicked: Viewer.undoStroke() }
-                Item { Layout.fillWidth: true }
                 Button { text: Tr.t("Cancel"); flat: true; onClicked: Viewer.cancelEdit() }
                 Button { text: Tr.t("Replace"); flat: true; enabled: Viewer.edited && !Viewer.saving; onClicked: Viewer.saveEdit("replace") }
                 Button { text: Viewer.saving ? Tr.t("Saving…") : Tr.t("Save a copy"); enabled: Viewer.edited && !Viewer.saving; onClicked: Viewer.saveEdit("copy") }
@@ -542,45 +542,57 @@ AppWindow {
                 }
             }
 
-            // thumbnail strip
-            Flickable {
+            // thumbnail strip: the arrow is an overlay, so it stays put while the strip scrolls
+            Item {
                 visible: !win.immersive && Viewer.showThumbs && !Viewer.gridMode && Viewer.list.length > 1
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.px(68)
-                clip: true
-                contentWidth: thumbRow.width
-                contentHeight: thumbRow.height
-                boundsBehavior: Flickable.StopAtBounds
-                Row {
-                    id: thumbRow
-                    spacing: Theme.px(6)
-                    Repeater {
-                        model: Viewer.list
-                        Rectangle {
-                            required property var modelData
-                            required property int index
-                            width: Theme.px(88)
-                            height: Theme.px(60)
-                            radius: Theme.radiusSmall
-                            color: index === Viewer.index ? Theme.alpha(Theme.accent, 0.22) : Theme.surface1
-                            border.width: index === Viewer.index ? 2 : 0
-                            border.color: Theme.accent
-                            Image {
-                                anchors.fill: parent
-                                anchors.margins: Theme.px(4)
-                                source: "file://" + modelData
-                                fillMode: Image.PreserveAspectFit
-                                smooth: true
-                                cache: true
+                Flickable {
+                    anchors.fill: parent
+                    clip: true
+                    contentWidth: thumbRow.width
+                    contentHeight: thumbRow.height
+                    boundsBehavior: Flickable.StopAtBounds
+                    Row {
+                        id: thumbRow
+                        spacing: Theme.px(6)
+                        Repeater {
+                            model: Viewer.list
+                            Rectangle {
+                                required property var modelData
+                                required property int index
+                                width: Theme.px(88)
+                                height: Theme.px(60)
+                                radius: Theme.radiusSmall
+                                color: index === Viewer.index ? Theme.alpha(Theme.accent, 0.22) : Theme.surface1
+                                border.width: index === Viewer.index ? 2 : 0
+                                border.color: Theme.accent
+                                Image {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.px(4)
+                                    source: "file://" + modelData
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                    cache: true
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Viewer.goToIndex(index)
+                                }
+                                KeyFocus { name: String(modelData).split("/").pop(); onActivated: Viewer.goToIndex(index) }
                             }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Viewer.goToIndex(index)
-                            }
-                            KeyFocus { name: String(modelData).split("/").pop(); onActivated: Viewer.goToIndex(index) }
                         }
                     }
+                }
+                // an arrow says the strip can be swiped for more pictures
+                Icon {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: Theme.px(4) }
+                    name: "go-next"
+                    size: Theme.px(16)
+                    color: Theme.dim
+                    visible: thumbRow.width > parent.width
+                    Accessible.ignored: true
                 }
             }
         }

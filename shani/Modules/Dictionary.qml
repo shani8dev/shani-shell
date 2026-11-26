@@ -146,6 +146,8 @@ AppWindow {
             }
 
             Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
                 visible: win.hasQuery && win.results.length > 0
                 text: Tr.t("Definitions, synonyms and antonyms")
                 color: Theme.dim
@@ -154,6 +156,8 @@ AppWindow {
             }
 
             Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
                 visible: win.noMatch
                 text: Tr.t("No definitions for ") + win.q
                 color: Theme.dim
@@ -184,6 +188,8 @@ AppWindow {
             }
 
             Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
                 visible: !win.hasQuery && win.history.length === 0
                 text: Tr.t("Type a word to start · see definitions, synonyms and antonyms")
                 color: Theme.faint
