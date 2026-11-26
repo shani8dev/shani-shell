@@ -833,8 +833,15 @@ def _on_event(account_id: str, kind: str, **info) -> None:
         except Exception:  # noqa: BLE001
             logger.debug("sip account listener failed", exc_info=True)
     if kind == "incoming":
-        _notify(account_id, _name_for(info.get("number", "")) or info.get("name")
-                or info.get("number") or "Unknown caller", info.get("number", ""))
+        from phone import call_state
+
+        call_state.ring(line, _name_for(info.get("number", "")) or info.get("name")
+                        or info.get("number") or "Unknown caller",
+                        info.get("number", ""), line)
+    elif kind in ("answered", "ended"):
+        from phone import call_state
+
+        call_state.clear(line)
 
 
 def _make(account: dict) -> SipAccount:
@@ -915,63 +922,7 @@ def dtmf(line: str, digit: str) -> bool:
     return bool(needs(line).dtmf(digit))
 
 
-# --- the incoming-call card -----------------------------------------------------------------
-
-_NOTIFIES = {"nid": 0, "subscribed": False}
-
-
-def _notify(account_id: str, who: str, number: str) -> None:
-    try:
-        from gi.repository import Gio, GLib
-        from phone.landline import NOTIFY
-        from phone.notify import APP_NAME, hints as _hints
-        account_name = name_for_line("sip-" + account_id) or "SIP"
-        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        hints = _hints("call.incoming", urgency=GLib.Variant("y", 2),
-                       **{"x-shani-shell": GLib.Variant("s", "sip-" + account_id)})
-        reply = bus.call_sync(*NOTIFY, "Notify", GLib.Variant("(susssasa{sv}i)", (
-            APP_NAME, 0, "call-start-symbolic", f"{account_name}: {who}",
-            number if number and number != who else "Incoming call",
-            ["sip-answer", "Answer", "sip-decline", "Decline"], hints, 0)),
-            GLib.VariantType.new("(u)"), Gio.DBusCallFlags.NONE, 3000, None)
-        _NOTIFIES["nid"] = int(reply.unpack()[0])
-    except Exception:  # noqa: BLE001
-        logger.debug("sip account: no call card", exc_info=True)
-
-
-def _subscribe_actions() -> None:
-    if _NOTIFIES["subscribed"]:
-        return
-    try:
-        from gi.repository import Gio
-        from phone.landline import NOTIFY
-        Gio.bus_get_sync(Gio.BusType.SESSION, None).signal_subscribe(
-            NOTIFY[0], NOTIFY[2], "ActionInvoked", NOTIFY[1], None,
-            Gio.DBusSignalFlags.NONE, _on_action)
-        _NOTIFIES["subscribed"] = True
-    except Exception:  # noqa: BLE001
-        pass
-
-
-def _on_action(_conn, _sender, _path, _iface, _signal, params) -> None:
-    nid, key = params.unpack()
-    if nid != _NOTIFIES["nid"] or not key.startswith("sip-"):
-        return
-    # The account is named in the notification's hint, which ActionInvoked
-    # does not carry; every running account is asked, and only the ringing
-    # one answers.
-    for account_id in list(_RUNTIMES):
-        runtime_ = _RUNTIMES[account_id]
-        if runtime_.call is None or runtime_.call.state != "incoming":
-            continue
-        try:
-            if key == "sip-answer":
-                runtime_.answer()
-            else:
-                runtime_.hangup()
-        except SipAccountError as exc:
-            logger.info("sip account: %s", exc)
-        return
-
-
-_subscribe_actions()
+# --- the incoming-call card ---------------------------------------------------------------
+# The shell draws the card from bridge/phone/call_state.py. Answer and Decline
+# go through the shell's own Calls service (its Lines.Answer / Lines.Hangup
+# methods), so no notification or extra process is needed here.

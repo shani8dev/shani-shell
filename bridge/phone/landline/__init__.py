@@ -29,11 +29,9 @@ from phone.landline.provision import ProvisionError
 logger = logging.getLogger(__name__)
 
 CONSENT_KEY = "landline-enabled"
-NOTIFY = ("org.freedesktop.Notifications", "/org/freedesktop/Notifications",
-          "org.freedesktop.Notifications")
 
 _STATE: Dict = {"line": None, "app": None, "listeners": [], "sinks": [], "pending": None,
-                "nid": 0, "subscribed": False, "starting": False}
+                "starting": False}
 
 
 # --- setting up, once ----------------------------------------------------------
@@ -164,7 +162,6 @@ def start(app=None, line_factory=None) -> bool:
     if not enabled():
         return False
     _STATE["starting"] = True
-    _subscribe_actions()
 
     def work():
         try:
@@ -421,60 +418,12 @@ def _event(kind: str, **info) -> None:
         except Exception:  # noqa: BLE001
             logger.debug("landline listener failed", exc_info=True)
     if kind == "incoming":
-        _notify(_name_for(info.get("number", "")) or info.get("name") or info.get("number")
-                or "Unknown caller", info.get("number", ""))
+        from phone import call_state
+
+        call_state.ring("landline",
+                        _name_for(info.get("number", "")) or info.get("name") or info.get("number")
+                        or "Unknown caller", info.get("number", ""), "landline")
     elif kind in ("answered", "ended"):
-        _close_note()
+        from phone import call_state
 
-
-def _notify(who: str, number: str) -> None:
-    try:
-        from gi.repository import Gio, GLib
-        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        from phone.notify import APP_NAME, hints as _hints
-        hints = _hints("call.incoming", urgency=GLib.Variant("y", 2),
-                       **{"x-shani-shell": GLib.Variant("s", "landline")})
-        reply = bus.call_sync(*NOTIFY, "Notify", GLib.Variant("(susssasa{sv}i)", (
-            APP_NAME, 0, "call-start-symbolic", f"Landline: {who}",
-            number if number and number != who else "Incoming call",
-            ["landline-answer", "Answer", "landline-decline", "Decline"], hints, 0)),
-            GLib.VariantType.new("(u)"), Gio.DBusCallFlags.NONE, 3000, None)
-        _STATE["nid"] = int(reply.unpack()[0])
-    except Exception:  # noqa: BLE001
-        logger.debug("landline: no call card", exc_info=True)
-
-
-def _close_note() -> None:
-    nid, _STATE["nid"] = _STATE["nid"], 0
-    if not nid:
-        return
-    try:
-        from gi.repository import Gio, GLib
-        Gio.bus_get_sync(Gio.BusType.SESSION, None).call_sync(
-            *NOTIFY, "CloseNotification", GLib.Variant("(u)", (nid,)), None,
-            Gio.DBusCallFlags.NONE, 3000, None)
-    except Exception:  # noqa: BLE001
-        pass
-
-
-def _subscribe_actions() -> None:
-    if _STATE["subscribed"]:
-        return
-    try:
-        from gi.repository import Gio
-        Gio.bus_get_sync(Gio.BusType.SESSION, None).signal_subscribe(
-            NOTIFY[0], NOTIFY[2], "ActionInvoked", NOTIFY[1], None,
-            Gio.DBusSignalFlags.NONE, _on_action)
-        _STATE["subscribed"] = True
-    except Exception:  # noqa: BLE001
-        pass
-
-
-def _on_action(_conn, _sender, _path, _iface, _signal, params) -> None:
-    nid, key = params.unpack()
-    if nid != _STATE["nid"] or not key.startswith("landline-"):
-        return
-    try:
-        answer() if key == "landline-answer" else hangup()
-    except RuntimeError as exc:
-        logger.info("landline: %s", exc)
+        call_state.clear("landline")

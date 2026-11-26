@@ -477,6 +477,17 @@ def cmd_spot(kind: str) -> dict:
     return {**_ok(), "kind": kind, "value": values, "unit": unit}
 
 
+def cmd_find_watch() -> dict:
+    """Ring the paired watch so a person can find it."""
+    if not watch:
+        return _ok(NOT_INSTALLED)
+    try:
+        answer = watch.run({"action": "find"})
+    except Exception as exc:  # noqa: BLE001 - no radio here is an answer, not a crash
+        return _ok(str(exc)[:160])
+    return {**_ok(), "note": str(answer or "")}
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(json.dumps({"error": "usage: health.py <command> [args]"}))
@@ -496,6 +507,8 @@ def main() -> int:
         answer = cmd_measures()
     elif cmd == "spot":
         answer = cmd_spot(args[0] if args else "")
+    elif cmd == "find-watch":
+        answer = cmd_find_watch()
     else:
         print(json.dumps({"error": "unknown command: " + cmd}))
         return 2

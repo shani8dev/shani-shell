@@ -1,8 +1,8 @@
 """`tel:` links (RFC 3966), and the `sip:` ones that are really phone numbers.
 
 A web page's "call us" link, a contact card in a mail program, a QR code: they
-open `phone-app --dial URI` (data/applications/dev.shani.Shell.Phone.Dial.desktop
-registers us for x-scheme-handler/tel). The number lands on the dial pad and
+open the shell's Calls window (`shani phone dial NUMBER`, or its tel: handler).
+The number lands on the dial pad and
 **nothing is dialled until the person presses Call** - a link is somebody
 else's text, and a link that places a call on its own is how premium-rate
 numbers get rung.
@@ -17,6 +17,7 @@ RFC 3966 in brief:
 - `;ext=` is an extension, kept apart so the dial pad can say so; `;isub=` and
   any other parameter is ignored. Percent escapes are decoded first.
 """
+
 from __future__ import annotations
 
 import re
@@ -28,9 +29,9 @@ _DIALABLE = re.compile(r"^\+?[0-9*#A-Da-d]+$")
 
 
 class Target(NamedTuple):
-    number: str          # what goes on the dial pad; "" when the link has none
+    number: str  # what goes on the dial pad; "" when the link has none
     extension: str = ""  # RFC 3966 ;ext=, to be keyed in once the call answers
-    problem: str = ""    # why there is no number, in words the person can act on
+    problem: str = ""  # why there is no number, in words the person can act on
 
 
 def _clean(text: str) -> str:
@@ -45,12 +46,16 @@ def parse(uri: str) -> Target:
     if not colon:
         # a bare number, as some programs pass one
         number = _clean(raw)
-        return Target(number) if _DIALABLE.match(number) else Target("", problem="That is not a phone number.")
+        return (
+            Target(number)
+            if _DIALABLE.match(number)
+            else Target("", problem="That is not a phone number.")
+        )
     if scheme in ("sip", "sips"):
         return _sip(rest)
     if scheme not in ("tel", "callto"):
         return Target("", problem=f"Phone cannot open {scheme}: links.")
-    rest = rest.lstrip("/")                  # "tel://123" is wrong but common
+    rest = rest.lstrip("/")  # "tel://123" is wrong but common
     pieces = rest.split(";")
     number = _clean(pieces[0])
     params = {}
@@ -77,7 +82,12 @@ def _sip(rest: str) -> Target:
         return Target("", problem="That SIP link has no address.")
     params = host.lower().split(";")[1:]
     user = _clean(user_part.split(";")[0])
-    if ("user=phone" in params or re.fullmatch(r"\+?\d{3,}", user)) and _DIALABLE.match(user):
+    if ("user=phone" in params or re.fullmatch(r"\+?\d{3,}", user)) and _DIALABLE.match(
+        user
+    ):
         return Target(user)
-    return Target("", problem="That is a SIP address, not a phone number. Phone calls phone "
-                              "numbers; a SIP address needs a SIP app.")
+    return Target(
+        "",
+        problem="That is a SIP address, not a phone number. Phone calls phone "
+        "numbers; a SIP address needs a SIP app.",
+    )

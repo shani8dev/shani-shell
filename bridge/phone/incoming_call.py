@@ -1,18 +1,12 @@
-"""An incoming call on the paired phone, shown the way the phone shows it.
+"""An incoming call on the paired phone, shown on the shell's own card.
 
 When a phone connected over Bluetooth hands-free rings, PipeWire's telephony
-service (`org.pipewire.Telephony`, see `skills/bluetooth_call.py`) announces a
-new call object. This watches for that and posts a desktop notification with the
-caller - named from the phone's contacts when Chronoa may read them - and
-**Answer** / **Decline** buttons, closing it again when the call is answered
-anywhere, declined, or the caller gives up. That last part is why it talks to
-`org.freedesktop.Notifications` directly instead of `notify-send --wait` (the
-route `approvals.py` takes): a notification for a call that has already ended
-must disappear, and only the D-Bus API can close one.
-
-`category=call.incoming` and critical urgency are the freedesktop hints GNOME
-Shell and Plasma both use to keep a call notification on screen until it is
-dealt with, the desktop's version of the phone's full-screen call card.
+service (`org.pipewire.Telephony`) announces a new call object. This watches for
+that and writes the caller - named from the phone's contacts when reading them
+is allowed - into the shell's call state. The shell draws the Answer/Decline
+card; this watcher only says who is ringing and clears the state when the call
+is answered anywhere, declined, or the caller gives up. No desktop
+notification is posted for a ringing line.
 
 Gated on `bluetooth-call-enabled`: answering and declining act on the phone, the
 same switch `bluetooth_call` refuses behind. Checked at every call, so turning it
@@ -36,8 +30,6 @@ logger = logging.getLogger(__name__)
 TELEPHONY = "org.pipewire.Telephony"
 TELEPHONY_ROOT = "/org/pipewire/Telephony"
 CALL_IFACE = "org.pipewire.Telephony.Call1"
-NOTIFY_BUS = "org.freedesktop.Notifications"
-NOTIFY_PATH = "/org/freedesktop/Notifications"
 CALL_KEY = "bluetooth-call-enabled"
 WATCH_KEY = "bluetooth-gatt-enabled"
 READ_KEY = "phone-messages-read-enabled"
@@ -46,10 +38,15 @@ RINGING = ("incoming", "waiting")
 BOOK_SECONDS = 3600
 
 
-def caller_label(props: dict, book: "list[tuple[str, tuple[str, ...]]]") -> "tuple[str, str]":
+def caller_label(
+    props: dict, book: "list[tuple[str, tuple[str, ...]]]"
+) -> "tuple[str, str]":
     """(title, body) for the notification: the contact's name when known, else the number."""
     from phone import contacts
-    number = str(props.get("LineIdentification") or props.get("IncomingLine") or "").strip()
+
+    number = str(
+        props.get("LineIdentification") or props.get("IncomingLine") or ""
+    ).strip()
     named = str(props.get("Name") or "").strip()
     # the one lookup every screen uses: your own contacts, then the phone's
     # (`book` when this watcher has pulled it, else the Phone page's cache)
@@ -71,6 +68,7 @@ class IncomingCallWatcher:
     #: the switch that lets this card ring, and its value before anyone sets it
     call_key = CALL_KEY
     call_key_default = False
+    line = "phone"  # the line the shell shows on its call card
 
     def __init__(self, config: Any, bus_factory: Optional[Callable[[], Any]] = None):
         self.config = config
@@ -79,7 +77,7 @@ class IncomingCallWatcher:
         self._loop = None
         self._bus = None
         self._subs: list = []
-        self.shown: "dict[str, int]" = {}     # call path -> notification id
+        self.shown: "dict[str, int]" = {}  # call path -> notification id
         self._book: "list[tuple[str, tuple[str, ...]]]" = []
         self._book_at = 0.0
         #: calls seen on the phone, for the call history: path -> what we know
@@ -91,8 +89,9 @@ class IncomingCallWatcher:
         if self._thread is not None:
             return
         ready = threading.Event()
-        self._thread = threading.Thread(target=self._run, args=(ready,), name="incoming-call",
-                                        daemon=True)
+        self._thread = threading.Thread(
+            target=self._run, args=(ready,), name="incoming-call", daemon=True
+        )
         self._thread.start()
         ready.wait(5)
         self.refresh_contacts()
@@ -107,21 +106,24 @@ class IncomingCallWatcher:
 
     def _run(self, ready: threading.Event) -> None:
         from gi.repository import Gio, GLib
+
         ctx = GLib.MainContext.new()
         ctx.push_thread_default()
         try:
-            self._bus = (self._bus_factory() if self._bus_factory else
-                         Gio.DBusConnection.new_for_address_sync(
-                             Gio.dbus_address_get_for_bus_sync(Gio.BusType.SESSION, None),
-                             Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
-                             | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None))
+            self._bus = (
+                self._bus_factory()
+                if self._bus_factory
+                else Gio.DBusConnection.new_for_address_sync(
+                    Gio.dbus_address_get_for_bus_sync(Gio.BusType.SESSION, None),
+                    Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+                    | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+                    None,
+                    None,
+                )
+            )
             sub = self._bus.signal_subscribe
             flags = Gio.DBusSignalFlags.NONE
-            self._subs = self._subscribe(self._bus, flags) + [
-                sub(NOTIFY_BUS, NOTIFY_BUS, "ActionInvoked", NOTIFY_PATH, None, flags, self._on_action),
-                sub(NOTIFY_BUS, NOTIFY_BUS, "NotificationClosed", NOTIFY_PATH, None, flags,
-                    self._on_closed),
-            ]
+            self._subs = self._subscribe(self._bus, flags)
             self._loop = GLib.MainLoop.new(ctx, False)
         except Exception:  # noqa: BLE001 - no session bus is no watcher, not a crash
             logger.warning("incoming-call watcher could not start", exc_info=True)
@@ -143,10 +145,33 @@ class IncomingCallWatcher:
         """Where the calls come from: PipeWire's telephony, on the session bus."""
         sub = bus.signal_subscribe
         return [
-            sub(None, "org.ofono.VoiceCallManager", "CallAdded", None, None, flags, self._on_added),
-            sub(None, "org.ofono.VoiceCallManager", "CallRemoved", None, None, flags, self._on_removed),
-            sub(None, "org.freedesktop.DBus.Properties", "PropertiesChanged", None, CALL_IFACE,
-                flags, self._on_changed),
+            sub(
+                None,
+                "org.ofono.VoiceCallManager",
+                "CallAdded",
+                None,
+                None,
+                flags,
+                self._on_added,
+            ),
+            sub(
+                None,
+                "org.ofono.VoiceCallManager",
+                "CallRemoved",
+                None,
+                None,
+                flags,
+                self._on_removed,
+            ),
+            sub(
+                None,
+                "org.freedesktop.DBus.Properties",
+                "PropertiesChanged",
+                None,
+                CALL_IFACE,
+                flags,
+                self._on_changed,
+            ),
         ]
 
     def _unsubscribe(self) -> None:
@@ -173,10 +198,14 @@ class IncomingCallWatcher:
             return
         _iface_name, changed, _gone = params.unpack()
         state = str(dict(changed).get("State") or "")
-        if state == "active" and str(path) in self._track and self._track[str(path)]["answered"] is None:
+        if (
+            state == "active"
+            and str(path) in self._track
+            and self._track[str(path)]["answered"] is None
+        ):
             self._track[str(path)]["answered"] = time.monotonic()
         if state and state not in RINGING:
-            self.ended(str(path))       # answered (here or on the phone) or hung up
+            self.ended(str(path))  # answered (here or on the phone) or hung up
 
     def _on_removed(self, _conn, _sender, path, _iface, _signal, params) -> None:
         if str(path).startswith(TELEPHONY_ROOT):
@@ -187,9 +216,14 @@ class IncomingCallWatcher:
     def _seen(self, call: str, props: dict) -> None:
         """Remember a call on the phone, to log it in the call history when it goes."""
         state = str(props.get("State") or "")
-        number = str(props.get("LineIdentification") or props.get("IncomingLine") or "").strip()
-        self._track[call] = {"number": number, "direction": "in" if state in RINGING else "out",
-                             "answered": time.monotonic() if state == "active" else None}
+        number = str(
+            props.get("LineIdentification") or props.get("IncomingLine") or ""
+        ).strip()
+        self._track[call] = {
+            "number": number,
+            "direction": "in" if state in RINGING else "out",
+            "answered": time.monotonic() if state == "active" else None,
+        }
 
     def _log(self, call: str) -> None:
         """The phone's call into the shared call history (with the call switch on:
@@ -199,9 +233,18 @@ class IncomingCallWatcher:
             return
         try:
             from phone import calls_log, contacts
-            seconds = int(time.monotonic() - seen["answered"]) if seen["answered"] else 0
-            calls_log.add("phone", seen["number"], seen["direction"], seen["answered"] is not None,
-                          seconds, name=contacts.name_for(seen["number"], self._book or None))
+
+            seconds = (
+                int(time.monotonic() - seen["answered"]) if seen["answered"] else 0
+            )
+            calls_log.add(
+                "phone",
+                seen["number"],
+                seen["direction"],
+                seen["answered"] is not None,
+                seconds,
+                name=contacts.name_for(seen["number"], self._book or None),
+            )
         except Exception:  # noqa: BLE001 - the history is a convenience, the call is not
             logger.info("incoming call: not logged", exc_info=True)
 
@@ -211,21 +254,28 @@ class IncomingCallWatcher:
         if not self._allowed(self.call_key, self.call_key_default):
             logger.info("incoming call not shown: '%s' is off", self.call_key)
             return
-        # Only the cached book: pulling contacts over Bluetooth takes ~20 s, and a
-        # call notification that late is no notification. A stale book is
-        # refreshed behind the call for the next one.
-        title, body = caller_label(props, self._book)
+        # Only the cached book: pulling contacts over Bluetooth takes ~20 s, and
+        # a call card shown that late is no card. A stale book is refreshed
+        # behind the call for the next one.
+        title, _body = caller_label(props, self._book)
+        who = title.split(": ", 1)[-1]
+        number = str(
+            props.get("LineIdentification") or props.get("IncomingLine") or ""
+        ).strip()
+        from phone import call_state
+
+        call_state.ring(call, who, number, self.line)
+        self.shown[call] = call
         self.refresh_contacts()
-        nid = self._notify(title, body)
-        if nid:
-            self.shown[call] = nid
-        self._to_watch(lambda m: m.call_payload(title.split(": ", 1)[-1]))
+        self._to_watch(lambda m: m.call_payload(who))
 
     def ended(self, call: str) -> None:
-        nid = self.shown.pop(call, None)
-        if nid:
-            self._close(nid)
-            self._to_watch(lambda m: m.CALL_OFF_HOOK)
+        if self.shown.pop(call, None) is None:
+            return
+        from phone import call_state
+
+        call_state.clear(call)
+        self._to_watch(lambda m: m.CALL_OFF_HOOK)
 
     def _to_watch(self, payload_for) -> None:
         """Ring (or stop ringing) a paired MoYoung watch too, off this thread.
@@ -241,77 +291,53 @@ class IncomingCallWatcher:
             try:
                 from phone import moyoung
                 from phone import watch as watch_skill
+
                 picked = watch_skill._pick("")
                 if isinstance(picked, tuple):
                     moyoung.tell_watch(picked[0], payload_for(moyoung))
             except Exception:  # noqa: BLE001
                 logger.info("incoming call: the watch was not told", exc_info=True)
+
         threading.Thread(target=send, name="incoming-call-watch", daemon=True).start()
 
     def refresh_contacts(self) -> None:
         """Pull the book in the background when it is missing or stale."""
-        if not self._allowed(READ_KEY) or (self._book and time.monotonic() - self._book_at < BOOK_SECONDS):
+        if not self._allowed(READ_KEY) or (
+            self._book and time.monotonic() - self._book_at < BOOK_SECONDS
+        ):
             return
-        threading.Thread(target=self._contacts, name="incoming-call-contacts", daemon=True).start()
+        threading.Thread(
+            target=self._contacts, name="incoming-call-contacts", daemon=True
+        ).start()
 
     def _contacts(self) -> "list[tuple[str, tuple[str, ...]]]":
         try:
             from phone import phone as ph
+
             dev = next((d for d in ph.devices() if d.reachable), None)
             self._book = ph.contacts(dev) if dev is not None else []
             self._book_at = time.monotonic()
-            if self._book:          # the service's other lines (landline, modem) name from it too
+            if (
+                self._book
+            ):  # the service's other lines (landline, modem) name from it too
                 from phone import contacts
+
                 contacts.remember_phone_book(self._book)
         except Exception:  # noqa: BLE001 - a number with no name still rings
             logger.info("incoming call: contacts not read", exc_info=True)
         return self._book
 
-    # --- the notification --------------------------------------------------------
-
-    def _notify(self, title: str, body: str) -> int:
-        from gi.repository import GLib
-        from phone.notify import APP_NAME, hints as _hints
-        hints = _hints("call.incoming", urgency=GLib.Variant("y", 2), resident=GLib.Variant("b", True))
-        try:
-            reply = self._bus.call_sync(
-                NOTIFY_BUS, NOTIFY_PATH, NOTIFY_BUS, "Notify",
-                GLib.Variant("(susssasa{sv}i)", (APP_NAME, 0, "call-start-symbolic", title, body,
-                                                  ["answer", "Answer", "decline", "Decline"], hints, 0)),
-                GLib.VariantType.new("(u)"), 0, 5000, None)
-            return int(reply.unpack()[0])
-        except Exception:  # noqa: BLE001 - no notification server
-            logger.warning("incoming call: could not post the notification", exc_info=True)
-            return 0
-
-    def _close(self, nid: int) -> None:
-        from gi.repository import GLib
-        try:
-            self._bus.call_sync(NOTIFY_BUS, NOTIFY_PATH, NOTIFY_BUS, "CloseNotification",
-                                GLib.Variant("(u)", (nid,)), None, 0, 2000, None)
-        except Exception:  # noqa: BLE001 - already gone
-            pass
-
-    def _on_action(self, _conn, _sender, _path, _iface, _signal, params) -> None:
-        nid, action = params.unpack()
-        call = next((c for c, n in self.shown.items() if n == nid), None)
-        if call is None or action not in ("answer", "decline"):
-            return
-        self.act(call, action)
+    # --- acting on the shell card ----------------------------------------------
 
     def act(self, call: str, action: str) -> None:
-        """Answer or decline `call` on the phone - the notification's two buttons."""
+        """Answer or decline `call` on the phone - the shell card's two buttons."""
         if not self._allowed(self.call_key, self.call_key_default):
             return
         method = "Answer" if action == "answer" else "Hangup"
         try:
-            self._bus.call_sync(TELEPHONY, call, CALL_IFACE, method, None, None, 0, 5000, None)
+            self._bus.call_sync(
+                TELEPHONY, call, CALL_IFACE, method, None, None, 0, 5000, None
+            )
         except Exception:  # noqa: BLE001 - the caller may have just hung up
             logger.info("incoming call: %s failed", method, exc_info=True)
         self.ended(call)
-
-    def _on_closed(self, _conn, _sender, _path, _iface, _signal, params) -> None:
-        nid = params.unpack()[0]
-        for call, n in list(self.shown.items()):
-            if n == nid:
-                self.shown.pop(call, None)
