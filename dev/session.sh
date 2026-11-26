@@ -24,6 +24,13 @@ export SHANI_NO_TOUR=1
 export SHANI_BACKUP_TOOL=/work/dev/fake-shani-backup.py
 export SHANI_BACKUP_BRIDGE=/work/bridge/backup.py
 export SHANI_BACKUP_PKEXEC=
+# Settings > Chronoa reads the headless engine's Agent.Inventory and switches
+# its user unit. Stand-ins: the Agent serves the ten real inventory shapes (and
+# delegates turns to dev/mock-chronoa.py); systemctl --user only knows the
+# shani-chronoa-engine.service unit and records every call for the live check.
+export SHANI_CHRONOA_AGENT=/work/dev/fake-chronoa-agent.py
+export SHANI_CHRONOA_SYSTEMCTL=/work/dev/fake-chronoa-systemctl.py
+export SHANI_CHRONOA_SYSTEMCTL_LOG=/tmp/fake-chronoa-systemctl/calls
 export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py SHANI_MAIL_TOOL=/work/bridge/mail.py SHANI_AUTOSTART_TOOL=/work/bridge/autostart.py SHANI_MEDIAINFO_TOOL=/work/dev/fake-mediainfo.sh SHANI_EXIV2_TOOL=/work/dev/fake-exiv2.sh
 # devices plugged in: the real watcher over recorded udev events (dev/udev/, written
 # into the FIFO /tmp/udev-events by the suite), a second monitor through a niri
@@ -188,7 +195,7 @@ pactl set-default-sink speakers 2>/dev/null
 # CHRONOA=real the real shani-chronoa app from ../shani-chronoa (dev/check.sh
 # mounts it at /chronoa, on the host network so it reaches the model on
 # 127.0.0.1:8765) - started below, once niri is up, as it is a window
-[ "${CHRONOA:-mock}" = real ] && [ -x /chronoa/usr/bin/shani-chronoa ] || python3 /work/dev/mock-chronoa.py >$L/mock.log 2>&1 &
+[ "${CHRONOA:-mock}" = real ] && [ -x /chronoa/usr/bin/shani-chronoa ] || python3 "${SHANI_CHRONOA_AGENT:-/work/dev/mock-chronoa.py}" >$L/mock.log 2>&1 &
 # Maps: OpenStreetMap's tiles, Nominatim and OSRM stood in for (dev/fake-osm.py), so
 # the suite has the same answers every run and does not load OSM's servers; with
 # SHANI_ONLINE=1 (dev/check.sh) the real ones (dev/shell-parts/maps-online.sh)

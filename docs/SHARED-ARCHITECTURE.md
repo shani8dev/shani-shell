@@ -164,3 +164,7 @@ Add a line when you finish a piece (date, repo, what, commit).
   `bridge/backup.py` (backup with progress, restore, backups, btrfs snapshots,
   schedule, home snapshots), with a rejecting stand-in, an argparse contract
   test and a live part (rules 4, 5, 10; f2064d6, e204613, f67c938).
+- 2026-11-26 shani-shell (phase 5): the shell consumes the headless Chronoa
+  engine: contract-matched Agent.Inventory, a bounded bridge read, ten
+  read-only Settings pages, and a `systemctl --user` switch with no GTK app
+  (2ee10b3, fa245c4).

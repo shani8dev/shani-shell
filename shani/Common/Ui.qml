@@ -147,9 +147,13 @@ Singleton {
     property string settingsCat: ""                // the settings category open
     property string settingsSection: ""            // a part of it to scroll to, once (openSettings)
     property bool settingsOpen: false              // the Settings window (Modules/Settings)
+    // Settings > Chronoa: which of its read-only pages is shown
+    property string chronoaSettingsPage: "status"
     // System pages publish their read state here so a live check can see what
     // the person sees, without reaching into a Loader's private item.
     property var systemState: ({})
+    // Settings > Chronoa's own read state, for a live check (see SettingsChronoa)
+    property var chronoaState: ({})
     // flash the control for a just-searched setting: the longest significant
     // word of its label is matched against every control's accessible name;
     // the page the search led to pulses its rings for a moment

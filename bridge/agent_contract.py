@@ -1,54 +1,56 @@
-"""Agent contract: turn stream with approval.
+"""Agent contract: the turn stream with approval, plus read-only inventory.
 
-Implemented by `shani_chronoa.agent_service.AgentService`; this file is the
-shell's copy for discovery, so the names cannot drift from the bridge's.
+Implemented by `shani_chronoa.agent_service.AgentService`. This is the shell's
+copy of Chronoa's contract, used by `chronoa-bridge.py` and `dev/mock-chronoa.py`
+so neither can call a method the engine does not have. Keep it in step with
+`shani-chronoa/usr/lib/shani-chronoa/shani_chronoa/agent_contract.py`.
 
 Methods:
   Turn(text) -> turn_id        # starts a turn; reply lands via Event
-  Approve(id, decision) -> ok  # user approves/denies; decision is the option label
+  Approve(turn_id, decision) -> ok  # decision is the option label
   Write(instruction, text) -> result
   FindFiles(query, limit) -> json
-  Inventory(section) -> json   # read-only facts for the shell's panels
+  Inventory(section) -> json   # read-only facts for a shell panel
 
 Signal:
   Event(json)                   # stream of turn events to the caller
-
-Implemented by `shani_chronoa.agent_service.AgentService`; this file is the
-shell's copy for discovery, so the names cannot drift from the bridge's.
 """
 
 BUS_NAME = "dev.shani.chronoa.Agent"
 PATH = "/dev/shani/chronoa/Agent"
 IFACE = "dev.shani.chronoa.Agent"
 
-# Introspection XML (matches the bridge's subscription and the mock's registration)
-XML = """
+#: The introspection XML. Interpolated so the name cannot drift from `IFACE`.
+XML = f"""<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
 <node>
-  <interface name="dev.shani.chronoa.Agent">
+  <interface name="{IFACE}">
     <method name="Turn">
-      <arg type="s" name="text" direction="in"/>
-      <arg type="s" name="turn_id" direction="out"/>
+      <arg name="text" type="s" direction="in"/>
+      <arg name="turn_id" type="s" direction="out"/>
     </method>
     <method name="Approve">
-      <arg type="s" name="turn_id" direction="in"/>
-      <arg type="s" name="decision" direction="in"/>
-      <arg type="b" name="ok" direction="out"/>
+      <arg name="turn_id" type="s" direction="in"/>
+      <arg name="decision" type="s" direction="in"/>
+      <arg name="ok" type="b" direction="out"/>
     </method>
     <method name="Write">
-      <arg type="s" name="instruction" direction="in"/>
-      <arg type="s" name="text" direction="in"/>
-      <arg type="s" name="result" direction="out"/>
+      <arg name="instruction" type="s" direction="in"/>
+      <arg name="text" type="s" direction="in"/>
+      <arg name="result" type="s" direction="out"/>
     </method>
     <method name="FindFiles">
-      <arg type="s" name="query" direction="in"/>
-      <arg type="i" name="limit" direction="in"/>
-      <arg type="s" name="json" direction="out"/>
+      <arg name="query" type="s" direction="in"/>
+      <arg name="limit" type="i" direction="in"/>
+      <arg name="json" type="s" direction="out"/>
     </method>
     <method name="Inventory">
-      <arg type="s" name="section" direction="in"/>
-      <arg type="s" name="json" direction="out"/>
+      <arg name="section" type="s" direction="in"/>
+      <arg name="json" type="s" direction="out"/>
     </method>
-    <signal name="Event"><arg type="s" name="json"/></signal>
+    <signal name="Event">
+      <arg name="json" type="s"/>
+    </signal>
   </interface>
 </node>
 """
