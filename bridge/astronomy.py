@@ -15,48 +15,147 @@ No external dependencies beyond the standard library. Provides:
 Accuracy: ~1 arcmin for all planets. Sufficient for Kundali and Panchang
 without any pip/Arch packages.
 """
+
 from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
 
-SIGNS = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-         "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+SIGNS = [
+    "Aries",
+    "Taurus",
+    "Gemini",
+    "Cancer",
+    "Leo",
+    "Virgo",
+    "Libra",
+    "Scorpio",
+    "Sagittarius",
+    "Capricorn",
+    "Aquarius",
+    "Pisces",
+]
 
-PLANET_NAMES = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
-                "Saturn", "Uranus", "Neptune", "Pluto", "Rahu", "Ketu"]
+PLANET_NAMES = [
+    "Sun",
+    "Moon",
+    "Mercury",
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune",
+    "Pluto",
+    "Rahu",
+    "Ketu",
+]
 
 NAKSHATRAS = [
-    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra",
-    "Punarvasu", "Pushya", "Ashlesha", "Magha", "Purva Phalguni", "Uttara Phalguni",
-    "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
-    "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta",
-    "Shatabhisha", "Purva Bhadrapada", "Uttara Bhadrapada", "Revati",
+    "Ashwini",
+    "Bharani",
+    "Krittika",
+    "Rohini",
+    "Mrigashira",
+    "Ardra",
+    "Punarvasu",
+    "Pushya",
+    "Ashlesha",
+    "Magha",
+    "Purva Phalguni",
+    "Uttara Phalguni",
+    "Hasta",
+    "Chitra",
+    "Swati",
+    "Vishakha",
+    "Anuradha",
+    "Jyeshtha",
+    "Mula",
+    "Purva Ashadha",
+    "Uttara Ashadha",
+    "Shravana",
+    "Dhanishta",
+    "Shatabhisha",
+    "Purva Bhadrapada",
+    "Uttara Bhadrapada",
+    "Revati",
 ]
 
 TITHIS = [
-    "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami",
-    "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami",
-    "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima/Amavasya",
+    "Pratipada",
+    "Dwitiya",
+    "Tritiya",
+    "Chaturthi",
+    "Panchami",
+    "Shashthi",
+    "Saptami",
+    "Ashtami",
+    "Navami",
+    "Dashami",
+    "Ekadashi",
+    "Dwadashi",
+    "Trayodashi",
+    "Chaturdashi",
+    "Purnima/Amavasya",
 ]
 
 YOGAS = [
-    "Vishkambha", "Priti", "Ayushman", "Saubhagya", "Shobhana",
-    "Atiganda", "Sukarma", "Dhriti", "Shula", "Ganda",
-    "Vriddhi", "Dhruva", "Vyaghata", "Harshana", "Vajra",
-    "Siddhi", "Vyatipata", "Variyan", "Parigha", "Shiva",
-    "Siddha", "Sadhya", "Shubha", "Shubha", "Brahma",
-    "Indra", "Vaidhriti",
+    "Vishkambha",
+    "Priti",
+    "Ayushman",
+    "Saubhagya",
+    "Shobhana",
+    "Atiganda",
+    "Sukarma",
+    "Dhriti",
+    "Shula",
+    "Ganda",
+    "Vriddhi",
+    "Dhruva",
+    "Vyaghata",
+    "Harshana",
+    "Vajra",
+    "Siddhi",
+    "Vyatipata",
+    "Variyan",
+    "Parigha",
+    "Shiva",
+    "Siddha",
+    "Sadhya",
+    "Shubha",
+    "Shubha",
+    "Brahma",
+    "Indra",
+    "Vaidhriti",
 ]
 
 VARAS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 KARANAS = [
-    "Bava", "Balava", "Kaulava", "Taitila", "Gara", "Vanija", "Vishti",
-    "Shakuni", "Chatushpada", "Naga", "Kimstughna",
+    "Bava",
+    "Balava",
+    "Kaulava",
+    "Taitila",
+    "Gara",
+    "Vanija",
+    "Vishti",
+    "Shakuni",
+    "Chatushpada",
+    "Naga",
+    "Kimstughna",
 ]
 
-DASHA_LORDS = ["Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"]
+DASHA_LORDS = [
+    "Ketu",
+    "Venus",
+    "Sun",
+    "Moon",
+    "Mars",
+    "Rahu",
+    "Jupiter",
+    "Saturn",
+    "Mercury",
+]
 DASHA_YEARS = [7, 20, 6, 10, 7, 18, 16, 19, 17]
 
 
@@ -88,9 +187,11 @@ def _sun_longitude(jd: float) -> float:
     L0 = _norm(280.46646 + 36000.76983 * T + 0.0003032 * T * T)
     M = _norm(357.52911 + 35999.05029 * T - 0.0001537 * T * T)
     Mr = math.radians(M)
-    C = ((1.914602 - 0.004817 * T - 0.000014 * T * T) * math.sin(Mr)
-         + (0.019993 - 0.000101 * T) * math.sin(2 * Mr)
-         + 0.000289 * math.sin(3 * Mr))
+    C = (
+        (1.914602 - 0.004817 * T - 0.000014 * T * T) * math.sin(Mr)
+        + (0.019993 - 0.000101 * T) * math.sin(2 * Mr)
+        + 0.000289 * math.sin(3 * Mr)
+    )
     true_lon = L0 + C
     Omega = 125.04 - 1934.136 * T
     return _norm(true_lon - 0.00569 - 0.00478 * math.sin(math.radians(Omega)))
@@ -104,22 +205,29 @@ def _moon_longitude(jd: float) -> float:
     M = _norm(357.5291092 + 35999.0502909 * T - 0.0001536 * T * T)
     Mp = _norm(134.9633964 + 477198.8675055 * T + 0.0087414 * T * T)
     F = _norm(93.2720950 + 483202.0175233 * T - 0.0036539 * T * T)
-    Dr, Mr, Mpr, Fr = math.radians(D), math.radians(M), math.radians(Mp), math.radians(F)
+    Dr, Mr, Mpr, Fr = (
+        math.radians(D),
+        math.radians(M),
+        math.radians(Mp),
+        math.radians(F),
+    )
     Lpr = math.radians(Lp)
-    lon = (Lp
-           + 6.288774 * math.sin(Mpr)
-           + 1.274027 * math.sin(2 * Dr - Mpr)
-           + 0.658314 * math.sin(2 * Dr)
-           + 0.213618 * math.sin(2 * Mpr)
-           - 0.185116 * math.sin(Mr)
-           - 0.114332 * math.sin(2 * Fr)
-           + 0.058793 * math.sin(2 * Dr - 2 * Mpr)
-           + 0.057066 * math.sin(2 * Dr - Mr - Mpr)
-           + 0.053322 * math.sin(2 * Dr + Mpr)
-           + 0.045758 * math.sin(2 * Dr - Mr)
-           - 0.040923 * math.sin(Mr - Mpr)
-           - 0.034720 * math.sin(Dr)
-           - 0.030383 * math.sin(Mr + Mpr))
+    lon = (
+        Lp
+        + 6.288774 * math.sin(Mpr)
+        + 1.274027 * math.sin(2 * Dr - Mpr)
+        + 0.658314 * math.sin(2 * Dr)
+        + 0.213618 * math.sin(2 * Mpr)
+        - 0.185116 * math.sin(Mr)
+        - 0.114332 * math.sin(2 * Fr)
+        + 0.058793 * math.sin(2 * Dr - 2 * Mpr)
+        + 0.057066 * math.sin(2 * Dr - Mr - Mpr)
+        + 0.053322 * math.sin(2 * Dr + Mpr)
+        + 0.045758 * math.sin(2 * Dr - Mr)
+        - 0.040923 * math.sin(Mr - Mpr)
+        - 0.034720 * math.sin(Dr)
+        - 0.030383 * math.sin(Mr + Mpr)
+    )
     return _norm(lon)
 
 
@@ -131,24 +239,49 @@ def _moon_longitude(jd: float) -> float:
 # longitude is good to about an arcminute over that span (checked against
 # JPL Horizons: tests/test_kundali_positions.py).
 _ELEMENTS = {
-    "mercury": ((0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593),
-                (0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081)),
-    "venus": ((0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255),
-              (0.00000390, -0.00004107, -0.00078890, 58517.81538729, 0.00268329, -0.27769418)),
-    "earth": ((1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0),
-              (0.00000562, -0.00004392, -0.01294668, 35999.37244981, 0.32327364, 0.0)),
-    "mars": ((1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891),
-             (0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343)),
-    "jupiter": ((5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909),
-                (-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106)),
-    "saturn": ((9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448),
-               (-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794)),
-    "uranus": ((19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.95427630, 74.01692503),
-               (-0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589)),
-    "neptune": ((30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574),
-                (0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664)),
-    "pluto": ((39.48211675, 0.24882730, 17.14001206, 238.92903833, 224.06891629, 110.30393684),
-              (-0.00031596, 0.00005170, 0.00004818, 145.20780515, -0.04062942, -0.01183482)),
+    "mercury": (
+        (0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593),
+        (0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081),
+    ),
+    "venus": (
+        (0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255),
+        (0.00000390, -0.00004107, -0.00078890, 58517.81538729, 0.00268329, -0.27769418),
+    ),
+    "earth": (
+        (1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0),
+        (0.00000562, -0.00004392, -0.01294668, 35999.37244981, 0.32327364, 0.0),
+    ),
+    "mars": (
+        (1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891),
+        (0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343),
+    ),
+    "jupiter": (
+        (5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909),
+        (-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106),
+    ),
+    "saturn": (
+        (9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448),
+        (-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794),
+    ),
+    "uranus": (
+        (19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.95427630, 74.01692503),
+        (-0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589),
+    ),
+    "neptune": (
+        (30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574),
+        (0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664),
+    ),
+    "pluto": (
+        (
+            39.48211675,
+            0.24882730,
+            17.14001206,
+            238.92903833,
+            224.06891629,
+            110.30393684,
+        ),
+        (-0.00031596, 0.00005170, 0.00004818, 145.20780515, -0.04062942, -0.01183482),
+    ),
 }
 
 
@@ -162,13 +295,21 @@ def _great_inequality(name: str, T: float) -> float:
     of the great inequality: Jupiter's worst error against JPL Horizons over
     1950-2045 drops from ~8' to ~5'. (The matching terms for Saturn made these
     elements worse - their mean motion already holds part of it.)"""
-    mj, ms = math.radians(_mean_anomaly("jupiter", T)), math.radians(_mean_anomaly("saturn", T))
+    mj, ms = (
+        math.radians(_mean_anomaly("jupiter", T)),
+        math.radians(_mean_anomaly("saturn", T)),
+    )
     d = math.radians
     if name == "jupiter":
-        return (-0.332 * math.sin(2 * mj - 5 * ms - d(67.6)) - 0.056 * math.sin(2 * mj - 2 * ms + d(21))
-                + 0.042 * math.sin(3 * mj - 5 * ms + d(21)) - 0.036 * math.sin(mj - 2 * ms)
-                + 0.022 * math.cos(mj - ms) + 0.023 * math.sin(2 * mj - 3 * ms + d(52))
-                - 0.016 * math.sin(mj - 5 * ms - d(69)))
+        return (
+            -0.332 * math.sin(2 * mj - 5 * ms - d(67.6))
+            - 0.056 * math.sin(2 * mj - 2 * ms + d(21))
+            + 0.042 * math.sin(3 * mj - 5 * ms + d(21))
+            - 0.036 * math.sin(mj - 2 * ms)
+            + 0.022 * math.cos(mj - ms)
+            + 0.023 * math.sin(2 * mj - 3 * ms + d(52))
+            - 0.016 * math.sin(mj - 5 * ms - d(69))
+        )
     return 0.0
 
 
@@ -178,14 +319,21 @@ def _heliocentric(name: str, T: float) -> tuple:
     a, e, inc, L, peri, node = (b + r * T for b, r in zip(base, rate))
     M = math.radians(_norm(L - peri + 180) - 180)
     E = M + e * math.sin(M)
-    for _ in range(12):                      # Kepler's equation, Newton steps
+    for _ in range(12):  # Kepler's equation, Newton steps
         dE = (M - (E - e * math.sin(E))) / (1 - e * math.cos(E))
         E += dE
         if abs(dE) < 1e-12:
             break
     xp, yp = a * (math.cos(E) - e), a * math.sqrt(1 - e * e) * math.sin(E)
     w, O, i = math.radians(peri - node), math.radians(node), math.radians(inc)
-    cw, sw, cO, sO, ci, si = math.cos(w), math.sin(w), math.cos(O), math.sin(O), math.cos(i), math.sin(i)
+    cw, sw, cO, sO, ci, si = (
+        math.cos(w),
+        math.sin(w),
+        math.cos(O),
+        math.sin(O),
+        math.cos(i),
+        math.sin(i),
+    )
     x = (cw * cO - sw * sO * ci) * xp + (-sw * cO - cw * sO * ci) * yp
     y = (cw * sO + sw * cO * ci) * xp + (-sw * sO + cw * cO * ci) * yp
     z = (sw * si) * xp + (cw * si) * yp
@@ -201,7 +349,9 @@ def _planet_longitude(name: str, jd: float) -> float:
     name = name.lower().replace(" ", "")
     if name in ("rahu", "northnode"):
         # the mean node, as most Jyotish software uses by default
-        return _norm(125.0445479 - 1934.1362891 * T + 0.0020754 * T * T + T ** 3 / 467441.0)
+        return _norm(
+            125.0445479 - 1934.1362891 * T + 0.0020754 * T * T + T**3 / 467441.0
+        )
     if name in ("ketu", "southnode"):
         return _norm(_planet_longitude("rahu", jd) + 180)
     if name not in _ELEMENTS or name == "earth":
@@ -225,7 +375,7 @@ def planet_speed(name: str, jd: float) -> float:
         f = _moon_longitude
     else:
         f = lambda j: _planet_longitude(key, j)
-    return (_norm(f(jd + 0.5) - f(jd - 0.5) + 180) - 180)
+    return _norm(f(jd + 0.5) - f(jd - 0.5) + 180) - 180
 
 
 def is_retrograde(name: str, jd: float) -> bool:
@@ -247,7 +397,12 @@ def ascendant(jd: float, lat: float, lon: float) -> float:
     """Ascendant longitude (tropical). Uses LST + obliquity."""
     T = (jd - 2451545.0) / 36525.0
     # GMST
-    gmst = 280.46061837 + 360.98564736629 * (jd - 2451545.0) + 0.000387933 * T * T - T * T * T / 38710000.0
+    gmst = (
+        280.46061837
+        + 360.98564736629 * (jd - 2451545.0)
+        + 0.000387933 * T * T
+        - T * T * T / 38710000.0
+    )
     gmst = _norm(gmst)
     lst = _norm(gmst + lon)
     # Obliquity
@@ -288,15 +443,17 @@ def compute_chart(dt_str: str, lat: float, lon: float) -> dict:
         sign_idx = int(sid / 30) % 12
         deg = int(sid % 30)
         minute = int((sid % 30 - deg) * 60)
-        planets.append({
-            "name": name,
-            "tropical_longitude": round(trop, 4),
-            "sidereal_longitude": round(sid, 4),
-            "sign": SIGNS[sign_idx],
-            "degree": deg,
-            "minute": minute,
-            "retrograde": is_retrograde(name, jd),
-        })
+        planets.append(
+            {
+                "name": name,
+                "tropical_longitude": round(trop, 4),
+                "sidereal_longitude": round(sid, 4),
+                "sign": SIGNS[sign_idx],
+                "degree": deg,
+                "minute": minute,
+                "retrograde": is_retrograde(name, jd),
+            }
+        )
 
     # Houses (Whole Sign)
     houses = []
@@ -305,13 +462,15 @@ def compute_chart(dt_str: str, lat: float, lon: float) -> dict:
         sign_idx = int(h_lon / 30) % 12
         deg = int(h_lon % 30)
         minute = int((h_lon % 30 - deg) * 60)
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": deg,
-            "minute": minute,
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": deg,
+                "minute": minute,
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
 
     return {
         "datetime": dt_str,
@@ -335,9 +494,23 @@ def compute_panchang(dt_str: str, lat: float, lon: float) -> dict:
 
     diff = (moon_sid - sun_sid) % 360
     tithi_idx = int(diff / 12)
-    tithis = ["Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami",
-              "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami",
-              "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima/Amavasya"]
+    tithis = [
+        "Pratipada",
+        "Dwitiya",
+        "Tritiya",
+        "Chaturthi",
+        "Panchami",
+        "Shashthi",
+        "Saptami",
+        "Ashtami",
+        "Navami",
+        "Dashami",
+        "Ekadashi",
+        "Dwadashi",
+        "Trayodashi",
+        "Chaturdashi",
+        "Purnima/Amavasya",
+    ]
     nakshatras = NAKSHATRAS
     yogas = YOGAS
     varas = VARAS
@@ -350,9 +523,20 @@ def compute_panchang(dt_str: str, lat: float, lon: float) -> dict:
     vara_idx = int(jd + 1.5) % 7
 
     # Masa (lunar month)
-    lunar_months = ["Chaitra", "Vaisakha", "Jyeshtha", "Ashadha", "Shravana",
-                    "Bhadrapada", "Ashwina", "Kartika", "Margashirsha", "Pausha",
-                    "Magha", "Phalguna"]
+    lunar_months = [
+        "Chaitra",
+        "Vaisakha",
+        "Jyeshtha",
+        "Ashadha",
+        "Shravana",
+        "Bhadrapada",
+        "Ashwina",
+        "Kartika",
+        "Margashirsha",
+        "Pausha",
+        "Magha",
+        "Phalguna",
+    ]
     # Approximate: based on Sun's sidereal longitude
     masa_idx = int(sun_sid / 30) % 12
     masa = lunar_months[masa_idx]
@@ -365,6 +549,7 @@ def compute_panchang(dt_str: str, lat: float, lon: float) -> dict:
     ayana = "Uttarayana" if sun_sid < 180 else "Dakshinayana"
     # Samvat (approximate)
     from datetime import datetime
+
     s = dt_str.strip().replace("Z", "+00:00")
     if "T" not in s:
         s += "T12:00:00+00:00"
@@ -412,19 +597,23 @@ def vimshottari_dasha(moon_lon_sid: float, jd: float) -> list:
     lord_idx = nak_lord_idx
     year = 0  # relative
     # Current dasha balance
-    dashas.append({
-        "lord": current_lord,
-        "years": round(balance, 2),
-        "start_offset": 0,
-    })
+    dashas.append(
+        {
+            "lord": current_lord,
+            "years": round(balance, 2),
+            "start_offset": 0,
+        }
+    )
     year = balance
     for i in range(1, 9):
         idx = (nak_lord_idx + i) % 9
-        dashas.append({
-            "lord": DASHA_LORDS[idx],
-            "years": DASHA_YEARS[idx],
-            "start_offset": round(year, 2),
-        })
+        dashas.append(
+            {
+                "lord": DASHA_LORDS[idx],
+                "years": DASHA_YEARS[idx],
+                "start_offset": round(year, 2),
+            }
+        )
         year += DASHA_YEARS[idx]
     return dashas
 
@@ -432,25 +621,31 @@ def vimshottari_dasha(moon_lon_sid: float, jd: float) -> list:
 def _deg_in_sign(lon):
     return ((lon % 30.0) + 30.0) % 30.0
 
+
 def _sign_of(lon):
     norm = ((lon % 360.0) + 360.0) % 360.0
     return int(norm / 30.0) + 1
 
+
 def _norm_sign(s):
     return ((s - 1) % 12) + 1
+
 
 def _part(lon, n):
     p = int((_deg_in_sign(lon) * n) / 30.0)
     return min(p, n - 1)
 
+
 def _div_deg(lon, n):
     return (_deg_in_sign(lon) * n) % 30.0
+
 
 def _parivritti(lon, n):
     sign = _sign_of(lon)
     l = _part(lon, n)
     d_sign = ((sign - 1) * n + l) % 12 + 1
     return d_sign, _div_deg(lon, n)
+
 
 def _hora_udayashakti(lon):
     sign = _sign_of(lon)
@@ -474,17 +669,20 @@ def _hora_udayashakti(lon):
             deg = 0.0
     return _norm_sign(d_sign), deg
 
+
 def _drekkana(lon):
     sign = _sign_of(lon)
     l = _part(lon, 3)
     d_sign = ((sign - 1) + l * 4) % 12 + 1
     return d_sign, _div_deg(lon, 3)
 
+
 def _chaturthamsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 4)
     d_sign = ((sign - 1) + l * 3) % 12 + 1
     return d_sign, _div_deg(lon, 4)
+
 
 def _panchamsha(lon):
     sign = _sign_of(lon)
@@ -494,12 +692,14 @@ def _panchamsha(lon):
     d_sign = odd[l] if sign % 2 == 1 else even[l]
     return d_sign, _div_deg(lon, 5)
 
+
 def _saptamsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 7)
     offset = 6 if sign % 2 == 0 else 0
     d_sign = ((sign - 1) + offset + l) % 12 + 1
     return d_sign, _div_deg(lon, 7)
+
 
 def _navamsha(lon):
     sign = _sign_of(lon)
@@ -508,6 +708,7 @@ def _navamsha(lon):
     d_sign = (seeds[sign - 1] + l) % 12 + 1
     return d_sign, _div_deg(lon, 9)
 
+
 def _dashamsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 10)
@@ -515,11 +716,13 @@ def _dashamsha(lon):
     d_sign = ((sign - 1) + offset + l) % 12 + 1
     return d_sign, _div_deg(lon, 10)
 
+
 def _dwadashamsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 12)
     d_sign = ((sign - 1) + l) % 12 + 1
     return d_sign, _div_deg(lon, 12)
+
 
 def _shodashamsha(lon):
     sign = _sign_of(lon)
@@ -528,12 +731,14 @@ def _shodashamsha(lon):
     d_sign = (seed + l) % 12 + 1
     return d_sign, _div_deg(lon, 16)
 
+
 def _vimshamsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 20)
     seeds = [0, 8, 4, 0, 8, 4, 0, 8, 4, 0, 8, 4]
     d_sign = (seeds[sign - 1] + l) % 12 + 1
     return d_sign, _div_deg(lon, 20)
+
 
 def _siddhamsha(lon):
     sign = _sign_of(lon)
@@ -542,6 +747,7 @@ def _siddhamsha(lon):
     d_sign = (seed + l) % 12 + 1
     return d_sign, _div_deg(lon, 24)
 
+
 def _nakshatramsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 27)
@@ -549,22 +755,34 @@ def _nakshatramsha(lon):
     d_sign = (seed + l) % 12 + 1
     return d_sign, _div_deg(lon, 27)
 
+
 def _trimshamsha(lon):
     sign = _sign_of(lon)
     d = _deg_in_sign(lon)
     if sign % 2 == 1:
-        if d <= 5.0: d_sign = 1
-        elif d <= 10.0: d_sign = 11
-        elif d <= 18.0: d_sign = 9
-        elif d <= 25.0: d_sign = 3
-        else: d_sign = 7
+        if d <= 5.0:
+            d_sign = 1
+        elif d <= 10.0:
+            d_sign = 11
+        elif d <= 18.0:
+            d_sign = 9
+        elif d <= 25.0:
+            d_sign = 3
+        else:
+            d_sign = 7
     else:
-        if d <= 5.0: d_sign = 2
-        elif d <= 12.0: d_sign = 6
-        elif d <= 20.0: d_sign = 12
-        elif d <= 25.0: d_sign = 10
-        else: d_sign = 8
+        if d <= 5.0:
+            d_sign = 2
+        elif d <= 12.0:
+            d_sign = 6
+        elif d <= 20.0:
+            d_sign = 12
+        elif d <= 25.0:
+            d_sign = 10
+        else:
+            d_sign = 8
     return d_sign, _div_deg(lon, 30)
+
 
 def _khavedamsha(lon):
     sign = _sign_of(lon)
@@ -573,6 +791,7 @@ def _khavedamsha(lon):
     d_sign = (seed + l) % 12 + 1
     return d_sign, _div_deg(lon, 40)
 
+
 def _akshavedamsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 45)
@@ -580,11 +799,13 @@ def _akshavedamsha(lon):
     d_sign = (seed + l) % 12 + 1
     return d_sign, _div_deg(lon, 45)
 
+
 def _shashtyamsha(lon):
     sign = _sign_of(lon)
     l = _part(lon, 60)
     d_sign = _norm_sign(sign + l)
     return d_sign, _div_deg(lon, 60)
+
 
 VARGA_FUNCS = {
     "D1": lambda lon: (_sign_of(lon), _deg_in_sign(lon)),
@@ -609,25 +830,55 @@ VARGA_FUNCS = {
     "D60": _shashtyamsha,
 }
 
+
 def varga_longitude(sid_lon: float, varga: str = "D9") -> float:
     """Compute divisional chart longitude for a varga."""
     func = VARGA_FUNCS.get(varga, lambda lon: _parivritti(lon, int(varga[1:])))
     sign, degree = func(sid_lon)
     return (sign - 1) * 30.0 + degree
 
+
 VARGA_NAMES = {
-    "D1": "D1 (Rasi)", "D2": "D2 (Hora)", "D3": "D3 (Drekkana)",
-    "D4": "D4 (Chaturthamsha)", "D7": "D7 (Saptamsha)", "D9": "D9 (Navamsha)",
-    "D10": "D10 (Dasamsa)", "D12": "D12 (Dwadasamsa)", "D16": "D16 (Shodasamsa)",
-    "D20": "D20 (Vimsamsa)", "D24": "D24 (Chaturvimsamsa)", "D27": "D27 (Saptavimsamsa)",
-    "D30": "D30 (Trimsamsa)", "D40": "D40 (Khavedamsa)", "D45": "D45 (Akshavedamsa)",
+    "D1": "D1 (Rasi)",
+    "D2": "D2 (Hora)",
+    "D3": "D3 (Drekkana)",
+    "D4": "D4 (Chaturthamsha)",
+    "D7": "D7 (Saptamsha)",
+    "D9": "D9 (Navamsha)",
+    "D10": "D10 (Dasamsa)",
+    "D12": "D12 (Dwadasamsa)",
+    "D16": "D16 (Shodasamsa)",
+    "D20": "D20 (Vimsamsa)",
+    "D24": "D24 (Chaturvimsamsa)",
+    "D27": "D27 (Saptavimsamsa)",
+    "D30": "D30 (Trimsamsa)",
+    "D40": "D40 (Khavedamsa)",
+    "D45": "D45 (Akshavedamsa)",
     "D60": "D60 (Shashtiamsa)",
 }
+
 
 def compute_vargas(sid_lon: float) -> dict:
     """Compute all Shodashavarga for a longitude."""
     result = {}
-    for v in ["D1", "D2", "D3", "D4", "D7", "D9", "D10", "D12", "D16", "D20", "D24", "D27", "D30", "D40", "D45", "D60"]:
+    for v in [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D7",
+        "D9",
+        "D10",
+        "D12",
+        "D16",
+        "D20",
+        "D24",
+        "D27",
+        "D30",
+        "D40",
+        "D45",
+        "D60",
+    ]:
         v_lon = varga_longitude(sid_lon, v)
         sign_idx = int(v_lon / 30) % 12
         result[VARGA_NAMES[v]] = {
@@ -680,33 +931,54 @@ def compute_aspects(planets: list) -> list:
             for name, angle in ASPECTS.items():
                 orb = ASPECT_ORBS[name]
                 if abs(diff - angle) <= orb:
-                    results.append({
-                        "planet1": p1["name"],
-                        "planet2": p2["name"],
-                        "aspect": name,
-                        "angle": round(diff, 2),
-                        "orb": round(abs(diff - angle), 2),
-                    })
+                    results.append(
+                        {
+                            "planet1": p1["name"],
+                            "planet2": p2["name"],
+                            "aspect": name,
+                            "angle": round(diff, 2),
+                            "orb": round(abs(diff - angle), 2),
+                        }
+                    )
     return results
 
 
 # Planet dignities (simplified)
 EXALTATION = {
-    "Sun": "Aries", "Moon": "Taurus", "Mercury": "Virgo", "Venus": "Pisces",
-    "Mars": "Capricorn", "Jupiter": "Cancer", "Saturn": "Libra",
+    "Sun": "Aries",
+    "Moon": "Taurus",
+    "Mercury": "Virgo",
+    "Venus": "Pisces",
+    "Mars": "Capricorn",
+    "Jupiter": "Cancer",
+    "Saturn": "Libra",
 }
 DEBILITATION = {
-    "Sun": "Libra", "Moon": "Scorpio", "Mercury": "Pisces", "Venus": "Virgo",
-    "Mars": "Cancer", "Jupiter": "Capricorn", "Saturn": "Aries",
+    "Sun": "Libra",
+    "Moon": "Scorpio",
+    "Mercury": "Pisces",
+    "Venus": "Virgo",
+    "Mars": "Cancer",
+    "Jupiter": "Capricorn",
+    "Saturn": "Aries",
 }
 OWN_SIGNS = {
-    "Sun": ["Leo"], "Moon": ["Cancer"], "Mercury": ["Gemini", "Virgo"],
-    "Venus": ["Taurus", "Libra"], "Mars": ["Aries", "Scorpio"],
-    "Jupiter": ["Sagittarius", "Pisces"], "Saturn": ["Capricorn", "Aquarius"],
+    "Sun": ["Leo"],
+    "Moon": ["Cancer"],
+    "Mercury": ["Gemini", "Virgo"],
+    "Venus": ["Taurus", "Libra"],
+    "Mars": ["Aries", "Scorpio"],
+    "Jupiter": ["Sagittarius", "Pisces"],
+    "Saturn": ["Capricorn", "Aquarius"],
 }
 MOOLATRIKONA = {
-    "Sun": "Leo", "Moon": "Taurus", "Mercury": "Virgo", "Venus": "Libra",
-    "Mars": "Aries", "Jupiter": "Sagittarius", "Saturn": "Aquarius",
+    "Sun": "Leo",
+    "Moon": "Taurus",
+    "Mercury": "Virgo",
+    "Venus": "Libra",
+    "Mars": "Aries",
+    "Jupiter": "Sagittarius",
+    "Saturn": "Aquarius",
 }
 
 
@@ -728,7 +1000,17 @@ def nakshatra_details(moon_lon_sid: float) -> dict:
     nak_idx = int(moon_lon_sid / (360.0 / 27.0)) % 27
     pada = int((moon_lon_sid % (360.0 / 27.0)) / (360.0 / 27.0 / 4.0)) + 1
     # Nakshatra lords (Vimshottari cycle)
-    lords = ["Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"]
+    lords = [
+        "Ketu",
+        "Venus",
+        "Sun",
+        "Moon",
+        "Mars",
+        "Rahu",
+        "Jupiter",
+        "Saturn",
+        "Mercury",
+    ]
     lord = lords[nak_idx % 9]
     return {
         "nakshatra": NAKSHATRAS[nak_idx],
@@ -747,29 +1029,35 @@ def antardasha(mahadasha_lord: str, mahadasha_years: float) -> list:
         idx = (lord_idx + i) % 9
         sub_lord = DASHA_LORDS[idx]
         sub_years = mahadasha_years * DASHA_YEARS[idx] / 120.0
-        result.append({
-            "lord": sub_lord,
-            "years": round(sub_years, 2),
-            "start_offset": round(total, 2),
-        })
+        result.append(
+            {
+                "lord": sub_lord,
+                "years": round(sub_years, 2),
+                "start_offset": round(total, 2),
+            }
+        )
         total += sub_years
     return result
 
 
 def pratyantardasha(antardasha_lord: str, antardasha_years: float) -> list:
     """Compute Pratyantardasha (sub-sub-periods)."""
-    lord_idx = DASHA_LORDS.index(antardasha_lord) if antardasha_lord in DASHA_LORDS else 0
+    lord_idx = (
+        DASHA_LORDS.index(antardasha_lord) if antardasha_lord in DASHA_LORDS else 0
+    )
     result = []
     total = 0
     for i in range(9):
         idx = (lord_idx + i) % 9
         sub_lord = DASHA_LORDS[idx]
         sub_years = antardasha_years * DASHA_YEARS[idx] / 120.0
-        result.append({
-            "lord": sub_lord,
-            "years": round(sub_years, 4),
-            "start_offset": round(total, 4),
-        })
+        result.append(
+            {
+                "lord": sub_lord,
+                "years": round(sub_years, 4),
+                "start_offset": round(total, 4),
+            }
+        )
         total += sub_years
     return result
 
@@ -789,10 +1077,32 @@ def full_dasha(moon_lon_sid: float) -> dict:
 
 # BaZi (Four Pillars of Destiny) - Chinese astrology
 TIANGAN = ["Jia", "Yi", "Bing", "Ding", "Wu", "Ji", "Geng", "Xin", "Ren", "Gui"]
-DIZHI = ["Zi", "Chou", "Yin", "Mao", "Chen", "Si", "Wu", "Wei", "Shen", "You", "Xu", "Hai"]
-WUXING = {"Jia": "Wood", "Yi": "Wood", "Bing": "Fire", "Ding": "Fire",
-          "Wu": "Earth", "Ji": "Earth", "Geng": "Metal", "Xin": "Metal",
-          "Ren": "Water", "Gui": "Water"}
+DIZHI = [
+    "Zi",
+    "Chou",
+    "Yin",
+    "Mao",
+    "Chen",
+    "Si",
+    "Wu",
+    "Wei",
+    "Shen",
+    "You",
+    "Xu",
+    "Hai",
+]
+WUXING = {
+    "Jia": "Wood",
+    "Yi": "Wood",
+    "Bing": "Fire",
+    "Ding": "Fire",
+    "Wu": "Earth",
+    "Ji": "Earth",
+    "Geng": "Metal",
+    "Xin": "Metal",
+    "Ren": "Water",
+    "Gui": "Water",
+}
 
 
 def bazi_pillars(year: int, month: int, day: int, hour: int) -> dict:
@@ -813,20 +1123,33 @@ def bazi_pillars(year: int, month: int, day: int, hour: int) -> dict:
     hour_stem_idx = (day_stem_idx * 2 + hour_branch_idx) % 10
 
     return {
-        "year": {"stem": TIANGAN[year_stem_idx], "branch": DIZHI[year_branch_idx],
-                 "element": WUXING[TIANGAN[year_stem_idx]]},
-        "month": {"stem": TIANGAN[month_stem_idx], "branch": DIZHI[month_branch_idx],
-                  "element": WUXING[TIANGAN[month_stem_idx]]},
-        "day": {"stem": TIANGAN[day_stem_idx], "branch": DIZHI[day_branch_idx],
-                "element": WUXING[TIANGAN[day_stem_idx]]},
-        "hour": {"stem": TIANGAN[hour_stem_idx], "branch": DIZHI[hour_branch_idx],
-                 "element": WUXING[TIANGAN[hour_stem_idx]]},
+        "year": {
+            "stem": TIANGAN[year_stem_idx],
+            "branch": DIZHI[year_branch_idx],
+            "element": WUXING[TIANGAN[year_stem_idx]],
+        },
+        "month": {
+            "stem": TIANGAN[month_stem_idx],
+            "branch": DIZHI[month_branch_idx],
+            "element": WUXING[TIANGAN[month_stem_idx]],
+        },
+        "day": {
+            "stem": TIANGAN[day_stem_idx],
+            "branch": DIZHI[day_branch_idx],
+            "element": WUXING[TIANGAN[day_stem_idx]],
+        },
+        "hour": {
+            "stem": TIANGAN[hour_stem_idx],
+            "branch": DIZHI[hour_branch_idx],
+            "element": WUXING[TIANGAN[hour_stem_idx]],
+        },
     }
 
 
 # ---------------------------------------------------------------------------
 # Additional Khagole features: Transits, Nakshatra details, Synastry
 # ---------------------------------------------------------------------------
+
 
 def transit_chart(natal_planets: list, transit_dt: str, lat: float, lon: float) -> dict:
     """Compute transit positions and cross-aspects to natal planets."""
@@ -839,12 +1162,14 @@ def transit_chart(natal_planets: list, transit_dt: str, lat: float, lon: float) 
             for name, angle in ASPECTS.items():
                 orb = ASPECT_ORBS[name]
                 if abs(diff - angle) <= orb:
-                    cross_aspects.append({
-                        "transit_planet": tp["name"],
-                        "natal_planet": np_["name"],
-                        "aspect": name,
-                        "orb": round(abs(diff - angle), 2),
-                    })
+                    cross_aspects.append(
+                        {
+                            "transit_planet": tp["name"],
+                            "natal_planet": np_["name"],
+                            "aspect": name,
+                            "orb": round(abs(diff - angle), 2),
+                        }
+                    )
     return {
         "datetime": transit_dt,
         "planets": chart["planets"],
@@ -863,12 +1188,14 @@ def synastry(chart_a: dict, chart_b: dict) -> list:
             for name, angle in ASPECTS.items():
                 orb = ASPECT_ORBS[name]
                 if abs(diff - angle) <= orb:
-                    cross.append({
-                        "planet_a": pa["name"],
-                        "planet_b": pb["name"],
-                        "aspect": name,
-                        "orb": round(abs(diff - angle), 2),
-                    })
+                    cross.append(
+                        {
+                            "planet_a": pa["name"],
+                            "planet_b": pb["name"],
+                            "aspect": name,
+                            "orb": round(abs(diff - angle), 2),
+                        }
+                    )
     return cross
 
 
@@ -992,13 +1319,15 @@ def houses_equal(asc_sid: float) -> list:
     for i in range(12):
         h_lon = _norm(asc_sid + i * 30)
         sign_idx = int(h_lon / 30) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": int(h_lon % 30),
-            "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": int(h_lon % 30),
+                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
     return houses
 
 
@@ -1008,13 +1337,15 @@ def houses_whole_sign(asc_sid: float) -> list:
     houses = []
     for i in range(12):
         sign_idx = (asc_sign + i) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": 0,
-            "minute": 0,
-            "ecliptic_longitude": round(sign_idx * 30.0, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": 0,
+                "minute": 0,
+                "ecliptic_longitude": round(sign_idx * 30.0, 4),
+            }
+        )
     return houses
 
 
@@ -1064,7 +1395,15 @@ def planetary_hours(jd: float, lat: float, lon: float) -> dict:
     """Compute planetary day and hour."""
     # Day of week
     dow = int(jd + 1.5) % 7
-    days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    days = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+    ]
     # Planetary hour rulers (Chaldean order)
     rulers = ["Saturn", "Jupiter", "Mars", "Sun", "Venus", "Mercury", "Moon"]
     # First hour ruler of the day
@@ -1080,8 +1419,13 @@ def planetary_hours(jd: float, lat: float, lon: float) -> dict:
 
 
 # Additional chart computation with all features
-def compute_full_chart(dt_str: str, lat: float, lon: float,
-                      house_system: str = "W", ayanamsa_code: str = "lahiri") -> dict:
+def compute_full_chart(
+    dt_str: str,
+    lat: float,
+    lon: float,
+    house_system: str = "W",
+    ayanamsa_code: str = "lahiri",
+) -> dict:
     """Compute a full chart with all Khagole features."""
     jd = julian_day(dt_str)
     ayan = ayanamsa_value(ayanamsa_code, jd)
@@ -1108,17 +1452,19 @@ def compute_full_chart(dt_str: str, lat: float, lon: float,
         sign = SIGNS[sign_idx]
         deg = int(sid % 30)
         minute = int((sid % 30 - deg) * 60)
-        planets.append({
-            "name": name,
-            "tropical_longitude": round(trop, 4),
-            "sidereal_longitude": round(sid, 4),
-            "sign": sign,
-            "degree": deg,
-            "minute": minute,
-            "retrograde": is_retrograde(name, jd),
-            "dignity": planet_dignity(name, sign),
-            "nakshatra": nakshatra_details(sid),
-        })
+        planets.append(
+            {
+                "name": name,
+                "tropical_longitude": round(trop, 4),
+                "sidereal_longitude": round(sid, 4),
+                "sign": sign,
+                "degree": deg,
+                "minute": minute,
+                "retrograde": is_retrograde(name, jd),
+                "dignity": planet_dignity(name, sign),
+                "nakshatra": nakshatra_details(sid),
+            }
+        )
 
     houses = compute_houses(asc_sid, house_system)
     aspects = compute_aspects(planets)
@@ -1160,27 +1506,40 @@ def compute_full_chart(dt_str: str, lat: float, lon: float,
 # Additional features: Time Lords, Arabic Parts, Temperament, Progressions
 # ---------------------------------------------------------------------------
 
+
 # Time Lords (Profections and Firdaria)
-def profections(birth_jd: float, asc_lon: float, start_year: int, end_year: int) -> list:
+def profections(
+    birth_jd: float, asc_lon: float, start_year: int, end_year: int
+) -> list:
     """Annual profections: Ascendant moves one sign per year."""
     result = []
     for age in range(start_year, end_year + 1):
         sign_idx = int(asc_lon / 30 + age) % 12
         # Lord of the sign
         sign_lords = {
-            "Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury",
-            "Cancer": "Moon", "Leo": "Sun", "Virgo": "Mercury",
-            "Libra": "Venus", "Scorpio": "Mars", "Sagittarius": "Jupiter",
-            "Capricorn": "Saturn", "Aquarius": "Saturn", "Pisces": "Jupiter",
+            "Aries": "Mars",
+            "Taurus": "Venus",
+            "Gemini": "Mercury",
+            "Cancer": "Moon",
+            "Leo": "Sun",
+            "Virgo": "Mercury",
+            "Libra": "Venus",
+            "Scorpio": "Mars",
+            "Sagittarius": "Jupiter",
+            "Capricorn": "Saturn",
+            "Aquarius": "Saturn",
+            "Pisces": "Jupiter",
         }
         sign = SIGNS[sign_idx]
         lord = sign_lords.get(sign, "")
-        result.append({
-            "age": age,
-            "sign": sign,
-            "lord": lord,
-            "house": (age % 12) + 1,
-        })
+        result.append(
+            {
+                "age": age,
+                "sign": sign,
+                "lord": lord,
+                "house": (age % 12) + 1,
+            }
+        )
     return result
 
 
@@ -1189,11 +1548,25 @@ def firdaria(birth_jd: float, is_diurnal: bool, start_year: int, end_year: int) 
     # Day birth: Sun 10, Venus 8, Mercury 13, Moon 9, Saturn 11, Jupiter 12, Mars 7
     # Night birth: Moon 9, Saturn 11, Jupiter 12, Mars 7, Sun 10, Venus 8, Mercury 13
     if is_diurnal:
-        major = [("Sun", 10), ("Venus", 8), ("Mercury", 13), ("Moon", 9),
-                 ("Saturn", 11), ("Jupiter", 12), ("Mars", 7)]
+        major = [
+            ("Sun", 10),
+            ("Venus", 8),
+            ("Mercury", 13),
+            ("Moon", 9),
+            ("Saturn", 11),
+            ("Jupiter", 12),
+            ("Mars", 7),
+        ]
     else:
-        major = [("Moon", 9), ("Saturn", 11), ("Jupiter", 12), ("Mars", 7),
-                 ("Sun", 10), ("Venus", 8), ("Mercury", 13)]
+        major = [
+            ("Moon", 9),
+            ("Saturn", 11),
+            ("Jupiter", 12),
+            ("Mars", 7),
+            ("Sun", 10),
+            ("Venus", 8),
+            ("Mercury", 13),
+        ]
     # Add nodes at the end
     major += [("North Node", 3), ("South Node", 2)]
 
@@ -1211,28 +1584,38 @@ def firdaria(birth_jd: float, is_diurnal: bool, start_year: int, end_year: int) 
         sub_period_years = years / 7.0
         sub_periods = []
         for i in range(7):
-            sub_lord = chaldean_order[(chaldean_order.index(lord) + i) % 7] if lord in chaldean_order else lord
+            sub_lord = (
+                chaldean_order[(chaldean_order.index(lord) + i) % 7]
+                if lord in chaldean_order
+                else lord
+            )
             sub_start = current_year + i * sub_period_years
             sub_end = sub_start + sub_period_years
             if sub_end >= start_year and sub_start <= end_year:
-                sub_periods.append({
-                    "lord": sub_lord,
-                    "start": round(sub_start, 2),
-                    "end": round(sub_end, 2),
-                })
-        result.append({
-            "lord": lord,
-            "years": years,
-            "start": round(current_year, 2),
-            "end": round(current_year + years, 2),
-            "sub_periods": sub_periods,
-        })
+                sub_periods.append(
+                    {
+                        "lord": sub_lord,
+                        "start": round(sub_start, 2),
+                        "end": round(sub_end, 2),
+                    }
+                )
+        result.append(
+            {
+                "lord": lord,
+                "years": years,
+                "start": round(current_year, 2),
+                "end": round(current_year + years, 2),
+                "sub_periods": sub_periods,
+            }
+        )
         current_year += years
 
     return result
 
 
-def time_lords(birth_dt: str, asc_lon: float, start_year: int = 0, end_year: int = 10) -> dict:
+def time_lords(
+    birth_dt: str, asc_lon: float, start_year: int = 0, end_year: int = 10
+) -> dict:
     """Compute time lords (profections and firdaria)."""
     jd = julian_day(birth_dt)
     # Determine if diurnal (Sun above horizon)
@@ -1274,10 +1657,18 @@ def temperament(planets: list) -> dict:
     # Simplified: count elements
     element_count = {"Fire": 0, "Earth": 0, "Air": 0, "Water": 0}
     element_map = {
-        "Aries": "Fire", "Leo": "Fire", "Sagittarius": "Fire",
-        "Taurus": "Earth", "Virgo": "Earth", "Capricorn": "Earth",
-        "Gemini": "Air", "Libra": "Air", "Aquarius": "Air",
-        "Cancer": "Water", "Scorpio": "Water", "Pisces": "Water",
+        "Aries": "Fire",
+        "Leo": "Fire",
+        "Sagittarius": "Fire",
+        "Taurus": "Earth",
+        "Virgo": "Earth",
+        "Capricorn": "Earth",
+        "Gemini": "Air",
+        "Libra": "Air",
+        "Aquarius": "Air",
+        "Cancer": "Water",
+        "Scorpio": "Water",
+        "Pisces": "Water",
     }
     for p in planets:
         sign = p.get("sign", "")
@@ -1311,7 +1702,9 @@ def antiscia(lon1: float, lon2: float) -> dict:
 # Progressions (secondary progressions - day for a year)
 def secondary_progression(birth_jd: float, target_date: str) -> float:
     """Secondary progression: 1 day = 1 year."""
-    target_jd = julian_day(target_date + "T12:00:00Z" if "T" not in target_date else target_date)
+    target_jd = julian_day(
+        target_date + "T12:00:00Z" if "T" not in target_date else target_date
+    )
     days_elapsed = target_jd - birth_jd
     progression_days = days_elapsed / 365.25
     progressed_jd = birth_jd + progression_days
@@ -1324,6 +1717,7 @@ def solar_return(birth_sun_lon: float, year: int) -> str:
     # Simplified: find when Sun returns to birth longitude
     # Search around birthday
     from datetime import date, timedelta
+
     # Approximate: birthday in the given year
     birth_date = None
     # We'll just return an approximate date
@@ -1332,12 +1726,34 @@ def solar_return(birth_sun_lon: float, year: int) -> str:
 
 # Lunar mansion (28 mansions)
 LUNAR_MANSIONS = [
-    "Al-Sharatan", "Al-Butain", "Al-Thurayya", "Al-Dabaran", "Al-Haq'a",
-    "Al-Han'a", "Al-Dhira", "Al-Nathra", "Al-Tarf", "Al-Jabha",
-    "Al-Zubra", "Al-Sarfah", "Al-Awwa", "Al-Simak", "Al-Ghafr",
-    "Al-Zubana", "Al-Iklil", "Al-Qalb", "Al-Shaula", "Al-Na'am",
-    "Al-Baldah", "Al-Sa'd al-Dhabih", "Al-Sa'd Bula", "Al-Sa'd al-Su'ud",
-    "Al-Sa'd al-Akhbiya", "Al-Fargh al-Awwal", "Al-Fargh al-Thani", "Al-Batn al-Hut",
+    "Al-Sharatan",
+    "Al-Butain",
+    "Al-Thurayya",
+    "Al-Dabaran",
+    "Al-Haq'a",
+    "Al-Han'a",
+    "Al-Dhira",
+    "Al-Nathra",
+    "Al-Tarf",
+    "Al-Jabha",
+    "Al-Zubra",
+    "Al-Sarfah",
+    "Al-Awwa",
+    "Al-Simak",
+    "Al-Ghafr",
+    "Al-Zubana",
+    "Al-Iklil",
+    "Al-Qalb",
+    "Al-Shaula",
+    "Al-Na'am",
+    "Al-Baldah",
+    "Al-Sa'd al-Dhabih",
+    "Al-Sa'd Bula",
+    "Al-Sa'd al-Su'ud",
+    "Al-Sa'd al-Akhbiya",
+    "Al-Fargh al-Awwal",
+    "Al-Fargh al-Thani",
+    "Al-Batn al-Hut",
 ]
 
 
@@ -1353,15 +1769,28 @@ def lunar_mansion(moon_lon: float) -> str:
 
 # Chara Karakas (Jaimini)
 KARAKA_ORDER = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]
-KARAKA_NAMES = ["Atmakaraka", "Amatyakaraka", "Bhratrukaraka", "Matrikaraka",
-                "Pitrikaraka", "Putrakaraka", "Gnatikaraka"]
+KARAKA_NAMES = [
+    "Atmakaraka",
+    "Amatyakaraka",
+    "Bhratrukaraka",
+    "Matrikaraka",
+    "Pitrikaraka",
+    "Putrakaraka",
+    "Gnatikaraka",
+]
 
 
 def chara_karakas(planets: list) -> dict:
     """Compute Chara Karakas (Jaimini). Highest degree in sign = Atmakaraka, etc."""
     # Sort planets by degree in sign (descending), excluding Rahu/Ketu
-    eligible = [p for p in planets if p["name"] not in ("Rahu", "Ketu", "Uranus", "Neptune", "Pluto")]
-    sorted_planets = sorted(eligible, key=lambda p: p["sidereal_longitude"] % 30, reverse=True)
+    eligible = [
+        p
+        for p in planets
+        if p["name"] not in ("Rahu", "Ketu", "Uranus", "Neptune", "Pluto")
+    ]
+    sorted_planets = sorted(
+        eligible, key=lambda p: p["sidereal_longitude"] % 30, reverse=True
+    )
     result = {}
     for i, p in enumerate(sorted_planets[:7]):
         result[KARAKA_NAMES[i]] = p["name"]
@@ -1370,8 +1799,12 @@ def chara_karakas(planets: list) -> dict:
 
 # Combustion
 COMBUSTION_ORBS = {
-    "Moon": 12, "Mars": 17, "Mercury": 14, "Jupiter": 11,
-    "Venus": 10, "Saturn": 15,
+    "Moon": 12,
+    "Mars": 17,
+    "Mercury": 14,
+    "Jupiter": 11,
+    "Venus": 10,
+    "Saturn": 15,
 }
 
 
@@ -1388,8 +1821,15 @@ def is_combust(planet: str, planet_lon: float, sun_lon: float) -> bool:
 def shadbala(planet: str, sign: str, house: int, is_diurnal: bool = True) -> dict:
     """Simplified Shadbala (planetary strength)."""
     # Uchcha Bala (exaltation strength)
-    exalt_deg = {"Sun": 10, "Moon": 33, "Mars": 298, "Mercury": 165,
-                 "Jupiter": 95, "Venus": 357, "Saturn": 201}
+    exalt_deg = {
+        "Sun": 10,
+        "Moon": 33,
+        "Mars": 298,
+        "Mercury": 165,
+        "Jupiter": 95,
+        "Venus": 357,
+        "Saturn": 201,
+    }
     if planet in exalt_deg:
         diff = abs(exalt_deg[planet] - (SIGNS.index(sign) * 30 if sign in SIGNS else 0))
         diff = min(diff, 360 - diff)
@@ -1400,7 +1840,11 @@ def shadbala(planet: str, sign: str, house: int, is_diurnal: bool = True) -> dic
     kendra = {1: 60, 4: 30, 7: 60, 10: 30}.get(house, 0)
     # Ojhayugma Bala (odd/even signs)
     odd_signs = ["Aries", "Gemini", "Leo", "Libra", "Sagittarius", "Aquarius"]
-    ojha = 15 if (sign in odd_signs) == (planet in ["Sun", "Mars", "Jupiter", "Mercury"]) else 0
+    ojha = (
+        15
+        if (sign in odd_signs) == (planet in ["Sun", "Mars", "Jupiter", "Mercury"])
+        else 0
+    )
     total = uchcha + kendra + ojha
     return {
         "planet": planet,
@@ -1470,13 +1914,23 @@ def horary_chart(dt_str: str, lat: float, lon: float, quesited_house: int = 7) -
     asc_sign = chart["ascendant_sign"]
     # Significators
     sign_lords = {
-        "Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury",
-        "Cancer": "Moon", "Leo": "Sun", "Virgo": "Mercury",
-        "Libra": "Venus", "Scorpio": "Mars", "Sagittarius": "Jupiter",
-        "Capricorn": "Saturn", "Aquarius": "Saturn", "Pisces": "Jupiter",
+        "Aries": "Mars",
+        "Taurus": "Venus",
+        "Gemini": "Mercury",
+        "Cancer": "Moon",
+        "Leo": "Sun",
+        "Virgo": "Mercury",
+        "Libra": "Venus",
+        "Scorpio": "Mars",
+        "Sagittarius": "Jupiter",
+        "Capricorn": "Saturn",
+        "Aquarius": "Saturn",
+        "Pisces": "Jupiter",
     }
     querent_lord = sign_lords.get(asc_sign, "")
-    quesited_sign = chart["houses"][quesited_house - 1]["sign"] if quesited_house <= 12 else ""
+    quesited_sign = (
+        chart["houses"][quesited_house - 1]["sign"] if quesited_house <= 12 else ""
+    )
     quesited_lord = sign_lords.get(quesited_sign, "")
     moon = next((p for p in chart["planets"] if p["name"] == "Moon"), {})
     # Moon void of course check (simplified)
@@ -1500,6 +1954,7 @@ def horary_chart(dt_str: str, lat: float, lon: float, quesited_house: int = 7) -
 # Graha Yuddha, Vimshopaka, Khagola (celestial position)
 # ---------------------------------------------------------------------------
 
+
 # Arudha Pada (Jaimini)
 def arudha_pada(bhava_rashi: int, adhipati_rashi: int) -> int:
     """Arudha pada: count from bhava to lord's rashi, then same again.
@@ -1518,9 +1973,18 @@ def arudha_pada(bhava_rashi: int, adhipati_rashi: int) -> int:
 def all_arudhas(planets: list, houses: list) -> dict:
     """Compute arudha padas for all 12 houses."""
     sign_lords = {
-        0: "Mars", 1: "Venus", 2: "Mercury", 3: "Moon", 4: "Sun",
-        5: "Mercury", 6: "Venus", 7: "Mars", 8: "Jupiter",
-        9: "Saturn", 10: "Saturn", 11: "Jupiter",
+        0: "Mars",
+        1: "Venus",
+        2: "Mercury",
+        3: "Moon",
+        4: "Sun",
+        5: "Mercury",
+        6: "Venus",
+        7: "Mars",
+        8: "Jupiter",
+        9: "Saturn",
+        10: "Saturn",
+        11: "Jupiter",
     }
     arudhas = {}
     for i in range(12):
@@ -1531,7 +1995,7 @@ def all_arudhas(planets: list, houses: list) -> dict:
         if lord_planet:
             lord_rashi = int(lord_planet["sidereal_longitude"] / 30) % 12
             pada = arudha_pada(house_sign, lord_rashi)
-            arudhas[f"Arudha_{i+1}"] = SIGNS[pada]
+            arudhas[f"Arudha_{i + 1}"] = SIGNS[pada]
     return arudhas
 
 
@@ -1606,7 +2070,13 @@ def all_upagrahas(sun_sid: float, is_daytime: bool = True) -> dict:
 # Drishti (Vedic graded aspects)
 DRISHTI_STRENGTH = {
     # house offset -> strength %
-    3: 25, 4: 75, 5: 50, 7: 100, 8: 75, 9: 50, 10: 25,
+    3: 25,
+    4: 75,
+    5: 50,
+    7: 100,
+    8: 75,
+    9: 50,
+    10: 25,
 }
 
 SPECIAL_ASPECTS = {
@@ -1649,17 +2119,28 @@ def find_vedic_aspects(planets: list, asc_sign_idx: int) -> list:
                 houses_away = 12
             strength = vedic_drishti(p1["name"], 0, houses_away)
             if strength > 0:
-                results.append({
-                    "from": p1["name"],
-                    "to": p2["name"],
-                    "houses_away": houses_away,
-                    "strength": strength,
-                })
+                results.append(
+                    {
+                        "from": p1["name"],
+                        "to": p2["name"],
+                        "houses_away": houses_away,
+                        "strength": strength,
+                    }
+                )
     return results
 
 
 # Cheshta (motion states)
-MOTION_STATES = ["vakra", "anuvakra", "vikala", "manda", "mandatara", "sama", "chara", "atichara"]
+MOTION_STATES = [
+    "vakra",
+    "anuvakra",
+    "vikala",
+    "manda",
+    "mandatara",
+    "sama",
+    "chara",
+    "atichara",
+]
 
 
 def cheshta_state(speed: float, avg_speed: float) -> str:
@@ -1690,8 +2171,16 @@ def chara_karakas_full(planets: list) -> dict:
         eligible.append((p["name"], deg_in_sign))
     # Sort descending
     eligible.sort(key=lambda x: x[1], reverse=True)
-    karaka_names = ["Atmakaraka", "Amatyakaraka", "Bhratrukaraka", "Matrikaraka",
-                    "Pitrikaraka", "Putrakaraka", "Gnatikaraka", "Darakaraka"]
+    karaka_names = [
+        "Atmakaraka",
+        "Amatyakaraka",
+        "Bhratrukaraka",
+        "Matrikaraka",
+        "Pitrikaraka",
+        "Putrakaraka",
+        "Gnatikaraka",
+        "Darakaraka",
+    ]
     result = {}
     for i, (name, deg) in enumerate(eligible[:8]):
         result[karaka_names[i]] = {"planet": name, "degree": round(deg, 2)}
@@ -1738,11 +2227,36 @@ def graha_yuddha(p1: str, lon1: float, p2: str, lon2: float) -> dict:
 VIMSHOPAKA_WEIGHTS = {
     "shadvarga": {"D1": 6, "D2": 2, "D3": 4, "D9": 5, "D12": 2, "D30": 1},
     "sapta": {"D1": 5, "D2": 2, "D3": 3, "D7": 2.5, "D9": 4.5, "D12": 2, "D30": 1},
-    "dashavarga": {"D1": 3, "D2": 1.5, "D3": 1.5, "D4": 1.5, "D7": 1.5,
-                   "D9": 1.5, "D10": 1.5, "D12": 1.5, "D30": 1.5, "D60": 5},
-    "shodashavarga": {"D1": 3.5, "D2": 1, "D3": 1, "D4": 0.5, "D7": 0.5,
-                      "D9": 3, "D10": 0.5, "D12": 0.5, "D16": 2, "D20": 0.5,
-                      "D24": 0.5, "D27": 0.5, "D30": 1, "D40": 0.5, "D45": 0.5, "D60": 4},
+    "dashavarga": {
+        "D1": 3,
+        "D2": 1.5,
+        "D3": 1.5,
+        "D4": 1.5,
+        "D7": 1.5,
+        "D9": 1.5,
+        "D10": 1.5,
+        "D12": 1.5,
+        "D30": 1.5,
+        "D60": 5,
+    },
+    "shodashavarga": {
+        "D1": 3.5,
+        "D2": 1,
+        "D3": 1,
+        "D4": 0.5,
+        "D7": 0.5,
+        "D9": 3,
+        "D10": 0.5,
+        "D12": 0.5,
+        "D16": 2,
+        "D20": 0.5,
+        "D24": 0.5,
+        "D27": 0.5,
+        "D30": 1,
+        "D40": 0.5,
+        "D45": 0.5,
+        "D60": 4,
+    },
 }
 
 
@@ -1750,14 +2264,21 @@ def vimshopaka_bala(planet: str, sign: str, scheme: str = "shadvarga") -> float:
     """Vimshopaka Bala for a planet."""
     weights = VIMSHOPAKA_WEIGHTS.get(scheme, VIMSHOPAKA_WEIGHTS["shadvarga"])
     # Simplified: base score from dignity
-    base = {"Exalted": 20, "Own Sign": 15, "Moolatrikona": 12,
-            "Neutral": 10, "Debilitated": 5}.get(planet_dignity(planet, sign), 10)
+    base = {
+        "Exalted": 20,
+        "Own Sign": 15,
+        "Moolatrikona": 12,
+        "Neutral": 10,
+        "Debilitated": 5,
+    }.get(planet_dignity(planet, sign), 10)
     total_weight = sum(weights.values())
     return round(base * total_weight / 20, 2)
 
 
 # Muhurta (electional) - basic
-def muhurta_score(dt_str: str, lat: float, lon: float, purpose: str = "general") -> dict:
+def muhurta_score(
+    dt_str: str, lat: float, lon: float, purpose: str = "general"
+) -> dict:
     """Basic muhurta (electional) scoring."""
     chart = compute_full_chart(dt_str, lat, lon)
     score = 50
@@ -1767,7 +2288,15 @@ def muhurta_score(dt_str: str, lat: float, lon: float, purpose: str = "general")
     # Check Mercury retrograde
     # Check day
     jd = julian_day(dt_str)
-    vara = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][int(jd + 1.5) % 7]
+    vara = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+    ][int(jd + 1.5) % 7]
     # Favorable days for general: Wednesday, Thursday, Friday
     if vara in ("Wednesday", "Thursday", "Friday"):
         score += 10
@@ -1783,7 +2312,9 @@ def muhurta_score(dt_str: str, lat: float, lon: float, purpose: str = "general")
     else:
         score += 5
         factors.append({"code": "AUSPICIOUS_NAKSHATRA", "weight": 5})
-    verdict = "favourable" if score >= 65 else ("mixed" if score >= 45 else "unfavourable")
+    verdict = (
+        "favourable" if score >= 65 else ("mixed" if score >= 45 else "unfavourable")
+    )
     return {
         "score": score,
         "verdict": verdict,
@@ -1856,15 +2387,36 @@ def ashtakavarga_full(planets: list, asc_sign: int) -> dict:
 
 
 # Shadbala (more complete)
-def shadbala_complete(planet: str, sign: str, house: int, is_diurnal: bool,
-                     moon_lon: float, sun_lon: float, jd: float) -> dict:
+def shadbala_complete(
+    planet: str,
+    sign: str,
+    house: int,
+    is_diurnal: bool,
+    moon_lon: float,
+    sun_lon: float,
+    jd: float,
+) -> dict:
     """More complete Shadbala."""
     # Naisargika Bala
-    naisargika = {"Sun": 60, "Moon": 51.43, "Mars": 17.14, "Mercury": 25.71,
-                  "Jupiter": 34.29, "Venus": 42.86, "Saturn": 8.57}.get(planet, 0)
+    naisargika = {
+        "Sun": 60,
+        "Moon": 51.43,
+        "Mars": 17.14,
+        "Mercury": 25.71,
+        "Jupiter": 34.29,
+        "Venus": 42.86,
+        "Saturn": 8.57,
+    }.get(planet, 0)
     # Uchcha Bala
-    exalt_deg = {"Sun": 10, "Moon": 33, "Mars": 298, "Mercury": 165,
-                 "Jupiter": 95, "Venus": 357, "Saturn": 201}
+    exalt_deg = {
+        "Sun": 10,
+        "Moon": 33,
+        "Mars": 298,
+        "Mercury": 165,
+        "Jupiter": 95,
+        "Venus": 357,
+        "Saturn": 201,
+    }
     planet_lon = None
     # Kendra Bala
     kendra = {1: 60, 4: 30, 7: 60, 10: 30}.get(house, 0)
@@ -1926,11 +2478,13 @@ def yogini_dasha(moon_lon_sid: float, birth_jd: float) -> list:
         years = YOGINI_YEARS[idx]
         if i == 0:
             years = balance
-        result.append({
-            "lord": YOGINI_LORDS[idx],
-            "years": round(years, 2),
-            "start_offset": round(total, 2),
-        })
+        result.append(
+            {
+                "lord": YOGINI_LORDS[idx],
+                "years": round(years, 2),
+                "start_offset": round(total, 2),
+            }
+        )
         total += years
     # Repeat for 120 years (15 cycles of 8)
     full = []
@@ -1939,17 +2493,28 @@ def yogini_dasha(moon_lon_sid: float, birth_jd: float) -> list:
         for r in result:
             if cycle_years + r["years"] > 120:
                 break
-            full.append({
-                "lord": r["lord"],
-                "years": r["years"],
-                "start_offset": round(cycle_years + r["start_offset"], 2),
-            })
+            full.append(
+                {
+                    "lord": r["lord"],
+                    "years": r["years"],
+                    "start_offset": round(cycle_years + r["start_offset"], 2),
+                }
+            )
         cycle_years += total
     return full[:15]
 
 
 # Ashtottari Dasha
-ASHTOTTARI_LORDS = ["Sun", "Moon", "Mars", "Mercury", "Saturn", "Jupiter", "Rahu", "Venus"]
+ASHTOTTARI_LORDS = [
+    "Sun",
+    "Moon",
+    "Mars",
+    "Mercury",
+    "Saturn",
+    "Jupiter",
+    "Rahu",
+    "Venus",
+]
 ASHTOTTARI_YEARS = [6, 15, 8, 17, 10, 19, 12, 21]
 
 
@@ -1971,11 +2536,13 @@ def ashtottari_dasha(moon_lon_sid: float) -> list:
         years = ASHTOTTARI_YEARS[idx]
         if i == 0:
             years = balance
-        result.append({
-            "lord": ASHTOTTARI_LORDS[idx],
-            "years": round(years, 2),
-            "start_offset": round(total, 2),
-        })
+        result.append(
+            {
+                "lord": ASHTOTTARI_LORDS[idx],
+                "years": round(years, 2),
+                "start_offset": round(total, 2),
+            }
+        )
         total += years
     return result
 
@@ -1987,11 +2554,13 @@ def chara_dasha(lagna_sign: int, positions: dict) -> list:
     result = []
     for i in range(12):
         sign = (lagna_sign + i) % 12
-        result.append({
-            "sign": SIGNS[sign],
-            "years": 1,  # simplified
-            "start_offset": i,
-        })
+        result.append(
+            {
+                "sign": SIGNS[sign],
+                "years": 1,  # simplified
+                "start_offset": i,
+            }
+        )
     return result
 
 
@@ -2027,6 +2596,7 @@ def kala_mana(jd: float) -> dict:
 def chinese_calendar(dt_str: str) -> dict:
     """Simplified Chinese calendar."""
     from datetime import datetime
+
     s = dt_str.strip().replace("Z", "+00:00")
     if "T" not in s:
         s += "T12:00:00+00:00"
@@ -2037,12 +2607,30 @@ def chinese_calendar(dt_str: str) -> dict:
     # Solar term (15° increments)
     term_idx = int(sun_lon / 15) % 24
     solar_terms = [
-        "Spring Begins", "Rain Water", "Insects Awaken", "Spring Equinox",
-        "Clear and Bright", "Grain Rain", "Summer Begins", "Grain Full",
-        "Grain in Ear", "Summer Solstice", "Minor Heat", "Major Heat",
-        "Autumn Begins", "End of Heat", "White Dew", "Autumn Equinox",
-        "Cold Dew", "Frost Descent", "Winter Begins", "Minor Snow",
-        "Major Snow", "Winter Solstice", "Minor Cold", "Major Cold",
+        "Spring Begins",
+        "Rain Water",
+        "Insects Awaken",
+        "Spring Equinox",
+        "Clear and Bright",
+        "Grain Rain",
+        "Summer Begins",
+        "Grain Full",
+        "Grain in Ear",
+        "Summer Solstice",
+        "Minor Heat",
+        "Major Heat",
+        "Autumn Begins",
+        "End of Heat",
+        "White Dew",
+        "Autumn Equinox",
+        "Cold Dew",
+        "Frost Descent",
+        "Winter Begins",
+        "Minor Snow",
+        "Major Snow",
+        "Winter Solstice",
+        "Minor Cold",
+        "Major Cold",
     ]
     # Lunar month approximation (simplified)
     lunar_month = (dt.month) % 12 + 1
@@ -2050,7 +2638,20 @@ def chinese_calendar(dt_str: str) -> dict:
     year_stem_idx = (dt.year - 4) % 10
     year_branch_idx = (dt.year - 4) % 12
     stems = ["Jia", "Yi", "Bing", "Ding", "Wu", "Ji", "Geng", "Xin", "Ren", "Gui"]
-    branches = ["Zi", "Chou", "Yin", "Mao", "Chen", "Si", "Wu", "Wei", "Shen", "You", "Xu", "Hai"]
+    branches = [
+        "Zi",
+        "Chou",
+        "Yin",
+        "Mao",
+        "Chen",
+        "Si",
+        "Wu",
+        "Wei",
+        "Shen",
+        "You",
+        "Xu",
+        "Hai",
+    ]
     return {
         "solar_term": solar_terms[term_idx],
         "solar_term_index": term_idx,
@@ -2110,10 +2711,18 @@ def bhava_analysis(planets: list, houses: list) -> dict:
 def mean_motion(planet: str) -> float:
     """Mean daily motion of a planet (degrees/day)."""
     motions = {
-        "Sun": 0.9856, "Moon": 13.176, "Mercury": 4.092, "Venus": 1.602,
-        "Mars": 0.524, "Jupiter": 0.083, "Saturn": 0.033,
-        "Uranus": 0.012, "Neptune": 0.006, "Pluto": 0.004,
-        "Rahu": -0.053, "Ketu": -0.053,
+        "Sun": 0.9856,
+        "Moon": 13.176,
+        "Mercury": 4.092,
+        "Venus": 1.602,
+        "Mars": 0.524,
+        "Jupiter": 0.083,
+        "Saturn": 0.033,
+        "Uranus": 0.012,
+        "Neptune": 0.006,
+        "Pluto": 0.004,
+        "Rahu": -0.053,
+        "Ketu": -0.053,
     }
     return motions.get(planet, 0.0)
 
@@ -2121,14 +2730,49 @@ def mean_motion(planet: str) -> float:
 # Graha (planet) info
 GRAHA_INFO = {
     "Sun": {"nature": "benefic", "gender": "male", "element": "fire", "guna": "sattva"},
-    "Moon": {"nature": "benefic", "gender": "female", "element": "water", "guna": "sattva"},
+    "Moon": {
+        "nature": "benefic",
+        "gender": "female",
+        "element": "water",
+        "guna": "sattva",
+    },
     "Mars": {"nature": "malefic", "gender": "male", "element": "fire", "guna": "tamas"},
-    "Mercury": {"nature": "neutral", "gender": "neutral", "element": "earth", "guna": "rajas"},
-    "Jupiter": {"nature": "benefic", "gender": "male", "element": "ether", "guna": "sattva"},
-    "Venus": {"nature": "benefic", "gender": "female", "element": "water", "guna": "rajas"},
-    "Saturn": {"nature": "malefic", "gender": "neutral", "element": "air", "guna": "tamas"},
-    "Rahu": {"nature": "malefic", "gender": "neutral", "element": "air", "guna": "tamas"},
-    "Ketu": {"nature": "malefic", "gender": "neutral", "element": "fire", "guna": "tamas"},
+    "Mercury": {
+        "nature": "neutral",
+        "gender": "neutral",
+        "element": "earth",
+        "guna": "rajas",
+    },
+    "Jupiter": {
+        "nature": "benefic",
+        "gender": "male",
+        "element": "ether",
+        "guna": "sattva",
+    },
+    "Venus": {
+        "nature": "benefic",
+        "gender": "female",
+        "element": "water",
+        "guna": "rajas",
+    },
+    "Saturn": {
+        "nature": "malefic",
+        "gender": "neutral",
+        "element": "air",
+        "guna": "tamas",
+    },
+    "Rahu": {
+        "nature": "malefic",
+        "gender": "neutral",
+        "element": "air",
+        "guna": "tamas",
+    },
+    "Ketu": {
+        "nature": "malefic",
+        "gender": "neutral",
+        "element": "fire",
+        "guna": "tamas",
+    },
 }
 
 
@@ -2159,26 +2803,66 @@ def khagola_grahana(sun_lon: float, moon_lon: float) -> dict:
 # ---------------------------------------------------------------------------
 
 FIXED_STARS = [
-    ("Acrux", 221.861), ("Agena", 233.7828), ("Alcyone", 59.9929),
-    ("Aldebaran", 69.7903), ("Algedi", 303.7604), ("Algenib", 9.152),
-    ("Algol", 56.1682), ("Alhena", 99.1066), ("Alkes", 173.6874),
-    ("Alnilam", 83.4659), ("Alphard", 147.2796), ("Alphecca", 222.2877),
-    ("Alpheratz", 14.305), ("Altair", 301.7663), ("Antares", 249.7534),
-    ("Arcturus", 204.2282), ("Asellus Australis", 128.7232), ("Asellus Borealis", 127.5397),
-    ("Baten Kaitos", 21.9475), ("Bellatrix", 80.9483), ("Betelgeuse", 88.7566),
-    ("Bungula", 239.4699), ("Canopus", 104.9802), ("Capella", 81.86),
-    ("Castor", 110.2421), ("Dabih", 304.0382), ("Deneb Adige", 335.3187),
-    ("Denebola", 171.6156), ("Dheneb", 289.7851), ("Difda", 2.5788),
-    ("El Nath", 82.5766), ("Fomalhaut", 333.8527), ("Graffias", 243.1815),
-    ("Hamal", 37.6613), ("Kiffa Boreal", 229.3641), ("Markab", 353.4799),
-    ("Menkar", 44.3196), ("Mesarthim", 33.183), ("Mira", 31.5203),
-    ("Mirack", 30.4036), ("Polaris", 88.5777), ("Polis", 273.2039),
-    ("Pollux", 113.2175), ("Praesepe", 127.2032), ("Prima Hyadum", 65.8067),
-    ("Procyon", 115.7875), ("Propus", 93.4381), ("Rasalgethi", 256.1415),
-    ("Rastaban", 251.9425), ("Regulus", 149.829), ("Rigel", 76.8319),
-    ("Sadalmelek", 333.3451), ("Scheat", 359.369), ("Sheratan", 33.9685),
-    ("Sirius", 104.0853), ("Spica", 203.8361), ("Triangolo", 36.8597),
-    ("Unukalhai", 232.067), ("Vega", 285.3003), ("Vindemiatrix", 189.9364),
+    ("Acrux", 221.861),
+    ("Agena", 233.7828),
+    ("Alcyone", 59.9929),
+    ("Aldebaran", 69.7903),
+    ("Algedi", 303.7604),
+    ("Algenib", 9.152),
+    ("Algol", 56.1682),
+    ("Alhena", 99.1066),
+    ("Alkes", 173.6874),
+    ("Alnilam", 83.4659),
+    ("Alphard", 147.2796),
+    ("Alphecca", 222.2877),
+    ("Alpheratz", 14.305),
+    ("Altair", 301.7663),
+    ("Antares", 249.7534),
+    ("Arcturus", 204.2282),
+    ("Asellus Australis", 128.7232),
+    ("Asellus Borealis", 127.5397),
+    ("Baten Kaitos", 21.9475),
+    ("Bellatrix", 80.9483),
+    ("Betelgeuse", 88.7566),
+    ("Bungula", 239.4699),
+    ("Canopus", 104.9802),
+    ("Capella", 81.86),
+    ("Castor", 110.2421),
+    ("Dabih", 304.0382),
+    ("Deneb Adige", 335.3187),
+    ("Denebola", 171.6156),
+    ("Dheneb", 289.7851),
+    ("Difda", 2.5788),
+    ("El Nath", 82.5766),
+    ("Fomalhaut", 333.8527),
+    ("Graffias", 243.1815),
+    ("Hamal", 37.6613),
+    ("Kiffa Boreal", 229.3641),
+    ("Markab", 353.4799),
+    ("Menkar", 44.3196),
+    ("Mesarthim", 33.183),
+    ("Mira", 31.5203),
+    ("Mirack", 30.4036),
+    ("Polaris", 88.5777),
+    ("Polis", 273.2039),
+    ("Pollux", 113.2175),
+    ("Praesepe", 127.2032),
+    ("Prima Hyadum", 65.8067),
+    ("Procyon", 115.7875),
+    ("Propus", 93.4381),
+    ("Rasalgethi", 256.1415),
+    ("Rastaban", 251.9425),
+    ("Regulus", 149.829),
+    ("Rigel", 76.8319),
+    ("Sadalmelek", 333.3451),
+    ("Scheat", 359.369),
+    ("Sheratan", 33.9685),
+    ("Sirius", 104.0853),
+    ("Spica", 203.8361),
+    ("Triangolo", 36.8597),
+    ("Unukalhai", 232.067),
+    ("Vega", 285.3003),
+    ("Vindemiatrix", 189.9364),
     ("Zosma", 161.3156),
 ]
 PRECESSION_RATE = 50.29 / 3600.0
@@ -2196,18 +2880,26 @@ def fixed_stars_conjunct(jd, points, max_orb=2.0, sidereal=False, ayanamsa=0):
             diff = abs(lon - point)
             diff = min(diff, 360 - diff)
             if diff <= max_orb:
-                result.append({"star": name, "longitude": round(lon, 4),
-                               "point": point, "orb": round(diff, 4)})
+                result.append(
+                    {
+                        "star": name,
+                        "longitude": round(lon, 4),
+                        "point": point,
+                        "orb": round(diff, 4),
+                    }
+                )
     return result
 
 
-def arabic_parts_full(asc, sun, moon, venus, mars, mercury, jupiter, saturn,
-                      is_diurnal=True):
+def arabic_parts_full(
+    asc, sun, moon, venus, mars, mercury, jupiter, saturn, is_diurnal=True
+):
     def lot(base, add, sub):
         if is_diurnal:
             return _norm(base + add - sub)
         else:
             return _norm(base + sub - add)
+
     spirit = lot(asc, sun, moon)
     fortune = lot(asc, moon, sun)
     return {
@@ -2225,12 +2917,30 @@ def arabic_parts_full(asc, sun, moon, venus, mars, mercury, jupiter, saturn,
 
 
 SOLAR_TERMS = [
-    "Spring Begins", "Rain Water", "Insects Awaken", "Spring Equinox",
-    "Clear and Bright", "Grain Rain", "Summer Begins", "Grain Full",
-    "Grain in Ear", "Summer Solstice", "Minor Heat", "Major Heat",
-    "Autumn Begins", "End of Heat", "White Dew", "Autumn Equinox",
-    "Cold Dew", "Frost Descent", "Winter Begins", "Minor Snow",
-    "Major Snow", "Winter Solstice", "Minor Cold", "Major Cold",
+    "Spring Begins",
+    "Rain Water",
+    "Insects Awaken",
+    "Spring Equinox",
+    "Clear and Bright",
+    "Grain Rain",
+    "Summer Begins",
+    "Grain Full",
+    "Grain in Ear",
+    "Summer Solstice",
+    "Minor Heat",
+    "Major Heat",
+    "Autumn Begins",
+    "End of Heat",
+    "White Dew",
+    "Autumn Equinox",
+    "Cold Dew",
+    "Frost Descent",
+    "Winter Begins",
+    "Minor Snow",
+    "Major Snow",
+    "Winter Solstice",
+    "Minor Cold",
+    "Major Cold",
 ]
 
 
@@ -2256,6 +2966,7 @@ def compute_full_panchang(dt_str, lat, lon):
 # Additional Vedaksha/Khagole features: More Dashas, Zi Wei, Vishesha Yogas,
 # Placidus houses, Eclipse details, Heliacal
 # ---------------------------------------------------------------------------
+
 
 # Ashtottari Dasha (already added, enhance)
 def ashtottari_dasha_full(moon_lon_sid: float) -> list:
@@ -2300,7 +3011,9 @@ def vishesha_yogas(planets: list) -> list:
 
     # Budhaditya: Sun and Mercury together
     if sun and mercury:
-        if int(sun["sidereal_longitude"] / 30) == int(mercury["sidereal_longitude"] / 30):
+        if int(sun["sidereal_longitude"] / 30) == int(
+            mercury["sidereal_longitude"] / 30
+        ):
             result.append("Budhaditya Yoga")
 
     # Chandra Mangala: Moon and Mars together
@@ -2337,13 +3050,15 @@ def houses_placidus(asc_sid: float, mc_sid: float, lat: float) -> list:
         else:
             h_lon = _norm(mc_sid + (i - 6) * 30)
         sign_idx = int(h_lon / 30) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": int(h_lon % 30),
-            "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": int(h_lon % 30),
+                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
     return houses
 
 
@@ -2401,13 +3116,17 @@ def eclipse_details(sun_lon: float, moon_lon: float, jd: float) -> dict:
     sep_from_180 = abs(diff - 180)
     solar = diff < 2.0  # new moon eclipse
     lunar = sep_from_180 < 2.0  # full moon eclipse
-    magnitude = 1.0 - (diff / 2.0) if solar else (1.0 - (sep_from_180 / 2.0) if lunar else 0)
+    magnitude = (
+        1.0 - (diff / 2.0) if solar else (1.0 - (sep_from_180 / 2.0) if lunar else 0)
+    )
     return {
         "solar_eclipse": solar,
         "lunar_eclipse": lunar,
         "angular_separation": round(diff, 4),
         "magnitude": round(max(0, magnitude), 4),
-        "type": "Total" if magnitude > 0.9 else ("Partial" if magnitude > 0 else "None"),
+        "type": "Total"
+        if magnitude > 0.9
+        else ("Partial" if magnitude > 0 else "None"),
     }
 
 
@@ -2416,12 +3135,24 @@ def eclipse_details(sun_lon: float, moon_lon: float, jd: float) -> dict:
 # More Ayanamsas, Eclipse details, Heliacal, Khagola
 # ---------------------------------------------------------------------------
 
+
 # Narayana Dasha (Jaimini)
 def narayana_dasha(lagna_sign: int, positions: dict) -> list:
     """Narayana Dasha (Jaimini) - sign-based."""
-    sign_lords = {0: "Mars", 1: "Venus", 2: "Mercury", 3: "Moon", 4: "Sun",
-                  5: "Mercury", 6: "Venus", 7: "Mars", 8: "Jupiter",
-                  9: "Saturn", 10: "Saturn", 11: "Jupiter"}
+    sign_lords = {
+        0: "Mars",
+        1: "Venus",
+        2: "Mercury",
+        3: "Moon",
+        4: "Sun",
+        5: "Mercury",
+        6: "Venus",
+        7: "Mars",
+        8: "Jupiter",
+        9: "Saturn",
+        10: "Saturn",
+        11: "Jupiter",
+    }
     result = []
     for i in range(12):
         sign = (lagna_sign + i) % 12
@@ -2430,8 +3161,14 @@ def narayana_dasha(lagna_sign: int, positions: dict) -> list:
         years = (lord_pos - sign) % 12 + 1
         if years == 0:
             years = 12
-        result.append({"sign": SIGNS[sign], "lord": lord, "years": years,
-                       "start_offset": sum(r["years"] for r in result)})
+        result.append(
+            {
+                "sign": SIGNS[sign],
+                "lord": lord,
+                "years": years,
+                "start_offset": sum(r["years"] for r in result),
+            }
+        )
     return result
 
 
@@ -2442,8 +3179,13 @@ def sthira_dasha(lagna_sign: int) -> list:
     result = []
     for i in range(12):
         sign = (lagna_sign + i) % 12
-        result.append({"sign": SIGNS[sign], "years": fixed_years[sign],
-                       "start_offset": sum(r["years"] for r in result)})
+        result.append(
+            {
+                "sign": SIGNS[sign],
+                "years": fixed_years[sign],
+                "start_offset": sum(r["years"] for r in result),
+            }
+        )
     return result
 
 
@@ -2455,8 +3197,9 @@ def shoola_dasha(lagna_sign: int) -> list:
     for tri in trikonas:
         for sign_offset in tri:
             sign = (lagna_sign + sign_offset) % 12
-            result.append({"sign": SIGNS[sign], "years": 1,
-                           "start_offset": len(result)})
+            result.append(
+                {"sign": SIGNS[sign], "years": 1, "start_offset": len(result)}
+            )
     return result
 
 
@@ -2472,8 +3215,7 @@ def maheshwara_dasha(lagna_sign: int, positions: dict) -> list:
     result = []
     for i in range(12):
         sign = (lagna_sign + i) % 12
-        result.append({"sign": SIGNS[sign], "years": 7,
-                       "start_offset": i * 7})
+        result.append({"sign": SIGNS[sign], "years": 7, "start_offset": i * 7})
     return result
 
 
@@ -2483,8 +3225,7 @@ def rashi_antar(dasha_sign: int, start_sign: int) -> list:
     result = []
     for i in range(12):
         sign = (start_sign + i) % 12
-        result.append({"sign": SIGNS[sign], "years": 1,
-                       "start_offset": i})
+        result.append({"sign": SIGNS[sign], "years": 1, "start_offset": i})
     return result
 
 
@@ -2511,7 +3252,9 @@ def vishesha_yogas_full(planets: list) -> list:
 
     # Budhaditya
     if sun and mercury:
-        if int(sun["sidereal_longitude"] / 30) == int(mercury["sidereal_longitude"] / 30):
+        if int(sun["sidereal_longitude"] / 30) == int(
+            mercury["sidereal_longitude"] / 30
+        ):
             result.append("Budhaditya Yoga")
 
     # Chandra Mangala
@@ -2587,13 +3330,15 @@ def houses_placidus_full(asc_sid: float, mc_sid: float, lat: float) -> list:
             frac = (i - 6) / 6.0
             h_lon = _norm(mc_sid + 180 + frac * (asc_sid + 360 - mc_sid - 180) % 360)
         sign_idx = int(h_lon / 30) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": int(h_lon % 30),
-            "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": int(h_lon % 30),
+                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
     return houses
 
 
@@ -2608,13 +3353,15 @@ def houses_regiomontanus(asc_sid: float, mc_sid: float) -> list:
     for i in range(12):
         h_lon = _norm(asc_sid + i * 30)
         sign_idx = int(h_lon / 30) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": int(h_lon % 30),
-            "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": int(h_lon % 30),
+                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
     return houses
 
 
@@ -2634,13 +3381,15 @@ def houses_morinus(asc_sid: float, mc_sid: float) -> list:
     for i in range(12):
         h_lon = _norm(mc_sid + i * 30)
         sign_idx = int(h_lon / 30) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": int(h_lon % 30),
-            "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": int(h_lon % 30),
+                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
     return houses
 
 
@@ -2651,13 +3400,15 @@ def houses_porphyry(asc_sid: float, mc_sid: float) -> list:
     for i in range(12):
         h_lon = _norm(asc_sid + i * 30)
         sign_idx = int(h_lon / 30) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": int(h_lon % 30),
-            "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": int(h_lon % 30),
+                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
     return houses
 
 
@@ -2672,13 +3423,15 @@ def houses_vehlow(asc_sid: float) -> list:
     for i in range(12):
         h_lon = _norm(asc_sid - 15 + i * 30)
         sign_idx = int(h_lon / 30) % 12
-        houses.append({
-            "house_number": i + 1,
-            "sign": SIGNS[sign_idx],
-            "degree": int(h_lon % 30),
-            "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
-            "ecliptic_longitude": round(h_lon, 4),
-        })
+        houses.append(
+            {
+                "house_number": i + 1,
+                "sign": SIGNS[sign_idx],
+                "degree": int(h_lon % 30),
+                "minute": int((h_lon % 30 - int(h_lon % 30)) * 60),
+                "ecliptic_longitude": round(h_lon, 4),
+            }
+        )
     return houses
 
 
@@ -2697,7 +3450,9 @@ HOUSE_SYSTEMS_FULL = {
 }
 
 
-def compute_houses_full(asc_sid: float, mc_sid: float, lat: float, system: str = "W") -> list:
+def compute_houses_full(
+    asc_sid: float, mc_sid: float, lat: float, system: str = "W"
+) -> list:
     """Compute houses for any system."""
     name, func = HOUSE_SYSTEMS_FULL.get(system, HOUSE_SYSTEMS_FULL["W"])
     return func(asc_sid, mc_sid, lat)
@@ -2738,17 +3493,40 @@ def khagola_station(planet: str, jd: float) -> bool:
 # Graha Ingress, Eclipse details, Bhava Bala, Vimshopaka complete
 # ---------------------------------------------------------------------------
 
+
 # Complete Shadbala (all components)
-def shadbala_complete_full(planet: str, sign: str, house: int, is_diurnal: bool,
-                           moon_lon: float, sun_lon: float, jd: float,
-                           speed: float = 1.0, avg_speed: float = 1.0) -> dict:
+def shadbala_complete_full(
+    planet: str,
+    sign: str,
+    house: int,
+    is_diurnal: bool,
+    moon_lon: float,
+    sun_lon: float,
+    jd: float,
+    speed: float = 1.0,
+    avg_speed: float = 1.0,
+) -> dict:
     """Complete Shadbala with all components."""
     # Naisargika Bala
-    naisargika = {"Sun": 60, "Moon": 51.43, "Mars": 17.14, "Mercury": 25.71,
-                  "Jupiter": 34.29, "Venus": 42.86, "Saturn": 8.57}.get(planet, 0)
+    naisargika = {
+        "Sun": 60,
+        "Moon": 51.43,
+        "Mars": 17.14,
+        "Mercury": 25.71,
+        "Jupiter": 34.29,
+        "Venus": 42.86,
+        "Saturn": 8.57,
+    }.get(planet, 0)
     # Uchcha Bala
-    exalt_deg = {"Sun": 10, "Moon": 33, "Mars": 298, "Mercury": 165,
-                 "Jupiter": 95, "Venus": 357, "Saturn": 201}
+    exalt_deg = {
+        "Sun": 10,
+        "Moon": 33,
+        "Mars": 298,
+        "Mercury": 165,
+        "Jupiter": 95,
+        "Venus": 357,
+        "Saturn": 201,
+    }
     planet_lon = (SIGNS.index(sign) * 30 if sign in SIGNS else 0) + 15
     if planet in exalt_deg:
         diff = abs(exalt_deg[planet] - planet_lon)
@@ -2792,7 +3570,18 @@ def shadbala_complete_full(planet: str, sign: str, house: int, is_diurnal: bool,
         paksha = 15 if moon_lon > sun_lon else 0
     elif planet in ("Sun", "Mercury", "Jupiter", "Venus"):
         paksha = 15 if sun_lon > moon_lon else 0
-    total = naisargika + uchcha + kendra + ojha + dig + cheshta + drik + saptavargaja + nathonnata + paksha
+    total = (
+        naisargika
+        + uchcha
+        + kendra
+        + ojha
+        + dig
+        + cheshta
+        + drik
+        + saptavargaja
+        + nathonnata
+        + paksha
+    )
     return {
         "planet": planet,
         "naisargika": round(naisargika, 1),
@@ -2829,7 +3618,9 @@ def bhava_bala_full(house: int, planets_in_house: list, asc_sign: int) -> dict:
 
 
 # Kala Khanda (full: hora, choghadiya, yamaganda, abhijit)
-def kala_khanda_full(jd: float, lat: float, lon: float, is_daytime: bool = True) -> dict:
+def kala_khanda_full(
+    jd: float, lat: float, lon: float, is_daytime: bool = True
+) -> dict:
     """Full kala khanda with hora, choghadiya, yamaganda, abhijit."""
     hour_of_day = int((jd % 1) * 24)
     ghati = int((jd % 1) * 60)
@@ -2891,10 +3682,18 @@ def eclipse_details_full(sun_lon: float, moon_lon: float, jd: float) -> dict:
     lunar = sep_from_180 < 2.0
     if solar:
         magnitude = 1.0 - (diff / 2.0)
-        eclipse_type = "Total" if magnitude > 0.9 else ("Partial" if magnitude > 0 else "Penumbral")
+        eclipse_type = (
+            "Total"
+            if magnitude > 0.9
+            else ("Partial" if magnitude > 0 else "Penumbral")
+        )
     elif lunar:
         magnitude = 1.0 - (sep_from_180 / 2.0)
-        eclipse_type = "Total" if magnitude > 0.9 else ("Partial" if magnitude > 0 else "Penumbral")
+        eclipse_type = (
+            "Total"
+            if magnitude > 0.9
+            else ("Partial" if magnitude > 0 else "Penumbral")
+        )
     else:
         magnitude = 0
         eclipse_type = "None"
@@ -2919,8 +3718,20 @@ def chinese_calendar_full(dt_str: str) -> dict:
 # Zi Wei Dou Shu (basic)
 def zi_wei_basic(year: int, month: int, day: int, hour: int) -> dict:
     """Basic Zi Wei Dou Shu chart."""
-    palaces = ["Life", "Siblings", "Spouse", "Children", "Wealth", "Health",
-               "Travel", "Friends", "Career", "Property", "Fortune", "Parents"]
+    palaces = [
+        "Life",
+        "Siblings",
+        "Spouse",
+        "Children",
+        "Wealth",
+        "Health",
+        "Travel",
+        "Friends",
+        "Career",
+        "Property",
+        "Fortune",
+        "Parents",
+    ]
     life_palace_idx = (month + hour) % 12
     result = {}
     for i, name in enumerate(palaces):
@@ -2956,7 +3767,9 @@ def vishesha_yogas_comprehensive(planets: list) -> list:
             result.append("Gaja Kesari Yoga")
 
     if sun and mercury:
-        if int(sun["sidereal_longitude"] / 30) == int(mercury["sidereal_longitude"] / 30):
+        if int(sun["sidereal_longitude"] / 30) == int(
+            mercury["sidereal_longitude"] / 30
+        ):
             result.append("Budhaditya Yoga")
 
     if moon and mars:
@@ -3008,40 +3821,98 @@ def node_osculating(jd: float) -> float:
 # Mean motion (full)
 def mean_motion_full(planet: str) -> dict:
     motions = {
-        "Sun": 0.9856, "Moon": 13.176, "Mercury": 4.092, "Venus": 1.602,
-        "Mars": 0.524, "Jupiter": 0.083, "Saturn": 0.033,
-        "Uranus": 0.012, "Neptune": 0.006, "Pluto": 0.004,
-        "Rahu": -0.053, "Ketu": -0.053,
+        "Sun": 0.9856,
+        "Moon": 13.176,
+        "Mercury": 4.092,
+        "Venus": 1.602,
+        "Mars": 0.524,
+        "Jupiter": 0.083,
+        "Saturn": 0.033,
+        "Uranus": 0.012,
+        "Neptune": 0.006,
+        "Pluto": 0.004,
+        "Rahu": -0.053,
+        "Ketu": -0.053,
     }
     motion = motions.get(planet, 0.0)
-    return {"planet": planet, "degrees_per_day": motion,
-            "degrees_per_year": round(motion * 365.25, 2),
-            "days_per_degree": round(1.0 / motion, 2) if motion != 0 else 0}
+    return {
+        "planet": planet,
+        "degrees_per_day": motion,
+        "degrees_per_year": round(motion * 365.25, 2),
+        "days_per_degree": round(1.0 / motion, 2) if motion != 0 else 0,
+    }
 
 
 # Graha (planet) info
 GRAHA_INFO = {
     "Sun": {"nature": "benefic", "gender": "male", "element": "fire", "guna": "sattva"},
-    "Moon": {"nature": "benefic", "gender": "female", "element": "water", "guna": "sattva"},
+    "Moon": {
+        "nature": "benefic",
+        "gender": "female",
+        "element": "water",
+        "guna": "sattva",
+    },
     "Mars": {"nature": "malefic", "gender": "male", "element": "fire", "guna": "tamas"},
-    "Mercury": {"nature": "neutral", "gender": "neutral", "element": "earth", "guna": "rajas"},
-    "Jupiter": {"nature": "benefic", "gender": "male", "element": "ether", "guna": "sattva"},
-    "Venus": {"nature": "benefic", "gender": "female", "element": "water", "guna": "rajas"},
-    "Saturn": {"nature": "malefic", "gender": "neutral", "element": "air", "guna": "tamas"},
-    "Rahu": {"nature": "malefic", "gender": "neutral", "element": "air", "guna": "tamas"},
-    "Ketu": {"nature": "malefic", "gender": "neutral", "element": "fire", "guna": "tamas"},
+    "Mercury": {
+        "nature": "neutral",
+        "gender": "neutral",
+        "element": "earth",
+        "guna": "rajas",
+    },
+    "Jupiter": {
+        "nature": "benefic",
+        "gender": "male",
+        "element": "ether",
+        "guna": "sattva",
+    },
+    "Venus": {
+        "nature": "benefic",
+        "gender": "female",
+        "element": "water",
+        "guna": "rajas",
+    },
+    "Saturn": {
+        "nature": "malefic",
+        "gender": "neutral",
+        "element": "air",
+        "guna": "tamas",
+    },
+    "Rahu": {
+        "nature": "malefic",
+        "gender": "neutral",
+        "element": "air",
+        "guna": "tamas",
+    },
+    "Ketu": {
+        "nature": "malefic",
+        "gender": "neutral",
+        "element": "fire",
+        "guna": "tamas",
+    },
 }
 
 
 def graha_info(planet: str) -> dict:
     """Get graha (planet) info."""
-    return GRAHA_INFO.get(planet, {"nature": "unknown", "gender": "unknown",
-                                    "element": "unknown", "guna": "unknown"})
+    return GRAHA_INFO.get(
+        planet,
+        {
+            "nature": "unknown",
+            "gender": "unknown",
+            "element": "unknown",
+            "guna": "unknown",
+        },
+    )
 
 
 # Chart with all features
-def compute_full_chart_v2(dt_str: str, lat: float, lon: float,
-                          house_system: str = "W", ayanamsa_code: str = "lahiri") -> dict:
+def compute_full_chart_v2(
+    dt_str: str,
+    lat: float,
+    lon: float,
+    house_system: str = "W",
+    ayanamsa_code: str = "lahiri",
+) -> dict:
     """Compute a full chart with all features."""
     chart = compute_full_chart(dt_str, lat, lon, house_system, ayanamsa_code)
     # Add vishesha yogas
@@ -3055,7 +3926,9 @@ def compute_full_chart_v2(dt_str: str, lat: float, lon: float,
     # Add fixed stars
     jd = julian_day(dt_str)
     points = [p["sidereal_longitude"] for p in chart["planets"]]
-    chart["fixed_stars"] = fixed_stars_conjunct(jd, points, 2.0, True, chart["ayanamsa"])
+    chart["fixed_stars"] = fixed_stars_conjunct(
+        jd, points, 2.0, True, chart["ayanamsa"]
+    )
     # Add arabic parts (full)
     asc = chart["ascendant"]
     sun = next((p for p in chart["planets"] if p["name"] == "Sun"), {})
@@ -3066,10 +3939,15 @@ def compute_full_chart_v2(dt_str: str, lat: float, lon: float,
     jupiter = next((p for p in chart["planets"] if p["name"] == "Jupiter"), {})
     saturn = next((p for p in chart["planets"] if p["name"] == "Saturn"), {})
     chart["arabic_parts"] = arabic_parts_full(
-        asc, sun.get("sidereal_longitude", 0), moon.get("sidereal_longitude", 0),
-        venus.get("sidereal_longitude", 0), mars.get("sidereal_longitude", 0),
-        mercury.get("sidereal_longitude", 0), jupiter.get("sidereal_longitude", 0),
-        saturn.get("sidereal_longitude", 0))
+        asc,
+        sun.get("sidereal_longitude", 0),
+        moon.get("sidereal_longitude", 0),
+        venus.get("sidereal_longitude", 0),
+        mars.get("sidereal_longitude", 0),
+        mercury.get("sidereal_longitude", 0),
+        jupiter.get("sidereal_longitude", 0),
+        saturn.get("sidereal_longitude", 0),
+    )
     # Add ashtakavarga
     asc_sign = int(chart["ascendant"] / 30) % 12
     chart["ashtakavarga"] = ashtakavarga_full(chart["planets"], asc_sign)
@@ -3089,3 +3967,450 @@ def compute_full_chart_v2(dt_str: str, lat: float, lon: float,
     # Add graha info
     chart["graha_info"] = {p["name"]: graha_info(p["name"]) for p in chart["planets"]}
     return chart
+
+
+# ---------------------------------------------------------------------------
+# Ashtakoota guna milan (classical tables, 8 kootas = 36 points)
+# ---------------------------------------------------------------------------
+
+#: Varna comes from the Moon's sign, not from the nakshatra (BPHS).
+VARNA_BY_SIGN = [
+    "Kshatriya",
+    "Vaishya",
+    "Shudra",
+    "Brahmin",
+    "Kshatriya",
+    "Vaishya",
+    "Shudra",
+    "Brahmin",
+    "Kshatriya",
+    "Vaishya",
+    "Shudra",
+    "Brahmin",
+]
+VARNA_RANK = {"Brahmin": 3, "Kshatriya": 2, "Vaishya": 1, "Shudra": 0}
+
+#: Vashya: Sagittarius and Capricorn are split at 15 degrees.
+VASHYA_BY_SIGN = {
+    0: "Chatushpada",
+    1: "Chatushpada",
+    2: "Manav",
+    3: "Jalchar",
+    4: "Vanchar",
+    5: "Manav",
+    6: "Manav",
+    7: "Keet",
+    10: "Manav",
+    11: "Jalchar",
+}
+VASHYA_SCORES = {
+    "Chatushpada": {
+        "Chatushpada": 2,
+        "Manav": 1,
+        "Jalchar": 1,
+        "Vanchar": 0,
+        "Keet": 1,
+    },
+    "Manav": {"Chatushpada": 1, "Manav": 2, "Jalchar": 0.5, "Vanchar": 0, "Keet": 1},
+    "Jalchar": {"Chatushpada": 1, "Manav": 0.5, "Jalchar": 2, "Vanchar": 0, "Keet": 1},
+    "Vanchar": {"Chatushpada": 0, "Manav": 0, "Jalchar": 0, "Vanchar": 2, "Keet": 0},
+    "Keet": {"Chatushpada": 1, "Manav": 1, "Jalchar": 1, "Vanchar": 0, "Keet": 2},
+}
+
+TARAS = [
+    "Janma",
+    "Sampat",
+    "Vipat",
+    "Kshema",
+    "Pratyak",
+    "Sadhaka",
+    "Naidhana",
+    "Mitra",
+    "Parama Mitra",
+]
+TARA_GOOD = {2, 4, 6, 8, 9}
+
+#: Yoni animal of each nakshatra (BPHS / standard 14-yoni table).
+YONI_BY_NAK = [
+    "Horse",
+    "Elephant",
+    "Sheep",
+    "Serpent",
+    "Serpent",
+    "Dog",
+    "Cat",
+    "Sheep",
+    "Cat",
+    "Rat",
+    "Rat",
+    "Cow",
+    "Buffalo",
+    "Tiger",
+    "Buffalo",
+    "Tiger",
+    "Deer",
+    "Deer",
+    "Dog",
+    "Monkey",
+    "Mongoose",
+    "Monkey",
+    "Lion",
+    "Horse",
+    "Lion",
+    "Cow",
+    "Elephant",
+]
+YONI_ENEMIES = {
+    frozenset(("Horse", "Buffalo")),
+    frozenset(("Elephant", "Lion")),
+    frozenset(("Sheep", "Monkey")),
+    frozenset(("Serpent", "Mongoose")),
+    frozenset(("Dog", "Deer")),
+    frozenset(("Cat", "Rat")),
+    frozenset(("Cow", "Tiger")),
+}
+
+NADI_BY_NAK = [
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    0,
+    1,
+    2,
+    2,
+    1,
+    0,
+    0,
+    1,
+    2,
+]
+NADI_NAMES = ["Adi", "Madhya", "Antya"]
+
+GANA_BY_NAK = [
+    0,
+    1,
+    2,
+    1,
+    0,
+    1,
+    0,
+    0,
+    2,
+    2,
+    1,
+    1,
+    0,
+    2,
+    0,
+    2,
+    0,
+    2,
+    2,
+    1,
+    1,
+    0,
+    2,
+    2,
+    1,
+    1,
+    0,
+]
+GANA_NAMES = ["Deva", "Manushya", "Rakshasa"]
+GANA_SCORES = ((6, 5, 1), (5, 6, 0), (1, 0, 6))
+
+#: Natural lords of the 12 signs (Aries first).
+SIGN_LORDS = [
+    "Mars",
+    "Venus",
+    "Mercury",
+    "Moon",
+    "Sun",
+    "Mercury",
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Saturn",
+    "Jupiter",
+]
+
+#: Natural friendship between the seven grahas, Sun..Saturn order. Values are
+#: the Graha Maitri points (same as the classical friend/neutral/enemy table).
+_FRIEND_ORDER = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]
+GRAHA_FRIEND_MATRIX = [
+    [5, 5, 5, 4, 5, 1, 0],
+    [5, 5, 4, 5, 4, 4, 3],
+    [5, 4, 5, 1, 5, 4, 3],
+    [4, 3, 1, 5, 4, 5, 4],
+    [5, 5, 5, 1, 5, 1, 3],
+    [1, 3, 4, 5, 1, 5, 5],
+    [0, 1, 1, 5, 3, 5, 5],
+]
+
+
+def _vashya(sid_lon: float) -> str:
+    """Vashya group of a sidereal longitude; Sagittarius/Capricorn split at 15°."""
+    sign = int(sid_lon / 30) % 12
+    if sign == 8:
+        return "Manav" if sid_lon % 30 < 15 else "Chatushpada"
+    if sign == 9:
+        return "Chatushpada" if sid_lon % 30 < 15 else "Jalchar"
+    return VASHYA_BY_SIGN[sign]
+
+
+def _moon_facts(chart: dict) -> dict:
+    """The Moon's sign and nakshatra based classifications, as plain data."""
+    moon = next((p for p in chart.get("planets", []) if p.get("name") == "Moon"), None)
+    if moon is None:
+        raise ValueError("chart has no Moon")
+    lon = float(moon.get("sidereal_longitude") or 0) % 360
+    sign = int(lon / 30) % 12
+    nak = int(lon / (360.0 / 27.0)) % 27
+    pada = int((lon % (360.0 / 27.0)) / (360.0 / 27.0 / 4.0)) + 1
+    return {
+        "longitude": round(lon, 4),
+        "sign_index": sign,
+        "sign": SIGNS[sign],
+        "nakshatra_index": nak,
+        "nakshatra": NAKSHATRAS[nak],
+        "pada": pada,
+        "varna": VARNA_BY_SIGN[sign],
+        "vashya": _vashya(lon),
+        "yoni": YONI_BY_NAK[nak],
+        "gana": GANA_NAMES[GANA_BY_NAK[nak]],
+        "nadi": NADI_NAMES[NADI_BY_NAK[nak]],
+        "sign_lord": SIGN_LORDS[sign],
+        "star_lord": DASHA_LORDS[nak % 9],
+    }
+
+
+def _koota(number, name, score, maximum, reason, **extra):
+    row = {
+        "number": number,
+        "name": name,
+        "score": score,
+        "max": maximum,
+        "reason": reason,
+    }
+    row.update(extra)
+    return row
+
+
+def ashtakoota_guna_milan(chart_a: dict, chart_b: dict) -> dict:
+    """Eightfold guna milan out of 36. ``chart_a`` is the groom, ``chart_b``
+    the bride; the first two charts passed to the bridge command are those.
+
+    Tables: varna by Moon sign, vashya by Moon degree (Sagittarius and
+    Capricorn split at 15°), tara by inclusive nakshatra count, yoni by the
+    14 animals, graha maitri by the natural friendship of the Moon signs'
+    lords, gana and nadi by nakshatra, bhakoot by the 2-12/5-9/6-8 rules.
+    Worked examples of every table are in tests/test_kundali_matching.py.
+    """
+    a, b = _moon_facts(chart_a), _moon_facts(chart_b)
+    kootas = []
+
+    # 1. Varna (1): groom's varna equal to or above the bride's.
+    score = 1 if VARNA_RANK[a["varna"]] >= VARNA_RANK[b["varna"]] else 0
+    kootas.append(
+        _koota(
+            1,
+            "varna",
+            score,
+            1,
+            "groom_equal_or_higher" if score else "groom_lower",
+            groom=a["varna"],
+            bride=b["varna"],
+        )
+    )
+
+    # 2. Vashya (2): full score from the 5x5 mutual table.
+    score = VASHYA_SCORES[a["vashya"]][b["vashya"]]
+    kootas.append(
+        _koota(
+            2,
+            "vashya",
+            score,
+            2,
+            "same_vashya" if score == 2 else "mutual_vashya_table",
+            groom=a["vashya"],
+            bride=b["vashya"],
+        )
+    )
+
+    # 3. Tara (3): count nakshatras both ways, inclusive; remainder 1..9.
+    ta = ((a["nakshatra_index"] - b["nakshatra_index"]) % 9) + 1
+    tb = ((b["nakshatra_index"] - a["nakshatra_index"]) % 9) + 1
+    good_a, good_b = ta in TARA_GOOD, tb in TARA_GOOD
+    score = 3 if good_a and good_b else (2 if good_a or good_b else 0)
+    kootas.append(
+        _koota(
+            3,
+            "tara",
+            score,
+            3,
+            "both_favourable"
+            if score == 3
+            else ("one_favourable" if score == 2 else "none_favourable"),
+            groom_tara=TARAS[ta - 1],
+            bride_tara=TARAS[tb - 1],
+            groom_number=ta,
+            bride_number=tb,
+        )
+    )
+
+    # 4. Yoni (4): same animal 4; near pairs 3; middle 2; far 1; enemies 0.
+    ya, yb = a["yoni"], b["yoni"]
+    ia, ib = YONI_BY_NAK.index(ya), YONI_BY_NAK.index(yb)
+    gap = abs(ia - ib)
+    if ya == yb:
+        score, reason = 4, "same_yoni"
+    elif frozenset((ya, yb)) in YONI_ENEMIES:
+        score, reason = 0, "enemy_yonis"
+    elif gap <= 2:
+        score, reason = 3, "friendly_yonis"
+    elif gap <= 5:
+        score, reason = 2, "neutral_yonis"
+    else:
+        score, reason = 1, "unfriendly_yonis"
+    kootas.append(_koota(4, "yoni", score, 4, reason, groom=ya, bride=yb))
+
+    # 5. Graha Maitri (5): friendship of the two Moon signs' lords.
+    la, lb = a["sign_lord"], b["sign_lord"]
+    score = GRAHA_FRIEND_MATRIX[_FRIEND_ORDER.index(la)][_FRIEND_ORDER.index(lb)]
+    reason = (
+        "same_lord"
+        if la == lb
+        else "mutual_friends"
+        if score == 5
+        else "friend_neutral"
+        if score == 4
+        else "mutual_neutral"
+        if score == 3
+        else "friend_enemy"
+        if score == 1
+        else "mutual_enmity"
+    )
+    kootas.append(_koota(5, "graha_maitri", score, 5, reason, groom=la, bride=lb))
+
+    # 6. Gana (6): Deva-Manushya 5, Deva-Rakshasa 1, Manushya-Rakshasa 0.
+    ga, gb = GANA_NAMES.index(a["gana"]), GANA_NAMES.index(b["gana"])
+    score = GANA_SCORES[ga][gb]
+    reason = (
+        "same_gana"
+        if ga == gb
+        else "deva_manushya"
+        if {ga, gb} == {0, 1}
+        else "deva_rakshasa"
+        if {ga, gb} == {0, 2}
+        else "manushya_rakshasa"
+    )
+    kootas.append(_koota(6, "gana", score, 6, reason, groom=a["gana"], bride=b["gana"]))
+
+    # 7. Bhakoot (7): 2-12, 5-9 and 6-8 give 0; all other distances give 7.
+    dist = ((a["sign_index"] - b["sign_index"]) % 12) + 1
+    bad = dist in (2, 5, 6, 8, 9, 12)
+    bhakoot_cancel = bool(bad and (la == lb or score_lord_friend(la, lb)))
+    score = 0 if bad and not bhakoot_cancel else 7
+    reason = (
+        "same_lord_or_friendly_lords"
+        if bhakoot_cancel
+        else "favourable_distance"
+        if not bad
+        else "bhakoot_dosha"
+    )
+    kootas.append(
+        _koota(
+            7,
+            "bhakoot",
+            score,
+            7,
+            reason,
+            distance=dist,
+            cancellation="same_or_friendly_lord" if bhakoot_cancel else None,
+        )
+    )
+
+    # 8. Nadi (8): same nadi gives 0. The classical exceptions are checked.
+    same_nadi = NADI_BY_NAK[a["nakshatra_index"]] == NADI_BY_NAK[b["nakshatra_index"]]
+    cancel = None
+    if same_nadi:
+        if a["nakshatra_index"] == b["nakshatra_index"]:
+            cancel = "same_nakshatra"
+        elif a["sign_index"] == b["sign_index"]:
+            cancel = "same_sign_different_nakshatra"
+        elif (
+            a["pada"] != b["pada"]
+            and abs(a["nakshatra_index"] - b["nakshatra_index"]) == 9
+        ):
+            cancel = "opposite_nakshatra_different_pada"
+    nadi_dosha = bool(same_nadi and not cancel)
+    score = 0 if nadi_dosha else 8
+    kootas.append(
+        _koota(
+            8,
+            "nadi",
+            score,
+            8,
+            "same_nadi"
+            if nadi_dosha
+            else ("exception_" + cancel if cancel else "different_nadi"),
+            groom=a["nadi"],
+            bride=b["nadi"],
+            cancellation=cancel,
+        )
+    )
+
+    total = sum(float(k["score"]) for k in kootas)
+    if total < 18:
+        verdict, band = "weak", "below_18"
+    elif total <= 24:
+        verdict, band = "average", "18_24"
+    elif total <= 32:
+        verdict, band = "good", "25_32"
+    else:
+        verdict, band = "excellent", "33_36"
+    return {
+        "system": "ashtakoota",
+        "max_score": 36,
+        "total": total,
+        "verdict": verdict,
+        "band": band,
+        "kootas": kootas,
+        "partner_a": a,
+        "partner_b": b,
+        "nadi_dosha": {
+            "present": nadi_dosha,
+            "cancelled": bool(cancel),
+            "cancellation": cancel,
+        },
+        "bhakoot_dosha": {
+            "present": bad,
+            "cancelled": bhakoot_cancel,
+            "distance": dist,
+        },
+    }
+
+
+def score_lord_friend(first: str, second: str) -> bool:
+    """True when two graha lords are natural friends (Graha Maitri >= 4)."""
+    if first not in _FRIEND_ORDER or second not in _FRIEND_ORDER:
+        return False
+    return (
+        GRAHA_FRIEND_MATRIX[_FRIEND_ORDER.index(first)][_FRIEND_ORDER.index(second)]
+        >= 4
+    )

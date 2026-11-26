@@ -54,18 +54,59 @@ SECTIONS = ("dasha", "ashtakavarga", "dignity", "aspects", "nakshatra", "eclipse
 #: window shows them (kundali.py run ACTION …). Labels are the window's to
 #: translate; the keys are stable.
 ACTION_GROUPS = (
-    ("chart", ("fullchart", "bhava", "drishti", "aspects", "nakshatra", "lunarmansion", "nodes")),
+    (
+        "chart",
+        (
+            "fullchart",
+            "bhava",
+            "drishti",
+            "aspects",
+            "nakshatra",
+            "lunarmansion",
+            "nodes",
+        ),
+    ),
     ("dashas", ("yoginidasha", "ashtottaridasha", "charadasha", "timelords")),
-    ("strength", ("shadbala", "shadbala_full", "vimshopaka", "ashtakavarga", "cheshta",
-                  "dignity", "combustion", "grahayuddha")),
-    ("points", ("arudha", "upagrahas", "upagrahas_full", "charakarakas", "karakas_full",
-                "arabicparts", "arabicparts_full", "fixedstars")),
+    (
+        "strength",
+        (
+            "shadbala",
+            "shadbala_full",
+            "vimshopaka",
+            "ashtakavarga",
+            "cheshta",
+            "dignity",
+            "combustion",
+            "grahayuddha",
+        ),
+    ),
+    (
+        "points",
+        (
+            "arudha",
+            "upagrahas",
+            "upagrahas_full",
+            "charakarakas",
+            "karakas_full",
+            "arabicparts",
+            "arabicparts_full",
+            "fixedstars",
+        ),
+    ),
     ("yogas", ("yogas", "vishesha", "vishesha_yogas")),
     ("timing", ("gochara", "muhurta", "horary", "fullpanchang", "kalamana")),
     ("sky", ("grahana", "eclipse", "meanmotion")),
     ("traditions", ("bazi", "ziwei", "chinese", "temperament")),
+    ("matching", ("ashtakoota",)),
 )
 ACTIONS = tuple(a for _, group in ACTION_GROUPS for a in group)
+
+#: The new calculations answer both ``compute`` (text) and ``compute_data``
+#: (plain data). Every one is also in ACTION_GROUPS above.
+_NEW_GROUPS = ("matching", "doshas", "kp", "annual", "lalkitab")
+NEW_ACTIONS = tuple(
+    a for group, names in ACTION_GROUPS if group in _NEW_GROUPS for a in names
+)
 
 
 def utc_instant(value: str) -> str:
@@ -78,6 +119,7 @@ def utc_instant(value: str) -> str:
     if "@" in value:
         from datetime import datetime, timezone
         from zoneinfo import ZoneInfo
+
         local, zone = value.split("@", 1)
         if "T" not in local:
             local += "T12:00"
@@ -94,6 +136,7 @@ def local_parts(value: str) -> dict:
     """The birth's own wall-clock year, month, day and hour (for the Chinese
     systems, which count from local time)."""
     from datetime import datetime
+
     value = str(value or "").strip()
     local = value.split("@", 1)[0] if "@" in value else value.rstrip("Z")
     if "T" not in local:
@@ -125,6 +168,11 @@ def _chart(arguments: dict, astronomy):
 def compute_data(action: str, arguments: dict, astronomy) -> dict:
     """One chart section as data (stable keys, no sentences for the UI)."""
     action = str(action or "").strip().lower()
+    if action in NEW_ACTIONS:
+        try:
+            return new_data(action, arguments, astronomy)
+        except Exception as exc:  # noqa: BLE001 - one honest error for the window
+            return {"error": str(exc)[:160]}
     if action not in SECTIONS:
         return {"error": f"Unknown section: {action}"}
     chart, error = _chart(arguments, astronomy)
@@ -219,6 +267,55 @@ def compute_data(action: str, arguments: dict, astronomy) -> dict:
         return {"error": str(exc)[:160]}
 
 
+def _new_chart(arguments: dict, astronomy):
+    """The sidereal chart behind a new calculation (positions from compute_chart)."""
+    return astronomy.compute_chart(
+        _need_when(arguments),
+        _need(arguments, "latitude"),
+        _need(arguments, "longitude"),
+    )
+
+
+def _second_chart(arguments: dict, astronomy):
+    """An optional second birth, for matching. Missing means self-match."""
+    if arguments.get("datetime2") in (None, ""):
+        return None
+    when2 = utc_instant(arguments["datetime2"])
+    return astronomy.compute_chart(
+        when2, float(arguments["latitude2"]), float(arguments["longitude2"])
+    )
+
+
+def new_data(action: str, arguments: dict, astronomy) -> dict:
+    """Plain data for the new calculations; no words and no UI sentences."""
+    action = str(action or "").strip().lower()
+    if action not in NEW_ACTIONS:
+        return {"error": f"Unknown calculation: {action}"}
+    chart = _new_chart(arguments, astronomy)
+    if action == "ashtakoota":
+        other = _second_chart(arguments, astronomy) or chart
+        return astronomy.ashtakoota_guna_milan(chart, other)
+    return {"error": f"Unknown calculation: {action}"}
+
+
+def render_new(action: str, data: dict) -> str:
+    """Readable text for one new calculation, from its plain data."""
+    if "error" in data:
+        return f"Calculation failed: {data['error']}"
+    if action == "ashtakoota":
+        lines = ["Ashtakoota Guna Milan (out of 36):"]
+        for k in data["kootas"]:
+            lines.append(
+                f"  {k['number']}. {k['name']}: {k['score']}/{k['max']} ({k['reason']})"
+            )
+        lines += [
+            f"  Total: {data['total']}/36 - {data['verdict']}",
+            f"  Nadi dosha: {data['nadi_dosha']['present']}",
+            f"  Bhakoot dosha: {data['bhakoot_dosha']['present']}",
+        ]
+        return "\n".join(lines)
+    return "Calculation failed: no renderer"
+
 
 def _need(arguments: dict, key: str) -> float:
     """A required number (latitude, longitude): missing is an error, never a default place."""
@@ -243,7 +340,17 @@ def compute(arguments: dict, astronomy) -> str:
             compute_data(action, arguments, astronomy), ensure_ascii=False, default=str
         )
 
+    # ---- new calculations: plain data rendered as text ----
+    if action == "ashtakoota":
+        try:
+            return render_new(
+                "ashtakoota", new_data("ashtakoota", arguments, astronomy)
+            )
+        except Exception as exc:  # noqa: BLE001
+            return f"Calculation failed: {exc}"
+
     # ---- every calculation the engine offers (restored from 98075ba) ----
+
     if action == "nakshatra":
         lon = _need(arguments, "longitude")
         try:
@@ -271,7 +378,9 @@ def compute(arguments: dict, astronomy) -> str:
             lines = [f"BaZi for {year}-{month:02d}-{day:02d} {hour:02d}:00:"]
             for name in ["year", "month", "day", "hour"]:
                 p = pillars[name]
-                lines.append(f"  {name.capitalize()}: {p['stem']}{p['branch']} ({p['element']})")
+                lines.append(
+                    f"  {name.capitalize()}: {p['stem']}{p['branch']} ({p['element']})"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -293,7 +402,9 @@ def compute(arguments: dict, astronomy) -> str:
                 return "No major aspects found."
             lines = ["Aspects:"]
             for a in aspects:
-                lines.append(f"  {a['planet1']} {a['aspect']} {a['planet2']} (orb {a['orb']}°)")
+                lines.append(
+                    f"  {a['planet1']} {a['aspect']} {a['planet2']} (orb {a['orb']}°)"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -314,7 +425,9 @@ def compute(arguments: dict, astronomy) -> str:
             tl = astronomy.time_lords(date_str, asc, 0, 10)
             lines = ["Time Lords (first 10 years):", "Profections:"]
             for p in tl.get("profections", []):
-                lines.append(f"  Age {p['age']}: {p['sign']} (lord: {p['lord']}, house {p['house']})")
+                lines.append(
+                    f"  Age {p['age']}: {p['sign']} (lord: {p['lord']}, house {p['house']})"
+                )
             lines.append("Firdaria:")
             for f in tl.get("firdaria", []):
                 lines.append(f"  {f['lord']}: {f['start']}-{f['end']} years")
@@ -338,7 +451,9 @@ def compute(arguments: dict, astronomy) -> str:
             sun = next((p for p in chart["planets"] if p["name"] == "Sun"), {})
             moon = next((p for p in chart["planets"] if p["name"] == "Moon"), {})
             venus = next((p for p in chart["planets"] if p["name"] == "Venus"), {})
-            parts = astronomy.arabic_parts(asc, sun.get("sidereal_longitude", 0), moon.get("sidereal_longitude", 0))
+            parts = astronomy.arabic_parts(
+                asc, sun.get("sidereal_longitude", 0), moon.get("sidereal_longitude", 0)
+            )
             lines = ["Arabic Parts (Lots):"]
             for name, val in parts.items():
                 sign_idx = int(val / 30) % 12
@@ -409,7 +524,9 @@ def compute(arguments: dict, astronomy) -> str:
             lines = ["Shadbala (Simplified):"]
             for p in chart["planets"][:7]:
                 sb = astronomy.shadbala(p["name"], p["sign"], p.get("house", 1))
-                lines.append(f"  {p['name']}: Uchcha={sb['uchcha_bala']} Kendra={sb['kendra_bala']} Ojh={sb['ojhayugma_bala']} Total={sb['total']}")
+                lines.append(
+                    f"  {p['name']}: Uchcha={sb['uchcha_bala']} Kendra={sb['kendra_bala']} Ojh={sb['ojhayugma_bala']} Total={sb['total']}"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -430,9 +547,20 @@ def compute(arguments: dict, astronomy) -> str:
             sun_lon = sun.get("sidereal_longitude", 0)
             lines = ["Combustion Check:"]
             for p in chart["planets"]:
-                if p["name"] in ("Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"):
-                    comb = astronomy.is_combust(p["name"], p["sidereal_longitude"], sun_lon)
-                    lines.append(f"  {p['name']}: {'Combust' if comb else 'Not combust'}")
+                if p["name"] in (
+                    "Moon",
+                    "Mercury",
+                    "Venus",
+                    "Mars",
+                    "Jupiter",
+                    "Saturn",
+                ):
+                    comb = astronomy.is_combust(
+                        p["name"], p["sidereal_longitude"], sun_lon
+                    )
+                    lines.append(
+                        f"  {p['name']}: {'Combust' if comb else 'Not combust'}"
+                    )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -452,7 +580,9 @@ def compute(arguments: dict, astronomy) -> str:
             h = astronomy.horary_chart(dt, lat, lon, qh)
             lines = [f"Horary Chart for {dt}:"]
             lines.append(f"  Querent significator: {h['querent_significator']}")
-            lines.append(f"  Quesited significator (House {qh}): {h['quesited_lord'] if 'quesited_lord' in h else h.get('quesited_significator', '')}")
+            lines.append(
+                f"  Quesited significator (House {qh}): {h['quesited_lord'] if 'quesited_lord' in h else h.get('quesited_significator', '')}"
+            )
             lines.append(f"  Same significator: {h['same_significator']}")
             lines.append(f"  Moon void of course: {h['moon_void_of_course']}")
             lines.append(f"  Planetary hour ruler: {h['planetary_hour_ruler']}")
@@ -477,8 +607,12 @@ def compute(arguments: dict, astronomy) -> str:
             kala = astronomy.upagraha_kala(sun_lon)
             mrityu = astronomy.upagraha_mrityu(sun_lon)
             lines = ["Upagrahas:"]
-            lines.append(f"  Kala: {astronomy.SIGNS[int(kala/30)%12]} {kala%30:.2f}°")
-            lines.append(f"  Mrityu: {astronomy.SIGNS[int(mrityu/30)%12]} {mrityu%30:.2f}°")
+            lines.append(
+                f"  Kala: {astronomy.SIGNS[int(kala / 30) % 12]} {kala % 30:.2f}°"
+            )
+            lines.append(
+                f"  Mrityu: {astronomy.SIGNS[int(mrityu / 30) % 12]} {mrityu % 30:.2f}°"
+            )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -538,7 +672,9 @@ def compute(arguments: dict, astronomy) -> str:
                 return "No Vedic aspects found."
             lines = ["Vedic Drishti (Aspects):"]
             for d in drishtis[:20]:
-                lines.append(f"  {d['from']} -> {d['to']}: {d['houses_away']} houses ({d['strength']}%)")
+                lines.append(
+                    f"  {d['from']} -> {d['to']}: {d['houses_away']} houses ({d['strength']}%)"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -558,9 +694,15 @@ def compute(arguments: dict, astronomy) -> str:
             sun = next((p for p in chart["planets"] if p["name"] == "Sun"), {})
             sun_sid = sun.get("sidereal_longitude", 0)
             lines = ["Vishesha (Special) Lagnas:"]
-            lines.append(f"  Hora Lagna: {astronomy.SIGNS[int(astronomy.hora_lagna_full(sun_sid, astronomy.julian_day(dt)) / 30) % 12]}")
-            lines.append(f"  Ghati Lagna: {astronomy.SIGNS[int(astronomy.ghati_lagna_full(sun_sid) / 30) % 12]}")
-            lines.append(f"  Bhava Lagna: {astronomy.SIGNS[int(astronomy.bhava_lagna_full(sun_sid) / 30) % 12]}")
+            lines.append(
+                f"  Hora Lagna: {astronomy.SIGNS[int(astronomy.hora_lagna_full(sun_sid, astronomy.julian_day(dt)) / 30) % 12]}"
+            )
+            lines.append(
+                f"  Ghati Lagna: {astronomy.SIGNS[int(astronomy.ghati_lagna_full(sun_sid) / 30) % 12]}"
+            )
+            lines.append(
+                f"  Bhava Lagna: {astronomy.SIGNS[int(astronomy.bhava_lagna_full(sun_sid) / 30) % 12]}"
+            )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -640,16 +782,22 @@ def compute(arguments: dict, astronomy) -> str:
             planets = chart["planets"]
             results = []
             for i in range(len(planets)):
-                for j in range(i+1, len(planets)):
-                    gy = astronomy.graha_yuddha(planets[i]["name"], planets[i]["sidereal_longitude"],
-                                                planets[j]["name"], planets[j]["sidereal_longitude"])
+                for j in range(i + 1, len(planets)):
+                    gy = astronomy.graha_yuddha(
+                        planets[i]["name"],
+                        planets[i]["sidereal_longitude"],
+                        planets[j]["name"],
+                        planets[j]["sidereal_longitude"],
+                    )
                     if gy["in_war"]:
                         results.append(gy)
             if not results:
                 return "No planetary wars found."
             lines = ["Graha Yuddha (Planetary Wars):"]
             for r in results:
-                lines.append(f"  {r['planet1']} vs {r['planet2']}: sep {r['separation']}° (winner: {r['winner']})")
+                lines.append(
+                    f"  {r['planet1']} vs {r['planet2']}: sep {r['separation']}° (winner: {r['winner']})"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -737,12 +885,18 @@ def compute(arguments: dict, astronomy) -> str:
             lines = ["Bhava (House) Analysis:"]
             for name, info in bh.items():
                 tags = []
-                if info["is_kendra"]: tags.append("Kendra")
-                if info["is_trikona"]: tags.append("Trikona")
-                if info["is_dusthana"]: tags.append("Dusthana")
-                if info["is_upachaya"]: tags.append("Upachaya")
+                if info["is_kendra"]:
+                    tags.append("Kendra")
+                if info["is_trikona"]:
+                    tags.append("Trikona")
+                if info["is_dusthana"]:
+                    tags.append("Dusthana")
+                if info["is_upachaya"]:
+                    tags.append("Upachaya")
                 planets = ", ".join(info["planets"]) if info["planets"] else "empty"
-                lines.append(f"  {name}: {info['sign']} [{', '.join(tags)}] planets: {planets}")
+                lines.append(
+                    f"  {name}: {info['sign']} [{', '.join(tags)}] planets: {planets}"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -822,10 +976,20 @@ def compute(arguments: dict, astronomy) -> str:
             jd = astronomy.julian_day(dt)
             lines = ["Shadbala (Complete):"]
             for p in chart["planets"][:7]:
-                sb = astronomy.shadbala_complete(p["name"], p["sign"], p.get("house", 1), True,
-                                                chart["planets"][1]["sidereal_longitude"] if len(chart["planets"]) > 1 else 0,
-                                                chart["planets"][0]["sidereal_longitude"], jd)
-                lines.append(f"  {p['name']}: Nais={sb['naisargika']} Kendra={sb['kendra']} Dig={sb['dig']} Cheshta={sb['cheshta']} Total={sb['total']}")
+                sb = astronomy.shadbala_complete(
+                    p["name"],
+                    p["sign"],
+                    p.get("house", 1),
+                    True,
+                    chart["planets"][1]["sidereal_longitude"]
+                    if len(chart["planets"]) > 1
+                    else 0,
+                    chart["planets"][0]["sidereal_longitude"],
+                    jd,
+                )
+                lines.append(
+                    f"  {p['name']}: Nais={sb['naisargika']} Kendra={sb['kendra']} Dig={sb['dig']} Cheshta={sb['cheshta']} Total={sb['total']}"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -870,7 +1034,9 @@ def compute(arguments: dict, astronomy) -> str:
                 return "No fixed stars conjunct chart points."
             lines = ["Fixed Stars:"]
             for s in stars[:20]:
-                lines.append(f"  {s['star']}: conjunct point at {s['point']}° (orb {s['orb']}°)")
+                lines.append(
+                    f"  {s['star']}: conjunct point at {s['point']}° (orb {s['orb']}°)"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -896,10 +1062,15 @@ def compute(arguments: dict, astronomy) -> str:
             jupiter = next((p for p in chart["planets"] if p["name"] == "Jupiter"), {})
             saturn = next((p for p in chart["planets"] if p["name"] == "Saturn"), {})
             parts = astronomy.arabic_parts_full(
-                asc, sun.get("sidereal_longitude", 0), moon.get("sidereal_longitude", 0),
-                venus.get("sidereal_longitude", 0), mars.get("sidereal_longitude", 0),
-                mercury.get("sidereal_longitude", 0), jupiter.get("sidereal_longitude", 0),
-                saturn.get("sidereal_longitude", 0))
+                asc,
+                sun.get("sidereal_longitude", 0),
+                moon.get("sidereal_longitude", 0),
+                venus.get("sidereal_longitude", 0),
+                mars.get("sidereal_longitude", 0),
+                mercury.get("sidereal_longitude", 0),
+                jupiter.get("sidereal_longitude", 0),
+                saturn.get("sidereal_longitude", 0),
+            )
             lines = ["Arabic Parts (Full):"]
             for name, val in parts.items():
                 sign_idx = int(val / 30) % 12
@@ -957,7 +1128,7 @@ def compute(arguments: dict, astronomy) -> str:
             mean = astronomy.node_mean(jd)
             true = astronomy.node_true(jd)
             osc = astronomy.node_osculating(jd)
-            return f"Nodes:\n  Mean (Rahu): {mean:.4f}\n  True (Rahu): {true:.4f}\n  Osculating (Rahu): {osc:.4f}\n  Ketu: {(mean+180)%360:.4f}"
+            return f"Nodes:\n  Mean (Rahu): {mean:.4f}\n  True (Rahu): {true:.4f}\n  Osculating (Rahu): {osc:.4f}\n  Ketu: {(mean + 180) % 360:.4f}"
         except Exception as exc:
             return f"Failed: {exc}"
 
@@ -997,7 +1168,10 @@ def compute(arguments: dict, astronomy) -> str:
         try:
             chart = astronomy.compute_full_chart_v2(dt, lat, lon)
             asc_sign = int(chart["ascendant"] / 30) % 12
-            positions = {p["name"]: int(p["sidereal_longitude"] / 30) % 12 for p in chart["planets"]}
+            positions = {
+                p["name"]: int(p["sidereal_longitude"] / 30) % 12
+                for p in chart["planets"]
+            }
             dashas = astronomy.chara_dasha(asc_sign, positions)
             lines = ["Chara Dasha (Jaimini):"]
             for d in dashas[:6]:
@@ -1019,10 +1193,14 @@ def compute(arguments: dict, astronomy) -> str:
         try:
             chart = astronomy.compute_full_chart_v2(dt, lat, lon)
             moon = next((p for p in chart["planets"] if p["name"] == "Moon"), {})
-            dashas = astronomy.yogini_dasha(moon.get("sidereal_longitude", 0), astronomy.julian_day(dt))
+            dashas = astronomy.yogini_dasha(
+                moon.get("sidereal_longitude", 0), astronomy.julian_day(dt)
+            )
             lines = ["Yogini Dasha:"]
             for d in dashas[:8]:
-                lines.append(f"  {d['lord']}: {d['years']} years (from +{d['start_offset']})")
+                lines.append(
+                    f"  {d['lord']}: {d['years']} years (from +{d['start_offset']})"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"
@@ -1043,7 +1221,9 @@ def compute(arguments: dict, astronomy) -> str:
             dashas = astronomy.ashtottari_dasha(moon.get("sidereal_longitude", 0))
             lines = ["Ashtottari Dasha:"]
             for d in dashas:
-                lines.append(f"  {d['lord']}: {d['years']} years (from +{d['start_offset']})")
+                lines.append(
+                    f"  {d['lord']}: {d['years']} years (from +{d['start_offset']})"
+                )
             return "\n".join(lines)
         except Exception as exc:
             return f"Failed: {exc}"

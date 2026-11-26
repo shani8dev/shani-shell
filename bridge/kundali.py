@@ -7,6 +7,10 @@
         SECTION is dasha | ashtakavarga | dignity | aspects | nakshatra | eclipse
     kundali.py run ACTION DATETIME LAT LON [HOUSE]
         any of the engine's calculations (kundali_engine.ACTIONS), as text
+    kundali.py data ACTION DATETIME LAT LON
+        the new calculations as JSON data, for the window to draw
+    kundali.py match DATETIME1 LAT1 LON1 DATETIME2 LAT2 LON2
+        Ashtakoota guna milan for two births, as JSON data
     kundali.py actions
         the calculations, with what each needs
 
@@ -50,7 +54,13 @@ def run(action, when, lat, lon, house=None):
     if action not in kundali_engine.ACTIONS:
         return {"error": f"Unknown calculation: {action}"}
     stamp = _stamp(when)
-    args = {"action": action, "datetime": stamp, "date": stamp, "latitude": lat, "longitude": lon}
+    args = {
+        "action": action,
+        "datetime": stamp,
+        "date": stamp,
+        "latitude": lat,
+        "longitude": lon,
+    }
     if house:
         args["quesited_house"] = int(house)
     if action in _LOCAL_PARTS:
@@ -59,11 +69,39 @@ def run(action, when, lat, lon, house=None):
         chart = astronomy.compute_chart(stamp, lat, lon)
         if action in _MOON_LONGITUDE:
             moon = next(p for p in chart["planets"] if p["name"] == "Moon")
-            return {"text": kundali_engine.compute(dict(args, longitude=moon["sidereal_longitude"]), astronomy)}
-        lines = [kundali_engine.compute(dict(args, planet=p["name"], sign=p["sign"]), astronomy)
-                 for p in chart["planets"]]
+            return {
+                "text": kundali_engine.compute(
+                    dict(args, longitude=moon["sidereal_longitude"]), astronomy
+                )
+            }
+        lines = [
+            kundali_engine.compute(
+                dict(args, planet=p["name"], sign=p["sign"]), astronomy
+            )
+            for p in chart["planets"]
+        ]
         return {"text": "\n".join(lines)}
     return {"text": kundali_engine.compute(args, astronomy)}
+
+
+def data(action, when, lat, lon):
+    """One calculation as JSON data (not text), for the window to draw."""
+    action = str(action or "").strip().lower()
+    allowed = kundali_engine.SECTIONS + kundali_engine.NEW_ACTIONS
+    if action not in allowed:
+        return {"error": f"Unknown calculation: {action}"}
+    return kundali_engine.compute_data(
+        action,
+        {"action": action, "datetime": _stamp(when), "latitude": lat, "longitude": lon},
+        astronomy,
+    )
+
+
+def match(when1, lat1, lon1, when2, lat2, lon2):
+    """Ashtakoota guna milan for two births, as JSON data."""
+    first = astronomy.compute_chart(_stamp(when1), float(lat1), float(lon1))
+    second = astronomy.compute_chart(_stamp(when2), float(lat2), float(lon2))
+    return astronomy.ashtakoota_guna_milan(first, second)
 
 
 def panchang(date_str, lat, lon):
@@ -93,10 +131,17 @@ def kundali(datetime_str, lat, lon):
     # every planet's navamsa (D9) sign, for the window's D1 / D9 chart
     if hasattr(astro, "varga_longitude") and "ascendant" in chart:
         chart["navamsa"] = [
-            {"name": p["name"], "sign": astro.SIGNS[int(astro.varga_longitude(p["sidereal_longitude"], "D9") / 30) % 12]}
+            {
+                "name": p["name"],
+                "sign": astro.SIGNS[
+                    int(astro.varga_longitude(p["sidereal_longitude"], "D9") / 30) % 12
+                ],
+            }
             for p in chart.get("planets", [])
         ]
-        chart["navamsa_ascendant"] = astro.SIGNS[int(astro.varga_longitude(chart["ascendant"], "D9") / 30) % 12]
+        chart["navamsa_ascendant"] = astro.SIGNS[
+            int(astro.varga_longitude(chart["ascendant"], "D9") / 30) % 12
+        ]
     chart["text"] = kundali_engine.compute(
         {
             "action": "kundali",
@@ -136,6 +181,15 @@ def main(argv: list[str]) -> int:
         "kundali": ("datetime", "latitude", "longitude"),
         "details": ("section", "datetime", "latitude", "longitude"),
         "run": ("calculation", "datetime", "latitude", "longitude"),
+        "data": ("calculation", "datetime", "latitude", "longitude"),
+        "match": (
+            "datetime1",
+            "latitude1",
+            "longitude1",
+            "datetime2",
+            "latitude2",
+            "longitude2",
+        ),
         "actions": (),
     }
     if action not in names:
@@ -149,9 +203,13 @@ def main(argv: list[str]) -> int:
         print(json.dumps({"actions": kundali_engine.ACTIONS}, ensure_ascii=False))
         return 0
     try:
-        if action in ("details", "run"):
+        if action in ("details", "run", "data"):
             section = argv[2]
             when, lat, lon = argv[3], float(argv[4]), float(argv[5])
+        elif action == "match":
+            section = ""
+            when1, lat1, lon1 = argv[2], float(argv[3]), float(argv[4])
+            when2, lat2, lon2 = argv[5], float(argv[6]), float(argv[7])
         else:
             section = ""
             when, lat, lon = argv[2], float(argv[3]), float(argv[4])
@@ -169,6 +227,10 @@ def main(argv: list[str]) -> int:
                 pass
         elif action == "run":
             result = run(section, when, lat, lon, argv[6] if len(argv) > 6 else None)
+        elif action == "data":
+            result = data(section, when, lat, lon)
+        elif action == "match":
+            result = match(when1, lat1, lon1, when2, lat2, lon2)
         else:
             result = details(section, when, lat, lon)
     except Exception as exc:  # noqa: BLE001 - never a traceback to the UI
