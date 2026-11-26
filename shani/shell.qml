@@ -1263,6 +1263,7 @@ ShellRoot {
                 callsShown: Ui.calls, callsCount: Link.calls.length, callsLines: Link.lines.join(','),
                 messagesShown: Ui.messages, messagesCount: Link.messages.length,
                 healthShown: Ui.health, healthSteps: Health.stepsToday, healthDevice: Health.device, healthError: Health.error,
+                systemCat: Ui.settingsCat, systemOpen: Ui.settingsOpen, systemState: Ui.systemState,
                 linkPhone: Link.phoneName, linkBackend: Link.backend,
                 mailKind: Mail.kind, mailFolders: Mail.folders.length, mailCount: Mail.messages.length,
                 mailSubject: Mail.subject, mailFrom: Mail.from, mailBody: Mail.body.slice(0, 80),
