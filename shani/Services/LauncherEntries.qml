@@ -43,7 +43,20 @@ Singleton {
         { id: "chronoa", label: "Chronoa", words: "chronoa assistant ai island model voice wake word", icon: "face-smile-big" },
         { id: "storage", label: "Storage", words: "storage disk space free clean up cleanup trash cache thumbnails downloads flatpak", icon: "drive-harddisk" },
         { id: "screentime", label: "Screen time", words: "screen time wellbeing digital break reminder limit usage apps today week focus", icon: "preferences-desktop-screensaver" },
-        { id: "modules", label: "Kernel modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", icon: "application-x-addon" }
+        { id: "modules", label: "Kernel modules", words: "kernel modules drivers loaded modprobe lsmod dependencies parameters", icon: "application-x-addon" },
+        { id: "firmware", label: "Firmware updates", words: "firmware updates devices lvfs capsule bios apply check install", icon: "computer" },
+        { id: "health", label: "System health", words: "health checks verify diagnose problems report machine", icon: "dialog-ok" },
+        { id: "maintenance", label: "Maintenance", words: "maintenance cleanup system space old updates report factory reset", icon: "system-run" },
+        { id: "graphics", label: "Graphics & drivers", words: "graphics gpu driver render node pci mesa vulkan card monitor", icon: "video-display" },
+        { id: "appversions", label: "App versions", words: "app versions installed flatpak snap os deployment package", icon: "system-software-install" },
+        { id: "etcchanges", label: "System changes", words: "system changes etc overlay diff restore file back config", icon: "document-edit" },
+        { id: "persistence", label: "Persistence", words: "persistence survives slot switch data var bind mount state", icon: "drive-harddisk" },
+        { id: "virtualization", label: "Virtualization", words: "virtualization kvm virtual machines libvirt lxc lxd nspawn readiness", icon: "computer" },
+        { id: "disksfs", label: "Disks & filesystems", words: "disks filesystems raid lvm btrfs subvolume scrub compression smart", icon: "drive-harddisk" },
+        { id: "background", label: "Background services", words: "background services cron schedule priority irq audit log mail", icon: "preferences-system" },
+        { id: "dns", label: "DNS", words: "dns resolver nameserver which answers set name server", icon: "network-workgroup" },
+        { id: "netservices", label: "Network services", words: "network services inbound ports sshd tunnels mdns announcements web mail", icon: "network-server" },
+        { id: "adminaccess", label: "Sign-in & access", words: "access sign in directory sssd kerberos smartcard privileges sudo ssh keys codes", icon: "security-high" }
     ]
     // A leading word + colon is an operator only when that word is one of ours:
     // URLs, paths and the existing ":" emoji mode keep their usual meaning.

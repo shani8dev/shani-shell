@@ -366,9 +366,19 @@ var groups = {
     power: ["dimAfter", "dimAfterBattery", "lockAfter", "screenOffAfter", "suspendAfter", "lockAfterBattery", "screenOffAfterBattery", "suspendAfterBattery", "lockBeforeSuspend", "autoPowerSaver", "powerSaverAt", "profileFollowsCharger", "profileOnBattery", "profilePluggedIn", "autoLockOnLowBattery", "batteryLimit"],
     about: [],
     // read-first system pages: no shell setting keys to reset
-    firmware: [], health: [], maintenance: [], graphics: [], appversions: [],
-    etcchanges: [], persistence: [], virtualization: [], disksfs: [], background: [],
-    dns: [], netservices: [], adminaccess: []
+    firmware: [],
+    health: [],
+    maintenance: [],
+    graphics: [],
+    appversions: [],
+    etcchanges: [],
+    persistence: [],
+    virtualization: [],
+    disksfs: [],
+    background: [],
+    dns: [],
+    netservices: [],
+    adminaccess: []
 };
 
 // is a value a scalar we may compare and reset?
