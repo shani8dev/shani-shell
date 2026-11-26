@@ -342,6 +342,9 @@ var entries = [
     { key: "dnsResolver", label: "DNS", cat: "dns", hint: "which name resolver actually answers, and setting one", words: "dns resolver nameserver which answers set systemd resolved" },
     { key: "networkServices", label: "Network services", cat: "netservices", hint: "what can reach this machine and what it announces", words: "network services inbound open ports sshd tunnels mdns announcements web server mail relay" },
     { key: "signInAccess", label: "Sign-in & access", cat: "adminaccess", hint: "who may sign in, and what they may do once they do", words: "access sign in directory sssd kerberos smartcard privileges sudo ssh keys codes security modules" },
+    // A section inside the Security category, not a settings.json key: search
+    // lands on the page and flashes its "Encryption and boot" section.
+    { key: "encryptionBoot", label: "Encryption and boot", cat: "security", hint: "is the disk encrypted, does it unlock with the TPM, Secure Boot and recovery keys", words: "encryption encrypted disk tpm unlock secure boot recovery key luks header pin pcrlock" },
 ];
 
 // every key, grouped by category: for “N customised” and “Reset this section”
