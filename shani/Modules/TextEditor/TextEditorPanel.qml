@@ -1237,7 +1237,7 @@ AppWindow {
                             readOnly: true
                             activeFocusOnPress: false
                             selectByMouse: false
-                            enabled: false
+                            Accessible.ignored: true   // a display layer; `edit` above is the control
                             wrapMode: edit.wrapMode
                             textFormat: TextEdit.RichText
                             color: Theme.text

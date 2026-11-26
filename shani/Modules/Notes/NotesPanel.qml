@@ -1,6 +1,7 @@
 // Notes (Notes): a folder of Markdown notes, one file per note, saved as
 // you type. Notebooks are subfolders. Wiki links [[like this]] jump
-// between notes. Export to HTML, print via CUPS. Sync is a TODO.
+// between notes. Export to HTML, print via CUPS. QuickNotes mirrors the folder
+// to a locally chosen sync folder; no account, no network.
 import Quickshell
 import Quickshell.Io
 import QtQuick
