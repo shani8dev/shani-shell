@@ -55,6 +55,41 @@ _TITHI_NAMES = (
 )
 _LIMB_WIDTHS = {"tithi": 12.0, "nakshatra": _NAK_SIZE, "yoga": _NAK_SIZE, "karana": 6.0}
 
+# Visha ghati (Varjyam) starts, counted from the Moon's entry into each
+# nakshatra on a 60-ghati scale; the window is four ghatis long. Drik
+# Panchang's tyajya-ghati table lists these 1-based (51 to 54 for Ashwini),
+# while Muhurta Chintamani 49-51 lists 50 to 54. The values here are the
+# 0-based offsets that both tables describe.
+_VARJYAM_GHATIS = (
+    50,
+    24,
+    30,
+    40,
+    14,
+    21,
+    30,
+    20,
+    32,
+    30,
+    20,
+    18,
+    21,
+    20,
+    14,
+    14,
+    10,
+    14,
+    56,
+    24,
+    20,
+    10,
+    10,
+    18,
+    16,
+    24,
+    30,
+)
+
 # Eighth-of-the-day tables, 1-based parts from sunrise, Sunday first.
 _RAHU_PARTS = (8, 2, 7, 5, 6, 4, 3)
 _YAMA_PARTS = (5, 4, 3, 2, 1, 7, 6)
@@ -374,8 +409,11 @@ def _interval(
     }
 
 
-# Amrit Kaal and Varjyam are left out: their per-nakshatra ghati offsets
-# differ between printed panchangs, so there is no correct table to use here.
+# Amrit Kaal is still left out. The published rules disagree: some sites
+# place it 21 ghatis after Varjyam, but that does not reproduce Drik
+# Panchang's daily Amrit Kalam windows, and the Sun-Moon 60-120 degree rule
+# is not the nakshatra-based one printed by those panchangs. Without a
+# reliable table no start/end time can be given, so none is invented.
 
 
 def _muhurtas(
@@ -487,24 +525,27 @@ def _horas(
 
 
 def _tithi_crossings(
-    start_jd: float, end_jd: float, multiple: float, offset: float = 0.0
+    start_jd: float,
+    end_jd: float,
+    multiple: float,
+    offset: float = 0.0,
+    kind: str = "tithi",
 ) -> list[float]:
-    """Julian days where the Moon-Sun angle passes an offset + n * multiple."""
-    target = (
-        math.floor((_limb_angle(start_jd, "tithi") - offset) / multiple) + 1
-    ) * multiple + offset
+    """Julian days where a limb angle passes an offset + n * multiple."""
+    angle = lambda jd: _limb_angle(jd, kind)  # noqa: E731 - local shorthand
+    target = (math.floor((angle(start_jd) - offset) / multiple) + 1) * multiple + offset
     found: list[float] = []
     left = start_jd
-    unwrapped = _limb_angle(left, "tithi")
+    unwrapped = angle(left)
     while left < end_jd:
         right = min(left + 0.25, end_jd)
-        angle_left = _limb_angle(left, "tithi")
-        step = (_limb_angle(right, "tithi") - angle_left) % 360.0
+        angle_left = angle(left)
+        step = (angle(right) - angle_left) % 360.0
         if step > 180:  # a backwards blip cannot be a real month
             step -= 360.0
 
         def progress(jd: float) -> float:
-            return unwrapped + (_limb_angle(jd, "tithi") - angle_left) % 360.0
+            return unwrapped + (angle(jd) - angle_left) % 360.0
 
         if unwrapped + step >= target:
             low, high = left, right
@@ -523,6 +564,37 @@ def _tithi_crossings(
 
 def _new_moons(start: datetime, end: datetime) -> list[float]:
     return _tithi_crossings(_jd(start), _jd(end), 360.0)
+
+
+def _varjyam(
+    sunrise: datetime | None,
+    next_sunrise: datetime | None,
+    zone: ZoneInfo,
+    day: date_type,
+) -> list[dict]:
+    """Visha-ghati windows whose starts fall in this sunrise-to-sunrise day."""
+    if sunrise is None or next_sunrise is None:
+        return []
+    first, last = _jd(sunrise), _jd(next_sunrise)
+    crossings = _tithi_crossings(first - 2, last + 1, _NAK_SIZE, kind="nakshatra")
+    result: list[dict] = []
+    for left, right in zip(crossings, crossings[1:]):
+        if right <= first or left >= last:
+            continue
+        index = int(_limb_angle((left + right) / 2, "nakshatra") / _NAK_SIZE) % 27
+        span = right - left
+        begin = left + _VARJYAM_GHATIS[index] * span / 60.0
+        if not first <= begin < last:
+            continue
+        result.append(
+            {
+                "name": "Varjyam",
+                "start": _clock(_utc_from_jd(begin), zone, day),
+                "end": _clock(_utc_from_jd(begin + 4 * span / 60.0), zone, day),
+                "auspicious": False,
+            }
+        )
+    return result
 
 
 def _amanta_index(jd: float) -> int:
@@ -654,6 +726,7 @@ def compute(day: date_type, lat: float, lon: float, zone_name: str) -> dict:
         "moon": moon,
         "limbs": _limbs(sunrise, zone, day),
         "muhurtas": _muhurtas(sunrise, sunset, zone, day),
+        "varjyam": _varjyam(sunrise, night_end, zone, day),
         "choghadiya": choghadiya,
         "horas": horas,
         "month": _month(day, zone, zone_name),
