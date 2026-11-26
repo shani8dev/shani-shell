@@ -769,6 +769,14 @@ ShellRoot {
         // the path a person drives (no second copy of the systemctl call).
         function chronoaSettingsPage(name: string) { Ui.chronoaSettingsPage = name; Ui.openSettings("chronoa"); }
         function chronoaEngine(on: string) { ChronoaEngine.setEngine(on === "on" || on === "true" || on === "1"); }
+        // an API key goes to the engine's own keyring through the same call a
+        // person's Connect button makes (never through GSettings)
+        function providerKey(id: string, key: string) { AIProviders.syncKeyToChronoa(id, key); }
+        // the engine's settings page, driven through the same singleton its
+        // controls call (ask first when the engine needs consent, then confirm)
+        function chronoaSettingAsk(name: string, value: string) { ChronoaSettings.ask(name, value); }
+        function chronoaSettingPreset(name: string) { ChronoaSettings.askPreset(name); }
+        function chronoaSettingConfirm() { ChronoaSettings.confirm(); }
         // settings undo: revert one or all changed settings
         function settingsChangedKeys(): string { return JSON.stringify(Settings.changedKeys); }
         function settingsUndo(key: string) { Settings.undo(key); }
@@ -1304,7 +1312,7 @@ ShellRoot {
                 androidFind: AndroidTools.result["find"] || {}, androidPair: AndroidTools.result["pair"] || {},
                 backgroundShown: Ui.backgroundServices, backgroundSwitches: PhoneTools.switches.length, backgroundOn: PhoneTools.switches.filter(s => s.on).length,
                 incoming: Link.incoming.name || Link.incoming.number || "", incomingId: Link.incoming.id || "", incomingLine: Link.incoming.line || "",
-                devicesShown: Ui.devices, devicesCount: new Set(Link.devices.map(d => d.id)
+                devicesShown: Ui.devices, devicesTab: Ui.devicesTab, devicesCount: new Set(Link.devices.map(d => d.id)
                     .concat(Devices.devices.map(d => d.id || d.serial || d.name),
                             Devices.androidInfo && Devices.androidInfo.serial ? [Devices.androidInfo.serial] : [])).size,
                 devicesNote: Devices.note,

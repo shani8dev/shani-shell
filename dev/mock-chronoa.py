@@ -73,26 +73,46 @@ pending_lock = threading.Lock()
 
 
 def emit(ev: dict) -> None:
-    conn.emit_signal(None, AGENT_PATH, AGENT_IFACE, "Event",
-                     GLib.Variant("(s)", (json.dumps(ev),)))
+    conn.emit_signal(
+        None, AGENT_PATH, AGENT_IFACE, "Event", GLib.Variant("(s)", (json.dumps(ev),))
+    )
 
 
 def dbus_call(name, path, iface, method, params, timeout=1200):
     try:
-        conn.call_sync(name, path, iface, method, params, None,
-                       Gio.DBusCallFlags.NO_AUTO_START, timeout, None)
+        conn.call_sync(
+            name,
+            path,
+            iface,
+            method,
+            params,
+            None,
+            Gio.DBusCallFlags.NO_AUTO_START,
+            timeout,
+            None,
+        )
     except Exception:
         pass
 
 
 def status(title: str, detail: str = "") -> None:
-    dbus_call(MASCOT_NAME, MASCOT_PATH, MASCOT_IFACE, "Status",
-              GLib.Variant("(ss)", (title, detail)))
+    dbus_call(
+        MASCOT_NAME,
+        MASCOT_PATH,
+        MASCOT_IFACE,
+        "Status",
+        GLib.Variant("(ss)", (title, detail)),
+    )
 
 
 def cue(text: str, hold: bool = False) -> None:
-    dbus_call(WINDOWS_NAME, WINDOWS_PATH, WINDOWS_IFACE, "Cue",
-              GLib.Variant("(sb)", (text, hold)))
+    dbus_call(
+        WINDOWS_NAME,
+        WINDOWS_PATH,
+        WINDOWS_IFACE,
+        "Cue",
+        GLib.Variant("(sb)", (text, hold)),
+    )
 
 
 def speak(text: str, delay: float = 0.035) -> None:
@@ -128,6 +148,117 @@ DEFAULT = (
 )
 
 
+# A small in-memory settings table with the engine's row shape. The labels are
+# deliberately the engine's wording: the shell owns plain words for its screen.
+SETTINGS = {
+    "cloud-stt-enabled": {
+        "name": "cloud-stt-enabled",
+        "label": "Cloud speech recognition",
+        "value": False,
+        "kind": "bool",
+        "secret": False,
+        "consent_key": "cloud-stt-enabled",
+    },
+    "input-control-enabled": {
+        "name": "input-control-enabled",
+        "label": "Let Chronoa act",
+        "value": False,
+        "kind": "bool",
+        "secret": False,
+        "consent_key": "input-control-enabled",
+    },
+    "ollama-host": {
+        "name": "ollama-host",
+        "label": "Local model address",
+        "value": "127.0.0.1:11434",
+        "kind": "string",
+        "secret": False,
+        "consent_key": "",
+    },
+    "openai-api-key": {
+        "name": "openai-api-key",
+        "label": "OpenAI api key",
+        "value": "",
+        "kind": "string",
+        "secret": True,
+        "consent_key": "",
+    },
+    "privacy-mode": {
+        "name": "privacy-mode",
+        "label": "Privacy mode",
+        "value": "private",
+        "kind": "string",
+        "secret": False,
+        "consent_key": "",
+    },
+}
+SECRETS = {}
+PRESETS = {"chat": "Chat only", "everyday": "Everyday", "full": "Full control"}
+
+
+def settings_rows():
+    return [dict(SETTINGS[k]) for k in sorted(SETTINGS)]
+
+
+def settings_get(name):
+    wanted = str(name or "").strip().casefold()
+    for row in settings_rows():
+        if wanted in (row["name"].casefold(), row["label"].casefold()):
+            return row
+    return {"error": "unknown setting: %s" % (name,)}
+
+
+def settings_set(name, value, confirm):
+    found = settings_get(name)
+    if "error" in found:
+        return found
+    kind, key = found["kind"], found["name"]
+    if kind == "bool":
+        text = str(value).strip().lower()
+        if text in ("1", "yes", "on"):
+            text = "true"
+        elif text in ("0", "no", "off"):
+            text = "false"
+        if text not in ("true", "false"):
+            return {"error": "value must be true or false"}
+        on = text == "true"
+        stored = on
+    elif kind == "number":
+        try:
+            stored = float(value)
+        except (TypeError, ValueError):
+            return {"error": "value must be a number"}
+        on = False
+    else:
+        stored = str(value)
+        on = False
+    if (found["secret"] or (found["consent_key"] and on)) and not confirm:
+        return {"error": "confirmation required: %s needs confirmation" % key}
+    before = SECRETS.get(key) if found["secret"] else SETTINGS[key]["value"]
+    if found["secret"]:
+        SECRETS[key] = stored
+    else:
+        SETTINGS[key]["value"] = stored
+    return {
+        "name": key,
+        "label": found["label"],
+        "value": "" if found["secret"] else stored,
+        "changed": before != stored,
+    }
+
+
+def settings_preset(name, confirm):
+    wanted = str(name or "").strip().lower()
+    if wanted not in PRESETS:
+        return {"error": "unknown preset: %s" % (name,)}
+    if not confirm:
+        return {"error": "confirmation required: a preset changes consent switches"}
+    for row in SETTINGS.values():
+        if row["consent_key"]:
+            row["value"] = wanted != "chat"
+    return {"preset": wanted, "current": wanted}
+
+
 def turn_thread(tid: str, text: str) -> None:
     # what was asked, for the shell tests to assert on (dev/shell-test.sh)
     print(json.dumps({"turn": text}), flush=True)
@@ -140,11 +271,16 @@ def turn_thread(tid: str, text: str) -> None:
         emit({"event": "tool", "text": "Chronoa: Scanning ~/Desktop (14 files)"})
         cue("Chronoa: Scanning ~/Desktop")
         time.sleep(0.7)
-        emit({"event": "approval", "id": tid,
-              "text": "Chronoa wants to move 14 files",
-              "options": ["Allow this once", "Deny"],
-              "detail": "Desktop → Documents/Inbox. Every move is logged; "
-                        "`chronoa undo` reverses the whole batch."})
+        emit(
+            {
+                "event": "approval",
+                "id": tid,
+                "text": "Chronoa wants to move 14 files",
+                "options": ["Allow this once", "Deny"],
+                "detail": "Desktop → Documents/Inbox. Every move is logged; "
+                "`chronoa undo` reverses the whole batch.",
+            }
+        )
         status("Thinking", "waiting for your approval")
         event = pending.get(tid)
         if event is None or not event.wait(90):
@@ -173,7 +309,9 @@ def turn_thread(tid: str, text: str) -> None:
         emit({"event": "tool", "text": "Chronoa: Reading battery and power profile"})
         cue("Chronoa: Reading battery and power profile")
         time.sleep(0.65)
-        emit({"event": "tool", "text": "Chronoa: Listing top energy consumers (41 min)"})
+        emit(
+            {"event": "tool", "text": "Chronoa: Listing top energy consumers (41 min)"}
+        )
         cue("Chronoa: Listing top energy consumers")
         time.sleep(0.55)
         status("Speaking", "battery summary")
@@ -229,17 +367,55 @@ def on_agent_call(connection, sender, path, iface, method, params, invocation):
             except OSError:
                 continue
             if words and all(w in text.lower() for w in words):
-                hits.append({"path": str(f), "kind": "text", "size": f.stat().st_size, "excerpt": " ".join(text.split())[:120]})
-        invocation.return_value(GLib.Variant("(s)", (json.dumps({"how": "keyword (the mock)", "hits": hits[:limit], "indexing": False}),)))
+                hits.append(
+                    {
+                        "path": str(f),
+                        "kind": "text",
+                        "size": f.stat().st_size,
+                        "excerpt": " ".join(text.split())[:120],
+                    }
+                )
+        invocation.return_value(
+            GLib.Variant(
+                "(s)",
+                (
+                    json.dumps(
+                        {
+                            "how": "keyword (the mock)",
+                            "hits": hits[:limit],
+                            "indexing": False,
+                        }
+                    ),
+                ),
+            )
+        )
     elif method == "Write":
         # the real one is the model (shani-chronoa agent_service.Write); here a
         # predictable answer the suite can check: the instruction's first word, then the text
         instruction, text = params.unpack()
         word = (instruction.split() or ["?"])[0].lower().strip(".,:")
         if "fail" in text:
-            invocation.return_dbus_error("dev.shani.chronoa.Error.WriteFailed", "the mock was asked to fail")
+            invocation.return_dbus_error(
+                "dev.shani.chronoa.Error.WriteFailed", "the mock was asked to fail"
+            )
         else:
             invocation.return_value(GLib.Variant("(s)", (f"[{word}] {text}",)))
+    elif method == "SettingsList":
+        invocation.return_value(GLib.Variant("(s)", (json.dumps(settings_rows()),)))
+    elif method == "SettingsGet":
+        invocation.return_value(
+            GLib.Variant("(s)", (json.dumps(settings_get(params.unpack()[0])),))
+        )
+    elif method == "SettingsSet":
+        name, value, confirm = params.unpack()
+        invocation.return_value(
+            GLib.Variant("(s)", (json.dumps(settings_set(name, value, confirm)),))
+        )
+    elif method == "SettingsPreset":
+        name, confirm = params.unpack()
+        invocation.return_value(
+            GLib.Variant("(s)", (json.dumps(settings_preset(name, confirm)),))
+        )
     else:
         invocation.return_dbus_error("dev.shani.chronoa.Error.Unknown", method)
 
@@ -260,15 +436,25 @@ def main() -> int:
     loop = GLib.MainLoop()
 
     conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-    conn.register_object(AGENT_PATH,
-                         Gio.DBusNodeInfo.new_for_xml(AGENT_XML).interfaces[0],
-                         on_agent_call, None, None)
-    conn.register_object(GATEWAY_PATH,
-                         Gio.DBusNodeInfo.new_for_xml(GATEWAY_XML).interfaces[0],
-                         on_gateway_call, None, None)
+    conn.register_object(
+        AGENT_PATH,
+        Gio.DBusNodeInfo.new_for_xml(AGENT_XML).interfaces[0],
+        on_agent_call,
+        None,
+        None,
+    )
+    conn.register_object(
+        GATEWAY_PATH,
+        Gio.DBusNodeInfo.new_for_xml(GATEWAY_XML).interfaces[0],
+        on_gateway_call,
+        None,
+        None,
+    )
 
     for name in (AGENT_NAME, GATEWAY_NAME):
-        Gio.bus_own_name_on_connection(conn, name, Gio.BusNameOwnerFlags.NONE, None, None)
+        Gio.bus_own_name_on_connection(
+            conn, name, Gio.BusNameOwnerFlags.NONE, None, None
+        )
 
     print("mock chronoa up", flush=True)
     loop.run()
