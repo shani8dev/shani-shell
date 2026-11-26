@@ -68,7 +68,9 @@ def _result(r, fallback: str) -> dict:
 
 
 def clean() -> dict:
-    r, error = _run([DEPLOY, "--cleanup", "--optimize", "--yes"])
+    # shani-deploy asks nothing on --cleanup/--optimize: it has no --yes and
+    # refused one ("Invalid option"), so this never ran (tests/test_os_cli_contract.py)
+    r, error = _run([DEPLOY, "--cleanup", "--optimize"])
     return _result(r, error)
 
 

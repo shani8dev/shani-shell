@@ -54,8 +54,8 @@ def test_clean_uses_the_exact_pkexec_argv(tmp_path):
     got, r = run(tmp_path, "clean")
     assert r.returncode == 0 and got["ok"] is True and got["error"] == ""
     assert "cleaned" in got["output"].lower()
-    assert "pkexec shani-deploy --cleanup --optimize --yes" in calls(tmp_path)
-    assert "shani-deploy --cleanup --optimize --yes" in calls(tmp_path)
+    assert "pkexec shani-deploy --cleanup --optimize" in calls(tmp_path)
+    assert "shani-deploy --cleanup --optimize" in calls(tmp_path)
 
 
 def test_report_saves_a_bundle_but_never_prints_it(tmp_path):
@@ -111,7 +111,7 @@ def test_tool_names_are_never_shell_lines(tmp_path):
         tmp_path, "clean", extra={"SHANI_DEPLOY": "shani-deploy; touch %s" % target}
     )
     assert not target.exists() and got["ok"] is False and got["error"]
-    assert "pkexec shani-deploy; touch %s --cleanup --optimize --yes" % target in calls(
+    assert "pkexec shani-deploy; touch %s --cleanup --optimize" % target in calls(
         tmp_path
     )
 
