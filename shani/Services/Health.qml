@@ -11,7 +11,10 @@ import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_HEALTH_TOOL"), "health.py")
+    // SHANI_HEALTH_TOOL stays pinned to health-check.py (system diagnostics).
+    // This journal used ToolPath.of(Quickshell.env("SHANI_HEALTH_TOOL"), "health.py")
+    // before it got its own override; the two bridges must not be confused.
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_FITNESS_TOOL"), "health.py")
 
     property bool loaded: false
     property bool busy: false
@@ -29,6 +32,14 @@ Singleton {
     property var history: []            // [{ day, steps, deep_min, light_min, ... }]
     property string device: ""
     property int battery: -1
+    property string deviceModel: ""
+    property string deviceFirmware: ""
+    property string lastRead: ""
+    property bool connected: false
+    property int distanceM: 0
+    property int calories: 0
+    property var sleepStages: []          // [{ stage, minutes }]
+    property var stressSeries: []         // [{ when, value }]
 
     function refresh() {
         root.run("summary", []);
@@ -67,6 +78,10 @@ Singleton {
     function findWatch() {
         root.say(Tr.t("Ringing the watch…"));
         root.run("find-watch", []);
+    }
+    function watchConnect(on) {
+        root.say(on ? Tr.t("Connecting the watch…") : Tr.t("Disconnecting the watch…"));
+        root.run("watch-connect", [on ? "on" : "off"]);
     }
     function say(message) { root.note = message || ""; }
 
@@ -126,6 +141,14 @@ Singleton {
             root.measures = Array.isArray(data && data.measures) ? data.measures : [];
             root.device = (data && data.device) || "";
             root.battery = typeof (data && data.battery) === "number" ? data.battery : -1;
+            root.deviceModel = (data && data.device_model) || "";
+            root.deviceFirmware = (data && data.device_firmware) || "";
+            root.lastRead = (data && data.last_read) || "";
+            root.connected = !!(data && data.connected);
+            root.distanceM = Math.max(0, Math.floor((data && data.distance_m) || 0));
+            root.calories = Math.max(0, Math.floor((data && data.calories) || 0));
+            root.sleepStages = Array.isArray(data && data.sleep_stages) ? data.sleep_stages : [];
+            root.stressSeries = Array.isArray(data && data.stress_series) ? data.stress_series : [];
             root.error = (data && data.error) || "";
         } else if (what === "history") {
             root.history = Array.isArray(data) ? data : [];
@@ -148,6 +171,11 @@ Singleton {
         } else if (what === "find-watch") {
             root.note = data && data.error ? data.error
                 : (data && data.note ? data.note : Tr.t("The watch was told to ring"));
+        } else if (what === "watch-connect") {
+            root.connected = !!(data && data.connected);
+            root.note = data && data.error ? data.error
+                : (root.connected ? Tr.t("The watch will stay connected") : Tr.t("The watch is disconnected"));
+            if (!data || !data.error) root.refresh();
         }
     }
 

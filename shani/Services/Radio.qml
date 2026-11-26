@@ -16,6 +16,7 @@ Singleton {
     readonly property string userAgent: "shani-shell-radio/1.0 (+https://github.com/shani8dev/shani-shell)"
     property var stations: []               // [{ uuid, name, url, favicon, tags, country, codec, bitrate }]
     property string showing: ""             // favourites | popular | near | genre:<tag> | search:<words>
+    property string sourceChoice: "internet"   // internet | fm: the source picked on Media Player > Radio
     property bool loading: false
     property string error: ""
     readonly property var favourites: Settings.data.radioFavourites || []

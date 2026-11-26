@@ -31,6 +31,7 @@ AppWindow {
         ["android", Tr.t("Android phone")],
         ["screen", Tr.t("This screen")],
         ["gadgets", Tr.t("Gadgets")],
+        ["phone", Tr.t("Phone link")],
         ["lines", Tr.t("Lines")]
     ]
 
@@ -55,11 +56,14 @@ AppWindow {
     property bool screenTouch: true
     property bool screenTyping: true
 
-    // gadgets
-    property real fmChoice: 101.5
-    property string fmCustom: ""
+    // gadgets: each tool's last result has its own row, never a shared note
     property string nfcWrite: ""
     property string irCode: ""
+    property string nfcResult: ""
+    property string irResult: ""
+
+    // the phone link
+    property string linkAddress: ""
 
     // lines
     property string accountAddress: ""
@@ -67,7 +71,7 @@ AppWindow {
     property string landlineHost: ""
     property string landlineCode: ""
 
-    function refreshAll() { Devices.refresh(); Lines.refresh(); Mirror.refresh(); }
+    function refreshAll() { Devices.refresh(); Lines.refresh(); Mirror.refresh(); PhoneTools.refresh(); }
     onVisibleChanged: if (visible) refreshAll()
     Component.onCompleted: refreshAll()
 
@@ -180,18 +184,45 @@ AppWindow {
         return s;              // an honest message from the bridge
     }
     function castingOn() { return Devices.screenState === "on"; }
-    function radioOn() { return Devices.fmState === "on"; }
-    readonly property var fmPresets: [
-        { label: "88.5", value: 88.5 }, { label: "91.5", value: 91.5 },
-        { label: "94.5", value: 94.5 }, { label: "98.5", value: 98.5 },
-        { label: "101.5", value: 101.5 }, { label: "104.5", value: 104.5 },
-        { label: "107.5", value: 107.5 }
-    ]
-    function useCustomFrequency() {
-        const n = parseFloat(String(win.fmCustom).replace(",", "."));
-        if (isNaN(n) || n <= 0) { Devices.say(Tr.t("Enter a frequency first")); return; }
-        win.fmChoice = n;
-        win.fmCustom = "";
+    // the phone link: a dot says ready or waiting, the row below says which phone
+    function linkReady() { return !!(PhoneTools.link && PhoneTools.link.paired); }
+    function linkStatusText() {
+        const l = PhoneTools.link || {};
+        if (l.paired) return Tr.t("Ready");
+        if (l.status) return String(l.status);
+        return Tr.t("Not connected");
+    }
+    function linkNote() {
+        const l = PhoneTools.link || {};
+        return l.note || PhoneTools.note || "";
+    }
+    function pairLink() {
+        const addr = win.linkAddress.trim();
+        if (addr === "") { PhoneTools.say(Tr.t("Enter the phone's address first")); return; }
+        win.clearResults();
+        PhoneTools.linkAction("pair", addr);
+        win.linkAddress = "";
+    }
+
+    // a new action clears both result rows first: a tag can never sit under IR
+    function clearResults() { win.nfcResult = ""; win.irResult = ""; }
+    function readTag() { win.clearResults(); Devices.nfc("read"); }
+    function writeTag() {
+        const text = win.nfcWrite.trim();
+        if (text === "") { Devices.say(Tr.t("Enter the text first")); return; }
+        win.clearResults();
+        Devices.nfc("write", text);
+    }
+    function sendIr() {
+        if (win.irCode === "") { Devices.say(Tr.t("Pick a code first")); return; }
+        win.clearResults();
+        win.irResult = win.irCode;
+        Devices.say("");       // an old note must not survive a new action
+        Devices.ir("send", win.irCode);
+    }
+    Connections {
+        target: Devices
+        function onNfcTextChanged() { win.nfcResult = Devices.nfcText; }
     }
     function pickIr(value) {
         const v = String(value || "");
@@ -601,40 +632,15 @@ AppWindow {
                     SettingsSection {
                         Layout.fillWidth: true
                         title: Tr.t("Radio")
-                        Picks {
-                            label: Tr.t("Frequency")
-                            options: win.fmPresets
-                            current: win.fmChoice
-                            onPicked: v => win.fmChoice = v
-                        }
-                        TextField {
+                        hint: Tr.t("Listen to FM radio in the media player")
+                        Button {
                             Layout.fillWidth: true
-                            label: Tr.t("Another frequency")
-                            placeholder: Tr.t("Another frequency, if you want one")
-                            mode: "digits"
-                            text: win.fmCustom
-                            onTextChanged: win.fmCustom = text
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.px(6)
-                            Button { text: Tr.t("Use this frequency"); enabled: win.fmCustom !== ""; onClicked: win.useCustomFrequency() }
-                            Item { Layout.fillWidth: true }
-                            Button {
-                                kind: win.radioOn() ? "danger" : "primary"
-                                text: win.radioOn() ? Tr.t("Stop radio") : Tr.t("Start radio")
-                                enabled: !Devices.busy
-                                onClicked: Devices.fm(win.radioOn() ? "stop" : "start", String(win.fmChoice))
+                            text: Tr.t("Open FM radio")
+                            onClicked: {
+                                Radio.sourceChoice = "fm";
+                                PlayQueue.open("");
+                                PlayQueue.page = "radio";
                             }
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.Wrap
-                            text: win.radioOn()
-                                ? Tr.t("Playing at %1", Devices.fmFrequency) : win.stateText(Devices.fmState)
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
                         }
                     }
                     SettingsSection {
@@ -644,7 +650,7 @@ AppWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
-                            Button { text: Tr.t("Read a tag"); enabled: !Devices.busy; onClicked: Devices.nfc("read") }
+                            Button { text: Tr.t("Read a tag"); enabled: !Devices.busy; onClicked: win.readTag() }
                             Item { Layout.fillWidth: true }
                         }
                         TextField {
@@ -662,16 +668,16 @@ AppWindow {
                                 kind: "primary"
                                 text: Tr.t("Write to a tag")
                                 enabled: win.nfcWrite.trim() !== "" && !Devices.busy
-                                onClicked: Devices.nfc("write", win.nfcWrite.trim())
+                                onClicked: win.writeTag()
                             }
                         }
-                        Text {
+                        ListRow {
                             Layout.fillWidth: true
-                            wrapMode: Text.Wrap
-                            text: Devices.nfcText !== "" ? Tr.t("On the last tag: %1", Devices.nfcText) : Tr.t("No tag read yet")
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                            interactive: false
+                            icon: "preferences-system"
+                            title: Tr.t("Last tag")
+                            subtitle: win.nfcResult !== "" ? Tr.t("Read from a tag") : Tr.t("No tag read yet")
+                            trailing: win.nfcResult
                         }
                     }
                     SettingsSection {
@@ -697,22 +703,196 @@ AppWindow {
                             title: Tr.t("No codes yet")
                             subtitle: Tr.t("Ask the remote for its list")
                             actionText: Tr.t("Look for codes")
-                            onAction: Devices.ir("list")
+                            onAction: { win.clearResults(); Devices.ir("list"); }
+                        }
+                        ListRow {
+                            Layout.fillWidth: true
+                            interactive: false
+                            icon: "input-keyboard"
+                            title: Tr.t("Last code")
+                            subtitle: win.irResult !== "" ? Tr.t("Sent to the remote") : Tr.t("No code sent yet")
+                            trailing: win.irResult
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.px(6)
-                            Button { text: Tr.t("Look for codes"); onClicked: Devices.ir("list") }
+                            Button { text: Tr.t("Look for codes"); onClicked: { win.clearResults(); Devices.ir("list"); } }
                             Item { Layout.fillWidth: true }
                             Button {
                                 kind: "primary"
                                 text: Tr.t("Send code")
                                 enabled: !Devices.busy
-                                onClicked: {
-                                    if (win.irCode === "") { Devices.say(Tr.t("Pick a code first")); return; }
-                                    Devices.say("");       // the old NFC note must not survive
-                                    Devices.ir("send", win.irCode);
+                                onClicked: win.sendIr()
+                            }
+                        }
+                    }
+                }
+
+                // ---- the phone link: pair, find, and the phones within reach ----
+                ColumnLayout {
+                    visible: win.tab === "phone"
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    onVisibleChanged: if (visible) { Phone.search(); PhoneTools.refresh(); }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Phone link")
+                        hint: Tr.t("Send files to your phone over the same Wi-Fi, with its share settings open")
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(8)
+                            Rectangle {
+                                width: Theme.px(10)
+                                height: Theme.px(10)
+                                radius: Theme.px(5)
+                                color: win.linkReady() ? Theme.success : Theme.faint
+                                Accessible.name: win.linkStatusText()
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: win.linkStatusText()
+                                color: win.linkReady() ? Theme.success : Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.px(12) * Theme.fontScale
+                            }
+                        }
+                        ListRow {
+                            Layout.fillWidth: true
+                            interactive: false
+                            icon: "phone"
+                            title: (PhoneTools.link && PhoneTools.link.name) || Tr.t("No phone paired")
+                            subtitle: (PhoneTools.link && PhoneTools.link.address) || ""
+                            trailing: Phone.batteryText(Phone.phone)
+                        }
+                        BusyNote {
+                            Layout.fillWidth: true
+                            visible: PhoneTools.busy
+                            note: Tr.t("Working…")
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: win.linkNote() !== ""
+                            wrapMode: Text.Wrap
+                            text: win.linkNote()
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.px(12) * Theme.fontScale
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Pair a phone")
+                        hint: Tr.t("Open your phone's share settings, then pair it here")
+                        TextField {
+                            Layout.fillWidth: true
+                            label: Tr.t("Phone address")
+                            placeholder: Tr.t("Address shown on the phone, if asked for")
+                            text: win.linkAddress
+                            onTextChanged: win.linkAddress = text
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(6)
+                            Button {
+                                kind: "primary"
+                                text: Tr.t("Pair another phone")
+                                enabled: !PhoneTools.busy
+                                onClicked: win.pairLink()
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                        ConfirmButton {
+                            value: "link"
+                            implicitWidth: Math.max(Theme.touchTarget, Tr.t("Forget this phone").length * 8 + 28)
+                            implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                            text: Tr.t("Forget this phone")
+                            armedText: Tr.t("Tap again to forget")
+                            kind: "danger"
+                            Accessible.name: Tr.t("Forget this phone")
+                            enabled: !PhoneTools.busy
+                            onConfirmed: PhoneTools.linkAction("forget")
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Find a phone")
+                        hint: Tr.t("Let the phone see this computer, then look for it here")
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(6)
+                            Button {
+                                text: Tr.t("Look for phones")
+                                enabled: !PhoneTools.busy
+                                onClicked: { PhoneTools.linkAction("find"); Phone.search(); }
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                        SwitchRow {
+                            Layout.fillWidth: true
+                            text: Tr.t("Make this computer findable")
+                            hint: Tr.t("Announce this computer so a phone can pair with it")
+                            checked: !!(PhoneTools.link && PhoneTools.link.findable)
+                            enabled: !PhoneTools.busy
+                            onToggled: on => PhoneTools.linkAction("findable", on ? "on" : "off")
+                        }
+                    }
+
+                    SettingsSection {
+                        Layout.fillWidth: true
+                        title: Tr.t("Phones nearby")
+                        hint: Tr.t("Phones this computer can reach right now")
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.px(4)
+                            Repeater {
+                                model: Phone.devices
+                                ColumnLayout {
+                                    id: nearPhone
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: Theme.px(2)
+                                    ListRow {
+                                        Layout.fillWidth: true
+                                        icon: "phone"
+                                        title: nearPhone.modelData.name
+                                        subtitle: nearPhone.modelData.paired
+                                            ? (nearPhone.modelData.reachable ? Tr.t("Connected") : Tr.t("Paired, not nearby"))
+                                            : Tr.t("Nearby")
+                                        trailing: Phone.batteryText(nearPhone.modelData)
+                                        selected: nearPhone.modelData.paired && nearPhone.modelData.reachable
+                                        onClicked: if (!nearPhone.modelData.paired) Phone.pair(nearPhone.modelData.id)
+                                        ConfirmButton {
+                                            visible: nearPhone.modelData.paired
+                                            icon: "edit-delete"
+                                            size: Theme.px(22)
+                                            tip: Tr.t("Unpair %1", nearPhone.modelData.name)
+                                            Accessible.name: Tr.t("Unpair %1", nearPhone.modelData.name)
+                                            kind: "danger"
+                                            enabled: !PhoneTools.busy
+                                            onConfirmed: Phone.unpair(nearPhone.modelData.id)
+                                        }
+                                    }
+                                    RowLayout {
+                                        visible: nearPhone.modelData.paired && nearPhone.modelData.reachable
+                                        Layout.leftMargin: Theme.px(40)
+                                        spacing: Theme.px(6)
+                                        Button { text: Tr.t("Ring"); onClicked: Phone.ring(nearPhone.modelData.id) }
+                                        Button { text: Tr.t("Ping"); onClicked: Phone.ping(nearPhone.modelData.id) }
+                                        Button { text: Tr.t("Send clipboard"); onClicked: Phone.sendClipboard(nearPhone.modelData.id) }
+                                    }
                                 }
+                            }
+                            EmptyState {
+                                visible: Phone.devices.length === 0
+                                icon: "phone"
+                                title: Tr.t("No phone found yet")
+                                subtitle: Tr.t("Open the share settings on your phone, then look for phones")
+                                actionText: Tr.t("Look for phones")
+                                onAction: { PhoneTools.linkAction("find"); Phone.search(); }
                             }
                         }
                     }
