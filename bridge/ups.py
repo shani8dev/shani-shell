@@ -32,10 +32,22 @@ import subprocess
 import sys
 
 UPSC = os.environ.get("SHANI_UPSC", "upsc")
-UPSMON_CONF = os.environ.get("SHANI_UPSMON_CONF", "/etc/nut/upsmon.conf")
-SYSTEMCTL = shlex.split(os.environ.get("SHANI_SYSTEMCTL", "systemctl"))
+# SHANI_SYSTEM_* are the system pages' own harness overrides; the shorter
+# names remain for callers and tests outside that harness.
+UPSMON_CONF = os.environ.get(
+    "SHANI_SYSTEM_UPSMON_CONF",
+    os.environ.get("SHANI_UPSMON_CONF", "/etc/nut/upsmon.conf"),
+)
+SYSTEMCTL = shlex.split(
+    os.environ.get(
+        "SHANI_SYSTEM_UPS_SYSTEMCTL", os.environ.get("SHANI_SYSTEMCTL", "systemctl")
+    )
+)
 PKEXEC = shlex.split(os.environ.get("SHANI_SYSTEM_PKEXEC", "pkexec"))
-SAVE = os.environ.get("SHANI_CASSINI_SAVE", "/usr/local/bin/shani-cassini-save")
+SAVE = os.environ.get(
+    "SHANI_SYSTEM_CASSINI_SAVE",
+    os.environ.get("SHANI_CASSINI_SAVE", "/usr/local/bin/shani-cassini-save"),
+)
 MAX_BYTES = 16384
 
 # The seven directives the policy editor owns, in the order it shows them.

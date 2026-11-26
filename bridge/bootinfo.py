@@ -32,10 +32,16 @@ PRIVILEGED_TIMEOUT = 90
 # ShaniOS-only tools and files. Keep the command lists below as literals:
 # tests/test_os_cli_contract.py reads them to check every option against the
 # real parser in ../shani-deploy.
-DEPLOY = os.environ.get("SHANI_DEPLOY", "shani-deploy")
+# The SHANI_SYSTEM_* names are the system pages' own harness overrides; the
+# shorter ones stay as fallbacks for callers and tests outside that harness.
+DEPLOY = os.environ.get(
+    "SHANI_SYSTEM_DEPLOY", os.environ.get("SHANI_DEPLOY", "shani-deploy")
+)
 PKEXEC = shlex.split(os.environ.get("SHANI_SYSTEM_PKEXEC", "pkexec"))
-SBCTL = os.environ.get("SHANI_SBCTL", "sbctl")
-MOKUTIL = os.environ.get("SHANI_MOKUTIL", "mokutil")
+SBCTL = os.environ.get("SHANI_SYSTEM_SBCTL", os.environ.get("SHANI_SBCTL", "sbctl"))
+MOKUTIL = os.environ.get(
+    "SHANI_SYSTEM_MOKUTIL", os.environ.get("SHANI_MOKUTIL", "mokutil")
+)
 EFI_DIR = Path(os.environ.get("SHANI_EFI_DIR", "/sys/firmware/efi"))
 
 # what the deploy script reports, and what a person needs to see

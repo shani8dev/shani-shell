@@ -30,7 +30,8 @@ export SHANI_SYSTEM_BG_TOOL=/work/bridge/system_background.py
 # Firmware, checks and root-only maintenance.
 export SHANI_FWUPDMGR=/work/dev/fake-fwupdmgr.py FAKE_FWUPDMGR="$FS/firmware"
 export SHANI_SYSTEM_HEALTH=/work/dev/fake-shani-health.py FAKE_SHANI_HEALTH="$FS/health"
-export SHANI_SYSTEM_PKEXEC="" SHANI_DEPLOY=/work/dev/fake-system-root.py
+# shani-deploy's write stand-in is set in dev/session.sh, beside the other
+# session-wide overrides: this file only owns SHANI_SYSTEM_* names.
 export SHANI_HEALTH=/work/dev/fake-system-root.py SHANI_RESET=/work/dev/fake-system-root.py
 export SHANI_REPORT_DIR="$FS/reports" FAKE_SYSTEM_ROOT="$FS/root"
 mkdir -p "$FS/firmware" "$FS/health" "$FS/root"
@@ -70,7 +71,7 @@ else:
 os.execv(target, ["systemctl"] + args)
 SH
 chmod +x "$FS/systemctl"
-export SHANI_SYSTEM_SYSTEMCTL="$FS/systemctl" SHANI_SYSTEMCTL="$FS/systemctl"
+export SHANI_SYSTEM_SYSTEMCTL="$FS/systemctl"
 export FAKE_SYSTEM_NET="$FS/net" SHANI_RESOLV_CONF="$FS/net/resolv.conf" \
        SHANI_CADDYFILE="$FS/net/Caddyfile" SHANI_CLOUDFLARED_DIR="$FS/net/cloudflared-config" \
        SHANI_EXIM_CONF="$FS/net/exim.conf" SHANI_SYSCTL_FILE="$FS/net/ip_forward"
@@ -119,15 +120,16 @@ for t in ausearch systemctl; do ln -sf /work/dev/fake-audit.py "$FS/audit/$t"; d
 ln -sf /work/dev/fake-upsmon.py "$FS/nut/shani-cassini-save"
 ln -sf /work/dev/fake-unit-state.py "$FS/bin-misc/systemctl"
 ln -sf /work/dev/fake-system-net.py "$FS/bin-net/fail2ban-client"
-export SHANI_DEPLOY=/work/dev/fake-system-deploy.sh SHANI_SBCTL="$FS/bin-boot/sbctl" \
-       SHANI_MOKUTIL="$FS/bin-boot/mokutil" FAKE_BOOT_TOOLS_DIR="$FS/boot"
+export SHANI_SYSTEM_DEPLOY=/work/dev/fake-system-deploy.sh SHANI_SYSTEM_SBCTL="$FS/bin-boot/sbctl" \
+       SHANI_SYSTEM_MOKUTIL="$FS/bin-boot/mokutil" FAKE_BOOT_TOOLS_DIR="$FS/boot"
 export SHANI_SYSTEM_PKEXEC=/work/dev/fake-pkexec.sh FAKE_PKEXEC_LOG="$FS/pkexec-calls"
 export SHANI_AUSEARCH="$FS/audit/ausearch" SHANI_AUDIT_LOG="$FS/audit/audit.log" FAKE_AUDIT="$FS/audit"
-export SHANI_CASSINI_SAVE="$FS/nut/shani-cassini-save" SHANI_UPSMON_CONF="$FS/nut/upsmon.conf" \
-       FAKE_UPMON="$FS/nut"
+export SHANI_SYSTEM_CASSINI_SAVE="$FS/nut/shani-cassini-save" \
+       SHANI_SYSTEM_UPSMON_CONF="$FS/nut/upsmon.conf" \
+       SHANI_SYSTEM_UPS_SYSTEMCTL="$FS/systemctl" FAKE_UPMON="$FS/nut"
 export SHANI_FAIL2BAN_CLIENT="$FS/bin-net/fail2ban-client"
 export SHANI_SMARTD_CONF="$FS/smartd.conf" FAKE_UNIT_SMARTD=active
 printf 'DEVICESCAN -d removable -n standby -m root -M exec /usr/share/smartmontools/smartd-runner\n' > "$SHANI_SMARTD_CONF"
-printf '# managed by the desktop\nMINSUPPLIES 1\nSHUTDOWNCMD "/sbin/shutdown -h +0"\nPOWERDOWNFLAG /etc/killpower\nDEADTIME 15\nFINALDELAY 0\nPOLLFREQ 5\nPOLLFREQALERT 5\nMONITOR myups@localhost 1 monitor pass primary\n' > "$SHANI_UPSMON_CONF"
+printf '# managed by the desktop\nMINSUPPLIES 1\nSHUTDOWNCMD "/sbin/shutdown -h +0"\nPOWERDOWNFLAG /etc/killpower\nDEADTIME 15\nFINALDELAY 0\nPOLLFREQ 5\nPOLLFREQALERT 5\nMONITOR myups@localhost 1 monitor pass primary\n' > "$SHANI_SYSTEM_UPSMON_CONF"
 printf "%s\n" "type=USER_LOGIN msg=audit(1710000000.100:42): pid=100 uid=0 auid=1000 msg='op=login id=\"alice\"'" > "$SHANI_AUDIT_LOG"
 mkdir -p "$FS/boot" "$FS/root"

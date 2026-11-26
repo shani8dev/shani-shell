@@ -61,6 +61,9 @@ export SHANI_CHARACTERS_TOOL=/work/bridge/characters.py SHANI_PHONE_TOOL=/work/b
 # an Android phone with no app on it: the adb stand-in reads this fake phone tree
 export SHANI_FAKE_PHONE_DIR=/tmp/fake-android-phone SHANI_BACKUP_CANCEL=/tmp/android-backup-cancel
 python3 /work/dev/fake-android-phone.py "$SHANI_FAKE_PHONE_DIR" >/dev/null 2>&1
+# Maintenance writes keep their own deploy stand-in; the system pages' reads
+# and verification use SHANI_SYSTEM_DEPLOY from dev/fake-system-env.sh.
+export SHANI_DEPLOY=/work/dev/fake-system-root.py
 export SHANI_BOOTINFO_TOOL=/work/bridge/bootinfo.py SHANI_CRONTAB=/work/dev/fake-crontab.sh SHANI_ZIPADD_TOOL=/work/bridge/zipadd.py SHANI_ARCHIVE_EXTRACT_TOOL=/work/bridge/zipcrypt.py
 export SHANI_PDFFORM_TOOL=/work/bridge/pdfform.py SHANI_TIDY_TOOL=/work/bridge/tidy.py SHANI_BATTERY_TOOL=/work/bridge/battery.py SHANI_MPRIS_TOOL=/work/bridge/mpris-player.py SHANI_TASKS_TOOL=/work/bridge/tasks.py SHANI_MUSIC_LIBRARY_TOOL=/work/bridge/music-library.py SHANI_CLEANUP_TOOL=/work/bridge/cleanup.py SHANI_OTP_TOOL=/work/bridge/otp.py SHANI_NEARBY_TOOL=/work/bridge/nearby.py SHANI_CONVERT_TOOL=/work/bridge/convert.py
 # no sweep of the host's network from the test session; a stand-in firewall-cmd records what it is asked
