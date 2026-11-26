@@ -391,18 +391,24 @@ ipc devicesClose
 waitfor "d['devicesShown'] == False" 6 && result devices-closes PASS \
     || result devices-closes FAIL "$(q "['devicesShown']")"
 
-# ---- Settings > Background: the phone tools' own switches ---------------------
+# ---- Settings > Background links to the app that owns the phone switches -----
 ipc settingsCategory background
 waitfor "d['settingsOpen'] and d['settingsCat'] == 'background'" 8 \
     && result devices-background-opens PASS \
     || result devices-background-opens FAIL "$(q "['settingsOpen'], d['settingsCat']")"
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" find "Open the Background app" >/dev/null 2>&1 \
+        && result devices-background-link PASS || result devices-background-link FAIL "no link to the app"
+else
+    result devices-background-link SKIP "no accessibility client"
+fi
+ipc backgroundOpen
+waitfor "d['backgroundShown'] == True" 8 \
+    && result devices-background-shown PASS || result devices-background-shown FAIL "$(q "['backgroundShown']")"
 waitfor "d['backgroundSwitches'] == 14 and d['backgroundOn'] >= 2" 10 \
     && result devices-background-switches PASS \
     || result devices-background-switches FAIL "$(q "['backgroundSwitches'], d['backgroundOn']")"
 if [ -f "$A11Y" ]; then
-    # the section's title is plain text with no accessible name; its first
-    # switch is the named way to know the section is drawn
-    for i in 1 2 3 4 5 6; do wtype -k Page_Up; sleep 0.15; done
     timeout 20 python3 "$A11Y" find "check box:^Receive files$" >/dev/null 2>&1 \
         && result devices-background-section PASS || result devices-background-section FAIL "no phone section"
     before=$(q "['backgroundOn']")
@@ -417,7 +423,8 @@ else
     result devices-background-switch SKIP "no accessibility client"
     result devices-background-toggle SKIP "no accessibility client"
 fi
-shot settings-background 0.3
+shot background-settings-link 0.3
+ipc backgroundClose
 
 # ---- the lines are also in Settings > Phone (Search must find the page) --------
 ipc settingsCategory phone
@@ -427,5 +434,23 @@ waitfor "d['settingsOpen'] and d['settingsCat'] == 'phone'" 8 \
 waitfor "'sip-devtest01' in str(d['lines']) and 'Test line' in str(d['sipAccounts'])" 10 \
     && result devices-sip-in-settings PASS \
     || result devices-sip-in-settings FAIL "$(q "['lines'], d['sipAccounts']")"
+# ---- Settings > Devices: links into the app, not a second device UI ----------
+ipc closeAll
+ipc settingsCategory devices
+waitfor "d['settingsOpen'] and d['settingsCat'] == 'devices'" 8 \
+    && result devices-settings-opens PASS \
+    || result devices-settings-opens FAIL "$(q "['settingsOpen'], d['settingsCat']")"
+if [ -f "$A11Y" ]; then
+    timeout 20 python3 "$A11Y" find "Radio gadgets" >/dev/null 2>&1 \
+        && result devices-settings-links PASS || result devices-settings-links FAIL "no section rows"
+    press "list item:^Radio gadgets$" "button:^Radio gadgets$"
+    waitfor "d['devicesShown'] == True and d['devicesTab'] == 'gadgets'" 8 \
+        && result devices-settings-opens-section PASS \
+        || result devices-settings-opens-section FAIL "$(q "['devicesShown'], d['devicesTab']")"
+else
+    result devices-settings-links SKIP "no accessibility client"
+    result devices-settings-opens-section SKIP "no accessibility client"
+fi
+shot settings-devices-links 0.3
 ipc closeAll
 rm -f "$BT_SHIM"
