@@ -1182,7 +1182,7 @@ AppWindow {
                                             Text {
                                                 visible: hourCell._evs.length > 2
                                                 Layout.fillWidth: true
-                                                implicitHeight: Math.max(Theme.touchTarget, 14)
+                                                Layout.preferredHeight: Math.max(Theme.touchTarget, 14)
                                                 verticalAlignment: Text.AlignVCenter
                                                 text: Tr.t("+%1 more").arg(hourCell._evs.length - 2)
                                                 color: Theme.accent
