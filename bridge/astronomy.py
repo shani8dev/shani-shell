@@ -4954,3 +4954,52 @@ def varshaphal(chart: dict, year: int) -> dict:
         "year_lord": SIGN_LORDS[sun_sign],
         "year_lord_sign": SIGNS[sun_sign],
     }
+
+
+# ---------------------------------------------------------------------------
+# Lal Kitab chart (fixed houses, Aries = house 1)
+# ---------------------------------------------------------------------------
+
+#: The permanent (pakka) house of each planet in Lal Kitab.
+LAL_KITAB_PAKKA_GHAR = {
+    "Sun": 9,
+    "Moon": 2,
+    "Mars": 3,
+    "Mercury": 6,
+    "Jupiter": 12,
+    "Venus": 7,
+    "Saturn": 8,
+    "Rahu": 6,
+    "Ketu": 12,
+}
+
+
+def lal_kitab_chart(chart: dict) -> dict:
+    """Planets by fixed house (Aries is house 1), with each planet's pakka
+    ghar and whether it sits in its own, exalted or debilitated sign.
+    """
+    houses = [{"house": i + 1, "sign": SIGNS[i], "planets": []} for i in range(12)]
+    planets = []
+    for planet in chart.get("planets", []):
+        name = planet.get("name", "")
+        longitude = float(planet.get("sidereal_longitude") or 0) % 360
+        sign_idx = int(longitude / 30) % 12
+        house = sign_idx + 1
+        dignity = planet_dignity(name, planet.get("sign") or SIGNS[sign_idx])
+        pakka = LAL_KITAB_PAKKA_GHAR.get(name)
+        row = {
+            "name": name,
+            "sign": SIGNS[sign_idx],
+            "house": house,
+            "pakka_ghar": pakka,
+            "in_pakka_ghar": bool(pakka == house),
+            "dignity": dignity,
+        }
+        planets.append(row)
+        houses[sign_idx]["planets"].append(name)
+    return {
+        "system": "lal_kitab",
+        "house_1_sign": "Aries",
+        "houses": houses,
+        "planets": planets,
+    }

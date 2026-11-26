@@ -101,6 +101,7 @@ ACTION_GROUPS = (
     ("doshas", ("mangaldosha", "kalasarpa", "sadesati")),
     ("kp", ("kplords",)),
     ("annual", ("varshaphal",)),
+    ("lalkitab", ("lalkitab",)),
 )
 ACTIONS = tuple(a for _, group in ACTION_GROUPS for a in group)
 
@@ -311,6 +312,8 @@ def new_data(action: str, arguments: dict, astronomy) -> dict:
 
         year = int(arguments.get("year") or datetime.now(timezone.utc).year)
         return astronomy.varshaphal(chart, year)
+    if action == "lalkitab":
+        return astronomy.lal_kitab_chart(chart)
     return {"error": f"Unknown calculation: {action}"}
 
 
@@ -400,6 +403,20 @@ def render_new(action: str, data: dict) -> str:
                 f"  Return ascendant: {data['ascendant']}°",
             ]
         )
+    if action == "lalkitab":
+        lines = ["Lal Kitab chart (Aries = house 1):"]
+        for house in data["houses"]:
+            lines.append(
+                f"  House {house['house']} {house['sign']}: "
+                f"{', '.join(house['planets']) or 'empty'}"
+            )
+        for planet in data["planets"]:
+            lines.append(
+                f"  {planet['name']}: house {planet['house']}, "
+                f"pakka ghar {planet['pakka_ghar']} "
+                f"({planet['dignity']}, in pakka: {planet['in_pakka_ghar']})"
+            )
+        return "\n".join(lines)
     return "Calculation failed: no renderer"
 
 
@@ -449,6 +466,9 @@ def compute(arguments: dict, astronomy) -> str:
 
     if action == "varshaphal":
         return _answer_new("varshaphal", arguments, astronomy)
+
+    if action == "lalkitab":
+        return _answer_new("lalkitab", arguments, astronomy)
 
     # ---- every calculation the engine offers (restored from 98075ba) ----
 
