@@ -10,6 +10,8 @@ Rectangle {
     property alias cursorPosition: input.cursorPosition
     property alias selectionStart: input.selectionStart
     property alias selectionEnd: input.selectionEnd
+    function insert(position, value) { input.insert(position, value) }
+    function remove(position, length) { input.remove(position, length) }
     property alias readOnly: input.readOnly
     property string placeholder
     // the same thing under Qt's own name, so a panel written against

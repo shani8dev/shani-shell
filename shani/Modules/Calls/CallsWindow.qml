@@ -75,7 +75,7 @@ AppWindow {
 
     function pickNumber(n) {
         number.text = String(n || "");
-        number.input.cursorPosition = number.text.length;
+        number.cursorPosition = number.text.length;
         win.suggestions = [];
         number.forceActiveFocus();
     }
@@ -93,15 +93,15 @@ AppWindow {
     // backspace at the caret (or the whole selection), not always the last digit
     function deleteDigit() {
         if (number.selectionStart !== number.selectionEnd) {
-            number.input.remove(number.input.selectionStart, number.input.selectionEnd - number.input.selectionStart);
+            number.remove(number.selectionStart, number.selectionEnd - number.selectionStart);
             return;
         }
-        if (number.input.cursorPosition > 0) number.input.remove(number.input.cursorPosition - 1, 1);
+        if (number.cursorPosition > 0) number.remove(number.cursorPosition - 1, 1);
     }
 
     function pasteNumber() {
         const t = String(Quickshell.clipboardText || "");
-        if (t !== "") { number.input.insert(number.input.cursorPosition, t); number.forceActiveFocus(); }
+        if (t !== "") { number.insert(number.cursorPosition, t); number.forceActiveFocus(); }
     }
 
     // ---- the window ---------------------------------------------------------
@@ -389,8 +389,8 @@ AppWindow {
                                 source: "DialPad.qml"
                                 Layout.alignment: Qt.AlignHCenter
                                 onLoaded: {
-                                    item.digitHandler = digit => { number.input.insert(number.input.cursorPosition, digit); number.forceActiveFocus(); };
-                                    item.longHandler = () => { number.input.insert(number.input.cursorPosition, "+"); number.forceActiveFocus(); };
+                                    item.digitHandler = digit => { number.insert(number.cursorPosition, digit); number.forceActiveFocus(); };
+                                    item.longHandler = () => { number.insert(number.cursorPosition, "+"); number.forceActiveFocus(); };
                                 }
                             }
 
@@ -493,7 +493,7 @@ AppWindow {
                                     selected: false
                                     // a tap fills the pad: put the caret at the end and focus it so
                                     // Enter calls and typing continues without a Tab
-                                    onClicked: { number.text = modelData.number; number.input.cursorPosition = number.text.length; number.forceActiveFocus(); }
+                                    onClicked: { number.text = modelData.number; number.cursorPosition = number.text.length; number.forceActiveFocus(); }
                                     extra: RowLayout {
                                         Button { text: Tr.t("Call"); flat: true; onClicked: { win.line = modelData.line || win.line; number.text = modelData.number; win.call() } }
                                     }
