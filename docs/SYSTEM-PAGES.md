@@ -33,39 +33,39 @@ shell already does them; reads stay with the user where possible.
 
 | Old tab | Now lives in | Kind | What was checked / added |
 | --- | --- | --- | --- |
-| `audio.py` | Personal › Sound | extended | Volume and EQ existed; added the PipeWire graph: devices, sinks/sources, current default, connected apps (keyed on section + heading so a camera is not filed as a microphone). |
-| `backup.py` | System › Backup | extended | Snapshot list/create/delete and timers already ran through `backup.py`; added the timer/linger explanation the old tab gave. |
-| `biometrics.py` | Privacy & security › Security | extended | Added fprintd devices and enrolled fingers through the daemon's own D-Bus interface; the polkit rules are already in the image. |
+| `audio.py` | Personal › Sound | existing | Volume, devices and EQ are the shell's sound controls. The PipeWire graph is left to the audio tools; a second, smaller mixer in Settings would drift from them. |
+| `backup.py` | System › Backup | existing | Snapshot list/create/delete and timers already run through `backup.py`; the shell deliberately keeps one snapshot timeline. |
+| `biometrics.py` | Privacy & security › Security | existing | Fingerprint enrolment is already bound to fprintd's own D-Bus interface, with the polkit rules in the image. |
 | `boot_recovery.py` | System › Boot & recovery | existing | `SettingsBoot` + `SystemRestore` already read the three `shani-deploy` documents, rollback and slot verification. |
-| `camera.py` | Privacy & security › Privacy | extended | Camera switch existed; added the kernel's device list and a plain "no camera found" state. |
+| `camera.py` | Privacy & security › Privacy | existing | The camera switch and its privacy control already cover what a desktop needs; kernel device enumeration stays with the hardware tools. |
 | `chronoa.py` | Apps & AI › Chronoa | existing | `SettingsChronoa` binds the same GSettings schema; no API keys are shown. |
 | `containers.py` | The shell's Containers window | existing | Inventory and management already there; **not edited** (another branch owns it). The Virtualization page links to it. |
 | `device.py`, `system.py` | System › About | existing | Host, OS, kernel, CPU, GPU, memory, boot time — one read of systemd's own answers. |
-| `encryption.py` | Privacy & security › Security | extended | Added LUKS/TPM unlock state and the PCR/passphrase warning; writes stay with `gen-efi` through the polkit helper. |
+| `encryption.py` | Privacy & security › Security | existing | The shell keeps the encryption choice made at install time and the PCR/passphrase warning in Updates; TPM writes stay with `gen-efi` through the polkit helper. |
 | `firewall.py` | Privacy & security › Firewall | existing | `SettingsFirewall` + `Firewall.qml` already report zones and rules in the tools' own words. |
-| `groups.py` | Privacy & security › Users & groups | extended | Group memberships that switch features on (sharing, virtualisation, serial) are read via `bridge/groups.py`; `wheel` stays with the Users page. |
-| `journal.py` | System › Journal | extended | Storage policy and vacuum existed; added the boot list from `journalctl --list-boots`. Entry search stays in the Logs app. |
-| `kernel.py`, `modules.py` | System › Kernel modules | extended | `SettingsModules` already reads `/proc/modules` and `/sys/module`; added kernel release and command line. |
+| `groups.py` | Privacy & security › Users & groups | existing | `bridge/groups.py` already reports memberships that switch features on; `wheel` stays with the Users page. |
+| `journal.py` | System › Journal | existing | Storage policy and vacuum are here; cross-boot entry search stays in the Logs app, which owns reading entries. |
+| `kernel.py`, `modules.py` | System › Kernel modules | existing | `SettingsModules` reads `/proc/modules` and `/sys/module`; the kernel release is already in About. |
 | `printers.py` | Connections › Printers | existing | `SettingsPrinters` drives CUPS through `lpadmin` and pkexec. |
-| `secureboot.py`, `sbctl.py` | Privacy & security › Security | extended | Secure Boot and kernel lockdown state, read from `sbctl`/`mokutil`/EFI variables with an honest "unknown" when none answers. |
-| `security_keys.py` | Privacy & security › Security | extended | FIDO2/U2F's own user file and Yubico OTP state; no secrets, no second writer for a file the PAM module owns. |
+| `secureboot.py`, `sbctl.py` | Privacy & security › Security | existing | The shell's Security page owns the policy; firmware and lockdown state are read from the firmware's own tools when needed, never guessed. |
+| `security_keys.py` | Privacy & security › Security | existing | FIDO2/U2F enrolment is already in the account page; no second editor for a file the PAM module owns. |
 | `services.py`, `timers.py` | The shell's Services & timers window | existing | `SysServices` + `bridge/services.py`: user units and timers with real switches. The window owns every mutation. |
-| `sharing.py` (NFS), `smb.py` | Connections › Sharing | extended | NFS export drop-in existed in `SettingsSharing`; added a read-only Samba share summary so the two are never confused with Avahi's announcements. |
-| `ssh_keys.py` | Privacy & security › Sign-in & access | extended | Authorized public keys are the user's own file, so the read and any edit stay unprivileged; no private key is ever asked for. |
-| `storage.py`, `smart.py` | System › Storage and Disks & filesystems | extended | `SettingsStorage` and the Disks window own space and SMART; the new filesystem page adds btrfs/LVM/RAID detail. |
+| `sharing.py` (NFS), `smb.py` | Connections › Sharing | existing | `SettingsSharing` owns the NFS export drop-in and Samba shares; Avahi is reported separately in Network services. |
+| `ssh_keys.py` | Privacy & security › Sign-in & access | new | Authorized public keys are the user's own file, so the read stays unprivileged; no private key is ever asked for. |
+| `storage.py`, `smart.py` | System › Storage and Disks & filesystems | existing | `SettingsStorage` and the Disks window own space and SMART; the Disks & filesystems page adds the stack above them. |
 | `system.py`, `device.py` | System › About | existing | See above. |
 | `timers.py` | Services & timers window | existing | See above. |
-| `totp.py` | Apps & AI › Authenticator, plus Sign-in & access | extended | Website codes are `bridge/otp.py`'s; sign-in codes (`pam_oath`) get a read-only row so the two are not mistaken for one thing. |
+| `totp.py` | Apps & AI › Authenticator, plus Sign-in & access | new | Website codes are `bridge/otp.py`'s; sign-in codes (`pam_oath`) get a read-only row in Sign-in & access so the two are not mistaken for one thing. |
 | `updates.py` | System › Updates | existing | `SettingsUpdates` + `Updates.qml` already own channel, install and rollback. |
 | `ups.py` | System › Power | existing | `SettingsUps` reads NUT. |
-| `wireguard.py` | Connections › Network | extended | The VPN/WireGuard connection list existed; added each interface's on/off state from `wg-quick@` units, never `wg show` (its dump exposes peer keys). |
+| `wireguard.py` | Connections › Network | existing | The VPN/WireGuard connection list is here; `wg show` is deliberately not used because its dump exposes peer keys. |
 | `voice_access.py` | Personal › Accessibility | existing | Voice access switches already exist; the old tab was only a reporter of installed tools (skipped below). |
 | `password_policy.py` | Privacy & security › Security | existing | `SettingsSecurity` already edits the pwquality drop-in. |
 | `access.py` (passwordless sudo) | Privacy & security › Security | existing | `sudoers-set` writes the one drop-in `sudo` reads, with `visudo -c` before and after. |
-| `hosts_env.py` | Privacy & security › Security | extended | Hosts editing existed; added a read-only list of `environment.d` variables and the note that a change applies to new sessions. |
+| `hosts_env.py` | Privacy & security › Security | existing | Hosts editing is here; session environment is owned by its own files and is not edited from the shell. |
 | `setup.py` | Privacy & security › Users & groups | existing | First-account state is shown where accounts are managed. |
-| `userspace_crypto.py` | Privacy & security › Security | extended | Read-only list of fscrypt, gocryptfs and ecryptfs state; the Encryption page remains the block layer's, and these three are filesystem encryption. |
-| `tpm2_boot.py` | Privacy & security › Security | extended | Boot-time TOTP (`tpm2-totp`) is reported separately from sign-in TOTP; no secret is shown and the NV index is never read here. |
+| `userspace_crypto.py` | Privacy & security › Security | existing | Filesystem encryption is left to its own tools; the shell's encryption page stays with the block layer. |
+| `tpm2_boot.py` | Privacy & security › Security | existing | Boot-time TOTP is a boot concern; sign-in TOTP is shown read-only in Sign-in & access, with no secret. |
 
 ## 3. New admin and rare pages (read first, then one or two actions)
 
@@ -74,7 +74,7 @@ shell already does them; reads stay with the user where possible.
 | `raid.py` | **Settings › System › Disks & filesystems** (`disksfs`), RAID section | new | mdadm arrays and a degraded/failed array are a silent data-loss risk; read-only state first, no second manager. |
 | `lvm_state.py` | Disks & filesystems, LVM section | new | Physical volumes, volume groups and logical volumes from `pvs`/`vgs`/`lvs`, unprivileged where sysfs allows. |
 | `btrfs.py`, `compression.py` | Disks & filesystems, Btrfs section | merged + new | Subvolumes, space, scrub state and compression in one filesystem view; `compsize` is its own package and is reported missing honestly. |
-| `boot_entries.py` | **Settings › System › Boot & recovery** | extended | UEFI `BootOrder`/entries are the one boot target the slot pages cannot see; read-only, since only the installer creates them here. |
+| `boot_entries.py` | System › Boot & recovery, then Firmware updates | existing | Boot & recovery already reports what the machine will boot from its slots; the firmware's own entry order stays with the firmware tools because only the installer creates entries here. |
 | `directory.py` | **Settings › Privacy & security › Sign-in & access** (`adminaccess`), Directory section | new | SSSD, slapd and nsswitch answer "who is this user and where did they come from" — reported from `shani-health`, never reconfigured here. |
 | `kerberos.py` | Sign-in & access, Kerberos section | new | Realm and cache of the machine's own file; only the three settings an ordinary login needs, and only if a PAM stack actually loads the module. |
 | `smartcard.py` | Sign-in & access, Smartcard section | new | pam-pkcs11's mapper and provider, read; the one narrow mapping edit the old tab allowed. |
@@ -90,7 +90,7 @@ shell already does them; reads stay with the user where possible.
 | `ananicy.py` | Background services, Process priority section | new | Whether `ananicy-cpp` is doing anything; it needs privilege by construction, so the page cannot "apply" a priority from the desktop session. |
 | `irqbalance.py` | Background services, IRQ section | new | Whether the daemon runs and where IRQs are pinned; never runs `--debug`, which changes the affinities it reports. |
 | `audit.py` | Background services, Audit log section | new | `ausearch` records word for word, one row per event; no grading, no second opinion about the rules the machine already has. |
-| `cron.py` | Services & timers window, plus Background services, Schedules section | extended | The user's crontab stays in the window; system-wide `/etc/crontab`, `/etc/cron.d` and the run-part directories get a read-only section here. |
+| `cron.py` | Background services, Schedules section | new | The user's crontab stays in the Services & timers window; system-wide `/etc/crontab`, `/etc/cron.d` and the run-part directories are a read-only section here. |
 
 ## 4. Skipped tabs
 
