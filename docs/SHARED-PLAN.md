@@ -19,7 +19,7 @@ add a line to the plan's Status section when you finish something:
 - Packaged for every distribution (upstream-ready rules in the plan): the shell's core names no ShaniOS tool and no ShaniOS name.
   - Providers for each OS domain the shell shows - updates, rollback/snapshots, encryption and boot, health, reset, /etc changes, backup: the ShaniOS provider calls shani-deploy, gen-efi, shani-health, shani-reset, shani-etc-changes and shani-backup; generic providers use what any distribution has (PackageKit and fwupd for updates, systemd-cryptenroll for TPM unlock, snapper for snapshots); a page shows what its provider supports and says how this system handles the rest.
   - The system's name from /etc/os-release; branding, wallpapers and default apps from vendor config files (/usr/share/shani-shell/vendor.d/).
-  - Standard paths only (no /usr/local); tool locations come from the provider.
-  - A meson install that any packager can use; one PKGBUILD builds shani-shell (the neutral core) and shani-shell-shanios (the ShaniOS providers and vendor config); CI installs and starts the core on Ubuntu, Fedora and Arch containers.
+  - The core never names a `shani-*` tool or path; the ShaniOS provider (shipped by `shani-deploy`, ShaniOS-only) does.
+  - A meson install that any packager can use; one PKGBUILD builds shani-shell (the neutral core) and shani-shell-shanios (ShaniOS's vendor config: name, branding, defaults); the ShaniOS providers ship with shani-deploy; CI installs and starts the core on Ubuntu, Fedora and Arch containers.
   - Where the fix belongs in ShaniOS's own tools, extend `../shani-deploy` (its docs/SHARED-PLAN.md lists what is allowed) rather than working around it here.
   - Measured 2026-11-26: 53 files name ShaniOS-only tools or the name (180 places: shani-deploy 79, "ShaniOS" 69); niri (15 files) is the shell's compositor and stays a normal dependency.

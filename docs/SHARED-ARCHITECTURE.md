@@ -195,8 +195,10 @@ the way systemd, PipeWire, NetworkManager and PackageKit are reused:
    defines a provider interface; the core ships neutral providers, and a
    distribution adds its own as a plugin (like PackageKit's backends or fwupd's
    plugins), upstream, not as a patch.
-3. **Distro specifics live in a separate extras package.** For ShaniOS: the
-   providers for `shani-deploy` and `gen-efi`, and the vendor config for
+3. **Distro specifics live in separate, distro-only packages.** For ShaniOS:
+   the providers for `shani-deploy` and `gen-efi` ship with `shani-deploy`
+   itself (ShaniOS-only - no other distribution will have these tools), and
+   the vendor config for
    <backends>, `chronoa` and the shell (names, branding, default apps, image
    paths) - the pattern of `fedora-release` or `ubuntu-settings`. The neutral
    projects never name ShaniOS in code.
