@@ -1,65 +1,77 @@
 pragma Singleton
-// Shani Backup, as the shell shows it: earlier versions of your home (the
-// daily snapshots on this disk) and your home on another drive - both read
-// from shani-backup's own answers (`home list --json`, `backups --json`), the
-// one place either is decided. "Back up now" runs its backup; the setting up,
-// the schedule and restoring are Shani Backup's own pages (`open`).
+// Shani Backup, as the shell shows it. Every answer and every action goes
+// through bridge/backup.py, which runs shani-backup's own commands:
+//   list / home-list / snapshot-list  - what is there
+//   backup / restore                 - the copy on the other drive
+//   snapshot-create/delete           - btrfs snapshots on this disk
+//   home-snapshot / home-remove      - snapshots of a home
+//   schedule                         - the daily backup's switch and time
+// The service holds data and codes; the panels own the words.
 import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Common
 import "../Common/Format.js" as Format
+import "../Common/ToolPath.js" as ToolPath
 
 Singleton {
     id: root
-    readonly property string tool: Quickshell.env("SHANI_BACKUP_TOOL") || "shani-backup"
+    readonly property string tool: ToolPath.of(Quickshell.env("SHANI_BACKUP_BRIDGE"), "backup.py")
+    readonly property string commandTool: Quickshell.env("SHANI_BACKUP_TOOL") || "shani-backup"
+    readonly property string filesTool: ToolPath.of(Quickshell.env("SHANI_FILES_TOOL"), "files.py")
+    readonly property string homeTool: Quickshell.env("SHANI_BACKUP_SNAPSHOT_PATH") || "/home/.snapshots"
     property bool available: false
-    property bool running: job.running
+    property bool loading: false
+    property bool running: backupJob.running
+    property string busyOp: ""
+    property string note: ""
+    property string error: ""
+    property int progress: 0
+    property int peakProgress: 0
+    property string progressFile: ""
+    property var backupResult: null
+
+    // what shani-backup answered
     property bool driveSetUp: false
-    property string versions: ""          // "2 snapshots on this disk · latest today"
-    property string drive: ""             // "Last today 21:15 · every day at 21:15"
-    // snapshot timeline: [{ name, date, size, status }] sorted newest first
-    property var snapshots: []
-    // restore target: the selected snapshot's name
-    property string restoring: ""
-    property string restoreTarget: ""     // folder the restore job writes into
-    property bool loading: false          // home-list / backups queries still in flight
+    property bool reachable: false
+    property string repository: ""
+    property bool scheduleOn: false
+    property string scheduleTime: ""
+    property var backups: []
+    property var restoreTest: null
+    property var snapshots: []          // snapshots of this person's home (home list)
+    property var btrfsSnapshots: []      // btrfs snapshots under homeTool
+    property string versions: ""
+    property string drive: ""
+
+    // what the person picked / the shell did last
+    property string tab: "home"
+    property string restorePick: ""      // backup id chosen in the restore form
+    property string restoreTarget: ""
+    property string lastAction: ""
+    property string lastPath: ""
+    property string lastTarget: ""
+    property bool copyBusy: false
+
     readonly property string summary: drive
 
-    function refresh() { if (available) { loading = true; homeList.running = true; backups.running = true; } }
-    function open(page) { Quickshell.execDetached([root.tool, "open", page || "home"]); }
-    function backupNow() {
-        if (running) return;  // single-flight: a second restic job would contend for the repo lock
-        if (!driveSetUp) { open("backups"); return; }
-        job.running = true;
+    function refresh() {
+        if (!available) return;
+        error = "";
+        loading = true;
+        list.running = true;
+        homeList.running = true;
+        snapshotList.running = true;
     }
 
-    // Restore from a snapshot. shani-backup's CLI has no `home restore`
-    // subcommand — the reliable restore path is its GUI (home page: browse
-    // earlier versions, restore one file / a folder / the whole tree). Open
-    // it at the right page; `what` is kept for the launcher/test contract.
-    function restoreFromSnapshot(name, what) {
-        // Both paths open the GUI's home page; the "files" variant pre-selects
-        // the browse view so restoring a single file is one click less. The
-        // CLI's `restore <target> --snapshot <id>` only restores into a NEW
-        // folder, which is not what either button promises.
-        root.open(what === "files" ? "home" : "home");
-        restoring = "";
+    // Open the shell's own Backup window at a tab. The GTK app is never started.
+    function open(page) {
+        tab = page || "home";
+        Ui.closeAll();
+        Ui.backup = true;
     }
 
-    // Shell-driven restore with completion feedback. The bridge exposes
-    // `shani-backup restore <target> --snapshot <id> --json` (cli.py), so this
-    // runs it as a job and notifies with an "Open result" action. The panel
-    // buttons still open the GUI so users can pick individual files; this path
-    // is for scripted restores that need a shell-level completion signal.
-    function restoreTo(snapshot, target) {
-        if (restoreJob.running) return;  // one restore at a time
-        root.restoring = snapshot || "";
-        root.restoreTarget = target || ((Quickshell.env("HOME") || "/tmp") + "/Restored/" + root.restoring);
-        restoreJob.running = true;
-    }
-
-    function formatBytes(n) { return Format.humanSize(n, "whole"); }
+    function formatBytes(n) { return Format.humanSize(n || 0, "whole"); }
 
     function day(stamp) {
         const m = /(\d{4}-\d\d-\d\d)/.exec(stamp || "");
@@ -69,97 +81,221 @@ Singleton {
         return n === 0 ? Tr.t("today") : n === 1 ? Tr.t("yesterday") : Qt.formatDate(d, "d MMM");
     }
 
+    function openPath(path) {
+        if (!path) return;
+        Files.show(path);
+    }
+
+    // ---- reads ----------------------------------------------------------------
     Process {
         running: true
-        command: ["sh", "-c", 'command -v "$0"', root.tool]
+        command: ["sh", "-c", 'command -v "$0" >/dev/null 2>&1', root.commandTool]
         onExited: code => { root.available = code === 0; root.refresh(); }
     }
+
+    Process {
+        id: list
+        command: [root.tool, "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.loading = false;
+                let d = {};
+                try { d = JSON.parse(text.trim().split("\n").pop() || "{}"); } catch (e) {}
+                if (d.error && d.ok === false) root.error = d.error;
+                root.repository = d.repository || "";
+                root.reachable = !!d.reachable;
+                root.driveSetUp = !!(d.repository && d.set_up);
+                root.scheduleOn = !!(d.schedule && d.schedule.on);
+                root.scheduleTime = (d.schedule && d.schedule.time) || "";
+                root.backups = d.ok !== false && Array.isArray(d.backups) ? d.backups : [];
+                root.restoreTest = d.restore_test || null;
+                root.drive = !root.repository ? Tr.t("No backup drive chosen yet")
+                    : !root.reachable ? Tr.t("The backup drive is not connected")
+                    : !root.driveSetUp ? Tr.t("This folder is not set up for backups yet")
+                    : !d.ok ? (d.error || Tr.t("Shani Backup did not answer"))
+                    : Tr.t("Last %1", root.backups.length ? root.day(root.backups[0].time) + " " + String(root.backups[0].time).slice(11, 16) : Tr.t("never"))
+                      + " · " + (root.scheduleOn ? Tr.t("every day at %1", root.scheduleTime) : Tr.t("by hand"));
+            }
+        }
+    }
+
     Process {
         id: homeList
-        command: [root.tool, "home", "list", "--json"]
+        command: [root.tool, "home-list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 root.loading = false;
-                try {
-                    const d = JSON.parse(text);
-                    const n = d.ok ? d.snapshots.length : -1;
-                    root.versions = n < 0 ? (d.error || Tr.t("Shani Backup did not answer"))
-                        : n === 0 ? Tr.t("None yet — your home is snapshotted once a day")
-                        : Tr.t("%1 on this disk · latest %2", n === 1 ? Tr.t("1 snapshot") : Tr.t("%1 snapshots", n), root.day(d.snapshots[0].name));
-                    root.snapshots = (d.ok ? d.snapshots : []).map(s => ({
-                        name: s.name || "",
-                        date: s.name || "",
-                        displayDate: root.day(s.name),
-                        size: s.total_size || 0,
-                    }));
-                } catch (e) { root.versions = Tr.t("Shani Backup did not answer"); root.snapshots = []; }
+                let d = {};
+                try { d = JSON.parse(text.trim().split("\n").pop() || "{}"); } catch (e) {}
+                const items = d.ok !== false && Array.isArray(d.snapshots) ? d.snapshots : [];
+                root.snapshots = items.map(s => ({
+                    name: s.name || "", path: s.path || "", whole: !!s.whole,
+                    displayDate: root.day(s.name),
+                    subtitle: String(s.name || "").startsWith("manual-") ? Tr.t("Taken by hand")
+                        : String(s.name || "").startsWith("predeploy-") ? Tr.t("Before an update") : Tr.t("Daily")
+                }));
+                root.versions = d.ok === false ? (d.error || Tr.t("Shani Backup did not answer"))
+                    : items.length === 0 ? Tr.t("No snapshots yet — your home is snapshotted once a day")
+                    : Tr.t("%1 on this disk · latest %2",
+                           items.length === 1 ? Tr.t("1 snapshot") : Tr.t("%1 snapshots", items.length),
+                           root.day(items[0].name));
             }
         }
     }
+
     Process {
-        id: backups
-        command: [root.tool, "backups", "--json"]
+        id: snapshotList
+        command: [root.tool, "snapshot-list", root.homeTool]
         stdout: StdioCollector {
             onStreamFinished: {
-                root.loading = false;
-                try {
-                    const d = JSON.parse(text);
-                    root.driveSetUp = !!(d.repository && d.set_up);
-                    root.drive = !d.repository ? Tr.t("Not set up — choose a drive")
-                        : !d.reachable ? Tr.t("The backup drive is not connected")
-                        : !d.set_up ? Tr.t("The chosen folder is not set up yet")
-                        : !d.ok ? (d.error || Tr.t("Shani Backup did not answer"))
-                        : Tr.t("Last %1", d.backups.length ? root.day(d.backups[0].time) + " " + d.backups[0].time.slice(11, 16) : Tr.t("never"))
-                          + " · " + (d.schedule.on ? Tr.t("every day at %1", d.schedule.time) : Tr.t("by hand"));
-                } catch (e) { root.drive = Tr.t("Shani Backup did not answer"); }
+                let d = {};
+                try { d = JSON.parse(text.trim().split("\n").pop() || "{}"); } catch (e) {}
+                const paths = d.ok !== false && Array.isArray(d.snapshots) ? d.snapshots : [];
+                root.btrfsSnapshots = paths.map(p => ({ path: p, name: String(p).split("/").pop() || p }));
             }
         }
     }
+
+    // ---- back up now, with the command's own progress ---------------------------
     Process {
-        id: job
-        command: [root.tool, "backup", "--json"]
-        stdout: StdioCollector { id: jobOut }
+        id: backupJob
+        stdout: SplitParser {
+            onRead: line => {
+                const l = String(line).trim();
+                if (!l) return;
+                let d;
+                try { d = JSON.parse(l); } catch (e) { return; }
+                if (d.progress !== undefined) {
+                    root.progress = d.progress;
+                    if (d.progress > root.peakProgress) root.peakProgress = d.progress;
+                    root.progressFile = d.file || "";
+                } else if (d.ok !== undefined || d.error) {
+                    root.backupResult = d;
+                }
+            }
+        }
+        stderr: StdioCollector { id: backupErr }
         onExited: code => {
-            let err = "";
-            try { err = JSON.parse(jobOut.text).error || ""; } catch (e) {}
-            Quickshell.execDetached(["notify-send", "-a", "Backup", "-i", "drive-harddisk",
-                code === 0 ? Tr.t("Backup finished") : Tr.t("Backup failed"),
-                code === 0 ? Tr.t("Your home folder is on the backup drive") : (err || Tr.t("Open Shani Backup to see why"))]);
-            root.refresh();
+            const d = root.backupResult || {};
+            const ok = code === 0 && d.ok !== false;
+            root.busyOp = "";
+            root.progress = 0;
+            root.progressFile = "";
+            root.backupResult = null;
+            root.lastAction = "backup";
+            root.note = ok ? Tr.t("Your home folder is on the backup drive") : "";
+            root.error = ok ? "" : (d.error || backupErr.text.trim().split("\n").pop()
+                || Tr.t("The backup did not finish. Is the drive connected?"));
+            if (ok) root.refresh();
         }
     }
+
+    function backupNow() {
+        if (backupJob.running || !root.available) return;
+        if (!root.driveSetUp) { root.error = Tr.t("Choose a backup drive first"); return; }
+        root.error = "";
+        root.note = Tr.t("Backing up your home…");
+        root.progress = 0;
+        root.peakProgress = 0;
+        root.busyOp = "backup";
+        backupJob.command = [root.tool, "backup"];
+        backupJob.running = false;
+        backupJob.running = true;
+    }
+
+    // ---- one action at a time: every other flow goes through this Process ------
+    property string pendingOp: ""
+    property string pendingNote: ""
     Process {
-        id: restoreJob
-        command: [root.tool, "restore", root.restoreTarget, "--snapshot", root.restoring, "--json"]
-        stdout: StdioCollector { id: restoreOut }
+        id: action
+        stdout: StdioCollector { id: actionOut }
+        stderr: StdioCollector { id: actionErr }
         onExited: code => {
-            const target = root.restoreTarget;
-            let err = "";
-            try { err = JSON.parse(restoreOut.text).error || ""; } catch (e) {}
-            root.restoring = "";
-            root.restoreTarget = "";
-            const ok = code === 0;
-            restoreNote.path = target;
-            restoreNote.command = ["notify-send", "-a", "Backup", "-i", ok ? "drive-harddisk" : "dialog-error"]
-                .concat(ok ? ["-A", "open=" + Tr.t("Open result")] : [])
-                .concat([ok ? Tr.t("Restore finished") : Tr.t("Restore failed"),
-                         ok ? (err || Tr.t("Restored into %1", target)) : (err || Tr.t("Open Shani Backup to see why"))]);
-            restoreNote.running = false;
-            restoreNote.running = true;
-            root.refresh();
+            let d = {};
+            try { d = JSON.parse(actionOut.text.trim().split("\n").pop() || "{}"); } catch (e) {}
+            const op = root.pendingOp;
+            const ok = code === 0 && d.ok !== false;
+            root.busyOp = "";
+            root.lastAction = op;
+            if (d.path) root.lastPath = d.path;
+            if (ok) {
+                root.note = root.pendingNote;
+                root.error = "";
+            } else {
+                root.note = "";
+                root.error = code === 126 || code === 127 ? Tr.t("Administrator rights were not given")
+                    : (d.error || actionErr.text.trim().split("\n").pop() || Tr.t("That did not work"));
+            }
+            if (op === "home-snapshot" || op === "home-remove" || op === "snapshot-create"
+                || op === "snapshot-delete" || op === "schedule" || op === "restore") root.refresh();
         }
     }
-    // notify-send -A blocks until the button is pressed; the collector opens
-    // the restored folder when the user picks "Open result".
+
+    // note: what to say once the step has worked (the panel shows its own
+    // progress line while it runs)
+    function runOp(op, args, note) {
+        if (action.running || backupJob.running) return false;
+        root.pendingOp = op;
+        root.pendingNote = note || "";
+        root.busyOp = op;
+        root.error = "";
+        root.note = "";
+        action.command = [root.tool, op].concat(args);
+        action.running = false;
+        action.running = true;
+        return true;
+    }
+
+    function restoreTo(snapshot, target) {
+        if (!snapshot || !target) { root.error = Tr.t("Choose a backup and a folder first"); return false; }
+        root.restorePick = snapshot;
+        root.restoreTarget = target;
+        root.lastTarget = target;
+        return runOp("restore", [target, snapshot], Tr.t("Restored into %1", target));
+    }
+
+    function snapshotCreate(source, destination, readonly) {
+        return runOp("snapshot-create", readonly ? [source, destination, "--readonly"] : [source, destination],
+                     Tr.t("Snapshot taken"));
+    }
+
+    function snapshotDelete(path) { return runOp("snapshot-delete", [path], Tr.t("Snapshot removed")); }
+    function homeSnapshotNow() { return runOp("home-snapshot", [], Tr.t("Snapshot of your home taken")); }
+    function homeRemove(name) { return runOp("home-remove", [name], Tr.t("Snapshot removed")); }
+    function setSchedule(on) { return runOp("schedule", [on ? "on" : "off"], on ? Tr.t("Daily backup turned on") : Tr.t("Daily backup turned off")); }
+    function setScheduleTime(hhmm) { return runOp("schedule", ["at", hhmm], Tr.t("Daily backup at %1", hhmm)); }
+
+    // Restore a file or folder from a home snapshot with the shell's own copy
+    // engine (bridge/files.py paste): never over another file.
     Process {
-        id: restoreNote
-        property string path: ""
-        stdout: StdioCollector {
-            onStreamFinished: { if (text.trim() === "open") Qt.openUrlExternally("file://" + restoreNote.path); }
+        id: copyJob
+        stdout: StdioCollector { id: copyOut }
+        stderr: StdioCollector { id: copyErr }
+        onExited: code => {
+            root.copyBusy = false;
+            let d = {};
+            try { d = JSON.parse(copyOut.text.trim().split("\n").pop() || "{}"); } catch (e) {}
+            root.lastAction = "copy-from-snapshot";
+            if (code === 0 && d.ok !== false) {
+                root.note = Tr.t("Restored into %1", d.dest || root.lastTarget);
+                root.error = "";
+            } else {
+                root.note = "";
+                root.error = d.error || copyErr.text.trim().split("\n").pop() || Tr.t("That file could not be restored");
+            }
         }
     }
-    // asked when someone looks (the control centre, Settings > Backup), not on
-    // a timer: `backups --json` reads the backup drive, and a USB disk woken
-    // every few minutes is a disk that never sleeps
+    function restoreFromHome(source, dest) {
+        if (!source || !dest) { root.error = Tr.t("Pick a file and a place to put it first"); return false; }
+        root.lastTarget = dest;
+        root.copyBusy = true;
+        root.error = "";
+        root.note = "";
+        copyJob.command = [root.filesTool, "paste", dest, "copy", source];
+        copyJob.running = false;
+        copyJob.running = true;
+        return true;
+    }
+
     Connections { target: Ui; function onControlCenterChanged() { if (Ui.controlCenter) root.refresh(); } }
 }

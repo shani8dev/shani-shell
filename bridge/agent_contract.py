@@ -6,6 +6,9 @@ shell's copy for discovery, so the names cannot drift from the bridge's.
 Methods:
   Turn(text) -> turn_id        # starts a turn; reply lands via Event
   Approve(id, decision) -> ok  # user approves/denies; decision is the option label
+  Write(instruction, text) -> result
+  FindFiles(query, limit) -> json
+  Inventory(section) -> json   # read-only facts for the shell's panels
 
 Signal:
   Event(json)                   # stream of turn events to the caller

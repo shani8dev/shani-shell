@@ -323,6 +323,11 @@ var entries = [
     { key: "nfcReader", label: "NFC reader", cat: "devices", hint: "read and write nearby tags", words: "nfc tag read write nearby gadget" },
     { key: "about", label: "About", cat: "about", hint: "this machine — model, CPU, GPU, memory, kernel, compositor", words: "about machine info system kernel cpu memory gpu" },
 
+    // ---- Backup: every flow is a shell page now, not the GTK app ----------------
+    { key: "backup", label: "Backup", cat: "backup", hint: "back up your home, restore a backup, snapshots of your files", words: "backup backups restore snapshot snapshots drive other disk copy home", link: "backupOpen" },
+    { key: "dailyBackup", label: "Daily backup", cat: "backup", hint: "turn the daily copy on or off and choose its time", words: "daily backup schedule every day time on off automatic timer" },
+    { key: "homeSnapshots", label: "Earlier versions of my files", cat: "backup", hint: "snapshots of your home, and restoring a file or folder from one", words: "earlier versions restore deleted file folder snapshot time machine history recover" },
+
     // ---- System pages folded in from the old system manager -------------------
     { key: "firmware", label: "Firmware updates", cat: "firmware", hint: "the machine's firmware devices, what can be updated, and applying it", words: "firmware updates devices fwupd lvfs capsule bios uefi apply restart" },
     { key: "systemHealth", label: "System health", cat: "health", hint: "run the checks and see every result in plain words", words: "health checks verify diagnose problems report system" },

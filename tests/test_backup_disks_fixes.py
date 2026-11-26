@@ -15,19 +15,18 @@ def read(rel):
 
 def test_backup_panel_shows_in_flight_backup_or_restore():
     p = read("shani/Modules/Backup/BackupPanel.qml")
-    assert 'visible: Backup.running || Backup.restoring !== ""' in p
-    assert 'Tr.t("Restoring %1…", Backup.restoring)' in p
+    assert 'visible: Backup.busyOp !== "" || Backup.copyBusy' in p
+    assert 'Tr.t("Restoring your backup…")' in p
     assert 'Tr.t("Backing up your home…")' in p
 
 
 def test_backup_empty_state_offers_setup_next_step():
     p = read("shani/Modules/Backup/BackupPanel.qml")
     assert 'Tr.t("No backup drive set up")' in p
-    assert 'Tr.t("Set up backup drive…")' in p
-    assert 'Backup.open("backups")' in p
-    # EmptyState owns the CTA; gated on no drive, not snapshot count
+    # Plain words, not a button that would start the GTK app
+    assert 'Tr.t("Choose another drive or a folder outside your home' in p
+    assert "Backup.open(" not in p
     assert "EmptyState {" in p
-    assert '!Backup.driveSetUp ? Tr.t("Set up backup drive…") : ""' in p or 'Backup.driveSetUp ? "" : Tr.t("Set up backup drive…")' in p
 
 
 def test_disks_confirm_is_rearmed_on_device_or_op_change():

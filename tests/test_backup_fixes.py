@@ -11,12 +11,13 @@ def read(rel):
 
 def test_restore_job_notifies_with_open_result():
     # a restore run through the shell reports completion and offers to open the
-    # folder it wrote into; the bridge exposes `restore <target> --snapshot <id>`
+    # folder it wrote into; the bridge exposes `restore <target> <snapshot>`
     text = read("shani/Services/Backup.qml")
-    assert "id: restoreJob" in text
-    assert '"restore", root.restoreTarget' in text
-    assert 'Tr.t("Open result")' in text
-    assert 'Qt.openUrlExternally("file://" + restoreNote.path)' in text
+    assert '"restore", [target, snapshot]' in text
+    assert "root.restoreTarget = target" in text
+    panel = read("shani/Modules/Backup/BackupPanel.qml")
+    assert 'Tr.t("Open restored folder")' in panel
+    assert "Backup.openPath(Backup.lastTarget)" in panel
 
 
 def test_loading_flag_gates_timeline_message():
@@ -37,4 +38,4 @@ def test_backup_now_is_single_flight():
         .split("function backupNow() {", 1)[1]
         .split("\n    }", 1)[0]
     )
-    assert "if (running) return" in body
+    assert "if (backupJob.running" in body

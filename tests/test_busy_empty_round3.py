@@ -54,26 +54,17 @@ def test_backup_empty_uses_emptystate():
         "visible: !Backup.loading && Backup.snapshots.length === 0 && Backup.available"
         in src
     )
-    assert (
-        'Backup.driveSetUp ? Tr.t("No snapshots yet") : Tr.t("No backup drive set up")'
-        in src
-    )
-    assert 'actionText: Backup.driveSetUp ? "" : Tr.t("Set up backup drive…")' in src
-    assert 'onAction: Backup.open("backups")' in src
-    # old hand-rolled block gone
-    assert (
-        'Tr.t("No backup drive set up")\n                    color: Theme.dim'
-        not in src
-    )
+    assert 'title: Tr.t("No earlier versions yet")' in src
+    # the empty state says what to do; no GTK app is started from here
+    assert 'actionText: Tr.t("Take a snapshot now")' in src
+    assert "Backup.open(" not in src
 
 
 def test_backup_busy_uses_busynote():
     src = read("backup")
     assert "BusyNote {" in src
-    assert (
-        'Backup.restoring !== "" ? Tr.t("Restoring %1…", Backup.restoring) : Tr.t("Backing up your home…")'
-        in src
-    )
+    assert 'Backup.running ? Tr.t("Backing up your home…")' in src
+    assert 'Backup.busyOp === "restore" ? Tr.t("Restoring your backup…")' in src
 
 
 def test_mail_uses_shared_components():

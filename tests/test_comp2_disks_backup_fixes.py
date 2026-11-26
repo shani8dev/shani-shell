@@ -72,13 +72,10 @@ def test_disks_filesystem_checks_need_an_unmounted_volume():
 def test_backup_panel_offers_back_up_now():
     """Competitor: Time Machine / Deja Dup have a Back Up Now action in the app."""
     p = read(PANEL)
-    block = between(
-        p,
-        "// back up now: the same single-flight action",
-        "Item { Layout.fillWidth: true }",
-    )
+    start = p.index('text: Tr.t("Back up now")')
+    block = p[start - 200 : start + 500]
     assert 'Tr.t("Back up now")' in block
-    assert "Backup.available && !Backup.running" in block
+    assert "Backup.available && Backup.driveSetUp && !Backup.running" in block
     assert "busy: Backup.running" in block
     assert "Backup.backupNow()" in block
 
@@ -86,8 +83,8 @@ def test_backup_panel_offers_back_up_now():
 def test_backup_panel_says_when_the_backup_tool_is_missing():
     """Competitor: an unavailable backup service is named, not mistaken for empty."""
     p = read(PANEL)
-    block = between(p, "// backup unavailable: say so", "// timeline empty state")
-    assert "visible: !Backup.available" in block
+    start = p.index("visible: !Backup.available")
+    block = p[start - 80 : start + 400]
     assert "Shani Backup is not installed" in block
     assert (
         "visible: !Backup.loading && Backup.snapshots.length === 0 && Backup.available"

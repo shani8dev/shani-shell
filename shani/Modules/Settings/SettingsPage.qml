@@ -155,7 +155,8 @@ ColumnLayout {
         dictionaryOpen: "dictionary", podcastsOpen: "podcasts",
         teleprompterOpen: "teleprompter", netToolsOpen: "netTools",
         gatewayOpen: "nearby", nearbyOpen: "nearby", databaseBrowserOpen: "databaseBrowser", pasteHistoryOpen: "pasteHistory",
-        cloudSyncOpen: "cloudSync", ircOpen: "irc", healthOpen: "health", devicesOpen: "devices"
+        cloudSyncOpen: "cloudSync", ircOpen: "irc", healthOpen: "health", devicesOpen: "devices",
+        backupOpen: "backup"
     })
     // jump to a setting found by search: open the category, flash the control
     function openSetting(entry) {

@@ -513,6 +513,7 @@ ShellRoot {
         function windowLayoutsToggle() { const was = Ui.windowLayouts; Ui.closeAll(); Ui.windowLayouts = !was; }
         function backupOpen() { Ui.closeAll(); Ui.backup = true; }
         function backupClose() { Ui.backup = false; }
+        function backupTab(tab: string) { Backup.tab = tab; }
         function backupToggle() { const was = Ui.backup; Ui.closeAll(); Ui.backup = !was; }
         function ircOpen() { Ui.closeAll(); Ui.irc = true; }
         function cloudSyncOpen() { Ui.closeAll(); Ui.cloudSync = true; }
@@ -1166,6 +1167,11 @@ ShellRoot {
                 language: Tr.lang, sampleWord: Tr.t("Notifications"),
                 minimised: Niri.minimised.map(w => w.id), visibleWorkspaces: Niri.workspacesOn(Niri.focusedOutput).length,
                 backupSummary: Ui.backupSummary, printersSeen: Ui.printersSeen, printersFound: Ui.printersFound, printerOptions: Ui.printerOptions, appPermApps: Ui.appPermApps, appPermShown: Ui.appPermShown,
+                backupAvailable: Backup.available, backupTab: Backup.tab, backupDriveSetUp: Backup.driveSetUp, backupRepository: Backup.repository, backupReachable: Backup.reachable,
+                backupCount: Backup.backups.length, backupHomeCount: Backup.snapshots.length, backupSnapCount: Backup.btrfsSnapshots.length,
+                backupRunning: Backup.running, backupProgress: Backup.progress, backupPeakProgress: Backup.peakProgress, backupBusy: Backup.busyOp, backupNote: Backup.note, backupError: Backup.error,
+                backupScheduleOn: Backup.scheduleOn, backupScheduleTime: Backup.scheduleTime, backupPick: Backup.restorePick, backupLastAction: Backup.lastAction, backupLastTarget: Backup.lastTarget,
+                backupVersions: Backup.versions, backupLastPath: Backup.lastPath,
                 annotate: Ui.annotate, annotateStrokes: Ui.annotateStrokes,
                 shareTargets: Share.targets.map(t => t.label), shareDone: Share.done,
                 cameras: Camera.cameras.length, cameraPhase: Camera.phase, cameraLast: Camera.last,

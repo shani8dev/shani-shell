@@ -19,7 +19,11 @@ export SHANI_CAM_TOOL=/work/dev/fake-cam.sh
 export SHANI_NIRI_CONFIG=/work/dev/niri/session.kdl
 # the first-login tour would sit over every other check; one test opens it by hand
 export SHANI_NO_TOUR=1
-export SHANI_BACKUP_TOOL=/work/dev/fake-backup.sh
+# shani-backup stand-in: the real parser and the real --json shapes, so the
+# backup bridge is exercised as it will be on a machine with shani-backup
+export SHANI_BACKUP_TOOL=/work/dev/fake-shani-backup.py
+export SHANI_BACKUP_BRIDGE=/work/bridge/backup.py
+export SHANI_BACKUP_PKEXEC=
 export SHANI_DEVWATCH_TOOL=/work/bridge/devwatch.py SHANI_FEEDS_TOOL=/work/bridge/feeds.py SHANI_MAIL_TOOL=/work/bridge/mail.py SHANI_AUTOSTART_TOOL=/work/bridge/autostart.py SHANI_MEDIAINFO_TOOL=/work/dev/fake-mediainfo.sh SHANI_EXIV2_TOOL=/work/dev/fake-exiv2.sh
 # devices plugged in: the real watcher over recorded udev events (dev/udev/, written
 # into the FIFO /tmp/udev-events by the suite), a second monitor through a niri
