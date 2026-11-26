@@ -84,15 +84,17 @@ def run(action, when, lat, lon, house=None):
     return {"text": kundali_engine.compute(args, astronomy)}
 
 
-def data(action, when, lat, lon):
-    """One calculation as JSON data (not text), for the window to draw."""
+def data(action, when, lat, lon, year=None):
+    """One calculation as JSON data (not text), for the window to draw.
+    YEAR is for the annual chart (varshaphal); its default is this year."""
     action = str(action or "").strip().lower()
     allowed = kundali_engine.SECTIONS + kundali_engine.NEW_ACTIONS
     if action not in allowed:
         return {"error": f"Unknown calculation: {action}"}
     return kundali_engine.compute_data(
         action,
-        {"action": action, "datetime": _stamp(when), "latitude": lat, "longitude": lon},
+        dict({"action": action, "datetime": _stamp(when), "latitude": lat, "longitude": lon},
+             **({"year": int(year)} if year else {})),
         astronomy,
     )
 
@@ -235,7 +237,7 @@ def main(argv: list[str]) -> int:
         elif action == "run":
             result = run(section, when, lat, lon, argv[6] if len(argv) > 6 else None)
         elif action == "data":
-            result = data(section, when, lat, lon)
+            result = data(section, when, lat, lon, argv[6] if len(argv) > 6 else None)
         elif action == "match":
             result = match(when1, lat1, lon1, when2, lat2, lon2)
         else:

@@ -142,6 +142,10 @@ Singleton {
         if (c.kind === "mahadasha") return Tr.t("Your %1 mahadasha begins", c.lord);
         if (c.kind === "antardasha") return Tr.t("Your %1–%2 antardasha begins", c.within, c.lord);
         if (c.kind === "ingress") return Tr.t("%1 moves into %2, the %3th sign from your Moon", c.planet, c.sign, c.from_moon);
+        if (c.kind === "sade_sati")
+            return ({ rising: Tr.t("Sade Sati begins: Saturn enters the 12th from your Moon"),
+                      peak: Tr.t("Sade Sati's peak begins: Saturn over your Moon sign"),
+                      setting: Tr.t("Sade Sati's last phase begins: Saturn in the 2nd from your Moon") })[c.phase] || Tr.t("A Sade Sati phase begins");
         return c.kind;
     }
     function send(key, title, body, icon) {
@@ -163,7 +167,7 @@ Singleton {
         soon.setDate(soon.getDate() + 3);
         (d.changes || []).forEach(c => {
             if (new Date(c.date + "T12:00:00") <= soon)
-                send(p.id + "|" + c.date + "|" + c.kind + "|" + (c.lord || c.planet), Tr.t("Ahead for %1, %2", p.name, c.date),
+                send(p.id + "|" + c.date + "|" + c.kind + "|" + (c.lord || c.planet || c.phase), Tr.t("Ahead for %1, %2", p.name, c.date),
                      root.changeText(c) + "\n" + words, "x-office-calendar");
         });
     }

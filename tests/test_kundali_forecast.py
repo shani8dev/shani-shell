@@ -75,3 +75,16 @@ def test_the_bridge_answers_json():
     assert r.returncode == 0 and len(data["days"]) == 7 and "now" in data
     r = subprocess.run([sys.executable, str(ROOT / "bridge/kundali_forecast.py")], capture_output=True, text=True)
     assert r.returncode == 2 and "usage" in json.loads(r.stdout)["error"]
+
+
+def test_sade_sati_is_in_now_and_a_phase_that_begins_is_a_change():
+    out = f.forecast(*BIRTH, start=date(2026, 11, 26), days=3)
+    ss = out["now"]["sade_sati"]
+    assert ss["running"] and ss["phase"] == "setting" and ss["phases"][0]["end"].startswith("2027-06-0")
+    # Saturn enters Aquarius (the 12th from a Pisces Moon) in 2023: for a Pisces
+    # Moon the rising phase begins in that window - here, for this Aquarius Moon,
+    # the next Sade Sati is decades away, so no phase begins in three days
+    assert not [c for c in out["changes"] if c["kind"] == "sade_sati"]
+    # a window over Saturn's 2025 move into Pisces: the setting phase begins
+    out = f.forecast(*BIRTH, start=date(2025, 3, 25), days=10)
+    assert [c for c in out["changes"] if c["kind"] == "sade_sati" and c["phase"] == "setting"], out["changes"]

@@ -68,6 +68,24 @@ ipc kundaliChart 1990-01-01 12:00 18.5204 73.8567 Asia/Kolkata Pune
 waitfor "d['kundali']" 6
 if [ -f "$A11Y" ]; then
     timeout 20 python3 "$A11Y" press "radio button:^Days ahead$" >/dev/null 2>&1; shot kundali-ahead 3
+    timeout 20 python3 "$A11Y" press "radio button:^Doshas$" >/dev/null 2>&1; shot kundali-doshas 4
+    timeout 20 python3 "$A11Y" press "radio button:^KP$" >/dev/null 2>&1; shot kundali-kp 3
+    timeout 20 python3 "$A11Y" press "radio button:^Annual chart$" >/dev/null 2>&1; shot kundali-annual 4
+    timeout 20 python3 "$A11Y" press "radio button:^Lal Kitab$" >/dev/null 2>&1; shot kundali-lalkitab 3
+fi
+ipc kundaliClose
+
+# matching: a second saved chart is offered as the partner
+ipc kundaliSave 1992-06-15 08:30 19.0760 72.8777 Asia/Kolkata Ravi
+waitfor "d['kundaliSaved'] == 2" 5 && result kundali-saved-two PASS || result kundali-saved-two FAIL "$(q "['kundaliSaved']")"
+ipc kundaliChart 1990-01-01 12:00 18.5204 73.8567 Asia/Kolkata Pune
+waitfor "d['kundali']" 6
+if [ -f "$A11Y" ]; then
+    sleep 3
+    timeout 20 python3 "$A11Y" press "radio button:^Match$" >/dev/null 2>&1
+    timeout 20 python3 "$A11Y" press "radio button:^Ravi$" >/dev/null 2>&1 \
+        && result kundali-match-partner PASS || result kundali-match-partner FAIL "no Ravi to match with"
+    shot kundali-match 4
 fi
 ipc kundaliClose
 

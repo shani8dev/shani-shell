@@ -112,6 +112,16 @@ def forecast(birth: str, lat: float, lon: float, start: date | None = None, days
                                 "planet": planet.capitalize(), "sign": astronomy.SIGNS[s],
                                 "from_moon": (s - moon_sign) % 12 + 1})
                 prev = s
+    # Sade Sati: a phase that begins inside the days; and the phases, with dates
+    sati = {}
+    try:
+        sati = astronomy.sade_sati(chart, first.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        for ph in sati.get("phases", []):
+            begins = datetime.fromisoformat(ph["start"].replace("Z", "+00:00"))
+            if first <= begins < last:
+                changes.append({"date": begins.date().isoformat(), "kind": "sade_sati", "phase": ph.get("name", "")})
+    except Exception:  # noqa: BLE001 - the rest of the forecast stands without it
+        sati = {}
     changes.sort(key=lambda c: c["date"])
 
     # now: the running periods, Saturn and Jupiter from the birth Moon
@@ -126,6 +136,9 @@ def forecast(birth: str, lat: float, lon: float, start: date | None = None, days
         "antardasha": running.get("antardasha"),
         "saturn_from_moon": sat, "saturn": saturn,
         "jupiter_from_moon": jup, "jupiter": "hard" if jup in (8, 12) else ("good" if jup in (2, 5, 7, 9, 11) else ""),
+        "sade_sati": {"running": bool(sati.get("running")), "phase": sati.get("phase_name"),
+                      "phases": [{"name": p.get("name"), "start": p["start"][:10], "end": p["end"][:10]}
+                                 for p in sati.get("phases", [])]},
         "moon_sign": astronomy.SIGNS[moon_sign],
         "nakshatra": (moon.get("nakshatra") or {}).get("nakshatra", ""),
     }

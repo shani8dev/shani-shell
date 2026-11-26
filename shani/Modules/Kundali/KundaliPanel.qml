@@ -147,6 +147,8 @@ AppWindow {
         win.calcText = "";
         win.copied = false;
         win.chartCopied = false;
+        win.extra = win.nothing;
+        win.matchData = null;
     }
 
     // ---- running the bridge --------------------------------------------------
@@ -165,6 +167,11 @@ AppWindow {
         win.sectionData = null;
         if (id === "chart" || id === "all" || !win.chart) return;
         if (id === "ahead") { win.loadAhead(); return; }
+        if (id === "doshas") { win.loadData(["mangaldosha", "kalasarpa", "sadesati"]); return; }
+        if (id === "kp") { win.loadData(["kplords"]); return; }
+        if (id === "annual") { win.loadData(["varshaphal"]); return; }
+        if (id === "lalkitab") { win.loadData(["lalkitab"]); return; }
+        if (id === "match") { win.matchData = null; if (win.partner) win.runMatch(); return; }
         sectionProc.command = ["python3", win.scriptPath, "details", id, win.birthArg(), String(win.place.lat), String(win.place.lon)];
         sectionProc.running = true;
     }
@@ -179,6 +186,43 @@ AppWindow {
         calcProc.command = args;
         calcProc.running = true;
     }
+    readonly property var signsList: ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra",
+                                      "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+    // ---- the engine's data for a tab: doshas, KP, the annual chart, Lal Kitab ----
+    property var extra: ({})
+    readonly property var nothing: ({})        // an empty answer set (copied on write, never changed in place)
+    property var dataQueue: []
+    property int annualYear: new Date().getFullYear()
+    function loadData(actions) {
+        win.dataQueue = actions.slice();
+        dataNext();
+    }
+    function dataNext() {
+        if (dataProc.running || win.dataQueue.length === 0) return;
+        const a = win.dataQueue[0];
+        win.dataQueue = win.dataQueue.slice(1);
+        dataProc.action = a;
+        dataProc.command = ["python3", win.scriptPath, "data", a, win.birthArg(), String(win.place.lat), String(win.place.lon)]
+            .concat(a === "varshaphal" ? [String(win.annualYear)] : []);
+        dataProc.running = true;
+    }
+    // ---- matching: this chart and a saved one --------------------------------
+    property var partner: null
+    property bool thisIsGroom: true
+    property var matchData: null
+    function runMatch() {
+        if (!win.partner) return;
+        win.matchData = null;
+        const me = [win.birthArg(), String(win.place.lat), String(win.place.lon)];
+        const other = [Services.KundaliProfiles.birthArg(win.partner), String(win.partner.lat), String(win.partner.lon)];
+        const pair = win.thisIsGroom ? me.concat(other) : other.concat(me);
+        matchProc.command = ["python3", win.scriptPath, "match"].concat(pair);
+        matchProc.running = true;
+    }
+    readonly property var kootaNames: ({ varna: Tr.t("Varna: temperament"), vashya: Tr.t("Vashya: attraction"), tara: Tr.t("Tara: health and fortune"),
+        yoni: Tr.t("Yoni: intimacy"), graha_maitri: Tr.t("Graha maitri: friendship of minds"), gana: Tr.t("Gana: nature"),
+        bhakoot: Tr.t("Bhakoot: family and finances"), nadi: Tr.t("Nadi: health and children") })
+
     // the days ahead for the chart on screen (the same forecast the notices use)
     property var ahead: null
     readonly property string forecastTool: Quickshell.env("SHANI_KUNDALI_FORECAST_TOOL") || "/usr/lib/shani-shell/kundali_forecast.py"
@@ -256,6 +300,20 @@ AppWindow {
             try { const d = JSON.parse(text); win.sectionData = d.error ? null : d; win.sectionText = d.error ? Tr.t("Could not compute: %1").arg(d.error) : win.renderSection(d); }
             catch (e) { win.sectionText = Tr.t("The result could not be read"); }
         } }
+    }
+    Process {
+        id: dataProc
+        property string action: ""
+        stdout: StdioCollector { onStreamFinished: {
+            const o = Object.assign({}, win.extra);
+            try { o[dataProc.action] = JSON.parse(text); } catch (e) { o[dataProc.action] = { error: Tr.t("The result could not be read") }; }
+            win.extra = o;
+        } }
+        onExited: Qt.callLater(win.dataNext)
+    }
+    Process {
+        id: matchProc
+        stdout: StdioCollector { onStreamFinished: { try { win.matchData = JSON.parse(text); } catch (e) { win.matchData = { error: Tr.t("The result could not be read") }; } } }
     }
     Process {
         id: aheadProc
@@ -626,7 +684,9 @@ AppWindow {
             visible: win.mode === "kundali"
             spacing: Theme.space(2)
             Repeater {
-                model: [win.sections[0], ["ahead", Tr.t("Days ahead")]].concat(win.sections.slice(1)).concat([["all", Tr.t("Every calculation")]])
+                model: [win.sections[0], ["ahead", Tr.t("Days ahead")], ["doshas", Tr.t("Doshas")], ["match", Tr.t("Match")]]
+                       .concat(win.sections.slice(1))
+                       .concat([["kp", Tr.t("KP")], ["annual", Tr.t("Annual chart")], ["lalkitab", Tr.t("Lal Kitab")], ["all", Tr.t("Every calculation")]])
                 Choice {
                     required property var modelData
                     text: modelData[1]
@@ -664,6 +724,285 @@ AppWindow {
             }
         }
 
+        // ---- doshas: Mangal, Kaal Sarp, Sade Sati -----------------------------------
+        GridLayout {
+            id: doshaGrid
+            Layout.fillWidth: true
+            visible: win.section === "doshas" && win.chart !== null
+            columns: width > Theme.px(860) ? 3 : 1
+            columnSpacing: Theme.space(4)
+            rowSpacing: Theme.space(4)
+            readonly property var mangal: win.extra.mangaldosha || null
+            readonly property var sarpa: win.extra.kalasarpa || null
+            readonly property var sati: win.extra.sadesati || null
+
+            Card {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                icon: doshaGrid.mangal && doshaGrid.mangal.effective ? "dialog-warning" : "emblem-ok"
+                tint: Theme.toneColor(doshaGrid.mangal && doshaGrid.mangal.effective ? "warn" : "ok")
+                title: Tr.t("Mangal dosha")
+                subtitle: !doshaGrid.mangal ? Tr.t("Working it out…")
+                        : doshaGrid.mangal.effective ? Tr.t("Present: Mars in the %1th from the ascendant", doshaGrid.mangal.mars_house_from_ascendant)
+                        : doshaGrid.mangal.present ? Tr.t("Present, but cancelled") : Tr.t("Not present")
+                spacing: 0
+                Repeater {
+                    model: doshaGrid.mangal ? [["ascendant", Tr.t("From the ascendant")], ["moon", Tr.t("From the Moon")], ["venus", Tr.t("From Venus")]] : []
+                    ListRow {
+                        required property var modelData
+                        readonly property var h: ((doshaGrid.mangal || {}).houses || {})[modelData[0]] || {}
+                        Layout.fillWidth: true
+                        interactive: false
+                        icon: h.afflicted ? "dialog-warning" : "emblem-ok"
+                        title: modelData[1]
+                        subtitle: Tr.t("Mars in the %1th", h.house)
+                        trailing: h.afflicted ? Tr.t("afflicted") : ""
+                    }
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    visible: ((doshaGrid.mangal || {}).cancellations || []).length > 0
+                    spacing: Theme.space(1)
+                    Repeater {
+                        model: (doshaGrid.mangal || {}).cancellations || []
+                        StatusPill { required property var modelData; tone: "ok"; text: String(modelData).replace(/_/g, " ") }
+                    }
+                }
+            }
+
+            Card {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                icon: doshaGrid.sarpa && doshaGrid.sarpa.present ? "dialog-warning" : "emblem-ok"
+                tint: Theme.toneColor(doshaGrid.sarpa && doshaGrid.sarpa.present ? "warn" : "ok")
+                title: Tr.t("Kaal Sarp dosha")
+                subtitle: !doshaGrid.sarpa ? Tr.t("Working it out…")
+                        : doshaGrid.sarpa.present ? Tr.t("Present: %1 Kaal Sarp", doshaGrid.sarpa.type) : Tr.t("Not present: not every planet lies between Rahu and Ketu")
+                spacing: 0
+                ListRow {
+                    Layout.fillWidth: true
+                    interactive: false
+                    visible: !!doshaGrid.sarpa
+                    icon: "starred"
+                    title: Tr.t("Rahu in the %1th, Ketu in the %2th", (doshaGrid.sarpa || {}).rahu_house, (doshaGrid.sarpa || {}).ketu_house)
+                    subtitle: ((doshaGrid.sarpa || {}).planets_outside || []).length
+                              ? Tr.t("Outside the axis: %1", doshaGrid.sarpa.planets_outside.join(", ")) : Tr.t("Every planet between the nodes")
+                }
+            }
+
+            Card {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                icon: doshaGrid.sati && doshaGrid.sati.running ? "dialog-warning" : "x-office-calendar"
+                tint: Theme.toneColor(doshaGrid.sati && doshaGrid.sati.running ? "warn" : "info")
+                title: Tr.t("Sade Sati")
+                subtitle: !doshaGrid.sati ? Tr.t("Working it out…")
+                        : doshaGrid.sati.running ? Tr.t("Running: the %1 phase", ({ rising: Tr.t("rising"), peak: Tr.t("peak"), setting: Tr.t("setting") })[doshaGrid.sati.phase_name] || "")
+                        : doshaGrid.sati.start ? Tr.t("Next from %1", String(doshaGrid.sati.start).slice(0, 10)) : Tr.t("Not in the coming years")
+                spacing: 0
+                Repeater {
+                    model: (doshaGrid.sati || {}).phases || []
+                    ListRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        interactive: false
+                        icon: "x-office-calendar"
+                        title: ({ rising: Tr.t("Rising phase"), peak: Tr.t("Peak phase"), setting: Tr.t("Setting phase") })[modelData.name] || modelData.phase
+                        subtitle: Qt.formatDate(new Date(modelData.start), "d MMM yyyy") + " – " + Qt.formatDate(new Date(modelData.end), "d MMM yyyy")
+                    }
+                }
+            }
+        }
+
+        // ---- matching ------------------------------------------------------------------
+        Card {
+            Layout.fillWidth: true
+            visible: win.section === "match" && win.chart !== null
+            icon: "emblem-favorite"
+            title: Tr.t("Match with")
+            subtitle: Services.KundaliProfiles.profiles.filter(p => !Services.KundaliProfiles.same(p, win.birth)).length
+                      ? Tr.t("Pick a saved chart; Ashtakoota guna milan, 36 points")
+                      : Tr.t("Save the other person's chart first (make it, then Save); it appears here")
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.space(2)
+                Repeater {
+                    model: Services.KundaliProfiles.profiles.filter(p => !Services.KundaliProfiles.same(p, win.birth))
+                    Choice {
+                        required property var modelData
+                        text: modelData.name
+                        selected: !!win.partner && win.partner.id === modelData.id
+                        onClicked: { win.partner = modelData; win.runMatch(); }
+                    }
+                }
+            }
+            RowLayout {
+                visible: win.partner !== null
+                spacing: Theme.space(2)
+                Text { text: Tr.t("This chart is the"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                Choice { text: Tr.t("groom"); selected: win.thisIsGroom; onClicked: { win.thisIsGroom = true; win.runMatch(); } }
+                Choice { text: Tr.t("bride"); selected: !win.thisIsGroom; onClicked: { win.thisIsGroom = false; win.runMatch(); } }
+            }
+        }
+        StatusHero {
+            Layout.fillWidth: true
+            visible: win.section === "match" && win.matchData !== null && !win.matchData.error
+            readonly property real total: Number((win.matchData || {}).total || 0)
+            tone: total >= 25 ? "ok" : total >= 18 ? "warn" : "error"
+            overline: Tr.t("Ashtakoota guna milan")
+            headline: Tr.t("%1 of 36 points", total)
+            detail: total >= 33 ? Tr.t("An excellent match") : total >= 25 ? Tr.t("A good match")
+                  : total >= 18 ? Tr.t("An acceptable match") : Tr.t("Not recommended by the traditional count")
+            chips: [((win.matchData || {}).nadi_dosha || {}).present ? Tr.t("Nadi dosha") : Tr.t("No nadi dosha"),
+                    ((win.matchData || {}).bhakoot_dosha || {}).present ? Tr.t("Bhakoot dosha") : Tr.t("No bhakoot dosha")]
+        }
+        Card {
+            Layout.fillWidth: true
+            visible: win.section === "match" && win.matchData !== null && !win.matchData.error
+            icon: "view-statistics"
+            title: Tr.t("The eight kootas")
+            spacing: Theme.space(2)
+            Repeater {
+                model: (win.matchData || {}).kootas || []
+                ColumnLayout {
+                    id: koota
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Theme.px(3)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { Layout.fillWidth: true; text: win.kootaNames[koota.modelData.name] || koota.modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                        Text { text: koota.modelData.score + " / " + koota.modelData.max; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.DemiBold }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: Theme.px(8)
+                        radius: height / 2
+                        color: Theme.pressed
+                        Rectangle {
+                            width: parent.width * (koota.modelData.max ? koota.modelData.score / koota.modelData.max : 0)
+                            height: parent.height
+                            radius: parent.radius
+                            readonly property real f: koota.modelData.max ? koota.modelData.score / koota.modelData.max : 0
+                            color: f >= 0.75 ? Theme.success : f >= 0.4 ? Theme.amber : Theme.danger
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: [koota.modelData.groom, koota.modelData.bride].filter(x => x).join("  ·  ")
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("small")
+                    }
+                }
+            }
+        }
+
+        // ---- KP: each cusp's and planet's lords ------------------------------------------
+        Card {
+            Layout.fillWidth: true
+            visible: win.section === "kp" && win.chart !== null
+            icon: "view-list-details"
+            title: Tr.t("KP: sign, star, sub and sub-sub lords")
+            subtitle: (win.extra.kplords || {}).kp_ayanamsa ? Tr.t("Placidus cusps, KP ayanamsa %1°", Number(win.extra.kplords.kp_ayanamsa).toFixed(3)) : Tr.t("Working it out…")
+            spacing: 0
+            Repeater {
+                model: ((win.extra.kplords || {}).points || []).concat((win.extra.kplords || {}).cusps || [])
+                ListRow {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    interactive: false
+                    icon: String(modelData.name).indexOf("house") === 0 ? "go-home" : "starred"
+                    title: String(modelData.name).indexOf("house") === 0 ? Tr.t("Cusp %1", String(modelData.name).replace("house ", "")) : modelData.name
+                    subtitle: Tr.t("%1 · sign %2 · star %3", modelData.sign, modelData.sign_lord, modelData.star_lord)
+                    trailing: Tr.t("sub %1 · %2", modelData.sub_lord, modelData.sub_sub_lord)
+                }
+            }
+        }
+
+        // ---- the annual chart (Varshaphal) --------------------------------------------------
+        Card {
+            id: annualCard
+            Layout.fillWidth: true
+            visible: win.section === "annual" && win.chart !== null
+            readonly property var v: win.extra.varshaphal || null
+            icon: "x-office-calendar"
+            title: Tr.t("Annual chart %1", win.annualYear)
+            subtitle: v && !v.error ? Tr.t("The Sun returns on %1", Qt.formatDateTime(new Date(v.solar_return), "d MMMM yyyy, HH:mm")) : Tr.t("Working it out…")
+            actions: [
+                IconButton { icon: "go-previous"; tip: Tr.t("The year before"); onClicked: { win.annualYear -= 1; win.loadData(["varshaphal"]); } },
+                IconButton { icon: "go-next"; tip: Tr.t("The year after"); onClicked: { win.annualYear += 1; win.loadData(["varshaphal"]); } }
+            ]
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.space(2)
+                visible: !!annualCard.v && !annualCard.v.error
+                StatusPill { tone: "info"; text: Tr.t("Muntha in %1 (lord %2)", ((annualCard.v || {}).muntha || {}).sign, ((annualCard.v || {}).muntha || {}).lord) }
+                StatusPill { tone: "ok"; text: Tr.t("Year lord: %1", (annualCard.v || {}).year_lord || "") }
+            }
+            KundaliChart {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: true
+                Layout.maximumWidth: Theme.px(400)
+                Layout.preferredHeight: width   // square: its height follows the width it was given
+                visible: !!annualCard.v && !annualCard.v.error
+                style: win.chartStyle
+                tints: win.planetTint
+                ascendantSign: annualCard.v && annualCard.v.ascendant !== undefined ? win.signsList[Math.floor(annualCard.v.ascendant / 30) % 12] : ""
+                planets: ((annualCard.v || {}).planets || []).filter(p => ["Uranus", "Neptune", "Pluto"].indexOf(p.name) < 0)
+            }
+        }
+
+        // ---- Lal Kitab -----------------------------------------------------------------
+        GridLayout {
+            id: lkGrid
+            Layout.fillWidth: true
+            visible: win.section === "lalkitab" && win.chart !== null
+            columns: width > Theme.px(860) ? 2 : 1
+            columnSpacing: Theme.space(5)
+            rowSpacing: Theme.space(5)
+            readonly property var lk: win.extra.lalkitab || null
+            Card {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                icon: "view-grid"
+                title: Tr.t("Lal Kitab chart")
+                subtitle: Tr.t("Aries is always the first house; the planets keep their houses")
+                KundaliChart {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: Theme.px(400)
+                    Layout.preferredHeight: width   // square: its height follows the width it was given
+                    style: "north"
+                    tints: win.planetTint
+                    ascendantSign: "Aries"
+                    planets: ((lkGrid.lk || {}).planets || []).filter(p => ["Uranus", "Neptune", "Pluto"].indexOf(p.name) < 0)
+                             .map(p => ({ name: p.name, sign: win.signsList[(p.house - 1) % 12], retrograde: false }))
+                }
+            }
+            Card {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                icon: "starred"
+                title: Tr.t("Planets in their houses")
+                subtitle: Tr.t("Pakka ghar is each planet's own house in Lal Kitab")
+                spacing: 0
+                Repeater {
+                    model: ((lkGrid.lk || {}).planets || []).filter(p => ["Uranus", "Neptune", "Pluto"].indexOf(p.name) < 0)
+                    ListRow {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        interactive: false
+                        icon: modelData.in_pakka_ghar ? "emblem-ok" : "starred"
+                        title: Tr.t("%1 in house %2", modelData.name, modelData.house)
+                        subtitle: Tr.t("Pakka ghar %1", modelData.pakka_ghar) + (modelData.in_pakka_ghar ? " · " + Tr.t("at home") : "")
+                        trailing: modelData.dignity && modelData.dignity !== "Neutral" ? modelData.dignity : ""
+                    }
+                }
+            }
+        }
+
         // ---- the days ahead -------------------------------------------------------------
         Card {
             Layout.fillWidth: true
@@ -686,6 +1025,12 @@ AppWindow {
                     text: ({ sade_sati_rising: Tr.t("Sade Sati: rising phase"), sade_sati_peak: Tr.t("Sade Sati: peak phase"),
                              sade_sati_setting: Tr.t("Sade Sati: setting phase"), kantaka: Tr.t("Kantaka Shani: Saturn 4th from the Moon"),
                              ashtama: Tr.t("Ashtama Shani: Saturn 8th from the Moon") })[parent.now.saturn] || ""
+                }
+                StatusPill {
+                    visible: !!(parent.now.sade_sati || {}).running
+                    tone: "warn"
+                    readonly property var cur: ((parent.now.sade_sati || {}).phases || [])[0] || {}
+                    text: cur.end ? Tr.t("This Sade Sati phase ends %1", Qt.formatDate(new Date(cur.end + "T12:00:00"), "d MMM yyyy")) : ""
                 }
                 StatusPill { visible: parent.now.jupiter === "hard"; tone: "warn"; text: Tr.t("Jupiter %1th from the Moon", parent.now.jupiter_from_moon) }
                 StatusPill { visible: parent.now.jupiter === "good"; tone: "ok"; text: Tr.t("Jupiter %1th from the Moon: supportive", parent.now.jupiter_from_moon) }
@@ -780,8 +1125,9 @@ AppWindow {
             ]
                 KundaliChart {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: Math.min(Theme.px(440), parent.width)
-                    Layout.preferredHeight: Layout.preferredWidth
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: Theme.px(440)
+                    Layout.preferredHeight: width   // square: its height follows the width it was given
                     style: win.chartStyle
                     tints: win.planetTint
                     ascendantSign: win.vargaAscendant()
