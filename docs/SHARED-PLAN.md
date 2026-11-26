@@ -15,3 +15,4 @@ add a line to the plan's Status section when you finish something:
 - Phase 0 (the Varlink spike) is driven from here: a QML client over Quickshell `Socket`, and one Settings page drawn from a registry description.
 - Phase 2 prerequisite: the shell's phone service has no unit or D-Bus activation file; shipping one fixes calls on installed niri systems.
 - Never add GTK, and never launch a GTK app to do something the shell should do.
+- Rule 10: every engine gets a shell part that uses it. Work the gaps in `docs/CAPABILITY-INVENTORY.md` in its order (gen-efi/TPM2 first, then Chronoa's panels, Backup, the Cassini depth comparison, System tools).

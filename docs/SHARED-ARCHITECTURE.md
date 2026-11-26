@@ -106,6 +106,12 @@ OS commands          shani-deploy: run as root through polkit, contract-tested
 8. **No new dependencies** for any of this (Varlink is stdlib JSON over a
    socket; Quickshell has `Socket`).
 9. Verify by execution: each repo's own harness, the testbed for real boots.
+10. **The shell consumes every engine.** On niri the shell is the whole UI:
+    every engine capability (OS commands, Chronoa, backup, phone, the system
+    logic, the extras tools) gets a shell part (app, Settings page, panel)
+    that calls the engine, never a copy of its logic and never a GTK app.
+    `docs/CAPABILITY-INVENTORY.md` lists what each engine offers, what the
+    shell has, and the gaps in order.
 
 ## Phases
 
