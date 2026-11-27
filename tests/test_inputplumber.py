@@ -9,19 +9,18 @@ game never sees the pad again.
 
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location(
-    "inputplumber_bridge", ROOT / "bridge/inputplumber.py"
-)
+BRIDGE = ROOT / "bridge/inputplumber.py"
+_spec = importlib.util.spec_from_file_location("inputplumber_bridge", BRIDGE)
 ip = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ip)
-
-from gi.repository import GLib  # noqa: E402
 
 
 @pytest.fixture
@@ -127,14 +126,40 @@ def test_a_refusal_is_reported_on_stdout(bus, monkeypatch, capsys):
 # ---- the command line --------------------------------------------------------
 
 
-def test_without_watch_it_prints_how_to_use_it():
-    import subprocess
+@pytest.fixture
+def disconnected_bus(tmp_path):
+    return dict(os.environ, DBUS_SYSTEM_BUS_ADDRESS=f"unix:path={tmp_path / 'missing'}")
 
+
+def test_without_watch_it_prints_how_to_use_it(disconnected_bus):
     out = subprocess.run(
-        [sys.executable, str(ROOT / "bridge/inputplumber.py")],
+        [sys.executable, str(BRIDGE)],
         capture_output=True,
         text=True,
         timeout=60,
+        env=disconnected_bus,
+        check=False,
     )
     assert out.returncode == 2
     assert "watch" in out.stderr
+
+
+def test_watch_reports_offline_when_system_bus_is_unavailable(disconnected_bus):
+    out = subprocess.run(
+        [sys.executable, str(BRIDGE), "watch"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=disconnected_bus,
+        check=False,
+    )
+    assert out.returncode == 1
+    assert json.loads(out.stdout) == {
+        "type": "state",
+        "running": False,
+        "manageAll": False,
+        "supported": [],
+        "supportedIds": [],
+        "devices": [],
+    }
+    assert out.stderr.startswith("InputPlumber: ")

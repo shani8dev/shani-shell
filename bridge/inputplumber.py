@@ -35,7 +35,7 @@ I_COMPOSITE = "org.shadowblip.Input.CompositeDevice"
 I_DBUSDEV = "org.shadowblip.Input.DBusDevice"
 PROPS = "org.freedesktop.DBus.Properties"
 
-bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+bus: Gio.DBusConnection | None = None
 
 
 def emit(obj: dict) -> None:
@@ -74,6 +74,8 @@ def composite_paths() -> list:
 
 
 def running() -> bool:
+    if bus is None:
+        return False
     try:
         owner = bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
                               "NameHasOwner", GLib.Variant("(s)", (BUS,)), GLib.VariantType("(b)"),
@@ -154,10 +156,14 @@ def on_stdin(channel, _cond) -> bool:
     return True
 
 
-def main(argv: list) -> int:
-    if len(argv) < 2 or argv[1] != "watch":
-        print(__doc__.split("\n\n")[1], file=sys.stderr)
-        return 2
+def watch() -> int:
+    global bus, loop
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+    except GLib.Error as exc:
+        emit(state())
+        print(f"InputPlumber: {exc.message}", file=sys.stderr)
+        return 1
     # the service coming, going, its devices appearing and changing
     bus.signal_subscribe("org.freedesktop.DBus", "org.freedesktop.DBus", "NameOwnerChanged", None, BUS,
                          Gio.DBusSignalFlags.NONE, soon)
@@ -166,10 +172,16 @@ def main(argv: list) -> int:
     bus.signal_subscribe(BUS, I_DBUSDEV, "InputEvent", None, None, Gio.DBusSignalFlags.NONE, on_input)
     report()
     GLib.io_add_watch(GLib.IOChannel.unix_new(sys.stdin.fileno()), GLib.IO_IN | GLib.IO_HUP, on_stdin)
-    global loop
     loop = GLib.MainLoop()
     loop.run()
     return 0
+
+
+def main(argv: list) -> int:
+    if len(argv) < 2 or argv[1] != "watch":
+        print(__doc__.split("\n\n")[1], file=sys.stderr)
+        return 2
+    return watch()
 
 
 if __name__ == "__main__":
