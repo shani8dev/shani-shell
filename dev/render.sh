@@ -378,9 +378,6 @@ matrix_scenes() {
         fi
         ipc closeAll; sleep 0.6
     done
-    # back to the default for whatever runs next
-    ipc_line "layoutUse default"; waitfor "d['layoutSwitcher']" 5; sleep 0.5; wtype -k Return
-    waitfor "d['layoutPreset'] == 'default'" 8 || log "warn: layout not restored"
 }
 
 app_scenes() {

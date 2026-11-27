@@ -63,6 +63,7 @@ PanelWindow {
         width: Math.max(0, Math.min(Theme.px(500), parent.width - Theme.space(6)))
         height: Math.max(0, Math.min(usableHeight - Theme.space(6), col.implicitHeight + Theme.space(6)))
         strong: true
+        solid: FormFactor.of(win.screen ? win.screen.name : "").profile === "phone"
         radius: Theme.radiusLarge
         MouseArea { anchors.fill: parent; objectName: "nav:pointer" }
 

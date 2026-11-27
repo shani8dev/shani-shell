@@ -317,14 +317,15 @@ PanelWindow {
     Glass {
         id: card
         readonly property bool compact: width < Theme.px(760)
-        readonly property real inset: Theme.space(compact ? 3 : 6)
         readonly property real usableHeight: Math.max(0, parent.height - Osk.heightOn(root.output))
+        readonly property bool short: usableHeight < Theme.px(450)
+        readonly property real inset: Theme.space(short ? 2 : compact ? 3 : 6)
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(0, (usableHeight - height) / 2)
         width: Math.max(0, Math.min(Theme.px(1000), parent.width - Theme.space(6)))
         height: Math.max(0, Math.min(usableHeight - Theme.space(6), body.implicitHeight + 2 * inset))
         strong: true
-        solid: compact
+        solid: compact || short
         radius: Theme.radiusLarge
         MouseArea { anchors.fill: parent; objectName: "nav:pointer" }
 
@@ -332,7 +333,7 @@ PanelWindow {
             id: body
             anchors.fill: parent
             anchors.margins: card.inset
-            spacing: Theme.space(3)
+            spacing: Theme.space(card.short ? 2 : 3)
 
             RowLayout {
                 Layout.fillWidth: true
@@ -378,7 +379,7 @@ PanelWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignTop
-                        spacing: Theme.space(3)
+                        spacing: Theme.space(card.short ? 1 : 3)
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -397,6 +398,7 @@ PanelWindow {
                             }
                         }
                         Text {
+                            visible: !card.short
                             Layout.fillWidth: true
                             text: Tr.t("Choose a layout to preview it.")
                             color: Theme.dim
@@ -466,7 +468,7 @@ PanelWindow {
                                         spacing: Theme.space(2)
                                         Item {
                                             Layout.fillWidth: true
-                                            Layout.preferredHeight: Math.min(Theme.px(94), width * 0.58)
+                                            Layout.preferredHeight: Math.min(Theme.px(card.short ? 56 : 94), width * 0.58)
                                             Mini {
                                                 anchors.centerIn: parent
                                                 height: parent.height
@@ -506,7 +508,7 @@ PanelWindow {
                         Layout.alignment: Qt.AlignTop
                         spacing: Theme.space(2)
                         Item {
-                            visible: !card.compact
+                            visible: !card.compact && !card.short
                             Layout.fillWidth: true
                             Layout.preferredHeight: width * 0.625
                             Mini {
