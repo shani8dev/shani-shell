@@ -158,7 +158,7 @@ PanelWindow {
         win.pulseStep = 6;
         SystemSounds.play(viaKeys ? "bell" : "complete");
         c.run();
-        win.openTimer.restart();
+        openTimer.restart();
         win.toast(Tr.t("Opening %1").arg(c.label));
     }
     // the quickview (a window card in the "open now" shelf, opened by a double

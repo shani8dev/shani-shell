@@ -29,7 +29,7 @@ PanelWindow {
     // closed it must not be there at all - a transparent window would still
     // take the taps meant for the desktop
     readonly property bool narrow: FormFactor.focused.profile === "phone"
-    visible: Ui.controlCenter || (!narrow && slide.x < width) || (narrow && slide.y > -slide.height + 1)
+    visible: Ui.controlCenter || exitDelay.running
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -43,6 +43,7 @@ PanelWindow {
     Region { id: sideRegion; item: slide; radius: Theme.radiusLarge }
 
     NavWindow {}     // known to the keys-and-controller reach check (Ui.navAuditAll)
+    Timer { id: exitDelay; interval: Theme.animExit }
 
     readonly property var player: Media.current
     // the compass reads only while this is open
@@ -71,7 +72,7 @@ PanelWindow {
         // else one column in from the right, clear of the bar (docs/FORM-FACTORS.md)
         readonly property real insetTop: narrow ? Theme.px(10) : (bottomBar ? Theme.px(10) : Theme.barHeight + 18)
         y: narrow ? (Ui.controlCenter ? insetTop : -height - Theme.px(10)) : insetTop
-        height: Math.max(0, parent.height - Osk.heightOn(win.screen.name) - insetTop
+        height: Math.max(0, (win.screen ? win.screen.height : 0) - Osk.heightOn(win.screen ? win.screen.name : "") - insetTop
                             - (narrow ? 0 : bottomBar ? Theme.barHeight + 18 : 10))
         x: narrow ? 0 : (Ui.controlCenter ? parent.width - width - 10 : parent.width + 10)
         radius: Theme.radiusLarge
@@ -104,10 +105,12 @@ PanelWindow {
             target: Ui
             function onControlCenterChanged() {
                 if (Ui.controlCenter) {
+                    exitDelay.stop();
                     if (win.narrow) slide.forceActiveFocus();
                     else Ui.focusFirst(slide);
                     Qt.callLater(() => { if (Ui.controlCenter) flick.contentY = flick.originY; });
                 } else {
+                    if (Theme.animExit > 0) exitDelay.restart();
                     win.confirm = "";      // stale two-click power confirm must not survive a close
                 }
             }
