@@ -113,7 +113,7 @@ Singleton {
             return;
         }
         Quickshell.execDetached(["wtype", "--", text]);
-        typed = (typed + text).slice(-16);
+        if (!root.privateInput) typed = (typed + text).slice(-16);
     }
 
     // repeat is input, not motion: it ignores reduceMotion and its timers are
@@ -182,7 +182,7 @@ Singleton {
                 if (!rows.length)
                     return;
                 Quickshell.execDetached(["sh", "-c", 'n=; for r; do [ -z "$n" ] || wtype -k Return; n=1; wtype -- "$r"; done', "sh"].concat(rows));
-                root.typed = rows[rows.length - 1].slice(-16);
+                if (!root.privateInput) root.typed = rows[rows.length - 1].slice(-16);
             }
         }
     }
@@ -201,6 +201,34 @@ Singleton {
     property var swiped: []                 // the other words a swipe could have been
     property var undoable: null             // { from, to }: Backspace right after an autocorrect undoes it
     readonly property bool secret: Ui.promptKeyboard || (Ui.textInput !== null && Ui.textInput.echoMode !== TextInput.Normal)
+    // External clients do not report their field's purpose to the shell.
+    readonly property bool literalInput: !remote && !Ui.textFocus
+    readonly property bool privateInput: secret || literalInput
+    property bool previousConsonant: false
+    property int inputGeneration: 0
+    function resetInputContext() {
+        inputGeneration++;
+        askSoon.stop();
+        stopRepeat();
+        typed = "";
+        context = "";
+        predicted = [];
+        predictedFor = "\u0000";
+        correction = "";
+        undoable = null;
+        dismissedWord = "";
+        swiped = [];
+        swipeFirst = "";
+        lastSwiped = "";
+        previousConsonant = false;
+        if (!capsLock) shift = false;
+    }
+    onPrivateInputChanged: {
+        if (!remote) {
+            resetInputContext();
+            if (shown) capitalise();
+        }
+    }
     // the engine works for any language with a system dictionary (hunspell);
     // capitals and ". " only where the script has them
     readonly property bool latin: lang === "en" || (isXkb && /^(us|gb|fr|de|es|it|pt|nl|se|no|dk|fi|pl|cz|tr|in\+eng)/.test(lang))
@@ -214,7 +242,8 @@ Singleton {
             onRead: line => {
                 let r;
                 try { r = JSON.parse(line); } catch (e) { return; }
-                if (r.op === "suggest") {
+                if (r.generation !== root.inputGeneration || root.privateInput) return;
+                if (r.op === "suggest" && r.word === root.currentWord()) {
                     root.predicted = r.words || [];
                     root.predictedFor = r.word || "";
                     root.correction = root.autocorrect && r.correction ? r.correction : "";
@@ -225,8 +254,9 @@ Singleton {
         }
     }
     function ask(req) {
-        if (!engine.running || root.secret) return;
+        if (!engine.running || root.privateInput) return;
         req.lang = root.lang;
+        req.generation = root.inputGeneration;
         engine.write(JSON.stringify(req) + "\n");
     }
     Timer { id: askSoon; interval: 40; onTriggered: root.ask({ op: "suggest", prev: root.context.replace(/[A-Za-z']*$/, ""), word: root.currentWord() }) }
@@ -243,12 +273,13 @@ Singleton {
     // ---- swipe: the keys a finger passed over, decoded into a word ---------
     property string swipeFirst: ""          // the letter the press already typed
     function swipe(keys) {
-        if (!engine.running || root.secret || keys.length < 2) return false;
+        if (!engine.running || root.privateInput || keys.length < 2) return false;
         root.swipeFirst = keys.charAt(0);
         root.ask({ op: "swipe", prev: root.context, keys: keys });
         return true;
     }
     function typeSwiped(words) {
+        if (root.swipeFirst === "") return;
         if (!words.length) { root.swipeFirst = ""; return; }
         // the press typed the first letter; the word replaces it, then a space
         const args = ["wtype"];
@@ -294,15 +325,20 @@ Singleton {
     // a held key's alternate in place of the letter the press typed
     function replaceLast(ch) {
         Quickshell.execDetached(["wtype", "-k", "BackSpace", "--", ch]);
+        root.previousConsonant = root.isConsonant(ch);
+        if (root.privateInput) return;
         root.typed = (root.typed.slice(0, -1) + ch).slice(-16);
-        if (!root.secret) { root.context = (root.context.slice(0, -1) + ch).slice(-80); askSoon.restart(); }
+        root.context = (root.context.slice(0, -1) + ch).slice(-80);
+        askSoon.restart();
     }
     // text from the clipboard panel's pins (or anything whole), typed as it is
     function typeText(t) {
         if (!t) return;
         Quickshell.execDetached(["wtype", "--", t]);
+        root.previousConsonant = root.isConsonant(t.slice(-1));
+        if (root.privateInput) return;
         root.typed = (root.typed + t).slice(-16);
-        if (!root.secret) root.context = (root.context + t).slice(-80);
+        root.context = (root.context + t).slice(-80);
     }
 
     // ---- capitals, as a phone keyboard does them ---------------------------
@@ -317,7 +353,7 @@ Singleton {
     }
     // the start of a field or a sentence takes a capital
     function capitalise() {
-        if (root.autoCaps && root.latin && !root.secret && root.page === "letters"
+        if (root.autoCaps && root.latin && !root.privateInput && root.page === "letters"
                 && (root.context === "" || /[.!?]\s+$/.test(root.context)))
             root.shift = true;
     }
@@ -441,6 +477,15 @@ Singleton {
     Connections {
         target: Ui
         function onTextFocusChanged() { textFocusSettle.restart(); }
+        function onTextInputChanged() {
+            if (root.shown && !root.remote) { root.resetInputContext(); root.capitalise(); }
+        }
+    }
+    Connections {
+        target: Niri
+        function onFocusedWindowIdChanged() {
+            if (root.shown && root.literalInput) root.resetInputContext();
+        }
     }
     Connections {
         target: FormFactor
@@ -464,9 +509,9 @@ Singleton {
     }
     // up: a fresh sentence (a capital first); down: nothing runs
     onShownChanged: {
-        if (!shown) { autoShown = false; root.stopRepeat(); return; }
-        root.context = "";
-        root.swiped = [];
+        if (!shown) autoShown = false;
+        root.resetInputContext();
+        if (!shown) return;
         root.capitalise();
     }
     onRemoteChanged: if (remote) root.stopRepeat()
@@ -555,19 +600,27 @@ Singleton {
         else if (action === "close")
             remote ? cancelRemote() : toggle();
     }
-    function nextLanguage() {
-        langIndex = (langIndex + 1) % languages.length;
+    function selectLanguage(id) {
+        const index = Array.from(languages).indexOf(id);
+        if (index < 0) return;
+        langIndex = index;
         page = "letters";
-        shift = false;
+        capsLock = false;
+        resetInputContext();
+    }
+    function nextLanguage() {
+        selectLanguage(languages[(langIndex + 1) % languages.length]);
     }
 
     // one tap: text, or a named key (BackSpace, Return, Tab, space)
     function press(key) {
+        if (Lock.locked) return;
         const named = ["BackSpace", "Return", "Tab", "Left", "Right", "Up", "Down", "Delete", "Escape", "Home", "End"];
         // Ctrl / Alt armed: the key with them held (a letter, a digit, or a named key)
         if ((ctrl || alt) && (named.indexOf(key) >= 0 || /^[a-z0-9]$/i.test(key))) {
             Quickshell.execDetached(["wtype"].concat(modArgs(true), ["-k", key.length === 1 ? key.toLowerCase() : key], modArgs(false)));
             used();
+            root.previousConsonant = false;
             return;
         }
         if (remote) {                         // the draft, not the app
@@ -603,6 +656,8 @@ Singleton {
         root.swiped = [];
         if (named.indexOf(key) >= 0) {
             Quickshell.execDetached(["wtype", "-k", key]);
+            root.previousConsonant = false;
+            if (root.privateInput) return;
             typed = key === "BackSpace" ? typed.slice(0, -1) : "";
             if (key === "BackSpace") root.context = root.context.slice(0, -1);
             else if (key === "Return") { root.learnWord(); root.context = ""; }
@@ -611,7 +666,7 @@ Singleton {
             if (key === "Return") root.capitalise();
             return;
         }
-        if (key === "space" && root.latin && !root.secret) {
+        if (key === "space" && root.latin && !root.privateInput) {
             const w = root.currentWord();
             // the word becomes its correction, as the space is typed (undone by Backspace)
             if (root.autocorrect && w !== "" && root.correction !== "" && root.correction !== w.toLowerCase()
@@ -644,12 +699,14 @@ Singleton {
         let out = key === "space" ? " " : key;
         // smart matras on the hand-made Devanagari layout only: xkb's Indic
         // layouts (InScript …) have matra keys of their own
-        if (lang === "mr" && matraOf[out] !== undefined && typed.length > 0 && isConsonant(typed.slice(-1)))
+        const afterConsonant = root.privateInput ? root.previousConsonant : isConsonant(typed.slice(-1));
+        if (lang === "mr" && matraOf[out] !== undefined && afterConsonant)
             out = matraOf[out];
         if (!root.capsLock) shift = false;
         Quickshell.execDetached(["wtype", "--", out]);
+        root.previousConsonant = isConsonant(out.slice(-1));
+        if (root.privateInput) return;
         typed = (typed + out).slice(-16);
-        if (root.secret) return;                 // nothing from a password field is kept or sent
         root.noteTyped(out);
         if (out === " ") { root.learnWord(); root.capitalise(); }
     }

@@ -1547,49 +1547,69 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.px(12)
                 // ---- screen keyboard languages: any xkb layout, plus the hand-made two
-                SectionTitle { Layout.fillWidth: true; text: Tr.t("Screen keyboard") }
+                SectionTitle { Layout.fillWidth: true; text: Tr.t("Screen keyboard"); objectName: "oskLanguages" }
                 Process {
                     running: page.visible && page.catalogue.length === 0
                     command: ["python3", Osk.script, "--list"]
                     stdout: StdioCollector { onStreamFinished: { try { page.catalogue = JSON.parse(text); } catch (e) {} } }
                 }
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: Theme.px(6)
-                    Repeater {
-                        model: page.d.oskLanguages
-                        Choice {
-                            required property string modelData
-                            text: page.nameOf(modelData) + (page.d.oskLanguages.length > 1 ? "  ✕" : "")
-                            selected: true
-                            onClicked: if (page.d.oskLanguages.length > 1) page.d.oskLanguages = Array.from(page.d.oskLanguages).filter(x => x !== modelData)
+                Repeater {
+                    model: page.d.oskLanguages
+                    RowLayout {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        ListRow {
+                            Layout.fillWidth: true
+                            icon: "input-keyboard"
+                            title: page.nameOf(modelData)
+                            selected: Osk.lang === modelData
+                            onClicked: Osk.selectLanguage(modelData)
+                        }
+                        IconButton {
+                            visible: page.d.oskLanguages.length > 1
+                            icon: "list-remove"
+                            tip: Tr.t("Remove %1", page.nameOf(modelData))
+                            onClicked: page.d.oskLanguages = Array.from(page.d.oskLanguages).filter(x => x !== modelData)
                         }
                     }
                 }
                 TextField {
                     id: layoutSearch
                     Layout.fillWidth: true
-                    placeholder: Tr.t("Add a layout — marathi, tamil, russian, arabic …")
+                    placeholder: Tr.t("Find a keyboard layout")
+                    label: Tr.t("Find a keyboard layout")
+                    onTextChanged: layoutCatalogue.limit = 12
                 }
-                Repeater {
-                    model: {
+                ColumnLayout {
+                    id: layoutCatalogue
+                    Layout.fillWidth: true
+                    property int limit: 12
+                    readonly property var available: {
                         const q = layoutSearch.text.trim().toLowerCase();
-                        if (q.length < 2)
-                            return [];
-                        return page.catalogue.filter(x => x.name.toLowerCase().indexOf(q) >= 0 || x.id.indexOf(q) >= 0
-                            || x.langs.some(l => l === q)).slice(0, 12);
+                        const builtIn = [{id: "en", name: page.nameOf("en"), langs: ["english"]},
+                                         {id: "mr", name: page.nameOf("mr"), langs: ["marathi"]}];
+                        return builtIn.concat(page.catalogue).filter(x => page.d.oskLanguages.indexOf(x.id) < 0
+                            && (x.name.toLowerCase().includes(q) || x.id.includes(q) || x.langs.includes(q)));
                     }
-                    ListRow {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        icon: "input-keyboard"
-                        title: modelData.name
-                        subtitle: modelData.id
-                        onClicked: {
-                            if (page.d.oskLanguages.indexOf(modelData.id) < 0)
+                    Repeater {
+                        model: layoutCatalogue.available.slice(0, layoutCatalogue.limit)
+                        ListRow {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            icon: "list-add"
+                            title: modelData.name
+                            subtitle: modelData.id
+                            onClicked: {
                                 page.d.oskLanguages = Array.from(page.d.oskLanguages).concat([modelData.id]);
-                            layoutSearch.text = "";
+                                Osk.selectLanguage(modelData.id);
+                                layoutSearch.text = "";
+                            }
                         }
+                    }
+                    Button {
+                        visible: layoutCatalogue.available.length > layoutCatalogue.limit
+                        text: Tr.t("Show more layouts")
+                        onClicked: layoutCatalogue.limit += 12
                     }
                 }
 

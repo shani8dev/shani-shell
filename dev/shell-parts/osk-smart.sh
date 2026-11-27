@@ -24,13 +24,14 @@ ipc closeAll
 ipc launcher ""
 ipc osk
 waitfor "d['oskEngine']" 8
-for k in s e e space y o u space z o r b l e space; do ipc oskPress "$k"; sleep 0.2; done
+# Use a nonce outside the autocorrect distance of words in the system dictionary.
+for k in s e e space y o u space z q x v j k space; do ipc oskPress "$k"; sleep 0.2; done
 ipc osk; ipc closeAll
 ipc launcher ""
 ipc osk
 waitfor "d['oskEngine']" 8
 for k in y o u space; do ipc oskPress "$k"; sleep 0.2; done
-waitfor "'zorble' in d['oskPredicted']" 4 && result osk-learns-the-next-word PASS || result osk-learns-the-next-word FAIL "$(q "['oskPredicted']")"
+waitfor "'zqxvjk' in d['oskPredicted']" 4 && result osk-learns-the-next-word PASS || result osk-learns-the-next-word FAIL "$(q "['oskPredicted']")"
 shot osk-smart-next-word 0.3
 ipc osk; ipc closeAll
 

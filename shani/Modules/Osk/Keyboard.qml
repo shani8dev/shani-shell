@@ -4,6 +4,7 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import qs.Common
 import qs.Services
@@ -30,6 +31,9 @@ PanelWindow {
     Binding { target: Osk; property: "output"; value: win.visible && win.screen ? win.screen.name : "" }
     BackgroundEffect.blurRegion: Settings.blurWanted ? kbRegion : null
     Region { id: kbRegion; item: board; radius: Theme.radiusLarge }
+
+    readonly property bool narrowBoard: board.width < Theme.px(620)
+    readonly property bool shortScreen: !!screen && screen.height < Theme.px(500)
 
     readonly property var layouts: ({
         "en": {
@@ -79,20 +83,29 @@ PanelWindow {
             r[r.length - 1].push({ n: "⌫", s: "⌫" });
         return r;
     }
-    // the next language, shown on the switch key by a few of its own letters
-    readonly property string nextSample: {
-        const ls = Osk.languages;
-        const next = ls[(Osk.langIndex + 1) % ls.length];
-        if (next === "en") return "abc";
-        if (next === "mr") return "अआइ";
-        const m = Osk.xkb[next];
-        return m && m.rows.length > 1 ? m.rows[1].slice(0, 3).map(k => k.n).join("") : next;
-    }
-
     // the language list, over the keys: each language, and adding one in Settings
     property bool langMenu: false
     // the keyboard's own size / opacity / suggestions controls (Settings has no OSK page)
     property bool oskMenu: false
+    property bool showTools: false
+    function openPage(page) {
+        win.langMenu = false;
+        win.oskMenu = false;
+        win.showTools = false;
+        if (page === "emoji") Characters.loadEmoji();
+        Osk.page = Osk.page === page ? "letters" : page;
+    }
+    function toggleLayouts() {
+        win.oskMenu = false;
+        win.langMenu = !win.langMenu;
+        win.cursor = null;
+        if (win.langMenu) layoutScroll.contentY = 0;
+        Qt.callLater(() => {
+            if (!Osk.padDriven || !win.visible) return;
+            if (win.langMenu) win.setCursor(enabledLayouts.itemAt(Osk.langIndex));
+            else win.setCursor(globe);
+        });
+    }
     function langName(id) { return (layouts[id] && layouts[id].name) || (Osk.xkb[id] && Osk.xkb[id].name) || id; }
 
     function tap(k) {
@@ -137,7 +150,7 @@ PanelWindow {
             while (win.slideX - p.x > step) { Osk.press("Left"); win.slideX -= step; }
             return;
         }
-        if (Osk.secret || Osk.page !== "letters" || !Osk.suggestions) return;
+        if (Osk.privateInput || Osk.page !== "letters" || !Osk.suggestions) return;
         const k = win.keyAt(p.x, p.y);
         if (!k || !/^[A-Za-z]$/.test(k.label)) return;
         const ch = k.label.toLowerCase();
@@ -187,7 +200,7 @@ PanelWindow {
     // handwriting page's side keys, the wide bottom row - works the same
     property Item cursor: null
     property point cursorAt: Qt.point(0, 0)  // where it was: a new page keeps it near
-    onCursorChanged: Osk.cursorLabel = cursor ? cursor.label : ""
+    onCursorChanged: Osk.cursorLabel = cursor ? cursor.label || cursor.accessibleName : ""
     function keyItems(item, out) {
         for (const c of item.children) {
             if (c.isOskKey === true) {
@@ -209,10 +222,21 @@ PanelWindow {
     }
     function setCursor(k) {
         cursor = k;
-        if (k) cursorAt = centre(k);
+        if (!k) return;
+        for (let p = k.parent; p; p = p.parent) {
+            if (!(p instanceof Flickable)) continue;
+            const at = k.mapToItem(p.contentItem, 0, 0);
+            if (p.contentHeight > p.height)
+                p.contentY = Math.max(p.originY, Math.min(p.originY + p.contentHeight - p.height,
+                    Math.max(at.y + k.height - p.height, Math.min(at.y, p.contentY))));
+            if (p.contentWidth > p.width)
+                p.contentX = Math.max(p.originX, Math.min(p.originX + p.contentWidth - p.width,
+                    Math.max(at.x + k.width - p.width, Math.min(at.x, p.contentX))));
+        }
+        cursorAt = centre(k);
     }
     function padMove(dir) {
-        const keys = keyItems(board, []);
+        const keys = keyItems(win.langMenu ? layoutPicker : board, []);
         if (!keys.length)
             return;
         if (!cursor || keys.indexOf(cursor) < 0) {      // first use, or the page changed under it
@@ -244,7 +268,7 @@ PanelWindow {
         target: Osk
         function onPadMove(direction) { win.padMove(direction); }
         function onPadTap() {
-            if (!win.cursor)
+            if (!win.cursor || !win.cursor.visible)
                 win.padMove("none");
             else
                 win.cursor.tapped();
@@ -277,7 +301,17 @@ PanelWindow {
         function onRemoteChanged() { if (!Osk.remote) win.draftSecret = false; }
     }
 
-    onVisibleChanged: if (visible) boardIn.restart()
+    onVisibleChanged: {
+        if (visible) {
+            boardIn.restart();
+        } else {
+            langMenu = false;
+            oskMenu = false;
+            showTools = false;
+            altKey = null;
+            altList = [];
+        }
+    }
     // the remote's keys, in remote mode: the same moves as a controller's
     Item {
         id: remoteKeys
@@ -285,6 +319,7 @@ PanelWindow {
         Keys.onPressed: e => {
             const move = { [Qt.Key_Up]: "up", [Qt.Key_Down]: "down", [Qt.Key_Left]: "left", [Qt.Key_Right]: "right" }[e.key];
             if (move) Osk.pad(move);
+            else if ((e.key === Qt.Key_Escape || e.key === Qt.Key_Back) && win.langMenu) win.toggleLayouts();
             else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Select) Osk.pad("press");
             else if (e.key === Qt.Key_Escape || e.key === Qt.Key_Back) Osk.cancelRemote();
             else if (e.key === Qt.Key_Backspace) Osk.press("BackSpace");
@@ -303,6 +338,7 @@ PanelWindow {
 
     Glass {
         id: board
+        solid: win.narrowBoard || win.shortScreen
         transform: Translate { id: boardRise }
         // a held letter's alternates, over the key (a tap picks one)
         Rectangle {
@@ -362,99 +398,150 @@ PanelWindow {
             x: 12
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Theme.px(70)
-            width: Theme.px(320)
-            height: menuCol.implicitHeight + 16
-            Column {
-                id: menuCol
-                x: 8; y: 8
-                width: parent.width - 16
-                ListRow {
-                    width: menuCol.width
-                    icon: "input-keyboard"
-                    title: Osk.compact ? Tr.t("Keyboard: compact") : Tr.t("Keyboard: fixed")
-                    onClicked: Osk.toggleSize()
-                }
-                ListRow {
-                    width: menuCol.width
-                    icon: "preferences-desktop"
-                    title: Tr.t("Keyboard opacity: %1%", Math.round(Osk.panelOpacity * 100))
-                    onClicked: Osk.cycleOpacity()
-                }
-                ListRow {
-                    width: menuCol.width
-                    icon: "edit-find"
-                    title: Osk.suggestions ? Tr.t("Word suggestions: on") : Tr.t("Word suggestions: off")
-                    onClicked: Osk.toggleSuggestions()
-                }
-                ListRow {
-                    width: menuCol.width
-                    icon: "tools-check-spelling"
-                    title: Osk.autocorrect ? Tr.t("Autocorrect: on") : Tr.t("Autocorrect: off")
-                    subtitle: Tr.t("Backspace right after a correction undoes it")
-                    onClicked: Osk.toggleAutocorrect()
-                }
-                ListRow {
-                    width: menuCol.width
-                    icon: "format-text-uppercase"
-                    title: Osk.autoCaps ? Tr.t("Capitals and full stops: on") : Tr.t("Capitals and full stops: off")
-                    subtitle: Tr.t("A capital to start a sentence; two spaces type \". \"")
-                    onClicked: Osk.toggleAutoCaps()
-                }
-                ListRow {
-                    width: menuCol.width
-                    icon: "edit-clear-history"
-                    title: Tr.t("Forget learned words")
-                    subtitle: Tr.t("What the keyboard learned from your typing, on this computer")
-                    onClicked: { Osk.forgetLearned(); win.oskMenu = false; }
-                }
-                ListRow {
-                    width: menuCol.width
-                    icon: "input-keyboard"
-                    title: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
-                    onClicked: Osk.cycleHand()
+            width: Math.min(Theme.px(320), Math.max(0, parent.width - 2 * x))
+            height: Math.min(menuCol.implicitHeight + Theme.px(16), Math.max(0, parent.height - anchors.bottomMargin))
+            Flickable {
+                id: menuScrollmenuCol
+                anchors.fill: parent
+                anchors.margins: Theme.px(8)
+                clip: true
+                contentWidth: width
+                contentHeight: menuCol.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                Column {
+                    id: menuCol
+                    width: menuScrollmenuCol.width
+                    ListRow {
+                        width: menuCol.width
+                        icon: "input-keyboard"
+                        title: Osk.compact ? Tr.t("Keyboard: compact") : Tr.t("Keyboard: fixed")
+                        onClicked: Osk.toggleSize()
+                    }
+                    ListRow {
+                        width: menuCol.width
+                        icon: "preferences-desktop"
+                        title: Tr.t("Keyboard opacity: %1%", Math.round(Osk.panelOpacity * 100))
+                        onClicked: Osk.cycleOpacity()
+                    }
+                    ListRow {
+                        width: menuCol.width
+                        icon: "edit-find"
+                        title: Osk.suggestions ? Tr.t("Word suggestions: on") : Tr.t("Word suggestions: off")
+                        onClicked: Osk.toggleSuggestions()
+                    }
+                    ListRow {
+                        width: menuCol.width
+                        icon: "tools-check-spelling"
+                        title: Osk.autocorrect ? Tr.t("Autocorrect: on") : Tr.t("Autocorrect: off")
+                        subtitle: Tr.t("Backspace right after a correction undoes it")
+                        onClicked: Osk.toggleAutocorrect()
+                    }
+                    ListRow {
+                        width: menuCol.width
+                        icon: "format-text-uppercase"
+                        title: Osk.autoCaps ? Tr.t("Capitals and full stops: on") : Tr.t("Capitals and full stops: off")
+                        subtitle: Tr.t("A capital to start a sentence; two spaces type \". \"")
+                        onClicked: Osk.toggleAutoCaps()
+                    }
+                    ListRow {
+                        width: menuCol.width
+                        icon: "edit-clear-history"
+                        title: Tr.t("Forget learned words")
+                        subtitle: Tr.t("What the keyboard learned from your typing, on this computer")
+                        onClicked: { Osk.forgetLearned(); win.oskMenu = false; }
+                    }
+                    ListRow {
+                        width: menuCol.width
+                        icon: "input-keyboard"
+                        title: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
+                        onClicked: Osk.cycleHand()
+                    }
                 }
             }
         }
 
         Glass {
+            id: layoutPicker
             visible: win.langMenu
             z: 5
+            solid: true
             strong: true
-            radius: Theme.px(14)
-            x: 12
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.px(70)
-            width: Theme.px(300)
-            height: langCol.implicitHeight + 16
-            Column {
-                id: langCol
-                x: 8; y: 8
-                width: parent.width - 16
-                Repeater {
-                    model: Osk.languages
-                    ListRow {
-                        required property string modelData
-                        required property int index
-                        width: langCol.width
-                        icon: "preferences-desktop-locale"
-                        title: win.langName(modelData)
-                        selected: index === Osk.langIndex % Osk.languages.length
-                        onClicked: { Osk.langIndex = index; win.langMenu = false; }
+            radius: Theme.radiusLarge
+            anchors.centerIn: parent
+            width: Math.min(board.width, Theme.px(460))
+            height: Math.min(board.height, layoutChoices.implicitHeight + Theme.px(54) + addLayout.implicitHeight)
+            Accessible.role: Accessible.Pane
+            Accessible.name: Tr.t("Keyboard layouts")
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.px(8)
+                spacing: Theme.px(4)
+                RowLayout {
+                    Layout.fillWidth: true
+                    SectionTitle { Layout.fillWidth: true; text: Tr.t("Keyboard layouts") }
+                    Key {
+                        Layout.preferredWidth: Theme.px(44)
+                        Layout.preferredHeight: Theme.px(34)
+                        icon: "window-close"
+                        accessibleName: Tr.t("Close keyboard layouts")
+                        onTapped: win.toggleLayouts()
                     }
                 }
-                ListRow {
-                    width: langCol.width
-                    icon: "list-add"
-                    title: Tr.t("Add a language…")
-                    onClicked: { win.langMenu = false; Osk.toggle(); Ui.openSettings("input"); }
+                Flickable {
+                    id: layoutScroll
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    contentWidth: width
+                    contentHeight: layoutChoices.height
+                    boundsBehavior: Flickable.StopAtBounds
+                    Controls.ScrollBar.vertical: Controls.ScrollBar {
+                        policy: layoutScroll.contentHeight > layoutScroll.height ? Controls.ScrollBar.AlwaysOn : Controls.ScrollBar.AlwaysOff
+                    }
+                    Column {
+                        id: layoutChoices
+                        width: layoutScroll.width - (layoutScroll.contentHeight > layoutScroll.height ? Theme.px(10) : 0)
+                        spacing: Theme.px(4)
+                        Repeater {
+                            id: enabledLayouts
+                            model: Osk.languages
+                            Key {
+                                required property string modelData
+                                width: layoutChoices.width
+                                height: Math.max(Theme.touchTarget, Theme.px(36))
+                                label: win.langName(modelData)
+                                accent: Osk.lang === modelData
+                                Accessible.checkable: true
+                                Accessible.checked: accent
+                                onTapped: {
+                                    Osk.selectLanguage(modelData);
+                                    win.toggleLayouts();
+                                }
+                            }
+                        }
+                    }
+                }
+                Key {
+                    id: addLayout
+                    Layout.fillWidth: true
+                    implicitHeight: Math.max(Theme.touchTarget, Theme.px(36))
+                    label: Tr.t("Add a layout…")
+                    onTapped: {
+                        win.toggleLayouts();
+                        Osk.remote ? Osk.cancelRemote() : Osk.toggle();
+                        Ui.openSettings("input", "oskLanguages");
+                    }
                 }
             }
         }
 
         ColumnLayout {
+            enabled: !win.langMenu
+            opacity: win.langMenu ? 0.2 : 1
+            Accessible.ignored: win.langMenu
             anchors.fill: parent
             anchors.margins: Theme.px(Osk.compact ? 6 : 10)
-            spacing: Theme.px(Osk.compact ? 4 : 6)
+            spacing: Theme.px(win.shortScreen ? 3 : Osk.compact ? 4 : 6)
 
             // remote mode: what is being typed, before it goes to the app
             Rectangle {
@@ -491,75 +578,95 @@ PanelWindow {
                 }
                 // a dismissed word stays dismissed; between words (word "") the next-word
                 // guesses show, and × clears them
-                readonly property bool predicting: Osk.suggestions && Osk.page === "letters" && !Osk.secret
+                readonly property bool predicting: Osk.suggestions && Osk.page === "letters" && !Osk.secret && !Osk.literalInput
                     && !(word !== "" && Osk.dismissedWord === word) && picks.length > 0
                 Layout.fillWidth: true
-                Layout.preferredHeight: Theme.px(Osk.compact ? 34 : 40)
+                Layout.preferredHeight: Theme.px(win.shortScreen ? 30 : Osk.compact ? 34 : 40)
                 radius: Theme.px(10)
                 color: Theme.alpha(Theme.text, 0.04)
                 border.color: Theme.stroke
                 RowLayout {
-                    visible: suggestionBar.predicting
                     anchors.fill: parent
                     anchors.margins: Theme.px(3)
                     spacing: Theme.px(4)
-                    Repeater {
-                        model: suggestionBar.picks
+                    Key {
+                        Layout.preferredWidth: Theme.px(44)
+                        Layout.fillHeight: true
+                        label: "☺"
+                        accent: Osk.page === "emoji"
+                        accessibleName: Tr.t("Emoji")
+                        onTapped: win.openPage("emoji")
+                    }
+                    RowLayout {
+                        visible: suggestionBar.predicting && !win.showTools
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: Theme.px(4)
+                        Repeater {
+                            model: suggestionBar.picks
+                            Key {
+                                required property string modelData
+                                required property int index
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                label: modelData
+                                // the one a space would type stands out
+                                accent: (Osk.correction !== "" && modelData === Osk.correction) || (Osk.correction === "" && index === 0 && suggestionBar.word !== "")
+                                accessibleName: Tr.t("Use %1", modelData)
+                                onTapped: Osk.swiped.length ? Osk.replaceSwiped(modelData)
+                                    : (modelData === suggestionBar.word ? Osk.keepTyped() : Osk.applySuggestion(modelData))
+                            }
+                        }
                         Key {
-                            required property string modelData
-                            required property int index
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: Theme.px(34)
                             Layout.fillHeight: true
-                            label: modelData
-                            // the one a space would type stands out
-                            accent: (Osk.correction !== "" && modelData === Osk.correction) || (Osk.correction === "" && index === 0 && suggestionBar.word !== "")
-                            accessibleName: Tr.t("Use %1", modelData)
-                            onTapped: Osk.swiped.length ? Osk.replaceSwiped(modelData)
-                                : (modelData === suggestionBar.word ? Osk.keepTyped() : Osk.applySuggestion(modelData))
+                            label: "×"
+                            accessibleName: Tr.t("Dismiss suggestions")
+                            onTapped: { Osk.swiped = []; Osk.predicted = []; Osk.dismissSuggestions(); }
                         }
                     }
-                    Key {
-                        Layout.preferredWidth: Theme.px(34)
+                    // the tools, when there is nothing to predict
+                    RowLayout {
+                        visible: !suggestionBar.predicting || win.showTools
+                        Layout.fillWidth: true
                         Layout.fillHeight: true
-                        label: "×"
-                        accessibleName: Tr.t("Dismiss suggestions")
-                        onTapped: { Osk.swiped = []; Osk.predicted = []; Osk.dismissSuggestions(); }
+                        spacing: Theme.px(4)
+                        Key { Layout.fillWidth: true; Layout.fillHeight: true; icon: "edit-paste"; accent: Osk.page === "clip"; accessibleName: Tr.t("Clipboard")
+                              onTapped: win.openPage("clip") }
+                        // voice typing: tap, speak, tap again — the words land where the keys would
+                        Key {
+                            Layout.fillWidth: true; Layout.fillHeight: true
+                            label: Dictation.phase === "transcribing" ? "…" : ""
+                            icon: Dictation.phase === "transcribing" ? "" : "audio-input-microphone"
+                            accent: Dictation.phase === "recording"
+                            danger: Dictation.phase === "recording"
+                            onTapped: Dictation.toggle()
+                        }
+                        Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "✎"; accent: Osk.page === "write"; accessibleName: Tr.t("Write by hand")
+                              onTapped: win.openPage("write") }
+                        // look the word being typed up in the offline Dictionary
+                        Key { Layout.fillWidth: true; Layout.fillHeight: true; icon: "accessories-dictionary"; accessibleName: Tr.t("Define"); onTapped: win.defineWord() }
+                        // one-handed: shift the board left or right, tap again for center
+                        Key {
+                            Layout.fillWidth: true; Layout.fillHeight: true
+                            label: Osk.hand === "left" ? "◧" : (Osk.hand === "right" ? "◨" : "↔")
+                            accessibleName: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
+                            accent: Osk.hand !== "center"
+                            onTapped: Osk.cycleHand()
+                        }
+                        // size, opacity, suggestions, autocorrect, capitals, without leaving the keyboard
+                        Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "⚙"; accessibleName: Tr.t("Keyboard options"); accent: win.oskMenu
+                              onTapped: { win.langMenu = false; win.oskMenu = !win.oskMenu; } }
                     }
-                }
-                // the tools, when there is nothing to predict
-                RowLayout {
-                    visible: !suggestionBar.predicting
-                    anchors.fill: parent
-                    anchors.margins: Theme.px(3)
-                    spacing: Theme.px(4)
-                    Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "☺"; accent: Osk.page === "emoji"; accessibleName: Tr.t("Emoji")
-                          onTapped: { Characters.loadEmoji(); Osk.page = Osk.page === "emoji" ? "letters" : "emoji"; } }
-                    Key { Layout.fillWidth: true; Layout.fillHeight: true; icon: "edit-paste"; accent: Osk.page === "clip"; accessibleName: Tr.t("Clipboard")
-                          onTapped: Osk.page = Osk.page === "clip" ? "letters" : "clip" }
-                    // voice typing: tap, speak, tap again — the words land where the keys would
                     Key {
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        label: Dictation.phase === "transcribing" ? "…" : ""
-                        icon: Dictation.phase === "transcribing" ? "" : "audio-input-microphone"
-                        accent: Dictation.phase === "recording"
-                        danger: Dictation.phase === "recording"
-                        onTapped: Dictation.toggle()
+                        visible: suggestionBar.predicting
+                        Layout.preferredWidth: Theme.px(36)
+                        Layout.fillHeight: true
+                        icon: "view-more"
+                        accent: win.showTools
+                        accessibleName: win.showTools ? Tr.t("Show word suggestions") : Tr.t("Show keyboard tools")
+                        onTapped: win.showTools = !win.showTools
                     }
-                    Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "✎"; accent: Osk.page === "write"; accessibleName: Tr.t("Write by hand")
-                          onTapped: Osk.page = Osk.page === "write" ? "letters" : "write" }
-                    // look the word being typed up in the offline Dictionary
-                    Key { Layout.fillWidth: true; Layout.fillHeight: true; icon: "accessories-dictionary"; accessibleName: Tr.t("Define"); onTapped: win.defineWord() }
-                    // one-handed: shift the board left or right, tap again for center
-                    Key {
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        label: Osk.hand === "left" ? "◧" : (Osk.hand === "right" ? "◨" : "↔")
-                        accessibleName: Tr.t("Keyboard") + ": " + (Osk.hand === "left" ? Tr.t("Left") : Osk.hand === "right" ? Tr.t("Right") : Tr.t("Center"))
-                        accent: Osk.hand !== "center"
-                        onTapped: Osk.cycleHand()
-                    }
-                    // size, opacity, suggestions, autocorrect, capitals, without leaving the keyboard
-                    Key { Layout.fillWidth: true; Layout.fillHeight: true; label: "⚙"; accessibleName: Tr.t("Keyboard options"); accent: win.oskMenu
-                          onTapped: { win.langMenu = false; win.oskMenu = !win.oskMenu; } }
                 }
             }
 
@@ -577,9 +684,9 @@ PanelWindow {
                     id: emojiGrid
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.minimumHeight: Theme.px(100)
+                    Layout.minimumHeight: Theme.px(win.shortScreen ? 56 : 72)
                     clip: true
-                    cellWidth: Theme.px(Osk.compact ? 46 : 54)
+                    cellWidth: width / Math.max(1, Math.floor(width / Theme.px(Osk.compact ? 46 : 54)))
                     cellHeight: Theme.px(Osk.compact ? 42 : 50)
                     model: emojiPage.shown
                     boundsBehavior: Flickable.StopAtBounds
@@ -594,27 +701,26 @@ PanelWindow {
                     }
                 }
                 // the groups, a slim row under the grid (it must not grow into it)
-                RowLayout {
+                ActionStrip {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Theme.px(36)
-                    Layout.maximumHeight: Theme.px(36)
+                    Layout.minimumHeight: implicitHeight
                     spacing: Theme.px(4)
-                    Key { Layout.preferredWidth: Theme.px(44); Layout.fillHeight: true; label: "🕘"; accent: emojiPage.group < 0; visible: Characters.recents.length > 0
+                    Key { Layout.preferredWidth: Theme.px(44); Layout.preferredHeight: Theme.px(34); label: "🕘"; accent: emojiPage.group < 0; visible: Characters.recents.length > 0
                           accessibleName: Tr.t("Recently used"); onTapped: emojiPage.group = -1 }
                     Repeater {
                         model: Characters.emojiGroups
                         Key {
                             required property var modelData
                             required property int index
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
+                            Layout.preferredWidth: Theme.px(38)
+                            Layout.preferredHeight: Theme.px(34)
                             label: modelData.items[0].ch
                             accent: emojiPage.group === index
                             accessibleName: modelData.group
                             onTapped: { emojiPage.group = index; emojiGrid.positionViewAtBeginning(); }
                         }
                     }
-                    Key { Layout.preferredWidth: Theme.px(56); Layout.fillHeight: true; label: "⌫"; repeatKey: "BackSpace"; onTapped: Osk.press("BackSpace") }
+                    Key { Layout.preferredWidth: Theme.px(56); Layout.preferredHeight: Theme.px(34); label: "⌫"; repeatKey: "BackSpace"; onTapped: Osk.press("BackSpace") }
                 }
             }
 
@@ -687,7 +793,7 @@ PanelWindow {
                 }
             }
             Repeater {
-                model: Osk.page === "write" || Osk.page === "emoji" || Osk.page === "clip" ? [] : win.rows
+                model: Osk.page === "letters" || Osk.page === "symbols" ? win.rows : []
                 RowLayout {
                     id: keyRow
                     required property var modelData
@@ -719,29 +825,25 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: Theme.px(6)
-                Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.page !== "letters" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); onTapped: Osk.page = Osk.page !== "letters" ? "letters" : "symbols" }
+                spacing: Theme.px(win.narrowBoard ? 3 : 6)
+                Key { Layout.preferredWidth: Theme.px(win.narrowBoard ? 45 : 130); Layout.fillHeight: true; label: Osk.page !== "letters" ? "abc" : (Osk.lang === "mr" ? "?१२३" : "?123"); accessibleName: Osk.page === "letters" ? Tr.t("Numbers and symbols") : Tr.t("Letters"); onTapped: win.openPage(Osk.page === "letters" ? "symbols" : Osk.page) }
                 // Ctrl and Alt, sticky (one tap: the next key; two: held); the tools are in the top bar
-                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
-                Key { Layout.preferredWidth: Theme.px(80); Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
-                Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: Osk.capsLock ? "⇪" : "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.tapShift() }
-                // the globe (Gboard's): a tap - the next language, or the list when there is
-                // only one (so adding one is never hidden); held - the list
+                Key { Layout.preferredWidth: Theme.px(win.narrowBoard ? 34 : 80); Layout.fillHeight: true; label: Osk.ctrl === 2 ? "Ctrl ●" : "Ctrl"; accent: Osk.ctrl > 0; onTapped: Osk.tapMod("ctrl") }
+                Key { Layout.preferredWidth: Theme.px(win.narrowBoard ? 34 : 80); Layout.fillHeight: true; label: Osk.alt === 2 ? "Alt ●" : "Alt"; accent: Osk.alt > 0; onTapped: Osk.tapMod("alt") }
+                Key { Layout.preferredWidth: Theme.px(win.narrowBoard ? 34 : 90); Layout.fillHeight: true; label: Osk.capsLock ? "⇪" : "⇧"; visible: Osk.isXkb; accent: Osk.shift; onTapped: Osk.tapShift() }
                 Key {
                     id: globe
-                    Layout.preferredWidth: Theme.px(110)
+                    Layout.preferredWidth: Theme.px(win.narrowBoard ? 44 : 66)
                     Layout.fillHeight: true
-                    label: Osk.languages.length > 1 ? "LANG " + win.nextSample : "LANG"
-                    accessibleName: Tr.t("Keyboard language")
-                    holdable: true
-                    onTapped: { win.oskMenu = false; Osk.languages.length > 1 ? Osk.nextLanguage() : (win.langMenu = !win.langMenu); }
-                    onHeld: { win.oskMenu = false; win.langMenu = true; }
+                    icon: "preferences-desktop-locale"
+                    accessibleName: Tr.t("Keyboard layouts")
+                    onTapped: win.toggleLayouts()
                 }
                 // the space bar: the language in use; slide along it to move the cursor
                 Key { Layout.fillWidth: true; Layout.fillHeight: true; label: win.sliding ? "◀ ▶" : win.layoutName; dim: true; isSpace: true; onTapped: Osk.press("space") }
-                Key { Layout.preferredWidth: Theme.px(130); Layout.fillHeight: true; label: Osk.remote ? Tr.t("Done") : "⏎"; accent: true; onTapped: Osk.remote ? Osk.commit() : Osk.press("Return") }
+                Key { Layout.preferredWidth: Theme.px(win.narrowBoard ? 45 : 130); Layout.fillHeight: true; label: Osk.remote ? Tr.t("Done") : "⏎"; accent: true; onTapped: Osk.remote ? Osk.commit() : Osk.press("Return") }
                 // hide it to see the whole screen; the floating button (OskButton) or the bar brings it back
-                Key { Layout.preferredWidth: Theme.px(90); Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.remote ? Osk.cancelRemote() : Osk.toggle() }
+                Key { Layout.preferredWidth: Theme.px(win.narrowBoard ? 34 : 90); Layout.fillHeight: true; label: "⌄"; Accessible.name: Tr.t("Hide keyboard"); onTapped: Osk.remote ? Osk.cancelRemote() : Osk.toggle() }
             }
         }
     }
@@ -785,6 +887,9 @@ PanelWindow {
         }
         Text {
             anchors.centerIn: parent
+            width: Math.max(0, key.width - Theme.px(4))
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
             text: key.label
             color: key.accent ? Theme.accentInk : (key.dim ? Theme.dim : Theme.text)
             font.family: Theme.font

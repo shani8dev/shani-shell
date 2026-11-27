@@ -188,7 +188,7 @@ var entries = [
     { key: "keyRepeatDelay", label: "Key repeat delay", cat: "input", hint: "how long before a held key repeats", words: "key repeat delay keyboard hold" },
     { key: "keyRepeatRate", label: "Key repeat rate", cat: "input", hint: "how fast it repeats", words: "key repeat rate keyboard speed" },
     { key: "oskButton", label: "Keyboard button when hidden", cat: "input", hint: "brings the screen keyboard back on a touchscreen", words: "screen keyboard osk button hidden touch tablet floating" },
-    { key: "oskLanguages", label: "Screen keyboard languages", cat: "input", hint: "the languages the globe key cycles", words: "osk languages screen keyboard dictation layout globe input" },
+    { key: "oskLanguages", label: "Screen keyboard languages", cat: "input", hint: "the layouts available from the globe key", words: "osk languages screen keyboard dictation layout globe input" },
     { key: "middlePaste", label: "Middle-click pastes", cat: "input", hint: "the text last selected, with the middle button", words: "middle click paste selection primary clipboard x11" },
     { key: "oskWithTabletMode", label: "Screen keyboard in tablet mode", cat: "input", hint: "folded: it comes up; unfolded: it goes", words: "tablet mode convertible fold screen keyboard osk" },
     { key: "gamepadNav", label: "Move around with a controller", cat: "input", hint: "the d-pad moves, A selects, B goes back", words: "game controller gamepad joystick navigate desktop" },

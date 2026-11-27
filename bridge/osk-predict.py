@@ -310,6 +310,8 @@ def main():
                 resp = {"op": op, "error": "unknown op"}
         except (OSError, ValueError) as e:
             resp = {"op": op, "error": e.__class__.__name__}
+        if "generation" in req:
+            resp["generation"] = req["generation"]
         sys.stdout.write(json.dumps(resp) + "\n")
         sys.stdout.flush()
 
