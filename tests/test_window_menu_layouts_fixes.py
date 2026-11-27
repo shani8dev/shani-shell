@@ -50,9 +50,9 @@ def test_window_layouts_tiles_are_keyboard_accessible():
     assert "Accessible.name: modelData.name" in qml
     # tiles have KeyFocus activation matching click behaviour
     assert "KeyFocus {" in qml
-    assert "onActivated: {" in qml
-    assert "WindowLayouts.arrangeAll(modelData.id);" in qml
-    assert "WindowLayouts.apply(modelData.id, Niri.focusedOutput);" in qml
+    assert "onActivated: win.applyLayout(modelData.id)" in qml
+    assert "WindowLayouts.arrangeAll(id);" in qml
+    assert "WindowLayouts.apply(id, Niri.focusedOutput);" in qml
 
 
 def test_window_layouts_custom_delete_requires_confirmation():

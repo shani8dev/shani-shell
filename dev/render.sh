@@ -6,6 +6,7 @@
 #
 # modes:
 #   shell    the shell's surfaces (default)                    → <outdir>/shell/
+#   apps     every windowed app on this output                 → <outdir>
 #   greeter  the greetd login screen (creates throwaway users) → <outdir>/greeter/
 #   setup    the first-login Setup wizard (fresh container, no ordinary accounts)
 #                                                              → <outdir>/setup/
@@ -87,9 +88,9 @@ if [ "${1:-}" = "--one" ]; then
     ONE_DELAY="${4:-1.5}"
     OUTDIR=$(in_out "${5:-/work/out/renders/shell}")
     mkdir -p "$OUTDIR"
-elif [ "${1:-}" = "matrix" ]; then
-    MODE=matrix
-    OUTDIR=$(in_out "${2:-/work/out/renders/matrix/${SHANI_FORM_FACTOR:-computer}}")
+elif [ "${1:-}" = "matrix" ] || [ "${1:-}" = "apps" ]; then
+    MODE="$1"
+    OUTDIR=$(in_out "${2:-/work/out/renders/$MODE/${SHANI_FORM_FACTOR:-computer}}")
     mkdir -p "$OUTDIR"
 elif [ "${1:-}" = "shell" ] || [ "${1:-}" = "greeter" ] || [ "${1:-}" = "setup" ] || [ "${1:-}" = "all" ]; then
     MODE="$1"
@@ -352,15 +353,19 @@ matrix_scenes() {
     waitfor "not d['locked']" 12 || { echo "lock did not unlock"; exit 1; }
     # this kind's own layout; a computer shows every one. Each is kept through
     # the switcher (layoutUse tries it on, Return keeps it), the way a person picks one
-    case "$ff" in
-        computer) ids=$MATRIX_LAYOUTS ;;
-        board)    ids=classroom ;;
-        projector) ids=focus ;;
-        *)        ids=$ff ;;
-    esac
+    if [ "${SHANI_LAYOUTS:-}" = all ]; then
+        ids=$MATRIX_LAYOUTS
+    else
+        case "$ff" in
+            computer) ids=$MATRIX_LAYOUTS ;;
+            board)    ids=classroom ;;
+            projector) ids=focus ;;
+            *)        ids=$ff ;;
+        esac
+    fi
     for id in $ids; do
-        ipc_line "layoutUse $id"
-        waitfor "d['layoutSwitcher'] and d['layoutTrying'] == '$id'" 6 || log "warn: layout $id not tried on"
+        open_surface "layout-$id" "layoutUse $id" "d['layoutSwitcher'] and d['layoutTrying'] == '$id'" \
+            || log "warn: layout $id not tried on"
         sleep 0.6
         [ "$id" = "${ids%% *}" ] && capture_current "layout-switcher-$id" 0.5 "d['layoutSwitcher']"
         wtype -k Return
@@ -378,9 +383,83 @@ matrix_scenes() {
     waitfor "d['layoutPreset'] == 'default'" 8 || log "warn: layout not restored"
 }
 
+app_scenes() {
+    # ---- the shell's own windows: every app in bin/shani's table -----------------
+    # One table feeds `shani app`, the desktop entries and dev/shell-parts/apps.sh,
+    # so reading it here is what keeps this list from drifting. A row with no state
+    # key is an action (a screenshot, a colour pick): it waits for the pointer and
+    # is not a window to photograph. capture_current, not capture: closeAll is
+    # called by hand, because dismissAll leaves an app window open and the next
+    # shot would carry it.
+    F=/tmp/render-fixtures; rm -rf "$F"; mkdir -p "$F"
+    cp /work/assets/shani-dark.jpg "$F/photo.jpg"
+    printf 'first line\nsecond line\n' > "$F/note.txt"
+    # a one-page PDF, written by hand (objects, xref, trailer) - as apps.sh does
+    python3 - "$F/one.pdf" <<'PY'
+import sys
+objs = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length 44 >>\nstream\nBT /F1 18 Tf 20 100 Td (Shani test) Tj ET\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+out, offs = b"%PDF-1.4\n", []
+for i, o in enumerate(objs, 1):
+    offs.append(len(out)); out += b"%d 0 obj\n" % i + o + b"\nendobj\n"
+xref = len(out)
+out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1) + b"".join(b"%010d 00000 n \n" % o for o in offs)
+out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+open(sys.argv[1], "wb").write(out)
+PY
+    python3 - "$F/pack.zip" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1], "w") as z:
+    z.writestr("readme.txt", "Shani render fixture\n")
+    z.writestr("notes/todo.txt", "one\ntwo\n")
+PY
+    ffmpeg -loglevel error -y -f lavfi -i "testsrc=size=640x360:rate=25" -f lavfi -i "sine=frequency=440" \
+        -t 3 -c:v libx264 -preset ultrafast -pix_fmt yuv420p "$F/clip.mp4" 2>/dev/null \
+        || log "warn: no video fixture (ffmpeg), the media player and video trimmer shots will be empty"
+
+    app_count=0
+    for spec in $(python3 - <<'PY'
+import importlib.machinery, importlib.util, os
+loader = importlib.machinery.SourceFileLoader("shani_cli", "/work/bin/shani")
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("shani_cli", loader)); loader.exec_module(m)
+only = os.environ.get("SHANI_APPS", "").replace(",", " ").split()
+for name, s in m.APPS.items():
+    if s[8] is None or (only and name not in only):
+        continue
+    print(f"{name}:{s[8]}")
+PY
+    ); do
+        app_count=$((app_count+1))
+        name=${spec%%:*}; key=${spec#*:}
+        case "$name" in
+            text-editor)     set -- "$name" "$F/note.txt" ;;
+            image-viewer)    set -- "$name" "$F/photo.jpg" ;;
+            document-viewer) set -- "$name" "$F/one.pdf" ;;
+            archive-manager) set -- "$name" "$F/pack.zip" ;;
+            pdf-signer)      set -- "$name" "$F/one.pdf" ;;
+            media-player|converter|video-trimmer)
+                             if [ -f "$F/clip.mp4" ]; then set -- "$name" "$F/clip.mp4"; else set -- "$name"; fi ;;
+            *)               set -- "$name" ;;
+        esac
+        ipc_line closeAll; sleep 0.6
+        python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true
+        # the CLI's IPC can be dropped under the load of 100+ prior shots
+        waitfor "d.get('$key')" 10 || { ipc_line closeAll; sleep 0.6; python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true; }
+        capture_current "app-$name" 1.0 "d.get('$key')"
+    done
+    if [ "$app_count" = 0 ]; then
+        result app-selection FAIL "no windowed app matched SHANI_APPS=${SHANI_APPS:-}"
+        failed=$((failed+1))
+    fi
+    ipc_line closeAll; sleep 0.5
+    close_all
+}
+
 render_shell() {
     _out="$OUTDIR/shell"
-    [ "$MODE" = matrix ] && _out="$OUTDIR"
+    case "$MODE" in matrix|apps) _out="$OUTDIR" ;; esac
     mkdir -p "$_out"
     rm -f "$_out"/*.png
     OUTDIR="$_out"
@@ -523,14 +602,26 @@ PY
 
     # the lock screen unlocks with a password, not IPC — set one, as the test
     # suite does, and unlock through the keyboard after the lock shots
-    echo 'root:shani-test' | chpasswd
+    if [ "$MODE" != apps ]; then
+        echo 'root:shani-test' | chpasswd
+    fi
 
+    if [ "$MODE" != matrix ]; then
+        capture desktop-rest "" 1.5
+    fi
     if [ "$MODE" = matrix ]; then
         matrix_scenes
+    elif [ "$MODE" = apps ]; then
+        if [ "${SHANI_FORM_FACTOR:-}" = phone ]; then
+            waitfor "d.get('layoutPreset') == 'phone'" 10 || log "warn: phone layout did not activate"
+            ipc_line dismissAll
+            waitfor "d.get('popups', 0) == 0" 5 || true
+        fi
+        app_scenes
+        rm -rf "$F"
     else
 
     # ---- core desktop (window-free: the wallpaper is the subject) ---------------
-    capture desktop-rest "" 1.5
     ipc_line setting darkMode false
     waitfor "not d['dark']" 20 || log "warn: light theme not applied"
     sleep 2.5   # the wallpaper cross-fade is Theme.anim*4 — let it finish
@@ -845,73 +936,7 @@ PY
     rm -f /tmp/test-share.txt
     close_all
 
-    # ---- the shell's own windows: every app in bin/shani's table -----------------
-    # One table feeds `shani app`, the desktop entries and dev/shell-parts/apps.sh,
-    # so reading it here is what keeps this list from drifting. A row with no state
-    # key is an action (a screenshot, a colour pick): it waits for the pointer and
-    # is not a window to photograph. capture_current, not capture: closeAll is
-    # called by hand, because dismissAll leaves an app window open and the next
-    # shot would carry it.
-    F=/tmp/render-fixtures; rm -rf "$F"; mkdir -p "$F"
-    cp /work/assets/shani-dark.jpg "$F/photo.jpg"
-    printf 'first line\nsecond line\n' > "$F/note.txt"
-    # a one-page PDF, written by hand (objects, xref, trailer) - as apps.sh does
-    python3 - "$F/one.pdf" <<'PY'
-import sys
-objs = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-        b"<< /Length 44 >>\nstream\nBT /F1 18 Tf 20 100 Td (Shani test) Tj ET\nendstream",
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
-out, offs = b"%PDF-1.4\n", []
-for i, o in enumerate(objs, 1):
-    offs.append(len(out)); out += b"%d 0 obj\n" % i + o + b"\nendobj\n"
-xref = len(out)
-out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1) + b"".join(b"%010d 00000 n \n" % o for o in offs)
-out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
-open(sys.argv[1], "wb").write(out)
-PY
-    python3 - "$F/pack.zip" <<'PY'
-import sys, zipfile
-with zipfile.ZipFile(sys.argv[1], "w") as z:
-    z.writestr("readme.txt", "Shani render fixture\n")
-    z.writestr("notes/todo.txt", "one\ntwo\n")
-PY
-    ffmpeg -loglevel error -y -f lavfi -i "testsrc=size=640x360:rate=25" -f lavfi -i "sine=frequency=440" \
-        -t 3 -c:v libx264 -preset ultrafast -pix_fmt yuv420p "$F/clip.mp4" 2>/dev/null \
-        || log "warn: no video fixture (ffmpeg), the media player and video trimmer shots will be empty"
-
-    for spec in $(python3 - <<'PY'
-import importlib.machinery, importlib.util
-loader = importlib.machinery.SourceFileLoader("shani_cli", "/work/bin/shani")
-m = importlib.util.module_from_spec(importlib.util.spec_from_loader("shani_cli", loader)); loader.exec_module(m)
-# Files and Disk Usage are AppWindows now; only the picker is a layer-shell
-# overlay that the nested niri cannot photograph (driven by the test suite)
-OVERLAYS = set()
-for name, s in m.APPS.items():
-    if s[8] is None or name in OVERLAYS:
-        continue
-    print(f"{name}:{s[8]}")
-PY
-    ); do
-        name=${spec%%:*}; key=${spec#*:}
-        case "$name" in
-            text-editor)     set -- "$name" "$F/note.txt" ;;
-            image-viewer)    set -- "$name" "$F/photo.jpg" ;;
-            document-viewer) set -- "$name" "$F/one.pdf" ;;
-            archive-manager) set -- "$name" "$F/pack.zip" ;;
-            pdf-signer)      set -- "$name" "$F/one.pdf" ;;
-            media-player|video-trimmer)
-                             if [ -f "$F/clip.mp4" ]; then set -- "$name" "$F/clip.mp4"; else set -- "$name"; fi ;;
-            *)               set -- "$name" ;;
-        esac
-        ipc_line closeAll; sleep 0.6
-        python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true
-        # the CLI's IPC can be dropped under the load of 100+ prior shots
-        waitfor "d.get('$key')" 10 || { ipc_line closeAll; sleep 0.6; python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true; }
-        capture_current "app-$name" 1.0 "d.get('$key')"
-    done
-    ipc_line closeAll; sleep 0.5
-    close_all
+    SHANI_APPS= app_scenes
 
     # ---- Software, as a store: the front page (in the apps above), a search with
     #      the Snap Store's apps after Flathub's, installed, command-line tools ----
@@ -1041,6 +1066,7 @@ PY
 case "$MODE" in
     shell)   render_shell ;;
     matrix)  render_shell ;;
+    apps)    render_shell ;;
     greeter) render_greeter ;;
     setup)   render_setup ;;
     all)

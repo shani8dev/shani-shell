@@ -23,6 +23,12 @@ AppWindow {
     property string extraPanel: ""
     property bool mergeSplitShown: false
     property bool printShown: false
+    property bool findOpen: false
+    function openFind() {
+        findOpen = true;
+        Qt.callLater(() => searchField.input.forceActiveFocus());
+    }
+    Shortcut { sequence: "Ctrl+F"; enabled: win.visible; onActivated: win.openFind() }
     function toggleExtra(name) {
         extraPanel = extraPanel === name ? "" : name;
         // on a phone one pane at a time: a card closes the page drawer and form
@@ -346,6 +352,7 @@ AppWindow {
             win.extraPanel = "";
             win.mergeSplitShown = false;
             win.printShown = false;
+            win.findOpen = false;
             win.pdfAnnoMode = false;
             win.clearMarks();
             win.note = "";
@@ -370,18 +377,17 @@ AppWindow {
             anchors.margins: Theme.px(16)
             spacing: Theme.px(8)
 
-            // a Flow wraps the many tools instead of pushing them off a phone
-            Flow {
+            RowLayout {
+                visible: PdfViewer.shown
                 Layout.fillWidth: true
-                spacing: Theme.px(6)
-                IconButton { icon: "go-first"; size: Theme.px(28); tip: Tr.t("First page"); onClicked: PdfViewer.firstPage() }
+                spacing: Theme.space(1)
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: Tr.t("Previous page"); onClicked: PdfViewer.prevSpread() }
-                IconButton { icon: "edit-undo"; size: Theme.px(28); tip: Tr.t("Back"); keys: "["; enabled: PdfViewer.canNavBack; onClicked: PdfViewer.navBack() }
-                IconButton { icon: "edit-redo"; size: Theme.px(28); tip: Tr.t("Forward"); keys: "]"; enabled: PdfViewer.canNavForward; onClicked: PdfViewer.navForward() }
                 Text {
-                    width: Math.min(Theme.px(360), parent.width)
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     horizontalAlignment: Text.AlignHCenter
                     text: PdfViewer.name + (PdfViewer.label !== "" ? "  ·  " + PdfViewer.label : "")
+                    textFormat: Text.PlainText
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
@@ -389,7 +395,22 @@ AppWindow {
                     font.weight: Font.DemiBold
                 }
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextSpread() }
+                IconButton {
+                    visible: win.compact
+                    icon: "edit-find"
+                    size: Theme.px(28)
+                    tip: Tr.t("Find in document")
+                    on: win.findOpen
+                    onClicked: if (win.findOpen) win.findOpen = false; else win.openFind()
+                }
+            }
+            ActionStrip {
+                Layout.fillWidth: true
+                spacing: Theme.space(1)
+                IconButton { icon: "go-first"; size: Theme.px(28); tip: Tr.t("First page"); onClicked: PdfViewer.firstPage() }
                 IconButton { icon: "go-last"; size: Theme.px(28); tip: Tr.t("Last page"); onClicked: PdfViewer.lastPage() }
+                IconButton { icon: "edit-undo"; size: Theme.px(28); tip: Tr.t("Back"); keys: "["; enabled: PdfViewer.canNavBack; onClicked: PdfViewer.navBack() }
+                IconButton { icon: "edit-redo"; size: Theme.px(28); tip: Tr.t("Forward"); keys: "]"; enabled: PdfViewer.canNavForward; onClicked: PdfViewer.navForward() }
                 IconButton { icon: "document-open"; size: Theme.px(28); tip: Tr.t("Toggle thumbnails"); on: PdfViewer.showSidebar; onClicked: { PdfViewer.toggleSidebar(); if (PdfViewer.showSidebar && win.compact) pagesPane.open = true; } }
                 IconButton { icon: "printer"; size: Theme.px(28); tip: Tr.t("Print (P)"); on: win.printShown; onClicked: win.printShown = !win.printShown }
                 IconButton { icon: "draw-freehand"; size: Theme.px(28); tip: Tr.t("Mark up this page"); on: win.pdfAnnoMode; onClicked: { win.pdfAnnoMode = !win.pdfAnnoMode; } }
@@ -416,10 +437,9 @@ AppWindow {
                 Button { text: Tr.t("Merge / Split…"); flat: true; onClicked: win.mergeSplitShown = true }
             }
 
-            // search bar: find text (pdftotext -bbox) + jump-to-page box
-            // the query keeps the row; the search options wrap below it on a phone
+            // Search stays out of the reading area until opened in a narrow window.
             ColumnLayout {
-                visible: PdfViewer.shown
+                visible: PdfViewer.shown && (!win.compact || win.findOpen)
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 RowLayout {
@@ -435,9 +455,8 @@ AppWindow {
                     IconButton { icon: "go-up"; size: Theme.px(28); tip: Tr.t("Find previous"); onClicked: PdfViewer.findPrev() }
                     IconButton { icon: "go-down"; size: Theme.px(28); tip: Tr.t("Find next"); onClicked: PdfViewer.findNext() }
                 }
-                Flow {
+                ActionStrip {
                     Layout.fillWidth: true
-                    spacing: Theme.px(6)
                     Choice {
                         text: Tr.t("Case")
                         selected: PdfViewer.caseSensitive
@@ -454,7 +473,7 @@ AppWindow {
                         onClicked: PdfViewer.wrapSearch = !PdfViewer.wrapSearch
                     }
                     Text {
-                        width: Math.min(Theme.px(260), parent.width)
+                        Layout.maximumWidth: Theme.px(180)
                         text: PdfViewer.searchLabel !== "" ? PdfViewer.searchLabel : (PdfViewer.searchState !== "" ? PdfViewer.searchState : PdfViewer.label)
                         color: Theme.dim
                         elide: Text.ElideRight
@@ -463,7 +482,7 @@ AppWindow {
                     }
                     TextField {
                         id: jumpField
-                        width: Theme.px(80)
+                        Layout.preferredWidth: Theme.px(80)
                         placeholder: Tr.t("Page…")
                         label: Tr.t("Go to page")
                         onAccepted: PdfViewer.jumpTo(jumpField.text)
@@ -1267,9 +1286,9 @@ AppWindow {
             }
 
             // fit / continuous / rotation toolbar
-            Flow {
+            ActionStrip {
                 Layout.fillWidth: true
-                spacing: Theme.px(4)
+                spacing: Theme.space(1)
                 IconButton { icon: "zoom-fit-best"; size: Theme.px(28); tip: Tr.t("Fit page (F)"); on: PdfViewer.fitMode === "page"; onClicked: PdfViewer.setFit("page") }
                 IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("Fit width (W)"); on: PdfViewer.fitMode === "width"; onClicked: PdfViewer.setFit("width") }
                 IconButton { icon: "document-save"; size: Theme.px(28); tip: Tr.t("Actual size"); on: PdfViewer.fitMode === "actual"; onClicked: PdfViewer.setFit("actual") }
@@ -1278,7 +1297,7 @@ AppWindow {
                 IconButton { icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: PdfViewer.rotate() }
                 IconButton { icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: PdfViewer.rotateCCW() }
                 Text {
-                    width: Math.min(Theme.px(360), parent.width)
+                    Layout.maximumWidth: Theme.px(360)
                     horizontalAlignment: Text.AlignHCenter
                     text: (PdfViewer.spreadLabel !== "" ? PdfViewer.spreadLabel + "  ·  " : "") + Tr.t("← → to turn pages · Esc closes")
                         + (PdfViewer.rotation !== 0 ? "  ·  " + PdfViewer.rotation + "°" : "")

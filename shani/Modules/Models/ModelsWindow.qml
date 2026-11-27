@@ -352,12 +352,17 @@ AppWindow {
                     Settings.data.chronoaPreferredModel = "";
                 Models.remove(name);
             }
-            contentItem: Text {
-                wrapMode: Text.Wrap
-                text: Tr.t("Remove the downloaded model from this computer? You will need to download it again to use it.")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.type("body")
+            contentItem: Item {
+                implicitHeight: removeMessage.implicitHeight
+                Text {
+                    id: removeMessage
+                    width: removeConfirm.availableWidth
+                    wrapMode: Text.Wrap
+                    text: Tr.t("Remove the downloaded model from this computer? You will need to download it again to use it.")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.type("body")
+                }
             }
         }
     }

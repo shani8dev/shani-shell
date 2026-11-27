@@ -40,7 +40,9 @@ ColumnLayout {
     Item {
         id: tileGrid
         Layout.fillWidth: true
-        readonly property real gap: 8
+        readonly property real gap: Theme.space(2)
+        readonly property real tileHeight: Math.max(Theme.px(58), Theme.touchTarget,
+                                                   Theme.type("body") * 2.4 + Theme.type("caption") * 1.2 + gap)
         readonly property real cell: (width - gap) / 2
         // the default order: what people reach for most first (GNOME's and Android's
         // quick settings lead the same way), the rest after
@@ -78,7 +80,7 @@ ColumnLayout {
         // a dragged tile dropped at (x, y): it takes the place of the tile there
         function dropTile(tile) {
             const col = Math.max(0, Math.min(1, Math.round(tile.x / (cell + gap))));
-            const row = Math.max(0, Math.round(tile.y / (58 + gap)));
+            const row = Math.max(0, Math.round(tile.y / (tileHeight + gap)));
             const at = Math.min(shown.length - 1, row * 2 + col);
             moveTile(tile.tid, shown[at]);
             place(tile);
@@ -94,12 +96,12 @@ ColumnLayout {
         }
         readonly property int hiddenCount: order.filter(t => can[t] !== false && Settings.data.hiddenTiles.indexOf(t) >= 0).length
         onShownChanged: Ui.tilesShown = shown
-        implicitHeight: Math.ceil(shown.length / 2) * (58 + gap)
+        implicitHeight: Math.max(0, Math.ceil(shown.length / 2) * (tileHeight + gap) - gap)
         function place(tile) {
             const i = shown.indexOf(tile.tid);
             tile.visible = i >= 0;
             tile.x = (i % 2) * (cell + gap);
-            tile.y = Math.floor(i / 2) * (58 + gap);
+            tile.y = Math.floor(i / 2) * (tileHeight + gap);
             // an odd count: the last one takes the whole row, not half of it and a hole
             tile.width = i === shown.length - 1 && i % 2 === 0 && !editing ? width : cell;
         }

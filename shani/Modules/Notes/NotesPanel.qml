@@ -350,28 +350,27 @@ AppWindow {
                 Layout.fillHeight: true
                 spacing: 0
 
-                // Toolbar: wraps on a phone instead of running off the edge
-                Flow {
+                // The title stays visible while formatting actions scroll.
+                TextField {
+                    id: titleField
+                    Layout.fillWidth: true
+                    Layout.margins: Theme.px(8)
+                    placeholderText: Tr.t("No note selected")
+                    label: Tr.t("Note title")
+                    text: Services.QuickNotes.current
+                    enabled: Services.QuickNotes.current !== ""
+                    onAccepted: win.renameCurrent(text)
+                    Connections {
+                        target: Services.QuickNotes
+                        function onCurrentChanged() { titleField.text = Services.QuickNotes.current; }
+                    }
+                }
+                ActionStrip {
                     id: formatBar
                     Layout.fillWidth: true
-                    spacing: Theme.px(4)
-                    Layout.margins: Theme.px(8)
-
-                    // The title is the note's file name: rename it here, as
-                    // every other note app lets you, instead of in a file manager.
-                    TextField {
-                        id: titleField
-                        width: Math.min(formatBar.width, Theme.px(320))
-                        placeholderText: Tr.t("No note selected")
-                        label: Tr.t("Note title")
-                        text: Services.QuickNotes.current
-                        enabled: Services.QuickNotes.current !== ""
-                        onAccepted: win.renameCurrent(text)
-                        Connections {
-                            target: Services.QuickNotes
-                            function onCurrentChanged() { titleField.text = Services.QuickNotes.current; }
-                        }
-                    }
+                    Layout.leftMargin: Theme.space(2)
+                    Layout.rightMargin: Theme.space(2)
+                    spacing: Theme.space(1)
                     Button { text: "B"; enabled: editor.enabled; onClicked: win.wrapSelection("**", "**") }
                     Button { text: "I"; enabled: editor.enabled; onClicked: win.wrapSelection("*", "*") }
                     Button { text: "H"; enabled: editor.enabled; onClicked: win.prefixLine("# ") }
@@ -412,11 +411,12 @@ AppWindow {
 
                 // Knowledge-base actions get their own row: reading view,
                 // pin, links, versions, moving and both export formats.
-                Flow {
+                ActionStrip {
                     id: actionBar
                     Layout.fillWidth: true
-                    spacing: Theme.px(4)
-                    Layout.margins: Theme.px(8)
+                    spacing: Theme.space(1)
+                    Layout.leftMargin: Theme.space(2)
+                    Layout.rightMargin: Theme.space(2)
                     Button {
                         text: win.previewMode ? Tr.t("Edit") : Tr.t("Preview")
                         enabled: Services.QuickNotes.current !== ""

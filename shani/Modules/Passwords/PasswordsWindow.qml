@@ -459,12 +459,13 @@ AppWindow {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Repeater {
-                model: [["passwords", Tr.t("Passwords")], ["gpg", Tr.t("GPG keys")], ["passkeys", Tr.t("Passkeys")], ["generator", Tr.t("Generator")]]
-                Choice { required property var modelData; text: modelData[1]; selected: win.tab === modelData[0]; onClicked: win.tab = modelData[0] }
+            ActionStrip {
+                Layout.fillWidth: true
+                Repeater {
+                    model: [["passwords", Tr.t("Passwords")], ["gpg", Tr.t("GPG keys")], ["passkeys", Tr.t("Passkeys")], ["generator", Tr.t("Generator")]]
+                    Choice { required property var modelData; text: modelData[1]; selected: win.tab === modelData[0]; onClicked: win.tab = modelData[0] }
+                }
             }
-
-            Item { Layout.fillWidth: true }
             IconButton { icon: "view-refresh"; size: Theme.px(28); tip: Tr.t("Read again"); onClicked: win.refresh() }
         }
         // ---- password audit banner ----
@@ -516,10 +517,9 @@ AppWindow {
             }
         }
         // folders / favourites / recent: all chips and the folders in the vault
-        Flow {
+        ActionStrip {
             visible: win.tab === "passwords"
             Layout.fillWidth: true
-            spacing: Theme.px(4)
             Repeater {
                 model: [["", Tr.t("All")], ["favourites", Tr.t("Favourites")], ["recent", Tr.t("Recent")]]
                 Choice { required property var modelData; text: modelData[1]; selected: win.folderFilter === modelData[0]; onClicked: win.folderFilter = modelData[0] }
@@ -562,33 +562,36 @@ AppWindow {
         }
 
         // ---- passwords ----
-        Flow {
+        ColumnLayout {
             visible: win.tab === "passwords"
             Layout.fillWidth: true
             spacing: Theme.px(6)
             SearchField {
                 id: search
-                width: win.compact ? parent.width : implicitWidth
+                Layout.fillWidth: true
                 placeholder: Tr.t("Find a password"); label: Tr.t("Find a password")
             }
-            Text {
-                visible: search.text !== ""
-                text: win.visibleItems.length + " / " + win.items.length
-                color: Theme.faint
-                font.family: Theme.font
-                font.pixelSize: Theme.type("small")
-                font.features: { "tnum": 1 }
+            ActionStrip {
+                Layout.fillWidth: true
+                Button { text: Tr.t("Add…"); kind: "primary"; onClicked: win.adding = !win.adding }
+                Text {
+                    visible: search.text !== ""
+                    text: win.visibleItems.length + " / " + win.items.length
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Theme.type("small")
+                    font.features: { "tnum": 1 }
+                }
+                Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }
+                Button {
+                    text: Tr.t("Import…")
+                    onClicked: FilePicker.open({ mode: "open", title: Tr.t("A Shani vault export"), filters: ["json"], onPicked: paths => { if (paths.length) win.importVault(paths[0]); } })
+                }
+                Button {
+                    text: Tr.t("Export…")
+                    onClicked: FilePicker.open({ mode: "save", title: Tr.t("Export vault details"), defaultName: "shani-vault.json", filters: ["json"], onPicked: paths => { if (paths.length) win.exportVault(paths[0]); } })
+                }
             }
-            Button { text: Tr.t("Run security check"); onClicked: win.runAudit(); }
-            Button {
-                text: Tr.t("Import…")
-                onClicked: FilePicker.open({ mode: "open", title: Tr.t("A Shani vault export"), filters: ["json"], onPicked: paths => { if (paths.length) win.importVault(paths[0]); } })
-            }
-            Button {
-                text: Tr.t("Export…")
-                onClicked: FilePicker.open({ mode: "save", title: Tr.t("Export vault details"), defaultName: "shani-vault.json", filters: ["json"], onPicked: paths => { if (paths.length) win.exportVault(paths[0]); } })
-            }
-            Button { text: Tr.t("Add…"); onClicked: win.adding = !win.adding }
         }
         ColumnLayout {
             visible: win.tab === "passwords" && win.adding

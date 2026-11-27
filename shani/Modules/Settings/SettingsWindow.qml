@@ -234,6 +234,8 @@ AppWindow {
             anchors { top: parent.top; bottom: parent.bottom; left: winRoot.compact ? parent.left : side.right; right: parent.right }
             anchors.margins: winRoot.compact ? Theme.px(14) : Theme.px(28)
             contentHeight: body.implicitHeight + 40
+            contentWidth: width
+            flickableDirection: Flickable.VerticalFlick
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
@@ -278,7 +280,9 @@ AppWindow {
                     Text { visible: winRoot.crumbSubpage !== ""; text: "›"; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
                     Text {
                         visible: winRoot.crumbSubpage !== ""
+                        Layout.maximumWidth: body.width * 0.4
                         text: winRoot.crumbSubpage
+                        elide: Text.ElideRight
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: Theme.type("body")

@@ -551,6 +551,8 @@ ColumnLayout {
         visible: active
         sourceComponent: Component {
             ColumnLayout {
+                id: personalPage
+                readonly property bool narrow: width < Theme.px(480)
                 Layout.fillWidth: true
                 spacing: Theme.px(12)
                 // the whole desktop at once: dock, widgets, icons, window spacing (LayoutSwitcher)
@@ -581,7 +583,7 @@ ColumnLayout {
                 }
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: 3
+                    columns: personalPage.narrow ? 2 : 3
                     columnSpacing: Theme.px(6)
                     rowSpacing: Theme.px(6)
                     Repeater {
@@ -612,16 +614,18 @@ ColumnLayout {
                         }
                     }
                 }
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
-                    spacing: Theme.px(6)
+                    columns: personalPage.narrow ? 1 : 2
+                    columnSpacing: Theme.space(2)
+                    rowSpacing: Theme.space(2)
                     // any picture, not only those in the wallpaper folders
                     TextField {
                         Layout.fillWidth: true
                         placeholder: Tr.t("Or type a picture's path, e.g. ~/Pictures/holiday.jpg")
                         onAccepted: { const p = text.trim().replace(/^~/, Quickshell.env("HOME")); if (/\.(png|jpe?g|webp)$/i.test(p)) { page.useWallpaper(p); text = ""; } }
                     }
-                    Button { text: Tr.t("Choose a picture…"); onClicked: wallDialog.open() }
+                    Button { Layout.fillWidth: personalPage.narrow; text: Tr.t("Choose a picture…"); onClicked: wallDialog.open() }
                 }
                 // more, found online (Wallhaven): nothing is asked until a search
                 RowLayout {
@@ -638,6 +642,8 @@ ColumnLayout {
                 }
                 Text {
                     visible: OnlineWalls.error !== ""
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
                     text: OnlineWalls.error
                     color: Theme.danger
                     font.family: Theme.font
@@ -960,7 +966,7 @@ ColumnLayout {
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Blur"); checked: page.d.blur; defaultValue: true; onToggled: on => { page.d.blur = on; Settings.touch("blur"); } onReset: page.d.blur = true }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Reduce motion"); hint: Tr.t("no slides, fades or zoom"); checked: page.d.reduceMotion; defaultValue: false; onToggled: on => { page.d.reduceMotion = on; Settings.touch("reduceMotion"); } onReset: page.d.reduceMotion = false }
                 SwitchRow { Layout.fillWidth: true; text: Tr.t("Adaptive brightness"); hint: Tr.t("ambient sensor if present, else time of day"); checked: page.d.adaptiveBrightness; onToggled: on => page.d.adaptiveBrightness = on; visible: Brightness.available }
-                RowLayout {
+                ActionStrip {
                     Layout.fillWidth: true
                     visible: NightLight.available
                     Text { text: Tr.t("Night light"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(90) }
@@ -984,7 +990,7 @@ ColumnLayout {
                     enabled: page.d.nightLightSchedule === "manual"
                     onToggled: on => { page.d.nightLight = on; Settings.touch("nightLight"); }
                 }
-                RowLayout {
+                ActionStrip {
                     Layout.fillWidth: true
                     visible: NightLight.available
                     Text { text: Tr.t("Turns on"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(90) }
@@ -1078,9 +1084,11 @@ ColumnLayout {
                     }
                 }
                 Text { text: Tr.t("Or your own command:"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
-                    spacing: Theme.px(6)
+                    columns: personalPage.narrow ? 1 : 4
+                    columnSpacing: Theme.space(2)
+                    rowSpacing: Theme.space(2)
                     TextField { id: ownCmd; Layout.fillWidth: true; placeholder: Tr.t("Command, e.g. date +%H:%M"); label: Tr.t("Bar button command") }
                     Picks {
                         id: ownEveryPick
@@ -1143,7 +1151,7 @@ ColumnLayout {
                     Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption")
                     text: Tr.t("Out of a window's way: it stays in view and windows open beside it, and it slides away only while a window is moved over it. Only at the edge: windows get the whole screen, and it comes back when you rest the pointer on that edge. Either way it also comes back for a dragged file, an app asking for you, and the overview.")
                 }
-                RowLayout {
+                ActionStrip {
                     Layout.fillWidth: true
                     Text { text: Tr.t("Dock icons"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); Layout.preferredWidth: Theme.px(90) }
                     Repeater {

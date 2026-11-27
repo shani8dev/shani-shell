@@ -54,6 +54,12 @@ Everything below is in `qs.Common`. Import once, use directly.
 `pressAndHold`. `enabled` disables pointer, keys and a11y and dims the icon.
 ### `Choice.qml` — `text`, `selected`, `checked` (alias), `danger`,
 `accessibleName`, `columns`; `clicked()`.
+### `ActionStrip.qml` — one horizontally scrollable row of actions or filters
+- Default children populate the row. `spacing` tunes its gaps, and `row` is
+  available to keyboard shortcuts that enter the toolbar.
+- Give it the available width from its layout. It shows a scrollbar when
+  its contents exceed that width. Use `KeyFocus` controls to reveal them as
+  keyboard or controller focus moves.
 ### `SwitchRow.qml` — `text`, `hint`, `info`, `checked`, `defaultValue`,
 `highlighted`; `toggled(bool)`, `reset()`. Always give a `hint` explaining what
 the switch does; `enabled` disables the whole row.

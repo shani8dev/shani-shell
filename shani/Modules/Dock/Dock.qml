@@ -25,7 +25,8 @@ PanelWindow {
     // a classroom board's bar is at the bottom (docs/FORM-FACTORS.md): the dock
     // rides above it, still within reach, never under it
     readonly property real barLift: FormFactor.barEdge(output) === "bottom" ? Theme.barHeight + 8 : 0
-    margins.bottom: barLift
+    readonly property real phoneNavInset: phone && Settings.data.navButtons ? Theme.px(44) : 0
+    margins.bottom: phone ? barLift + phoneNavInset : barLift
     // the screen's width: never resized on a pointer move, and never narrower than
     // the base. A width counted from the items once fell behind as the dock grew
     // (multitasking, show desktop, workspaces, the trash): the base outgrew its
@@ -37,8 +38,8 @@ PanelWindow {
     color: "transparent"
     readonly property string mode: Settings.data.dockVisibility
     // always and smart keep their space (windows never tile under the dock); hide gives the windows the whole height
-    exclusionMode: mode === "hide" ? ExclusionMode.Ignore : ExclusionMode.Normal
-    exclusiveZone: mode === "hide" ? 0 : base + 32 + barLift
+    exclusionMode: phone || mode === "hide" ? ExclusionMode.Ignore : ExclusionMode.Normal
+    exclusiveZone: phone || mode === "hide" ? 0 : base + 32 + barLift
     WlrLayershell.namespace: "shani-dock"
     WlrLayershell.layer: WlrLayer.Top
     // the keyboard reaches the dock on request (Ui.dockFocus: IPC focusDock, a controller):
@@ -49,8 +50,9 @@ PanelWindow {
 
     readonly property bool covered: mode === "smart" && Hiding.covered(output, "bottom", base + 32 + 2 + barLift, screen ? screen.height : 1080,
         ((screen ? screen.width : 1920) - dock.width) / 2, ((screen ? screen.width : 1920) + dock.width) / 2)
-    readonly property bool shown: mode === "always" || (revealed && hover.hovered) || menuFor >= 0 || dragging || Ui.dockFocus
-        || Niri.overviewOpen || (mode === "smart" && (!covered || Hiding.urgent))
+    readonly property bool phoneHasWindow: phone && Niri.windowsOn(allSpaces.find(w => w.is_active)).length > 0
+    readonly property bool shown: menuFor >= 0 || dragging || Ui.dockFocus || (revealed && hover.hovered)
+        || Niri.overviewOpen || (phone ? !phoneHasWindow && !Osk.shown : mode === "always" || (mode === "smart" && (!covered || Hiding.urgent)))
     Component.onCompleted: { Hiding.setDockShown(output, shown); Hiding.setDockFits(output, baseFits); }
     // the base fits its surface (the tests read it: a base wider than the surface
     // had its rounded ends cut off square)
@@ -60,7 +62,7 @@ PanelWindow {
     // the first time a smart dock steps aside, say where it went - once
     onShownChanged: {
         Hiding.setDockShown(output, shown);
-        if (!shown && mode === "smart" && Settings.loaded && !Settings.data.dockHintSeen && modelData === Quickshell.screens[0])
+        if (!shown && !phone && mode === "smart" && Settings.loaded && !Settings.data.dockHintSeen && modelData === Quickshell.screens[0])
             showHint();
     }
     function showHint() {

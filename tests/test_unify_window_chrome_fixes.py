@@ -35,7 +35,7 @@ def test_01_appwindow_exposes_defaulted_shortcut_hooks_and_a_window_name():
     # additive: existing apps keep their bindings when both hooks are null
     assert "property var shortcutSearch: null" in s
     assert "property var shortcutRefresh: null" in s
-    assert "property alias tools: toolRow.data" in s
+    assert "property alias tools: toolStrip.actions" in s
     assert "Accessible.role: Accessible.Window" in s
     assert "Accessible.name: win.title" in s
     keys = s[s.index("Keys.onPressed: e => {") : s.index("// the Menu key")]

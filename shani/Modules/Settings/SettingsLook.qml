@@ -81,7 +81,7 @@ ColumnLayout {
     SettingsSection {
         Layout.fillWidth: true
         title: Tr.t("Corner radius")
-        RowLayout {
+        ActionStrip {
             Layout.fillWidth: true
             spacing: Theme.px(8)
             Text { text: Tr.t("Roundness"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); Layout.preferredWidth: Theme.px(80) }
@@ -106,7 +106,7 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: Theme.px(6)
             Text { text: fontRow.modelData.label; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
-            RowLayout {
+            ActionStrip {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Choice {
@@ -125,6 +125,8 @@ ColumnLayout {
                 }
             }
             Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
                 text: fontRow.modelData.id === "mono" ? "fn main() { println!(\"0O 1lI\"); }" : "The quick brown fox — शनि ओएस"
                 color: Theme.text
                 font.family: page.d[fontRow.modelData.key]

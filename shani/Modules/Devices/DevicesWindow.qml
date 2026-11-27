@@ -305,20 +305,16 @@ AppWindow {
         anchors.margins: Theme.px(10)
         spacing: Theme.px(8)
 
-        RowLayout {
+        ActionStrip {
             Layout.fillWidth: true
             spacing: Theme.px(6)
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.px(6)
-                Repeater {
-                    model: win.tabs
-                    Choice {
-                        required property var modelData
-                        text: modelData[1]
-                        selected: win.tab === modelData[0]
-                        onClicked: win.tab = modelData[0]
-                    }
+            Repeater {
+                model: win.tabs
+                Choice {
+                    required property var modelData
+                    text: modelData[1]
+                    selected: win.tab === modelData[0]
+                    onClicked: win.tab = modelData[0]
                 }
             }
         }

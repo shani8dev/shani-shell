@@ -42,9 +42,10 @@ def test_touch_controls_share_the_target_minimum():
 
 def test_compact_toolbar_keeps_actions_and_keyboard_scrolling():
     source = (ROOT / "shani/Common/AppWindow.qml").read_text()
-    assert "Flickable.HorizontalFlick" in source
+    strip = (ROOT / "shani/Common/ActionStrip.qml").read_text()
+    assert "Flickable.HorizontalFlick" in strip
     assert "default property alias content: body.data" in source
-    assert "property alias tools: toolRow.data" in source
+    assert "property alias tools: toolStrip.actions" in source
     source = (ROOT / "shani/Common/KeyFocus.qml").read_text()
     assert "p.contentX =" in source
     assert "p.contentY =" in source

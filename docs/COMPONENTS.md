@@ -70,6 +70,9 @@ writing; treat them as a reach warning, not a target.
 
 ## Navigation and selection
 
+### ActionStrip.qml  ·  one scrollable row of actions or filters.
+- Default children populate the row. The scrollbar appears when the row
+  exceeds the available width. `KeyFocus` reveals focused controls.
 ### Button.qml  ·  `text`, `kind` (`plain|outline|primary|danger`, default `plain`),
 `flat`, `checked`, `busy`, `clicked()`.
 ### IconButton.qml  ·  canonical for icon-only buttons.

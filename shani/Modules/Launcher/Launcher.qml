@@ -23,6 +23,7 @@ import QtQuick
 import "../../Common/Calc.js" as Calc
 import "Fuzzy.js" as Fuzzy
 import QtQuick.Layouts
+import QtQuick.Controls as Controls
 import qs.Common
 import qs.Services
 import "../../Common/Gestures.js" as G
@@ -56,10 +57,9 @@ PanelWindow {
     property bool hoverArmed: false
     // the app grids' column count, the same expression the grid itself uses,
     // so Up/Down move by one real row whatever the window width is
-    // a phone's app drawer: four icons across, as a phone has them
     readonly property bool phone: FormFactor.of(win.screen ? win.screen.name : "").profile === "phone"
-    readonly property int gridCols: phone ? 4 : Math.max(1, Math.floor(list.width / Theme.px(132)))
-    readonly property real phoneCell: Math.floor((list.width - Theme.px(8) * 3) / 4)
+    readonly property int gridCols: Math.max(1, Math.min(phone ? 4 : 8, Math.floor(resultCol.width / Theme.px(phone ? 94 : 132))))
+    readonly property real phoneCell: Math.max(0, Math.floor((resultCol.width - Theme.space(2) * (gridCols - 1)) / gridCols))
     // a page of results for PageUp/PageDown (six grid rows when there is a grid)
     readonly property int pageRows: Math.max(1, Math.min(8, win.gridCols) * 6)
     property string category: "All"
@@ -360,14 +360,12 @@ PanelWindow {
     // the id and only change the label, so the chip reaches Mail/Feeds/IRC etc.
     readonly property var categories: ["All", "Network", "Office", "Graphics", "AudioVideo", "Development", "Utility", "System", "Game"]
     readonly property var categoryNames: ({ AudioVideo: "Media", Network: "Internet" })
-    // colored filters in the field: the families of answers — All, Apps,
-    // Files. Each has a color the pill is drawn with; the launcher itself
-    // answers them as section groups.
+    // The three result filters match the launcher’s section groups.
     property string filter: "all"
     readonly property var filters: [
-        { id: "all", title: Tr.t("All"), color: Theme.faint },
-        { id: "app", title: Tr.t("Apps"), color: Theme.accent },
-        { id: "file", title: Tr.t("Files"), color: Theme.dim }
+        { id: "all", title: Tr.t("All") },
+        { id: "app", title: Tr.t("Apps") },
+        { id: "file", title: Tr.t("Files") }
     ]
 
     // ---- the answer, as sections; `flat` is what the keyboard walks ----------
@@ -385,6 +383,7 @@ PanelWindow {
         const nameCount = {};
         win.apps.forEach(a => { nameCount[a.name] = (nameCount[a.name] || 0) + 1; });
         const appItem = a => ({ kind: "app", app: a.icon, did: a.id, title: a.name,
+            builtInDuplicate: nameCount[a.name] > 1 && a.id.startsWith("dev.shani."),
             subtitle: (a.genericName || a.comment || "") + (nameCount[a.name] > 1 ? " · " + a.id : ""),
             run: () => win.launch(a) });
         // `app` is only ever the name xbel's bookmark:application metadata gave us;
@@ -670,8 +669,7 @@ PanelWindow {
               run: () => { search.text = "web:"; search.forceActiveFocus(); } }
         ] });
         const done = finish();
-        // colored filters: "app:"/"file:"/all as the field is set (the operator
-        // lane of the query and the pill are the same thing)
+        // The result chips show all sections or just the chosen family.
         return win.filter === "all" ? done : done.filter(s => s.group === win.filter);
     }
     readonly property var flat: sections.reduce((acc, s) => acc.concat(s.items), [])
@@ -686,9 +684,11 @@ PanelWindow {
         if (q.startsWith(":") && Characters.query !== q.slice(1).trim())
             Characters.search(q.slice(1).trim());
         Ui.launcherText = q;
+        if (q.trim() === "") filter = "all";
         if (q.trim().length < 4) meaning = [];
         if (q.trim().length >= 3) QuickNotes.searchBodies(q.trim());
         sel = 0;
+        if (list) list.contentY = 0;
         fileDebounce.restart();
         if (q === "c" || q.startsWith("c ") || p.op === "clip")
             Clipboard.refresh();
@@ -728,6 +728,8 @@ PanelWindow {
             appear.restart();
             search.text = Ui.launcherQuery;
             sel = 0;
+            list.contentY = 0;
+            filter = "all";
             category = "All";
             // a phone opens on its apps; the keyboard comes when the search box is tapped
             if (FormFactor.of(win.screen ? win.screen.name : "").profile !== "phone" || Ui.launcherQuery !== "")
@@ -741,7 +743,8 @@ PanelWindow {
         anchors.fill: parent
         // glass over a blur of what is behind: the shell's material language
         // (opaque when blur is off, so text still reads on a plain compositor)
-        color: Theme.alpha(Theme.bg, Settings.blurWanted ? 0.78 : 0.94)
+        color: searchSurface.opaque || Theme.contrast ? Theme.bg
+            : Theme.alpha(Theme.bg, Settings.blurWanted ? 0.78 : 0.94)
         MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: Ui.closeAll(); hoverEnabled: !Settings.data.launcherIgnoreMouse; onPositionChanged: if (!Settings.data.launcherIgnoreMouse) win.hoverArmed = true }
     }
 
@@ -752,28 +755,29 @@ PanelWindow {
         NumberAnimation { target: rise; property: "y"; from: 28; to: 0; duration: Theme.animEnter; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.emphasized }
     }
 
+    Shortcut { sequence: "Escape"; enabled: win.visible; onActivated: Ui.closeAll() }
+
     ColumnLayout {
         id: body
+        readonly property real sideInset: Math.max(Theme.space(win.narrow ? 3 : 8), (parent.width - Theme.px(1120)) / 2)
         transform: Translate { id: rise }
         anchors.fill: parent
         // computed sizes through the UI scale too; a phone's width keeps a narrow margin
         anchors.topMargin: win.narrow ? Theme.px(12) : Math.max(Theme.px(60), parent.height * 0.08)
-        anchors.bottomMargin: Math.max(Theme.px(40), Osk.heightOn(win.screen.name) + Theme.px(12))
+        anchors.bottomMargin: keyboardGap
         // the suite reads this: the results stop above the screen keyboard
         readonly property real keyboardGap: Math.max(Theme.px(40), Osk.heightOn(win.screen.name) + Theme.px(12))
-        anchors.leftMargin: Math.max(parent.width < Theme.px(600) ? Theme.px(10) : Theme.px(40), (parent.width - Theme.px(1280)) / 2)
-        anchors.rightMargin: Math.max(parent.width < Theme.px(600) ? Theme.px(10) : Theme.px(40), (parent.width - Theme.px(1280)) / 2)
-        spacing: Theme.px(18)
+        anchors.leftMargin: sideInset
+        anchors.rightMargin: sideInset
+        spacing: Theme.space(3)
 
         // the field
         Glass {
+            id: searchSurface
             Layout.fillWidth: true
-            Layout.preferredWidth: Theme.px(900)
-            Layout.maximumWidth: Theme.px(900)
-            Layout.alignment: Qt.AlignHCenter
-            implicitHeight: Theme.px(58)
+            implicitHeight: Math.max(Theme.touchTarget, Theme.px(win.narrow ? 52 : 60))
             strong: true
-            radius: Theme.px(29)
+            radius: Theme.radiusLarge
             // the remote's cursor on the search bar
             Rectangle {
                 anchors.fill: parent
@@ -782,7 +786,11 @@ PanelWindow {
                 border.width: win.searchBar ? 3 : 0
                 border.color: Theme.accent
             }
-            MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallows clicks: they do not close it
+            MouseArea {
+                anchors.fill: parent
+                objectName: "nav:pointer"
+                onClicked: search.forceActiveFocus(Qt.MouseFocusReason)
+            }
             // a finger on the search bar swipes the launcher away, down; the
             // results below scroll as always
             DragHandler {
@@ -793,23 +801,10 @@ PanelWindow {
             }
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: Theme.px(22)
-                anchors.rightMargin: Theme.px(22)
-                spacing: Theme.px(12)
+                anchors.leftMargin: Theme.space(win.narrow ? 3 : 5)
+                anchors.rightMargin: anchors.leftMargin
+                spacing: Theme.space(3)
                 Icon { name: "system-search"; size: Theme.px(22); color: Theme.accent }
-                // colored filters, All/Apps/Files: the field can be narrowed to
-                // one family without typing anything (the "app:"/"file:"
-                // operators narrow it too, in the answers)
-                Repeater {
-                    model: win.filters
-                    Choice {
-                        required property var modelData
-                        text: modelData.title
-                        selected: win.filter === modelData.id
-                        visible: !win.narrow || modelData.id !== "file"
-                        onClicked: { win.filter = modelData.id; search.forceActiveFocus(); }
-                    }
-                }
                 TextInput {
                     id: search
                     activeFocusOnTab: true          // the d-pad and Tab reach it (a pad's LB / RB leave it: Ui.navJump)
@@ -818,12 +813,12 @@ PanelWindow {
                     Layout.fillWidth: true
                     color: Theme.text
                     selectionColor: Theme.accent
+                    selectedTextColor: Theme.accentInk
                     font.family: Theme.font
-                    font.pixelSize: Theme.type("subtitle")
+                    font.pixelSize: Theme.type(win.narrow ? "heading" : "subtitle")
                     clip: true
                     onActiveFocusChanged: Ui.trackTextInput(search, activeFocus)
                     Component.onDestruction: Ui.trackTextInput(search, false)
-                    Keys.onEscapePressed: Ui.closeAll()
                     Keys.onDownPressed: {
                         if (win.searchBar) { win.searchBar = false; return; }
                         win.sel = Math.min(win.sel + (win.q === "" ? win.gridCols : 1), win.flat.length - 1);
@@ -895,17 +890,18 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
                         visible: search.text === ""
-                        text: Tr.t("Search apps, files, windows and actions — or ask Chronoa")
+                        text: win.narrow ? Tr.t("Search apps and files") : Tr.t("Search apps, files, windows and actions — or ask Chronoa")
                         elide: Text.ElideRight
-                        color: Theme.faint
+                        color: Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: Theme.type("subtitle")
+                        font.pixelSize: search.font.pixelSize
+                        Accessible.ignored: true
                     }
                 }
                 Text {
-                    visible: !win.narrow
+                    visible: !win.narrow && !Settings.data.launcherHideNavLabels
                     text: Tr.t("Ctrl+Enter  Chronoa")
-                    color: Theme.faint
+                    color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.type("small")
                 }
@@ -915,201 +911,290 @@ PanelWindow {
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Theme.px(18)
+            Layout.maximumHeight: Number.POSITIVE_INFINITY
+            spacing: Theme.space(3)
 
-            // results
-            Flickable {
-                id: list
+            Glass {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                contentHeight: resultCol.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
+                Layout.maximumHeight: resultStack.implicitHeight + Theme.space(5)
+                Layout.alignment: Qt.AlignTop
+                radius: Theme.radiusLarge
 
                 ColumnLayout {
-                    id: resultCol
-                    width: list.width
-                    spacing: Theme.px(14)
+                    id: resultStack
+                    anchors.fill: parent
+                    anchors.topMargin: Theme.space(3)
+                    anchors.bottomMargin: Theme.space(2)
+                    anchors.leftMargin: Theme.space(2)
+                    anchors.rightMargin: Theme.space(2)
+                    spacing: Theme.space(2)
 
-                    Repeater {
-                        model: win.sections
+                    ActionStrip {
+                        visible: win.q.trim() !== ""
+                        Layout.fillWidth: true
+                        Repeater {
+                            model: win.filters
+                            Choice {
+                                required property var modelData
+                                text: modelData.title
+                                selected: win.filter === modelData.id
+                                onClicked: {
+                                    win.filter = modelData.id;
+                                    win.sel = 0;
+                                    list.contentY = 0;
+                                    search.forceActiveFocus();
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        visible: win.q.trim() !== ""
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.px(1)
+                        color: Theme.stroke
+                    }
+
+                    Flickable {
+                        id: list
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        implicitHeight: contentHeight
+                        contentWidth: width
+                        contentHeight: resultCol.y + resultCol.implicitHeight + Theme.space(2)
+                        flickableDirection: Flickable.VerticalFlick
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
+
                         ColumnLayout {
-                            id: section
-                            required property var modelData
-                            required property int index
-                            // where this section's items start in `flat`
-                            readonly property int base: win.sections.slice(0, index).reduce((n, s) => n + s.items.length, 0)
-                            Layout.fillWidth: true
-                            spacing: Theme.px(8)
+                            id: resultCol
+                            width: Math.max(0, list.width - Theme.space(3))
+                            x: Theme.space(1)
+                            y: Theme.space(1)
+                            spacing: Theme.space(4)
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text {
-                                    Accessible.role: Accessible.Heading
-                                    text: section.modelData.title
-                                    color: Theme.dim
-                                    font.family: Theme.font
-                                    font.pixelSize: Theme.type("body")
-                                    font.weight: Font.DemiBold
-                                    font.capitalization: Font.AllUppercase
-                                    font.letterSpacing: 1
-                                }
-                                Item { Layout.fillWidth: true }
-                                Repeater {
-                                    model: section.modelData.chips ? win.categories : []
-                                    Choice {
-                                        required property string modelData
-                                        text: win.categoryNames[modelData] || modelData
-                                        selected: win.category === modelData
-                                        onClicked: { win.category = modelData; search.forceActiveFocus(); }
-                                    }
-                                }
+                            EmptyState {
+                                visible: win.sections.length === 0
+                                Layout.topMargin: Theme.space(5)
+                                icon: "system-search"
+                                title: Tr.t("No results")
                             }
 
-                            // apps as a grid
-                            GridLayout {
-                                // the arrows move the launcher's own highlight over these (launcherSelected)
-                                objectName: "nav:keys"
-                                visible: !!section.modelData.grid
-                                Layout.fillWidth: true
-                                // one frequent app must not stretch across all columns
-                                columns: section.modelData.grid ? Math.min(win.gridCols, Math.max(1, section.modelData.items.length)) : win.gridCols
-                                columnSpacing: Theme.px(8)
-                                rowSpacing: Theme.px(8)
-                                Repeater {
-                                    model: section.modelData.grid ? section.modelData.items : []
-                                    Rectangle {
-                                        id: tile
-                                        required property var modelData
-                                        required property int index
-                                        readonly property bool isSel: win.sel === section.base + index
-                                        Accessible.role: Accessible.ListItem
-                                        Accessible.name: (tile.modelData.title || "") + (tile.modelData.subtitle ? ", " + tile.modelData.subtitle : "")
-                                        Layout.fillWidth: true
-                                        // a phone: four equal columns, however long a name (it wraps)
-                                        Layout.preferredWidth: win.phone ? win.phoneCell : -1
-                                        Layout.maximumWidth: win.phone ? win.phoneCell : Number.POSITIVE_INFINITY
-                                        implicitHeight: win.phone ? Theme.px(88) : Theme.px(112)
-                                        radius: Theme.px(18)
-                                        color: isSel ? Theme.accentSoft : (win.hoverArmed && tileArea.containsMouse ? Theme.hover : "transparent")
-                                        border.width: isSel ? 1 : 0
-                                        border.color: Theme.accentLine
-                                        // drag an app onto the dock to pin it (the dock reads shani-app:<desktop id>)
-                                        Item { id: appDragProxy; width: 1; height: 1; z: -1 }
-                                        Drag.active: tileArea.drag.active
-                                        Drag.dragType: Drag.Automatic
-                                        Drag.mimeData: ({ "text/plain": "shani-app:" + (tile.modelData.did || "") })
-                                        ColumnLayout {
-                                            anchors.centerIn: parent
-                                            width: parent.width - 16
-                                            spacing: Theme.px(8)
-                                            IconImage {
-                                                Layout.alignment: Qt.AlignHCenter
-                                                implicitSize: win.phone ? 44 : 54
-                                                source: Quickshell.iconPath(tile.modelData.app, "application-x-executable")
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                horizontalAlignment: Text.AlignHCenter
-                                                text: tile.modelData.title
-                                                color: Theme.text
-                                                wrapMode: Text.Wrap
-                                                maximumLineCount: 2
-                                                elide: Text.ElideRight
-                                                font.family: Theme.font
-                                                font.pixelSize: Theme.type("body")
-                                            }
-                                        }
-                                        MouseArea {
-                                            id: tileArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            drag.target: appDragProxy
-                                            drag.threshold: 8
-                                            onEntered: if (win.hoverArmed) win.sel = section.base + tile.index
-                                            onClicked: win.activate(section.base + tile.index, false)
-                                        }
-                                    }
-                                }
-                            }
-
-                            // everything else as rows
                             Repeater {
-                                model: section.modelData.grid ? [] : section.modelData.items
-                                Rectangle {
-                                    id: row
+                                model: win.sections
+                                ColumnLayout {
+                                    id: section
                                     required property var modelData
                                     required property int index
-                                    readonly property bool isSel: win.sel === section.base + index
-                                    Accessible.role: Accessible.ListItem
-                                    Accessible.name: (row.modelData.title || "") + (row.modelData.subtitle ? ", " + row.modelData.subtitle : "")
+                                    // where this section's items start in `flat`
+                                    readonly property int base: win.sections.slice(0, index).reduce((n, s) => n + s.items.length, 0)
                                     Layout.fillWidth: true
-                                    implicitHeight: Theme.px(48)
-                                    radius: Theme.px(14)
-                                    color: isSel ? Theme.accentSoft : (win.hoverArmed && rowArea.containsMouse ? Theme.hover : "transparent")
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: Theme.px(14)
-                                        anchors.rightMargin: Theme.px(14)
-                                        spacing: Theme.px(12)
-                                        IconImage {
-                                            visible: !!row.modelData.app
-                                            implicitSize: 28
-                                            source: row.modelData.app ? Quickshell.iconPath(row.modelData.app, "application-x-executable") : ""
-                                        }
-                                        ClippingRectangle {
-                                            visible: !!row.modelData.thumb
-                                            implicitWidth: Theme.px(56)
-                                            implicitHeight: Theme.px(36)
-                                            radius: Theme.px(6)
-                                            color: Theme.hover
-                                            Image {
-                                                anchors.fill: parent
-                                                source: Files.uriOf(row.modelData.thumb || "")
-                                                sourceSize: Qt.size(112, 72)
-                                                fillMode: Image.PreserveAspectCrop
-                                                asynchronous: true
-                                                cache: false
+                                    spacing: Theme.space(2)
+
+                                    Text {
+                                        Accessible.role: Accessible.Heading
+                                        Layout.fillWidth: true
+                                        text: section.modelData.title
+                                        color: Theme.dim
+                                        elide: Text.ElideRight
+                                        font.family: Theme.font
+                                        font.pixelSize: Theme.type("body")
+                                        font.weight: Font.DemiBold
+                                    }
+
+                                    ActionStrip {
+                                        visible: !!section.modelData.chips
+                                        Layout.fillWidth: true
+                                        Repeater {
+                                            model: section.modelData.chips ? win.categories : []
+                                            Choice {
+                                                required property string modelData
+                                                text: win.categoryNames[modelData] || modelData
+                                                selected: win.category === modelData
+                                                onClicked: { win.category = modelData; search.forceActiveFocus(); }
                                             }
                                         }
-                                        Text {
-                                            visible: row.modelData.kind === "emoji"
-                                            Layout.preferredWidth: Theme.px(28)
-                                            horizontalAlignment: Text.AlignHCenter
-                                            text: row.modelData.glyph || ""
-                                            color: Theme.text
-                                            font.family: Theme.font
-                                            font.pixelSize: Theme.px(26) * Theme.fontScale
-                                        }
-                                        Icon {
-                                            visible: !row.modelData.app && !row.modelData.thumb && row.modelData.kind !== "emoji"
-                                            name: row.modelData.icon || ""
-                                            size: Theme.px(20)
-                                            color: row.modelData.kind === "ask" ? Theme.accent : Theme.text
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: row.modelData.title
-                                            color: Theme.text
-                                            elide: Text.ElideRight
-                                            font.family: Theme.font
-                                            font.pixelSize: Theme.type("heading")
-                                        }
-                                        Text {
-                                            Layout.maximumWidth: list.width * 0.55
-                                            text: row.modelData.subtitle
-                                            color: Theme.dim
-                                            elide: Text.ElideRight
-                                            font.family: Theme.font
-                                            font.pixelSize: Theme.type("small")
+                                    }
+
+                                    // apps as a grid
+                                    GridLayout {
+                                        // the arrows move the launcher's own highlight over these (launcherSelected)
+                                        objectName: "nav:keys"
+                                        visible: !!section.modelData.grid
+                                        Layout.fillWidth: true
+                                        // one frequent app must not stretch across all columns
+                                        columns: section.modelData.grid ? Math.min(win.gridCols, Math.max(1, section.modelData.items.length)) : win.gridCols
+                                        columnSpacing: Theme.space(2)
+                                        rowSpacing: Theme.space(2)
+                                        Repeater {
+                                            model: section.modelData.grid ? section.modelData.items : []
+                                            Rectangle {
+                                                id: tile
+                                                required property var modelData
+                                                required property int index
+                                                readonly property bool isSel: win.sel === section.base + index
+                                                Accessible.role: Accessible.ListItem
+                                                Accessible.selected: isSel
+                                                Accessible.name: (tile.modelData.title || "") + (tile.modelData.subtitle ? ", " + tile.modelData.subtitle : "")
+                                                Layout.fillWidth: true
+                                                Layout.alignment: Qt.AlignTop
+                                                // Keep each phone column the same width as labels wrap.
+                                                Layout.preferredWidth: win.phone ? win.phoneCell : -1
+                                                Layout.maximumWidth: win.phone ? win.phoneCell : Number.POSITIVE_INFINITY
+                                                implicitHeight: Math.max(Theme.px(win.phone ? 88 : 112), tileContent.implicitHeight + Theme.space(win.phone ? 4 : 8))
+                                                radius: Theme.radius
+                                                color: isSel ? Theme.accentSoft : (win.hoverArmed && tileArea.containsMouse ? Theme.hover : "transparent")
+                                                border.width: isSel ? 1 : 0
+                                                border.color: Theme.accentLine
+                                                // drag an app onto the dock to pin it (the dock reads shani-app:<desktop id>)
+                                                Item { id: appDragProxy; width: 1; height: 1; z: -1 }
+                                                Drag.active: tileArea.drag.active
+                                                Drag.dragType: Drag.Automatic
+                                                Drag.mimeData: ({ "text/plain": "shani-app:" + (tile.modelData.did || "") })
+                                                ColumnLayout {
+                                                    id: tileContent
+                                                    anchors.top: parent.top
+                                                    anchors.topMargin: Theme.space(win.phone ? 2 : 4)
+                                                    anchors.horizontalCenter: parent.horizontalCenter
+                                                    width: Math.max(0, parent.width - Theme.space(win.phone ? 2 : 4))
+                                                    spacing: Theme.space(2)
+                                                    IconImage {
+                                                        Layout.alignment: Qt.AlignHCenter
+                                                        implicitSize: Theme.px(win.phone ? 40 : 48)
+                                                        source: Quickshell.iconPath(tile.modelData.app, "application-x-executable")
+                                                    }
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        horizontalAlignment: Text.AlignHCenter
+                                                        text: tile.modelData.title
+                                                        textFormat: Text.PlainText
+                                                        color: Theme.text
+                                                        wrapMode: Text.WordWrap
+                                                        maximumLineCount: 2
+                                                        elide: Text.ElideRight
+                                                        font.family: Theme.font
+                                                        font.pixelSize: Theme.type("body")
+                                                    }
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        visible: !!tile.modelData.builtInDuplicate
+                                                        text: Tr.t("Built in")
+                                                        color: Theme.dim
+                                                        horizontalAlignment: Text.AlignHCenter
+                                                        elide: Text.ElideRight
+                                                        font.family: Theme.font
+                                                        font.pixelSize: Theme.type("caption")
+                                                    }
+                                                }
+                                                MouseArea {
+                                                    id: tileArea
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    drag.target: appDragProxy
+                                                    drag.threshold: 8
+                                                    onEntered: if (win.hoverArmed) win.sel = section.base + tile.index
+                                                    onClicked: win.activate(section.base + tile.index, false)
+                                                }
+                                            }
                                         }
                                     }
-                                    MouseArea {
-                                        id: rowArea
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        onEntered: if (win.hoverArmed) win.sel = section.base + row.index
-                                        onClicked: win.activate(section.base + row.index, false)
+
+                                    // everything else as rows
+                                    Repeater {
+                                        model: section.modelData.grid ? [] : section.modelData.items
+                                        Rectangle {
+                                            id: row
+                                            required property var modelData
+                                            required property int index
+                                            readonly property bool isSel: win.sel === section.base + index
+                                            Accessible.role: Accessible.ListItem
+                                            Accessible.selected: isSel
+                                            Accessible.name: (row.modelData.title || "") + (row.modelData.subtitle ? ", " + row.modelData.subtitle : "")
+                                            Layout.fillWidth: true
+                                            implicitHeight: Math.max(Theme.touchTarget, Theme.px(48), rowContent.implicitHeight + Theme.space(3))
+                                            radius: Theme.radius
+                                            color: isSel ? Theme.accentSoft : (win.hoverArmed && rowArea.containsMouse ? Theme.hover : "transparent")
+                                            border.width: isSel ? (Theme.contrast ? 2 : 1) : 0
+                                            border.color: Theme.contrast ? Theme.accent : Theme.accentLine
+                                            RowLayout {
+                                                id: rowContent
+                                                anchors.fill: parent
+                                                anchors.leftMargin: Theme.space(3)
+                                                anchors.rightMargin: Theme.space(3)
+                                                spacing: Theme.space(3)
+                                                IconImage {
+                                                    visible: !!row.modelData.app
+                                                    implicitSize: Theme.px(28)
+                                                    source: row.modelData.app ? Quickshell.iconPath(row.modelData.app, "application-x-executable") : ""
+                                                }
+                                                ClippingRectangle {
+                                                    visible: !!row.modelData.thumb
+                                                    implicitWidth: Theme.px(56)
+                                                    implicitHeight: Theme.px(36)
+                                                    radius: Theme.px(6)
+                                                    color: Theme.hover
+                                                    Image {
+                                                        anchors.fill: parent
+                                                        source: Files.uriOf(row.modelData.thumb || "")
+                                                        sourceSize: Qt.size(112, 72)
+                                                        fillMode: Image.PreserveAspectCrop
+                                                        asynchronous: true
+                                                        cache: false
+                                                    }
+                                                }
+                                                Text {
+                                                    visible: row.modelData.kind === "emoji"
+                                                    Layout.preferredWidth: Theme.px(28)
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    text: row.modelData.glyph || ""
+                                                    color: Theme.text
+                                                    font.family: Theme.font
+                                                    font.pixelSize: Theme.px(26) * Theme.fontScale
+                                                }
+                                                Icon {
+                                                    visible: !row.modelData.app && !row.modelData.thumb && row.modelData.kind !== "emoji"
+                                                    name: row.modelData.icon || ""
+                                                    size: Theme.px(20)
+                                                    color: row.modelData.kind === "ask" ? Theme.accent : Theme.text
+                                                }
+                                                GridLayout {
+                                                    Layout.fillWidth: true
+                                                    columns: win.narrow ? 1 : 2
+                                                    columnSpacing: Theme.space(3)
+                                                    rowSpacing: 0
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        text: row.modelData.title
+                                                        textFormat: Text.PlainText
+                                                        color: Theme.text
+                                                        elide: Text.ElideRight
+                                                        font.family: Theme.font
+                                                        font.pixelSize: Theme.type("heading")
+                                                        font.weight: row.isSel ? Font.DemiBold : Font.Normal
+                                                    }
+                                                    Text {
+                                                        visible: text !== ""
+                                                        Layout.fillWidth: win.narrow
+                                                        Layout.maximumWidth: win.narrow ? Number.POSITIVE_INFINITY : resultCol.width * 0.4
+                                                        text: row.modelData.subtitle || ""
+                                                        textFormat: Text.PlainText
+                                                        color: Theme.dim
+                                                        elide: Text.ElideRight
+                                                        font.family: Theme.font
+                                                        font.pixelSize: Theme.type("small")
+                                                    }
+                                                }
+                                            }
+                                            MouseArea {
+                                                id: rowArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                onEntered: if (win.hoverArmed) win.sel = section.base + row.index
+                                                onClicked: win.activate(section.base + row.index, false)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1121,18 +1206,18 @@ PanelWindow {
             // Chronoa, one keystroke away, with a preview of what is selected
             // as tall as what it holds, not the whole column
             Glass {
-                visible: !win.narrow && (win.q !== "" || (win.current && win.current.kind === "file"))
-                Layout.preferredWidth: Theme.px(340)
+                visible: !win.narrow && (win.q !== "" || win.lookPath !== "")
+                Layout.preferredWidth: Theme.px(304)
                 Layout.alignment: Qt.AlignTop
-                Layout.preferredHeight: chronoaCol.implicitHeight + 36
+                Layout.preferredHeight: chronoaCol.implicitHeight + Theme.space(8)
                 strong: true
                 radius: Theme.radiusLarge
                 MouseArea { anchors.fill: parent; objectName: "nav:pointer" }   // swallows clicks: they do not close it
                 ColumnLayout {
                     id: chronoaCol
                     anchors.fill: parent
-                    anchors.margins: Theme.px(18)
-                    spacing: Theme.px(12)
+                    anchors.margins: Theme.space(4)
+                    spacing: Theme.space(3)
                     RowLayout {
                         Icon { name: "face-smile-big"; size: Theme.px(20); color: Chronoa.color }
                         Text {
@@ -1179,7 +1264,7 @@ PanelWindow {
                         id: imagePreview
                         Layout.fillWidth: true
                         Layout.preferredHeight: Theme.px(180)
-                        visible: win.current && win.current.kind === "file" && win.current.icon === "image-x-generic"
+                        visible: win.lookPath !== "" && win.current.icon === "image-x-generic"
                         radius: Theme.px(12)
                         color: Theme.hover
                         Image {
@@ -1192,11 +1277,12 @@ PanelWindow {
                     }
                     Text {
                         Layout.fillWidth: true
+                        visible: win.lookPath !== ""
                         wrapMode: Text.Wrap
-                        // the query is only shown when it says more than the file's own name
-                        text: win.current && win.current.kind === "file"
-                            ? "Ask about " + win.current.title + (win.q.trim() && win.current.title.toLowerCase().indexOf(win.q.trim().toLowerCase()) < 0 ? ": “" + win.q.trim() + "”" : "")
-                            : "“" + win.q.trim() + "”"
+                        maximumLineCount: 3
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText
+                        text: visible ? win.current.title : ""
                         color: Theme.text
                         font.family: Theme.font
                         font.pixelSize: Theme.type("heading")
@@ -1207,8 +1293,9 @@ PanelWindow {
                         onClicked: win.askChronoa()
                     }
                     Text {
+                        visible: !Settings.data.launcherHideNavLabels
                         Layout.fillWidth: true
-                        Layout.topMargin: Theme.px(4)
+                        Layout.topMargin: Theme.space(1)
                         wrapMode: Text.Wrap
                         text: Tr.t("Start with  =  to calculate,  :  for emoji,  c  for the clipboard,  >  to run a command")
                         color: Theme.dim

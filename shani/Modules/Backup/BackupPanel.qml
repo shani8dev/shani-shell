@@ -14,6 +14,16 @@ AppWindow {
     onGone: Ui.backup = false
     implicitWidth: Theme.px(780)
     implicitHeight: Theme.px(620)
+    tools: [
+        Button {
+            text: Tr.t("Back up now")
+            kind: "outline"
+            busy: Backup.running
+            enabled: Backup.available && Backup.driveSetUp && !Backup.running
+            onClicked: Backup.backupNow()
+            Accessible.name: Tr.t("Back up now to the backup drive")
+        }
+    ]
 
     property int tabIndex: 0
     Component.onCompleted: {
@@ -56,35 +66,18 @@ AppWindow {
             anchors { fill: parent; margins: Theme.px(16) }
             spacing: Theme.px(10)
 
-            // ---- header ---------------------------------------------------------
-            RowLayout {
+            ActionStrip {
                 Layout.fillWidth: true
-                Text {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    text: Tr.t("Backup")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.type("subtitle")
-                    font.weight: Font.DemiBold
+                Repeater {
+                    model: [Tr.t("Your files"), Tr.t("Other drive"), Tr.t("Snapshots & schedule")]
+                    Choice {
+                        required property string modelData
+                        required property int index
+                        text: modelData
+                        selected: win.tabIndex === index
+                        onClicked: win.tabIndex = index
+                    }
                 }
-                Button {
-                    text: Tr.t("Back up now")
-                    kind: "outline"
-                    busy: Backup.running
-                    enabled: Backup.available && Backup.driveSetUp && !Backup.running
-                    onClicked: Backup.backupNow()
-                    Accessible.name: Tr.t("Back up now to the backup drive")
-                }
-                IconButton { icon: "window-close"; tip: Tr.t("Close"); onClicked: win.visible = false }
-            }
-
-            SegmentedTabs {
-                Layout.fillWidth: true
-                options: [Tr.t("Your files"), Tr.t("Other drive"), Tr.t("Snapshots & schedule")]
-                segmentWidth: Math.max(Theme.px(150), width / 3 - Theme.px(3))
-                currentIndex: win.tabIndex
-                onActivated: idx => win.tabIndex = idx
             }
 
             // ---- shared feedback -------------------------------------------------
@@ -134,7 +127,7 @@ AppWindow {
                         anchors { fill: parent; topMargin: Theme.px(4) }
                         spacing: Theme.px(8)
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
                             Text {
                                 Layout.fillWidth: true
@@ -144,18 +137,21 @@ AppWindow {
                                 font.family: Theme.font
                                 font.pixelSize: Theme.type("small")
                             }
-                            Button {
-                                text: Tr.t("Take a snapshot now")
-                                enabled: Backup.available && Backup.busyOp === ""
-                                busy: Backup.busyOp === "home-snapshot"
-                                onClicked: Backup.homeSnapshotNow()
-                                Accessible.name: Tr.t("Take a snapshot of your home now")
-                            }
-                            Button {
-                                text: Tr.t("Open folder")
-                                enabled: Backup.snapshots.length > 0
-                                onClicked: Backup.openPath(Backup.snapshots[0].path)
-                                Accessible.name: Tr.t("Open the newest snapshot in Files")
+                            ActionStrip {
+                                Layout.fillWidth: true
+                                Button {
+                                    text: Tr.t("Take a snapshot now")
+                                    enabled: Backup.available && Backup.busyOp === ""
+                                    busy: Backup.busyOp === "home-snapshot"
+                                    onClicked: Backup.homeSnapshotNow()
+                                    Accessible.name: Tr.t("Take a snapshot of your home now")
+                                }
+                                Button {
+                                    text: Tr.t("Open folder")
+                                    enabled: Backup.snapshots.length > 0
+                                    onClicked: Backup.openPath(Backup.snapshots[0].path)
+                                    Accessible.name: Tr.t("Open the newest snapshot in Files")
+                                }
                             }
                         }
 
@@ -210,71 +206,82 @@ AppWindow {
                             clip: true
                             reuseItems: true
                             model: Backup.snapshots
-                            delegate: ListRow {
+                            delegate: GridLayout {
+                                id: snapshotRow
                                 required property var modelData
                                 width: ListView.view.width
-                                icon: "document-open-recent"
-                                title: modelData.displayDate
-                                subtitle: modelData.subtitle + " · " + modelData.name
-                                interactive: false
-                                Button {
-                                    text: Tr.t("Browse")
-                                    kind: "outline"
-                                    flat: true
-                                    onClicked: Backup.openPath(modelData.path)
-                                    Accessible.name: Tr.t("Browse the snapshot from %1", modelData.displayDate)
+                                columns: win.compact ? 1 : 2
+                                columnSpacing: Theme.space(2)
+                                rowSpacing: 0
+                                ListRow {
+                                    Layout.fillWidth: true
+                                    icon: "document-open-recent"
+                                    title: snapshotRow.modelData.displayDate
+                                    subtitle: snapshotRow.modelData.subtitle + " · " + snapshotRow.modelData.name
+                                    interactive: false
                                 }
-                                Button {
-                                    text: Tr.t("Restore a file")
-                                    kind: "outline"
-                                    flat: true
-                                    enabled: Backup.busyOp === "" && !Backup.copyBusy
-                                    onClicked: {
-                                        const snap = modelData.path;
-                                        FilePicker.open({ mode: "open", title: Tr.t("Pick a file from this snapshot"),
-                                            startPath: snap,
-                                            onPicked: picks => {
-                                                if (!picks.length) return;
-                                                const src = picks[0];
-                                                FilePicker.open({ mode: "folder", title: Tr.t("Where should the restored file go?"),
-                                                    onPicked: dests => {
-                                                        if (dests.length) Backup.restoreFromHome(src, dests[0]);
-                                                    }});
-                                            }});
+                                ActionStrip {
+                                    Layout.fillWidth: win.compact
+                                    Layout.maximumWidth: win.compact ? Number.POSITIVE_INFINITY : snapshotRow.width * 0.66
+                                    Button {
+                                        text: Tr.t("Browse")
+                                        kind: "outline"
+                                        flat: true
+                                        onClicked: Backup.openPath(modelData.path)
+                                        Accessible.name: Tr.t("Browse the snapshot from %1", modelData.displayDate)
                                     }
-                                    Accessible.name: Tr.t("Restore a file from the snapshot from %1", modelData.displayDate)
-                                }
-                                Button {
-                                    text: Tr.t("Restore a folder")
-                                    kind: "outline"
-                                    flat: true
-                                    enabled: Backup.busyOp === "" && !Backup.copyBusy
-                                    onClicked: {
-                                        const snap = modelData.path;
-                                        FilePicker.open({ mode: "folder", title: Tr.t("Pick a folder from this snapshot"),
-                                            startPath: snap,
-                                            onPicked: picks => {
-                                                if (!picks.length) return;
-                                                const src = picks[0];
-                                                FilePicker.open({ mode: "folder", title: Tr.t("Where should the restored folder go?"),
-                                                    onPicked: dests => {
-                                                        if (dests.length) Backup.restoreFromHome(src, dests[0]);
-                                                    }});
-                                            }});
+                                    Button {
+                                        text: Tr.t("Restore a file")
+                                        kind: "outline"
+                                        flat: true
+                                        enabled: Backup.busyOp === "" && !Backup.copyBusy
+                                        onClicked: {
+                                            const snap = modelData.path;
+                                            FilePicker.open({ mode: "open", title: Tr.t("Pick a file from this snapshot"),
+                                                startPath: snap,
+                                                onPicked: picks => {
+                                                    if (!picks.length) return;
+                                                    const src = picks[0];
+                                                    FilePicker.open({ mode: "folder", title: Tr.t("Where should the restored file go?"),
+                                                        onPicked: dests => {
+                                                            if (dests.length) Backup.restoreFromHome(src, dests[0]);
+                                                        }});
+                                                }});
+                                        }
+                                        Accessible.name: Tr.t("Restore a file from the snapshot from %1", modelData.displayDate)
                                     }
-                                    Accessible.name: Tr.t("Restore a folder from the snapshot from %1", modelData.displayDate)
-                                }
-                                ConfirmButton {
-                                    implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
-                                    implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
-                                    text: Tr.t("Remove")
-                                    armedText: Tr.t("Remove this version?")
-                                    kind: "danger"
-                                    value: modelData.name
-                                    visible: String(modelData.name).startsWith("manual-") && !modelData.whole
-                                    enabled: Backup.busyOp === ""
-                                    onConfirmed: name => Backup.homeRemove(name)
-                                    Accessible.name: Tr.t("Remove the snapshot %1", modelData.name)
+                                    Button {
+                                        text: Tr.t("Restore a folder")
+                                        kind: "outline"
+                                        flat: true
+                                        enabled: Backup.busyOp === "" && !Backup.copyBusy
+                                        onClicked: {
+                                            const snap = modelData.path;
+                                            FilePicker.open({ mode: "folder", title: Tr.t("Pick a folder from this snapshot"),
+                                                startPath: snap,
+                                                onPicked: picks => {
+                                                    if (!picks.length) return;
+                                                    const src = picks[0];
+                                                    FilePicker.open({ mode: "folder", title: Tr.t("Where should the restored folder go?"),
+                                                        onPicked: dests => {
+                                                            if (dests.length) Backup.restoreFromHome(src, dests[0]);
+                                                        }});
+                                                }});
+                                        }
+                                        Accessible.name: Tr.t("Restore a folder from the snapshot from %1", modelData.displayDate)
+                                    }
+                                    ConfirmButton {
+                                        implicitWidth: Math.max(Theme.touchTarget, armedText.length * 8 + 28)
+                                        implicitHeight: Math.max(Theme.px(36), Theme.touchTarget)
+                                        text: Tr.t("Remove")
+                                        armedText: Tr.t("Remove this version?")
+                                        kind: "danger"
+                                        value: modelData.name
+                                        visible: String(modelData.name).startsWith("manual-") && !modelData.whole
+                                        enabled: Backup.busyOp === ""
+                                        onConfirmed: name => Backup.homeRemove(name)
+                                        Accessible.name: Tr.t("Remove the snapshot %1", modelData.name)
+                                    }
                                 }
                             }
                         }

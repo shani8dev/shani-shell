@@ -17,9 +17,12 @@
 #   keyring       a real sign-in unlocks the keyring (oo7), systemd-booted container (needs shani-desktop-niri)
 #   surfaces      every surface shell.qml loads has a capture (dev/surfaces.tsv)
 #   render[=mode] every surface to PNG in out/renders; mode shell|greeter|setup|all
-#   render=matrix[:kinds] the key surfaces on all 8 form factors (or only kinds, comma-separated), each in its own layout (and all 14 layouts on a
-#                 computer), each at its own screen shape: out/renders/matrix/<kind>
+#   render=matrix[:kinds] key surfaces on eight profiles and landscape phone
+#                 (or only selected kinds): out/renders/matrix/<kind>
+#                 SHANI_LAYOUTS=all tries every layout on each selected profile.
 #                 (SHANI_FORM_FACTOR=tv sh dev/check.sh render: drawn as on a TV)
+#   render=apps[:kinds] every windowed app on each profile: out/renders/apps/<kind>
+#                 (incl. phone-landscape; SHANI_APPS=files,calendar limits the apps)
 #   showcase      restage the README's two pictures in docs/ (the rest: out/showcase)
 #   demo[=a,b]    record the README's GIFs into out/demos (CHRONOA=real for the AI scenes)
 #   montage       join out/demos' clips into out/demos/tour.mp4 (LinkedIn, the blog)
@@ -62,9 +65,11 @@ build() { docker build -t $IMG -f "$REPO/dev/Containerfile" "$REPO/dev" || exit 
 [ "${1:-}" = --build ] && { shift; build; }
 docker image inspect $IMG >/dev/null 2>&1 || build
 own
-# every suite writes into the same out/shots; clear it once per invocation so
-# a review cannot mistake last week's screenshots for this run's
-rm -f "$REPO"/out/shots/*.png
+# Suites that take shots share out/shots. Render-only runs use out/renders.
+for suite in "$@"; do
+    case "$suite" in render|render=*) ;; *) rm -f "$REPO"/out/shots/*.png; break ;; esac
+done
+[ $# -ne 0 ] || rm -f "$REPO"/out/shots/*.png
 [ $# -eq 0 ] && set -- all
 [ "$*" = all ] && set -- unit surfaces shell greeter setup polkit admin setup-polkit pam keyring
 
@@ -81,6 +86,7 @@ box() {
     # SHANI_FORM_FACTOR=tv|handheld|tablet|board|phone|laptop: every screen is that
     # kind (docs/FORM-FACTORS.md) - the suites and renders at its size
     ff=; [ -n "${SHANI_FORM_FACTOR:-}" ] && ff="-e SHANI_FORM_FACTOR=$SHANI_FORM_FACTOR"
+    layouts=; [ "${SHANI_LAYOUTS:-}" = all ] && layouts="-e SHANI_LAYOUTS=all"
     # SHANI_WIDTH / SHANI_SCREEN: the shape of the nested niri, so a phone can
     # be a phone rather than a small window (dev/session.sh)
     shape=; [ -n "${SHANI_WIDTH:-}" ] && shape="$shape -e SHANI_WIDTH=$SHANI_WIDTH"
@@ -93,7 +99,7 @@ box() {
     mem="--memory=${SHANI_CHECK_MEMORY:-6g} --memory-swap=${SHANI_CHECK_MEMORY:-6g}"
     # PYTHONDONTWRITEBYTECODE: no root-owned __pycache__ left in the checkout
     # (only sudo could remove a worktree the box had run in)
-    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK -e PYTHONDONTWRITEBYTECODE=1 $mem $tb $ch $on $ff $shape -v "$REPO":/work "$@"
+    docker run --rm --cap-add SYS_PTRACE --cap-add IPC_LOCK -e PYTHONDONTWRITEBYTECODE=1 $mem $tb $ch $on $ff $layouts $shape -v "$REPO":/work "$@"
 }
 run() {
     case "$1" in
@@ -123,15 +129,21 @@ run() {
         # key surfaces on every kind of screen, each in its own session at its
         # shape, plus every desktop layout on the computer: out/renders/matrix/<kind>
         # render=matrix:phone,board - only those kinds
-        render=matrix|render=matrix:*)
-            rc=0; only=","${1#render=matrix:}","; [ "$1" = render=matrix ] && only=""
-            for spec in computer:1920x1080 laptop:1920x1080 tablet:1280x800 handheld:1280x800 phone:412x915 tv:1920x1080 board:1920x1080 projector:1920x1080; do
+        render=matrix|render=matrix:*|render=apps|render=apps:*)
+            rc=0
+            request=${1#render=}; mode=${request%%:*}
+            only=""; [ "$request" = "$mode" ] || only=",${request#*:},"
+            profiles="computer:1920x1080 laptop:1920x1080 tablet:1280x800 handheld:1280x800 phone:412x915 tv:1920x1080 board:1920x1080 projector:1920x1080 phone-landscape:915x412"
+            ran=0
+            for spec in $profiles; do
                 kind=${spec%%:*}; wh=${spec#*:}
                 [ -z "$only" ] || case "$only" in *",$kind,"*) ;; *) continue ;; esac
+                ran=1
                 echo "== form factor $kind ($wh)"
-                ( SHANI_FORM_FACTOR=$kind SHANI_WIDTH=${wh%x*} SHANI_SCREEN=${wh#*x}
-                  box $IMG sh /work/dev/render.sh matrix ) || rc=1
+                ( SHANI_FORM_FACTOR=${kind%-landscape} SHANI_WIDTH=${wh%x*} SHANI_SCREEN=${wh#*x}
+                  box $IMG sh /work/dev/render.sh "$mode" "/work/out/renders/$mode/$kind" ) || rc=1
             done
+            [ "$ran" = 1 ] || { echo "no matching form factor in $request" >&2; return 2; }
             return $rc ;;
         render|render=*)
             mode=${1#render=}

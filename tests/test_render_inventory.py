@@ -83,7 +83,7 @@ def _has_expectation(tokens):
     return any("d[" in t or "d.get(" in t for t in tokens)
 
 
-def test_every_app_has_a_render_shot(shani_cli, render_src):
+def test_every_app_has_a_render_shot(shani_cli, render_src, monkeypatch):
     """Every app with a state key in bin/shani must render as `app-<name>`.
 
     Apps with no state key are pointer-waiting actions (a screenshot, a colour
@@ -91,6 +91,7 @@ def test_every_app_has_a_render_shot(shani_cli, render_src):
     The shot name is `app-` + the APPS key, so `scheduled-tasks` becomes
     `app-scheduled-tasks` — hyphenation is preserved, never normalised.
     """
+    monkeypatch.delenv("SHANI_APPS", raising=False)
     apps = shani_cli.APPS
     rendered = _rendered_app_specs(render_src)
     renderable = {name for name, spec in apps.items() if spec[8] is not None}

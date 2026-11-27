@@ -20,6 +20,8 @@ ColumnLayout {
 
     Text {
         visible: label !== ""
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
         text: label
         color: Theme.dim
         font.family: Theme.font

@@ -35,7 +35,7 @@ FloatingWindow {
     // closed by the compositor (Mod+Q, the bar's close button) or by the app itself
     signal gone()
     default property alias content: body.data
-    property alias tools: toolRow.data
+    property alias tools: toolStrip.actions
     // Uniform shortcuts: an app points Ctrl+F at its search field and Ctrl+R at
     // its refresh action (both default to null, so existing apps keep theirs).
     // Escape and Ctrl+W always go through requestClose() so the unsaved-work
@@ -93,7 +93,7 @@ FloatingWindow {
         // Reach a scrolling toolbar without tabbing through a document's text.
         Keys.onPressed: e => {
             if (e.key === Qt.Key_F6) {
-                Ui.focusFirst(e.modifiers & Qt.ShiftModifier ? body : toolRow);
+                Ui.focusFirst(e.modifiers & Qt.ShiftModifier || !toolStrip.visible ? body : toolStrip.row);
                 e.accepted = true;
             }
             // the standard set shared by every app window: the app supplies the
@@ -139,7 +139,7 @@ FloatingWindow {
             id: bar
             visible: win.header
             anchors { left: parent.left; right: parent.right; top: parent.top }
-            height: visible ? Math.max(42, Theme.touchTarget + Theme.px(8)) : 0
+            height: visible ? Math.max(Theme.px(42), Theme.touchTarget + Theme.space(2), toolStrip.visible ? toolStrip.implicitHeight : 0) : 0
             color: Theme.surface1
             Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: Theme.border }
 
@@ -169,8 +169,9 @@ FloatingWindow {
                 }
                 Text {
                     Layout.fillWidth: true
-                    Layout.minimumWidth: Theme.px(60)
+                    Layout.minimumWidth: 0
                     text: win.doc !== "" ? win.doc : win.appName
+                    textFormat: Text.PlainText
                     color: Theme.text
                     elide: Text.ElideMiddle
                     font.family: Theme.font
@@ -180,28 +181,23 @@ FloatingWindow {
                 }
                 Text {
                     visible: win.doc !== "" && !win.compact
+                    Layout.maximumWidth: win.width * 0.25
                     text: win.appName
-                    color: Theme.faint
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: Theme.type("body")
                     rightPadding: Theme.px(6)
                     Accessible.ignored: true
                 }
-                Flickable {
-                    Layout.preferredWidth: toolRow.implicitWidth
-                    Layout.maximumWidth: win.compact ? win.width * 0.45 : toolRow.implicitWidth
-                    Layout.preferredHeight: toolRow.implicitHeight
-                    contentWidth: toolRow.implicitWidth
-                    contentHeight: height
-                    flickableDirection: Flickable.HorizontalFlick
-                    boundsBehavior: Flickable.StopAtBounds
-                    clip: true
-                    RowLayout {
-                        id: toolRow
-                        spacing: 2
-                    }
+                ActionStrip {
+                    id: toolStrip
+                    visible: row.children.length > 0
+                    Layout.maximumWidth: win.width * (win.compact ? 0.45 : 0.60)
+                    spacing: Theme.space(1)
                 }
-                Rectangle { visible: toolRow.children.length > 0; Layout.preferredWidth: 1; Layout.preferredHeight: Theme.px(20); color: Theme.border }
+                Rectangle { visible: toolStrip.visible; Layout.preferredWidth: 1; Layout.preferredHeight: Theme.px(20); color: Theme.border }
                 WindowButton { visible: !win.compact; icon: "window-minimize"; tip: Tr.t("Minimise"); onClicked: Ui.minimise(win.desktopId) }
                 WindowButton { visible: !win.compact; icon: win.maximized ? "window-restore" : "window-maximize"; tip: win.maximized ? Tr.t("Restore") : Tr.t("Maximise"); onClicked: win.toggleMaximised() }
                 WindowButton { icon: "window-close"; tip: Tr.t("Close"); danger: true; onClicked: win.requestClose() }
@@ -221,7 +217,7 @@ FloatingWindow {
             palette.base: Theme.surface1
             palette.alternateBase: Theme.surface2
             palette.text: Theme.text
-            palette.placeholderText: Theme.faint
+            palette.placeholderText: Theme.dim
             palette.button: Theme.surface2
             palette.buttonText: Theme.text
             palette.highlight: Theme.accent

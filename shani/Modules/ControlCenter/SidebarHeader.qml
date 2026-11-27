@@ -19,10 +19,15 @@ ColumnLayout {
     required property var sidebarClock
     spacing: Theme.px(14)
 
-    RowLayout {
+    GridLayout {
         Layout.fillWidth: true
+        columns: sidebar.narrow ? 4 : 5
+        columnSpacing: Theme.space(2)
+        rowSpacing: Theme.space(2)
         Column {
             Layout.fillWidth: true
+            Layout.columnSpan: sidebar.narrow ? 4 : 1
+            Layout.minimumWidth: 0
             Text {
                 text: Qt.formatDateTime(sidebarClock.date, Settings.data.use24h ? "HH:mm" : "h:mm AP")
                 font.features: { "tnum": 1 }
@@ -32,6 +37,8 @@ ColumnLayout {
                 font.weight: Font.Light
             }
             Text {
+                width: parent.width
+                wrapMode: Text.Wrap
                 text: Qt.formatDateTime(sidebarClock.date, "dddd, d MMMM")
                       + (Power.hasBattery ? "  ·  " + Math.round(Power.percent * 100) + "%" + (Power.timeLeft ? " · " + Power.timeLeft : "") : "")
                 font.features: { "tnum": 1 }
@@ -42,7 +49,7 @@ ColumnLayout {
             // the batteries of the mouse, the headphones, the phone …
             Flow {
                 visible: Power.peripherals.length > 0
-                width: Theme.px(300)
+                width: parent.width
                 spacing: Theme.px(10)
                 Repeater {
                     model: Power.peripherals
@@ -64,12 +71,11 @@ ColumnLayout {
             }
             // no weather yet: offered in one click, not hidden in Settings - from this
             // computer's location (GeoClue, or a GPS through gpsd) or the time zone's city
-            Row {
+            Flow {
+                width: parent.width
                 visible: Weather.summary === "" && Settings.data.weatherCity === "" && !Settings.data.useLocation
                 spacing: Theme.px(8)
-                Icon { name: "weather-few-clouds"; size: Theme.px(14); color: Theme.dim; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: Tr.t("Weather for"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body"); anchors.verticalCenter: parent.verticalCenter }
-                Choice { text: Tr.t("where I am"); onClicked: { Settings.data.useLocation = true; Location.refresh(); }
+                Choice { text: Tr.t("Use my location"); onClicked: { Settings.data.useLocation = true; Location.refresh(); }
                     Hint { text: Tr.t("Uses this computer's location (Wi-Fi, GPS) - you can turn it off in Settings > Privacy") } }
                 Choice { visible: Weather.zoneCity !== ""; text: Weather.zoneCity; onClicked: Settings.data.weatherCity = Weather.zoneCity
                     Hint { text: Tr.t("The city of your time zone - no location shared") } }
@@ -183,10 +189,11 @@ ColumnLayout {
             }
         }
         // help: the tour again, and every shortcut from its last page
-        IconButton { icon: "help-about"; tip: Tr.t("Help: a short tour, and every keyboard shortcut"); onClicked: { Ui.closeAll(); Ui.tour = true; } }
-        IconButton { icon: "emblem-system"; tip: Tr.t("Settings"); Accessible.name: Tr.t("Settings"); onClicked: Ui.openSettings("") }
-        IconButton { icon: "system-lock-screen"; tip: Tr.t("Lock the screen (Super + L)"); onClicked: { Ui.closeAll(); Lock.lock(); } }
+        IconButton { Layout.fillWidth: sidebar.narrow; icon: "help-about"; tip: Tr.t("Help: a short tour, and every keyboard shortcut"); onClicked: { Ui.closeAll(); Ui.tour = true; } }
+        IconButton { Layout.fillWidth: sidebar.narrow; icon: "emblem-system"; tip: Tr.t("Settings"); Accessible.name: Tr.t("Settings"); onClicked: Ui.openSettings("") }
+        IconButton { Layout.fillWidth: sidebar.narrow; icon: "system-lock-screen"; tip: Tr.t("Lock the screen (Super + L)"); onClicked: { Ui.closeAll(); Lock.lock(); } }
         IconButton {
+            Layout.fillWidth: sidebar.narrow
             icon: "system-shutdown"
             tip: Tr.t("Log out, restart or shut down")
             on: Ui.expanded === "power"

@@ -33,7 +33,7 @@ AppWindow {
     onGone: Ui.calendar = false
     margins: 0
     implicitWidth: Theme.px(760)
-    implicitHeight: Math.max(320, Math.min(900, col.implicitHeight + 40))
+    implicitHeight: Theme.px(760)
     shortcutSearch: searchField.input  // Ctrl+F focuses the calendar search
     shortcutRefresh: win.refresh       // Ctrl+R reloads the date range
     // blur behind the card, as on every shell surface (ext-background-effect)
@@ -740,11 +740,27 @@ AppWindow {
             if (event.key === Qt.Key_Escape) return;
             if (win.handleCalendarKey(event.key)) event.accepted = true;
         }
-        ColumnLayout {
-            id: col
+        AppPage {
+            id: calendarPage
             anchors.fill: parent
-            anchors.margins: Theme.px(16)
-            spacing: Theme.px(12)
+            spacing: Theme.space(3)
+            property real browsingPosition: 0
+
+            function revealSearch() {
+                const y = searchField.mapToItem(flickable.contentItem, 0, 0).y;
+                if (y < flickable.contentY || y + searchField.height > flickable.contentY + flickable.height)
+                    flickable.contentY = Math.min(y, Math.max(0, flickable.contentHeight - flickable.height));
+            }
+            Connections {
+                target: win
+                function onEditorChanged() {
+                    if (win.editor) calendarPage.browsingPosition = calendarPage.flickable.contentY;
+                    Qt.callLater(() => {
+                        const flick = calendarPage.flickable;
+                        flick.contentY = win.editor ? 0 : Math.min(calendarPage.browsingPosition, Math.max(0, flick.contentHeight - flick.height));
+                    });
+                }
+            }
 
             // Quick add: "lunch Friday at noon" -> one-hour event. The full
             // form below is still there for location, guests and calendars.
@@ -758,33 +774,35 @@ AppWindow {
                 onAccepted: { if (win.quickAdd(text)) clear(); }
             }
 
-            // a Flow: on a phone the chips wrap instead of running off the edge
-            Flow {
+            RowLayout {
+                visible: !win.editor
                 Layout.fillWidth: true
-                spacing: Theme.px(6)
-                Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
-                Choice { text: Tr.t("Week"); selected: win.view === "week"; onClicked: { Ui.calendarView = "week"; Agenda.refresh(); } }
-                Choice { text: Tr.t("Day"); selected: win.view === "day"; onClicked: { Ui.calendarView = "day"; Agenda.refresh(); } }
-                Choice { text: Tr.t("Year"); selected: win.view === "year"; onClicked: { Ui.calendarView = "year"; Agenda.refresh(); } }
-                Choice {
-                    text: Tr.t("Agenda")
-                    selected: win.view === "agenda"
-                    Accessible.name: Tr.t("Agenda: upcoming and earlier events")
-                    onClicked: { Ui.calendarView = "agenda"; Agenda.refresh(); }
-                }
-                Choice {
-                    text: Moon.glyph(win.today) + " " + Tr.t("Panchang")
-                    selected: false
-                    onClicked: {
-                        Ui.kundaliDate = Qt.formatDate(win.today, "yyyy-MM-dd");
-                        Ui.closeAll();
-                        Ui.kundali = true;
+                spacing: Theme.space(2)
+                ActionStrip {
+                    Layout.fillWidth: true
+                    Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
+                    Choice { text: Tr.t("Week"); selected: win.view === "week"; onClicked: { Ui.calendarView = "week"; Agenda.refresh(); } }
+                    Choice { text: Tr.t("Day"); selected: win.view === "day"; onClicked: { Ui.calendarView = "day"; Agenda.refresh(); } }
+                    Choice { text: Tr.t("Year"); selected: win.view === "year"; onClicked: { Ui.calendarView = "year"; Agenda.refresh(); } }
+                    Choice {
+                        text: Tr.t("Agenda")
+                        selected: win.view === "agenda"
+                        Accessible.name: Tr.t("Agenda: upcoming and earlier events")
+                        onClicked: { Ui.calendarView = "agenda"; Agenda.refresh(); }
                     }
+                    Choice {
+                        text: Moon.glyph(win.today) + " " + Tr.t("Panchang")
+                        selected: false
+                        onClicked: {
+                            Ui.kundaliDate = Qt.formatDate(win.today, "yyyy-MM-dd");
+                            Ui.closeAll();
+                            Ui.kundali = true;
+                        }
+                    }
+                    Choice { text: Tr.t("Go to date…"); selected: win.pickingDate; onClicked: { win.pickingDate = !win.pickingDate; if (win.pickingDate) dateField.forceActiveFocus(); } }
+                    Choice { text: Tr.t("Today"); onClicked: { win.goToday(); win.pickingDate = false; } }
                 }
-                Choice { text: Tr.t("Go to date…"); selected: win.pickingDate; onClicked: { win.pickingDate = !win.pickingDate; if (win.pickingDate) dateField.forceActiveFocus(); } }
-                Choice { text: Tr.t("Today"); onClicked: { win.goToday(); win.pickingDate = false; } }
                 Button {
-                    visible: !win.editor
                     text: Tr.t("New event")
                     Accessible.name: Tr.t("New event")
                     kind: "primary"
@@ -793,7 +811,7 @@ AppWindow {
             }
 
             // time zone of the event times shown below
-            Flow {
+            ActionStrip {
                 visible: !win.editor
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
@@ -811,12 +829,22 @@ AppWindow {
                 visible: !win.editor
                 Layout.fillWidth: true
                 text: Tr.t("Times shown in %1").arg(win.zoneLabel)
-                color: Theme.faint
+                color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: Theme.type("caption")
             }
 
+            TextField {
+                id: dateField
+                visible: !win.editor && win.pickingDate
+                Layout.fillWidth: true
+                placeholder: Tr.t("Jump to date (yyyy-MM-dd)")
+                label: Tr.t("Jump to date (yyyy-MM-dd)")
+                error: text !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(text.trim()) ? Tr.t("Use yyyy-MM-dd") : ""
+                onAccepted: { if (win.goToDate(text)) text = "" }
+            }
             RowLayout {
+                visible: !win.editor
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 IconButton { icon: "go-previous"; size: Theme.px(28); tip: win.prevTip(); onClicked: win.stepView(-1) }
@@ -824,6 +852,7 @@ AppWindow {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: win.viewLabel()
+                    elide: Text.ElideRight
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: Theme.type("heading")
@@ -857,7 +886,7 @@ AppWindow {
             }
 
             GridLayout {
-                visible: win.view === "month"
+                visible: !win.editor && win.view === "month"
                 Layout.fillWidth: true
                 columns: win.weekNumbers ? 8 : 7
                 rowSpacing: 2
@@ -939,7 +968,7 @@ AppWindow {
             }
             Text {
                 // legend for the cell markers above (the day cell is clickable)
-                visible: win.view === "month"
+                visible: !win.editor && win.view === "month"
                 Layout.fillWidth: true
                 text: "● " + Tr.t("Reminders") + "    ◆ " + Tr.t("Holidays") + "    +n " + Tr.t("more")
                 color: Theme.faint
@@ -949,7 +978,7 @@ AppWindow {
 
             // ---- week timetable: 7-day grid with hour rows -------------------
             ColumnLayout {
-                visible: win.view === "week"
+                visible: !win.editor && win.view === "week"
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 GridLayout {
@@ -1216,7 +1245,7 @@ AppWindow {
 
             // ---- day timetable: 00:00–23:00, events in their start hour ----
             Flickable {
-                visible: win.view === "day"
+                visible: !win.editor && win.view === "day"
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.px(220)
                 contentHeight: dayHourCol.implicitHeight
@@ -1254,7 +1283,7 @@ AppWindow {
                                 border.width: 1
                                 border.color: Theme.stroke
                                 Rectangle {
-                                    visible: win.view === "day" && win.isNowHour(hour)
+                                    visible: !win.editor && win.view === "day" && win.isNowHour(hour)
                                     anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: parent.height * win.nowFraction() }
                                     height: 2
                                     color: Theme.red
@@ -1304,7 +1333,7 @@ AppWindow {
 
             // ---- year: 12 mini months; click a day for that day's view -----
             GridLayout {
-                visible: win.view === "year"
+                visible: !win.editor && win.view === "year"
                 Layout.fillWidth: true
                 columns: 3
                 rowSpacing: Theme.px(8)
@@ -1391,7 +1420,7 @@ AppWindow {
 
             // ---- agenda: upcoming and "earlier" (overdue) events -------------
             ColumnLayout {
-                visible: win.view === "agenda"
+                visible: !win.editor && win.view === "agenda"
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 Text {
@@ -1441,12 +1470,14 @@ AppWindow {
             }
 
             Rectangle {
+                visible: !win.editor
                 Layout.fillWidth: true
                 implicitHeight: 1
                 color: Theme.stroke
             }
 
             RowLayout {
+                visible: !win.editor
                 Layout.fillWidth: true
                 Text {
                     Layout.fillWidth: true
@@ -1473,7 +1504,7 @@ AppWindow {
             }
 
             // ---- which calendars show: a chip each, its colour beside its name ----
-            Flow {
+            ActionStrip {
                 Layout.fillWidth: true
                 visible: !win.editor && Agenda.calendarNames.length > 1
                 spacing: Theme.px(6)
@@ -1563,15 +1594,6 @@ AppWindow {
                 }
                 Connections { target: Agenda; function onAccountBusyChanged() { if (!Agenda.accountBusy && Agenda.accountError === "") { win.addingAccount = false; accPass.text = ""; } } }
             }
-            TextField {
-                id: dateField
-                visible: !win.editor && win.pickingDate
-                Layout.fillWidth: true
-                placeholder: Tr.t("Jump to date (yyyy-MM-dd)")
-                label: Tr.t("Jump to date (yyyy-MM-dd)")
-                error: text !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(text.trim()) ? Tr.t("Use yyyy-MM-dd") : ""
-                onAccepted: { if (win.goToDate(text)) text = "" }
-            }
             RowLayout {
                 visible: !win.editor
                 Layout.fillWidth: true
@@ -1582,6 +1604,12 @@ AppWindow {
                     placeholder: Tr.t("Search title, place or notes")
                     label: Tr.t("Search title, place or notes")
                     onTextChanged: { if (text !== Agenda.search) Agenda.search = text; }
+                }
+            }
+            Connections {
+                target: searchField.input
+                function onActiveFocusChanged() {
+                    if (searchField.input.activeFocus) calendarPage.revealSearch();
                 }
             }
             Connections { target: Agenda; function onSearchChanged() { if (Agenda.search !== searchField.text) searchField.text = Agenda.search; } }

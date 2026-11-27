@@ -80,8 +80,11 @@ Every app follows this. Files is the worked example (`Modules/Files/FilesPanel.q
    `BusyNote`, `InfoBanner`) - never a blank pane or a raw error string.
 8. **Every size, colour and gap from Theme.** `Theme.type()`, `Theme.space()`,
    `Theme.toneColor()`; nothing below 12 px; one primary button in view.
-9. **Check it** with `sh dev/check.sh shell=apps-phone` (every app at a
-   phone's width) and `shell=apps` (on a computer); look at the shots.
+9. **Check it** with `sh dev/check.sh render=apps` (every windowed app on all
+   eight profiles, plus landscape phone). Inspect the captures under
+   `out/renders/apps/<profile>`. Use `render=apps:phone,tv` to select profiles
+   and `SHANI_APPS=files,calendar` to select apps. The interaction checks
+   live in `shell=apps-phone` and `shell=apps`.
 
 ## Every form factor
 

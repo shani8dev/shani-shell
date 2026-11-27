@@ -11,6 +11,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls as Controls
 import qs.Common
 import qs.Services
 import "../../Common/FormFactor.js" as FF
@@ -65,6 +66,7 @@ PanelWindow {
     }
     // the layouts shown: the ones for this kind of screen (made for it first),
     // and whatever is chosen now; "Show all layouts" lists the rest
+    property bool kindExpanded: false
     property bool showAll: false
     property bool showFamiliar: false
     readonly property var shown: {
@@ -86,6 +88,7 @@ PanelWindow {
     function step(d) {
         const at = Math.max(0, shown.indexOf(sel));
         tryOn(shown[(at + d + shown.length * 3) % shown.length]);
+        Qt.callLater(() => scroll.reveal(tiles.itemAt(shown.indexOf(sel))));
     }
     property var before: ({})          // the settings as they were when this opened
     property bool tried: false
@@ -172,7 +175,7 @@ PanelWindow {
     }
     // the window's own keys, whichever item has focus after niri reloads its config
     Shortcut { sequences: ["Escape"]; enabled: root.visible; onActivated: root.cancel() }
-    Shortcut { sequences: ["Return", "Enter"]; enabled: root.visible; onActivated: { if (!root.tried) root.tryOn(root.sel); root.keep(); } }
+    Shortcut { sequences: ["Return", "Enter"]; enabled: root.visible && keysItem.activeFocus; onActivated: { if (!root.tried) root.tryOn(root.sel); root.keep(); } }
     // once per opening: made on first use it is created visible, and then also
     // told it became visible - a second run would take what was just tried on as
     // "how it was", and Cancel would put the tried layout back
@@ -187,6 +190,8 @@ PanelWindow {
         kindTried = false;
         showAll = false;
         showFamiliar = false;
+        kindExpanded = false;
+        scroll.contentY = 0;
         const m = matching();
         sel = m >= 0 ? m : Math.max(0, presets.findIndex(x => x.id === Settings.data.layoutPreset));
         Ui.layoutTrying = presets[sel].id;
@@ -304,161 +309,251 @@ PanelWindow {
         focus: root.visible
         Keys.onLeftPressed: root.step(-1)
         Keys.onRightPressed: root.step(1)
-        Keys.onUpPressed: root.step(-3)
-        Keys.onDownPressed: root.step(3)
+        Keys.onUpPressed: root.step(-layoutGrid.columns)
+        Keys.onDownPressed: root.step(layoutGrid.columns)
         MouseArea { objectName: "nav:pointer"; anchors.fill: parent; onClicked: root.cancel() }   // a click outside cancels; Escape does with keys
     }
 
     Glass {
         id: card
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 48, 980)
-        height: Math.min(parent.height - 48, body.implicitHeight + 48)
+        readonly property bool compact: width < Theme.px(760)
+        readonly property real inset: Theme.space(compact ? 3 : 6)
+        readonly property real usableHeight: Math.max(0, parent.height - Osk.heightOn(root.output))
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Math.max(0, (usableHeight - height) / 2)
+        width: Math.max(0, Math.min(Theme.px(1000), parent.width - Theme.space(6)))
+        height: Math.max(0, Math.min(usableHeight - Theme.space(6), body.implicitHeight + 2 * inset))
         strong: true
+        solid: compact
         radius: Theme.radiusLarge
-        MouseArea { anchors.fill: parent }       // a click on the card is not a click outside
-        RowLayout {
+        MouseArea { anchors.fill: parent; objectName: "nav:pointer" }
+
+        ColumnLayout {
             id: body
             anchors.fill: parent
-            anchors.margins: Theme.px(24)
-            spacing: Theme.px(24)
-            ColumnLayout {
+            anchors.margins: card.inset
+            spacing: Theme.space(3)
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: Tr.t("Screen and layout")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: Theme.type("subtitle")
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    Accessible.role: Accessible.Heading
+                }
+                IconButton { icon: "window-close"; tip: Tr.t("Close"); onClicked: root.cancel() }
+            }
+
+            Flickable {
+                id: scroll
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.alignment: Qt.AlignTop
-                spacing: Theme.px(14)
-                Text { text: Tr.t("Screen and layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
-                    text: Tr.t("Pick one to try it on — your desktop changes at once. Keep it, or Cancel to go back. You can still change any part of it in Settings afterwards.") }
-                // what kind of screen this is: the shell's size and its edges follow it
-                Text { text: Tr.t("This screen is a"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: Theme.px(6)
-                    Repeater {
-                        model: ["auto"].concat(root.kinds)
-                        Choice {
-                            required property string modelData
-                            text: modelData === "auto" ? Tr.t("Automatic") + " (" + Tr.t(FF.label(FormFactor.detected(root.output))) + ")" : Tr.t(FF.label(modelData))
-                            selected: root.kind === modelData
-                            onClicked: root.tryKind(modelData)
-                        }
-                    }
+                Layout.preferredHeight: contentHeight
+                contentWidth: width
+                contentHeight: sections.implicitHeight + Theme.space(2)
+                flickableDirection: Flickable.VerticalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
+
+                function reveal(item) {
+                    if (!item) return;
+                    const y = item.mapToItem(contentItem, 0, 0).y;
+                    if (y < contentY) contentY = y;
+                    else if (y + item.height > contentY + height) contentY = Math.min(contentHeight - height, y + item.height - height);
                 }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.kindNotes[root.kindNow] || ""; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
-                Text { text: Tr.t("Layout"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
-                // the layouts scroll inside the card when they are more than fit (all of them);
-                // the choice of which to show stays in view below
-                Flickable {
-                    id: gridScroll
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.preferredHeight: layoutGrid.implicitHeight
-                    Layout.minimumHeight: Theme.px(180)
-                    clip: true
-                    contentHeight: layoutGrid.implicitHeight
-                    boundsBehavior: Flickable.StopAtBounds
-                    // a tile chosen by the keys scrolls into view
-                    function reveal(item) {
-                        if (!item) return;
-                        const y = item.mapToItem(layoutGrid, 0, 0).y;
-                        if (y < contentY) contentY = y;
-                        else if (y + item.height > contentY + height) contentY = y + item.height - height;
-                    }
+
                 GridLayout {
-                    id: layoutGrid
-                    width: gridScroll.width
-                    columns: 3
-                    rowSpacing: Theme.px(12)
-                    columnSpacing: Theme.px(12)
-                    Repeater {
-                        model: root.shown
-                        Rectangle {
-                            id: tile
-                            required property int modelData        // its place in root.presets
-                            readonly property int pi: modelData
-                            readonly property var preset: root.presets[pi]
-                            readonly property bool chosen: root.sel === pi
+                    id: sections
+                    width: Math.max(0, scroll.width - Theme.space(2))
+                    columns: card.compact ? 1 : 2
+                    rowSpacing: Theme.space(5)
+                    columnSpacing: Theme.space(5)
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Theme.space(3)
+
+                        RowLayout {
                             Layout.fillWidth: true
-                            implicitHeight: tcol.implicitHeight + 16
-                            radius: Theme.radius
-                            color: chosen ? Theme.alpha(Theme.accent, 0.16) : (ta.containsMouse ? Theme.hover : "transparent")
-                            border.width: chosen ? 2 : 1
-                            border.color: chosen ? Theme.accent : Theme.stroke
-                            Accessible.role: Accessible.RadioButton
-                            Accessible.name: tile.preset.name
-                            Accessible.checked: chosen
-                            Accessible.onPressAction: root.tryOn(tile.pi)
-                            Accessible.onToggleAction: root.tryOn(tile.pi)
-                            ColumnLayout {
-                                id: tcol
-                                x: 8; y: 8
-                                width: parent.width - 16
-                                spacing: Theme.px(8)
-                                Item { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625
-                                    Mini { anchors.centerIn: parent; height: parent.height; width: root.drawnAs(tile.preset) === "phone" ? height * 0.5 : parent.width; s: tile.preset.set; kind: root.drawnAs(tile.preset) } }
-                                RowLayout {
-                                    spacing: Theme.px(6)
-                                    Icon { name: tile.preset.icon; size: Theme.px(16); color: tile.chosen ? Theme.accent : Theme.text }
-                                    Text { text: tile.preset.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("heading"); font.weight: Font.Medium }
-                                    Rectangle { visible: tile.preset.suits.indexOf(root.kindNow) >= 0; radius: Theme.px(8); color: tile.preset.made === root.kindNow ? Theme.alpha(Theme.accent, 0.25) : Theme.alpha(Theme.text, 0.1); implicitWidth: suitsL.implicitWidth + 12; implicitHeight: suitsL.implicitHeight + 4
-                                        Text { id: suitsL; anchors.centerIn: parent; text: tile.preset.made === root.kindNow ? Tr.t("Best for this screen") : Tr.t("Also works here"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") } }
-                                    Rectangle { visible: root.now === tile.pi && !root.tried; radius: Theme.px(8); color: Theme.alpha(Theme.accent, 0.25); implicitWidth: nowL.implicitWidth + 12; implicitHeight: nowL.implicitHeight + 4
-                                        Text { id: nowL; anchors.centerIn: parent; text: Tr.t("Now"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") } }
+                            Text {
+                                Layout.fillWidth: true
+                                text: Tr.t("This screen is a")
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: Theme.type("body")
+                                wrapMode: Text.Wrap
+                            }
+                            Choice {
+                                text: Tr.t(FF.label(root.kindNow))
+                                selected: root.kindExpanded
+                                onClicked: root.kindExpanded = !root.kindExpanded
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: Tr.t("Choose a layout to preview it.")
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("small")
+                            wrapMode: Text.Wrap
+                        }
+                        ActionStrip {
+                            visible: root.kindExpanded
+                            Layout.fillWidth: true
+                            Repeater {
+                                model: ["auto"].concat(root.kinds)
+                                Choice {
+                                    required property string modelData
+                                    text: modelData === "auto" ? Tr.t("Automatic") : Tr.t(FF.label(modelData))
+                                    selected: root.kind === modelData
+                                    onClicked: root.tryKind(modelData)
                                 }
                             }
-                            MouseArea { id: ta; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.tryOn(tile.pi) }
-                            onChosenChanged: if (chosen) gridScroll.reveal(tile)
                         }
-                    }
-                }
-                }
-                // which layouts: the ones for this screen, the familiar ones, or all
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: Theme.px(6)
-                    Choice { text: Tr.t("Best for this screen"); selected: !root.showAll && !root.showFamiliar; onClicked: { root.showAll = false; root.showFamiliar = false; } }
-                    Choice { text: Tr.t("Familiar layouts"); selected: root.showFamiliar; onClicked: { root.showAll = false; root.showFamiliar = true; } }
-                    Choice { text: Tr.t("All %1", root.presets.length); selected: root.showAll; onClicked: { root.showFamiliar = false; root.showAll = true; } }
-                }
-                Text { visible: root.now < 0 && !root.tried; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body")
-                    text: Tr.t("Your desktop is set up your own way right now, so none of these is marked. Cancel keeps it exactly as it is.") }
-            }
-            // the chosen layout: big picture, what it changes, Keep / Cancel
-            ColumnLayout {
-                Layout.preferredWidth: Theme.px(300)
-                Layout.maximumWidth: Theme.px(300)
-                Layout.fillHeight: true
-                spacing: Theme.px(12)
-                Item { Layout.fillWidth: true; Layout.preferredHeight: width * 0.625
-                    Mini { anchors.centerIn: parent; height: parent.height; width: root.drawnAs(root.p) === "phone" ? height * 0.5 : parent.width; s: root.p.set; kind: root.drawnAs(root.p) } }
-                Text { text: root.p.name; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("subtitle"); font.weight: Font.DemiBold }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
-                Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: Theme.px(4)
-                    Repeater {
-                        model: { const c = root.changes(root.p.set); return c.length ? c : [Tr.t("Nothing — this is how your desktop is now")]; }
-                        RowLayout {
-                            required property string modelData
+                        Text {
+                            visible: root.kindExpanded
                             Layout.fillWidth: true
-                            spacing: Theme.px(6)
-                            Icon { name: "object-select-symbolic"; size: Theme.px(14); color: Theme.accent; Layout.alignment: Qt.AlignTop }
-                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                            wrapMode: Text.Wrap
+                            text: root.kindNotes[root.kindNow] || ""
+                            color: Theme.dim
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("body")
+                        }
+                        ActionStrip {
+                            Layout.fillWidth: true
+                            Choice { text: Tr.t("Recommended"); selected: !root.showAll && !root.showFamiliar; onClicked: { root.showAll = false; root.showFamiliar = false; } }
+                            Choice { text: Tr.t("Familiar"); selected: root.showFamiliar; onClicked: { root.showAll = false; root.showFamiliar = true; } }
+                            Choice { text: Tr.t("All"); selected: root.showAll; onClicked: { root.showFamiliar = false; root.showAll = true; } }
+                        }
+
+                        GridLayout {
+                            id: layoutGrid
+                            Layout.fillWidth: true
+                            columns: width < Theme.px(280) ? 1 : width < Theme.px(510) ? 2 : 3
+                            rowSpacing: Theme.space(2)
+                            columnSpacing: Theme.space(2)
+                            Repeater {
+                                id: tiles
+                                model: root.shown
+                                Rectangle {
+                                    id: tile
+                                    required property int modelData
+                                    readonly property var preset: root.presets[modelData]
+                                    readonly property bool chosen: root.sel === modelData
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 1
+                                    implicitHeight: tileContent.implicitHeight + Theme.space(4)
+                                    radius: Theme.radius
+                                    color: chosen ? Theme.accentSoft : (tileArea.containsMouse ? Theme.hover : Theme.surface1)
+                                    border.width: chosen ? 2 : 1
+                                    border.color: chosen ? Theme.accent : Theme.stroke
+                                    Accessible.role: Accessible.RadioButton
+                                    Accessible.name: tile.preset.name
+                                    Accessible.checked: chosen
+                                    Accessible.onPressAction: root.tryOn(tile.modelData)
+                                    Accessible.onToggleAction: root.tryOn(tile.modelData)
+
+                                    ColumnLayout {
+                                        id: tileContent
+                                        anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.space(2) }
+                                        spacing: Theme.space(2)
+                                        Item {
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: Math.min(Theme.px(94), width * 0.58)
+                                            Mini {
+                                                anchors.centerIn: parent
+                                                height: parent.height
+                                                width: kind === "phone" ? height * 0.55 : Math.min(parent.width, height * 1.6)
+                                                s: tile.preset.set
+                                                kind: root.drawnAs(tile.preset)
+                                            }
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: tile.preset.name
+                                            horizontalAlignment: Text.AlignHCenter
+                                            elide: Text.ElideRight
+                                            color: Theme.text
+                                            font.family: Theme.font
+                                            font.pixelSize: Theme.type("body")
+                                            font.weight: tile.chosen ? Font.DemiBold : Font.Normal
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: tileArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.tryOn(tile.modelData)
+                                    }
+                                    KeyFocus { columns: layoutGrid.columns; onActivated: root.tryOn(tile.modelData) }
+                                }
+                            }
                         }
                     }
+
+                    ColumnLayout {
+                        Layout.fillWidth: card.compact
+                        Layout.preferredWidth: card.compact ? 0 : Theme.px(260)
+                        Layout.maximumWidth: card.compact ? Number.POSITIVE_INFINITY : Theme.px(260)
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Theme.space(2)
+                        Item {
+                            visible: !card.compact
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: width * 0.625
+                            Mini {
+                                anchors.centerIn: parent
+                                height: parent.height
+                                width: kind === "phone" ? height * 0.55 : parent.width
+                                s: root.p.set
+                                kind: root.drawnAs(root.p)
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: root.p.name
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("heading")
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                            Accessible.role: Accessible.Heading
+                        }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: root.p.desc; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                        Text { text: root.tried ? Tr.t("What changed") : Tr.t("What it changes"); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body"); font.weight: Font.Medium }
+                        Repeater {
+                            model: { const changes = root.changes(root.p.set); return changes.length ? changes : [Tr.t("Nothing — this is how your desktop is now")]; }
+                            RowLayout {
+                                required property string modelData
+                                Layout.fillWidth: true
+                                spacing: Theme.space(2)
+                                Icon { name: "object-select-symbolic"; size: Theme.px(14); color: Theme.accent; Layout.alignment: Qt.AlignTop }
+                                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("body") }
+                            }
+                        }
+                        Button { text: Tr.t("More settings…"); onClicked: { root.tried || root.kindTried ? root.keep() : root.cancel(); Ui.openSettings("personal"); } }
+                    }
                 }
-                Item { Layout.fillHeight: true }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small")
-                    text: Tr.t("Arrows to look through them · Enter to keep · Esc to cancel") }
-                RowLayout {
+            }
+
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.stroke }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.space(2)
+                Button { Layout.fillWidth: true; text: Tr.t("Cancel"); kind: "outline"; onClicked: root.cancel() }
+                Button {
                     Layout.fillWidth: true
-                    spacing: Theme.px(8)
-                    Button { text: Tr.t("More settings…"); onClicked: { root.tried || root.kindTried ? root.keep() : root.cancel(); Ui.openSettings("personal"); } }
-                    Item { Layout.fillWidth: true }
-                    Button { text: Tr.t("Cancel"); kind: "outline"; onClicked: root.cancel() }
-                    Button { text: root.tried || root.kindTried ? Tr.t("Keep this layout") : Tr.t("Use this layout"); kind: "primary"; onClicked: root.tried ? root.keep() : (root.tryOn(root.sel), root.keep()) }
+                    text: root.tried || root.kindTried ? Tr.t("Keep this layout") : Tr.t("Use this layout")
+                    kind: "primary"
+                    onClicked: root.tried ? root.keep() : (root.tryOn(root.sel), root.keep())
                 }
             }
         }

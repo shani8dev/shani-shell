@@ -243,9 +243,12 @@ AppWindow {
         spacing: Theme.px(8)
 
         // ---- header row: title + actions ----
-        RowLayout {
+        ActionStrip {
             Layout.fillWidth: true
             Text {
+                visible: text !== ""
+                Layout.maximumWidth: win.width * 0.35
+                elide: Text.ElideRight
                 text: win.mode === "add" ? Tr.t("New contact")
                     : win.mode === "edit" ? Tr.t("Edit contact")
                     : win.showDuplicates ? Tr.t("Merge duplicates")
@@ -255,7 +258,13 @@ AppWindow {
                 font.pixelSize: Theme.type("heading")
                 font.weight: Font.DemiBold
             }
-            Item { Layout.fillWidth: true }
+            Button {
+                visible: win.mode === "list" && !win.showDuplicates
+                text: Tr.t("New contact")
+                kind: "primary"
+                enabled: win.source === "local"
+                onClicked: win.newContact()
+            }
             Button {
                 visible: win.mode === "list" && !win.showDuplicates
                 text: Tr.t("Merge duplicates…")
@@ -284,13 +293,6 @@ AppWindow {
                 checked: win.selecting
                 Accessible.name: win.selecting ? Tr.t("Cancel selecting contacts") : Tr.t("Select several contacts")
                 onClicked: win.toggleSelecting()
-            }
-            Button {
-                visible: win.mode === "list" && !win.showDuplicates
-                text: Tr.t("New contact")
-                kind: "primary"
-                enabled: win.source === "local"
-                onClicked: win.newContact()
             }
             Button {
                 visible: win.mode !== "list"
@@ -604,7 +606,7 @@ AppWindow {
             }
         }
 
-        Flow {
+        ActionStrip {
             visible: win.mode === "list" && !win.showDuplicates
             Layout.fillWidth: true
             spacing: Theme.px(6)
@@ -622,7 +624,7 @@ AppWindow {
             }
         }
 
-        Flow {
+        ActionStrip {
             visible: win.mode === "list" && !win.showDuplicates
             Layout.fillWidth: true
             spacing: Theme.px(6)
@@ -636,7 +638,7 @@ AppWindow {
                 }
             }
         }
-        Flow {
+        ActionStrip {
             visible: win.mode === "list" && !win.showDuplicates
             Layout.fillWidth: true
             spacing: Theme.px(6)
@@ -652,7 +654,7 @@ AppWindow {
         }
 
         // ---- one action for all chosen cards ----
-        RowLayout {
+        ActionStrip {
             visible: win.mode === "list" && !win.showDuplicates && win.source === "local" && win.selecting
             Layout.fillWidth: true
             spacing: Theme.px(6)
@@ -664,7 +666,6 @@ AppWindow {
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: text
             }
-            Item { Layout.fillWidth: true }
             Button {
                 text: Tr.t("Export chosen"); flat: true
                 enabled: win.chosen.length > 0

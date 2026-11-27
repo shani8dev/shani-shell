@@ -57,9 +57,8 @@ AppWindow {
 
             // quick categories, one tap each — the Unicode blocks the bridge
             // indexes (bridge/characters.py RANGES), not just the first six
-            Flow {
+            ActionStrip {
                 Layout.fillWidth: true
-                spacing: Theme.px(6)
                 Repeater {
                     model: ["Symbols", "Arrows", "Math", "Currency", "Latin", "Greek", "Cyrillic", "Hebrew", "Arabic", "Devanagari", "Bengali", "Tamil", "Telugu", "Malayalam", "Emoji"]
                     Choice {
@@ -79,8 +78,10 @@ AppWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                cellWidth: 92
-                cellHeight: 76
+                readonly property int columns: Math.max(1, Math.floor(width / Theme.px(96)))
+                cellWidth: Math.floor(width / columns)
+                cellHeight: Math.max(Theme.touchTarget, Theme.px(22) * Theme.fontScale
+                                     + Theme.type("caption") * 3 + Theme.space(6))
                 model: Characters.results
                 boundsBehavior: Flickable.StopAtBounds
                 Accessible.role: Accessible.List
@@ -146,6 +147,7 @@ AppWindow {
                     }
                     KeyFocus {
                         name: cell.modelData.name
+                        columns: grid.columns
                         onActivated: win.copyChar(cell.modelData)
                     }
                 }

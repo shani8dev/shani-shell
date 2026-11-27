@@ -10,7 +10,7 @@
 //   Tab / Shift+Tab      the first item of the next / previous region (an ancestor
 //                        whose objectName starts with "region:"), else the next item
 //   Escape               not taken: it reaches the surface, which goes back or closes
-// The focused item is scrolled into view in the nearest Flickable, and its name is
+// The focused item is scrolled into view in its Flickable ancestors, and its name is
 // Ui.navFocus (the tests read it). One component, so every ring looks the same.
 import QtQuick
 import qs.Common
@@ -123,20 +123,20 @@ Item {
         if (!activeFocus)
             return;
         Ui.navFocus = f.name;
-        // keep it in view: the nearest Flickable scrolls just enough
+        // A control in a scrolling row may also need its page to scroll.
         for (let p = f.parent; p; p = p.parent) {
-            if (p.contentY !== undefined && p.contentHeight !== undefined && p.contentItem) {
-                const r = f.mapToItem(p.contentItem, 0, 0);
-                if (r.y < p.contentY)
-                    p.contentY = Math.max(0, r.y - 8);
-                else if (r.y + f.height > p.contentY + p.height)
-                    p.contentY = Math.min(Math.max(0, p.contentHeight - p.height), r.y + f.height - p.height + 8);
-                if (r.x < p.contentX)
-                    p.contentX = Math.max(0, r.x - 8);
-                else if (r.x + f.width > p.contentX + p.width)
-                    p.contentX = Math.min(Math.max(0, p.contentWidth - p.width), r.x + f.width - p.width + 8);
-                break;
-            }
+            if (!(p instanceof Flickable))
+                continue;
+            const r = f.mapToItem(p.contentItem, 0, 0);
+            const pad = Theme.space(2);
+            if (p.contentHeight > p.height && r.y < p.contentY)
+                p.contentY = Math.max(p.originY, r.y - pad);
+            else if (p.contentHeight > p.height && r.y + f.height > p.contentY + p.height)
+                p.contentY = Math.min(p.originY + p.contentHeight - p.height, r.y + f.height - p.height + pad);
+            if (p.contentWidth > p.width && r.x < p.contentX)
+                p.contentX = Math.max(p.originX, r.x - pad);
+            else if (p.contentWidth > p.width && r.x + f.width > p.contentX + p.width)
+                p.contentX = Math.min(p.originX + p.contentWidth - p.width, r.x + f.width - p.width + pad);
         }
     }
     Rectangle {

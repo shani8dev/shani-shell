@@ -690,9 +690,7 @@ AppWindow {
         ColumnLayout {
             anchors.fill: parent
             spacing: Theme.px(10)
-            // a Flow, not a RowLayout: on a phone the chips wrap instead of
-            // pushing the last filters off the edge
-            Flow {
+            ActionStrip {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
@@ -742,6 +740,10 @@ AppWindow {
                         onClicked: win.minRating = win.minRating === modelData ? 0 : modelData
                     }
                 }
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.px(6)
                 SearchField {
                     id: photoSearch
                     width: Math.min(Theme.px(180), parent.width)

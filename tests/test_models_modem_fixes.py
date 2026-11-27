@@ -39,7 +39,7 @@ def test_removing_active_model_clears_preference():
     t = MODELS_WIN.read_text()
     body = t[
         t.index("id: removeConfirm") : t.index(
-            "contentItem: Text", t.index("id: removeConfirm")
+            "contentItem: Item", t.index("id: removeConfirm")
         )
     ]
     assert "Settings.data.chronoaPreferredModel === name" in body

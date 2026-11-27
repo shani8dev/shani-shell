@@ -34,8 +34,8 @@ Rectangle {
     opacity: editing && hiddenNow ? 0.45 : 1
     Behavior on opacity { NumberAnimation { duration: Theme.anim } }
 
-    implicitHeight: Theme.px(58)
-    height: Theme.px(58)
+    implicitHeight: Math.max(Theme.px(58), Theme.touchTarget)
+    height: parent && parent.tileHeight !== undefined ? parent.tileHeight : implicitHeight
     // the grid places it: by id, in the person's order, only if it can work here
     onCanChanged: report()
     Component.onCompleted: report()
@@ -52,6 +52,8 @@ Rectangle {
         function onShownChanged() { parent.place(root); }
         function onEditingChanged() { parent.place(root); }
         function onWidthChanged() { parent.place(root); }
+        function onTileHeightChanged() { parent.place(root); }
+        function onGapChanged() { parent.place(root); }
     }
     radius: Theme.px(14)
     // off: a tint of the text colour, so a tile reads as a tile on a light panel too
@@ -82,9 +84,11 @@ Rectangle {
             width: parent.width
             text: root.title
             color: root.ink
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
             elide: Text.ElideRight
             font.family: Theme.font
-            font.pixelSize: Theme.type("body")
+            font.pixelSize: Theme.type(root.width < Theme.px(178) ? "small" : "body")
             font.weight: Font.DemiBold
         }
         Text {
