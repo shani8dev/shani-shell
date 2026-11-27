@@ -353,7 +353,7 @@ AppWindow {
                 Models.remove(name);
             }
             contentItem: Item {
-                implicitHeight: Math.max(removeMessage.implicitHeight, Theme.touchTarget)
+                implicitHeight: Theme.px(80)
                 Text {
                     id: removeMessage
                     width: removeConfirm.availableWidth

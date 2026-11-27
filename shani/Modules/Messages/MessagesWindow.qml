@@ -86,8 +86,9 @@ AppWindow {
     // ---- the conversations --------------------------------------------------
     ColumnLayout {
         id: leftHeader
+        visible: !win.compact || Link.openThread === ""
         anchors { top: parent.top; left: parent.left; margins: Theme.px(12) }
-        width: Theme.px(280)
+        width: win.compact ? parent.width - Theme.px(24) : Theme.px(280)
         spacing: Theme.px(6)
         TextField {
             id: searchBox
@@ -141,8 +142,9 @@ AppWindow {
     }
     ListView {
         id: list
+        visible: !win.compact || Link.openThread === ""
         anchors { top: leftHeader.bottom; topMargin: Theme.px(6); bottom: parent.bottom; left: parent.left; leftMargin: Theme.px(12) }
-        width: Theme.px(280)
+        width: win.compact ? parent.width - Theme.px(24) : Theme.px(280)
         clip: true
         spacing: Theme.px(2)
         model: Link.visibleConversations(win.search)
@@ -191,12 +193,19 @@ AppWindow {
 
     // ---- one conversation ---------------------------------------------------
     ColumnLayout {
+        visible: !win.compact || Link.openThread !== ""
         anchors { top: parent.top; bottom: parent.bottom; right: parent.right; margins: Theme.px(12) }
-        width: win.width - Theme.px(320)
+        width: win.compact ? parent.width - Theme.px(24) : Math.max(0, parent.width - Theme.px(320))
         spacing: Theme.px(8)
 
         RowLayout {
             Layout.fillWidth: true
+            IconButton {
+                visible: win.compact
+                icon: "go-previous"
+                tip: Tr.t("Back to conversations")
+                onClicked: Link.openDevice(Link.phone ? Link.phone.id : "")
+            }
             Text {
                 // openDevice() clears the thread but not its name: do not keep a
                 // closed conversation's title above an empty composer

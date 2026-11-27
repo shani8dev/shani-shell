@@ -137,7 +137,7 @@ AppWindow {
                     Accessible.name: Tr.t("Locked")
                 }
                 ColumnLayout {
-                    width: Math.max(Theme.px(160), parent.width - Theme.px(280))
+                    width: win.compact ? parent.width - Theme.px(40) : Math.max(Theme.px(160), parent.width - Theme.px(280))
                     spacing: 0
                     Text {
                         Layout.fillWidth: true
@@ -156,6 +156,7 @@ AppWindow {
                               + (Archive.selection.length ? "  ·  " + Tr.t("%1 selected").arg(Archive.selection.length) : "")
                               + (Archive.modified ? "  ·  " + Tr.t("Changed this session") : "")
                         color: Theme.dim
+                        elide: Text.ElideRight
                         font.family: Theme.font
                         font.pixelSize: Theme.type("small")
                     }

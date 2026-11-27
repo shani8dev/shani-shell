@@ -33,6 +33,7 @@ AppWindow {
     readonly property bool pageReplaced: win.compact && !win.mini && win.page !== "playing"
     readonly property bool paneReplaced: win.compact && !win.mini &&
         (win.page !== "playing" || win.recentShown || win.audiobookShown || queuePane.open)
+    readonly property bool phonePlayer: win.compact && win.width < Theme.px(600)
     readonly property int rowH: Math.max(Theme.px(30), Theme.touchTarget)
     function backToPlayer() {
         win.page = "playing";
@@ -76,6 +77,7 @@ AppWindow {
     onCoverChanged: PlayQueue.coverShown = cover
 
     property bool listShown: false
+    property bool phoneMore: false
     onListShownChanged: if (win.compact) queuePane.open = listShown
     // library | playing: the music in ~/Music, or what is playing (a video always shows)
     // (PlayQueue.page: the IPC and `shani app media-player` can ask for either)
@@ -484,8 +486,8 @@ AppWindow {
                     }
                     ColumnLayout {
                         anchors.centerIn: parent
-                        width: Math.min(parent.width - 60, 520)
-                        spacing: Theme.px(10)
+                        width: Math.min(parent.width - Theme.px(32), Theme.px(520))
+                        spacing: win.phonePlayer ? Theme.px(5) : Theme.px(10)
                         visible: !player.hasVideo
                         Icon {
                             Layout.alignment: Qt.AlignHCenter
@@ -496,8 +498,8 @@ AppWindow {
                         }
                         Image {
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: Math.min(Theme.px(260), parent.width - Theme.px(40))
-                            Layout.preferredHeight: Math.min(Theme.px(260), parent.width - Theme.px(40))
+                            Layout.preferredWidth: Math.min(win.phonePlayer ? Theme.px(180) : Theme.px(260), parent.width - Theme.px(40))
+                            Layout.preferredHeight: Math.min(win.phonePlayer ? Theme.px(180) : Theme.px(260), parent.width - Theme.px(40))
                             visible: win.cover !== ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
@@ -943,10 +945,11 @@ AppWindow {
                 Flow {
                     visible: !win.mini && !win.pageReplaced
                     Layout.fillWidth: true
-                    Layout.margins: Theme.px(10)
+                    Layout.margins: win.phonePlayer ? Theme.px(6) : Theme.px(10)
                     spacing: Theme.px(6)
-                    IconButton { icon: "media-skip-backward"; tip: Tr.t("Previous") + " (P)"; enabled: PlayQueue.current !== ""; onClicked: PlayQueue.previous() }
+                    IconButton { visible: !win.phonePlayer || !win.phoneMore; icon: "media-skip-backward"; tip: Tr.t("Previous") + " (P)"; enabled: PlayQueue.current !== ""; onClicked: PlayQueue.previous() }
                     IconButton {
+                        visible: !win.phonePlayer || !win.phoneMore
                         icon: PlayQueue.playing ? "media-playback-pause" : "media-playback-start"
                         size: Theme.px(40)
                         on: true
@@ -954,9 +957,17 @@ AppWindow {
                         enabled: PlayQueue.current !== ""
                         onClicked: win.toggle()
                     }
-                    IconButton { icon: "media-skip-forward"; tip: Tr.t("Next") + " (N)"; enabled: PlayQueue.queue.length > 1; onClicked: PlayQueue.next() }
-                    IconButton { icon: "media-playback-stop"; tip: Tr.t("Stop"); enabled: PlayQueue.current !== ""; onClicked: PlayQueue.stop() }
-                    IconButton { icon: "folder-open"; tip: Tr.t("Show in Files"); enabled: PlayQueue.current !== "" && !PlayQueue.isStream; onClicked: win.reveal() }
+                    IconButton { visible: !win.phonePlayer || !win.phoneMore; icon: "media-skip-forward"; tip: Tr.t("Next") + " (N)"; enabled: PlayQueue.queue.length > 1; onClicked: PlayQueue.next() }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "media-playback-stop"; tip: Tr.t("Stop"); enabled: PlayQueue.current !== ""; onClicked: PlayQueue.stop() }
+                    IconButton {
+                        visible: win.phonePlayer
+                        icon: "view-more"
+                        tip: Tr.t("More playback controls")
+                        on: win.phoneMore
+                        onClicked: win.phoneMore = !win.phoneMore
+                        Accessible.name: Tr.t("More playback controls")
+                    }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "folder-open"; tip: Tr.t("Show in Files"); enabled: PlayQueue.current !== "" && !PlayQueue.isStream; onClicked: win.reveal() }
                     Text {
                         leftPadding: Theme.px(8)
                         text: PlayQueue.clock(seekArea.pressed ? seekArea.at / 1000 : PlayQueue.position) + " / " + PlayQueue.clock(PlayQueue.duration)
@@ -966,6 +977,7 @@ AppWindow {
                         font.features: { "tnum": 1 }
                     }
                     TextField {
+                        visible: !win.phonePlayer || win.phoneMore
                         id: goField
                         width: Theme.px(90)
                         placeholder: "mm:ss"
@@ -973,13 +985,14 @@ AppWindow {
                         input.font.features: { "tnum": 1 }
                         onAccepted: if (!win.goToTime(text)) win.goError = true; else win.goError = false
                     }
-                    Button { text: Tr.t("Go"); flat: true; enabled: PlayQueue.current !== ""; onClicked: { if (!win.goToTime(goField.text)) win.goError = true; else win.goError = false; } }
+                    Button { visible: !win.phonePlayer || win.phoneMore; text: Tr.t("Go"); flat: true; enabled: PlayQueue.current !== ""; onClicked: { if (!win.goToTime(goField.text)) win.goError = true; else win.goError = false; } }
                     Text { visible: win.goError; text: Tr.t("Bad time"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
-                    Button { text: "A"; flat: true; checked: PlayQueue.loopA >= 0; onClicked: PlayQueue.setLoopA(PlayQueue.position); Accessible.name: Tr.t("Set loop start") }
-                    Button { text: "B"; flat: true; checked: PlayQueue.loopB > PlayQueue.loopA; onClicked: PlayQueue.setLoopB(PlayQueue.position); Accessible.name: Tr.t("Set loop end") }
+                    Button { visible: !win.phonePlayer || win.phoneMore; text: "A"; flat: true; checked: PlayQueue.loopA >= 0; onClicked: PlayQueue.setLoopA(PlayQueue.position); Accessible.name: Tr.t("Set loop start") }
+                    Button { visible: !win.phonePlayer || win.phoneMore; text: "B"; flat: true; checked: PlayQueue.loopB > PlayQueue.loopA; onClicked: PlayQueue.setLoopB(PlayQueue.position); Accessible.name: Tr.t("Set loop end") }
                     Button { text: Tr.t("Loop off"); flat: true; visible: PlayQueue.loopActive; onClicked: PlayQueue.clearLoop() }
                     // speed: a pick, not a number to type
                     Text {
+                        visible: !win.phonePlayer || win.phoneMore
                         leftPadding: Theme.px(4)
                         text: Tr.t("Speed")
                         color: Theme.dim
@@ -990,24 +1003,28 @@ AppWindow {
                         model: [0.5, 1, 1.25, 1.5, 2]
                         Choice {
                             required property real modelData
+                            visible: !win.phonePlayer || win.phoneMore
                             text: modelData + "×"
                             selected: PlayQueue.rate === modelData
                             onClicked: PlayQueue.rate = modelData
                         }
                     }
                     IconButton {
+                        visible: !win.phonePlayer || win.phoneMore
                         icon: PlayQueue.repeat === "one" ? "media-playlist-repeat-song" : "media-playlist-repeat"
                         tip: (PlayQueue.repeat === "off" ? Tr.t("Repeat off") : PlayQueue.repeat === "all" ? Tr.t("Repeat all") : Tr.t("Repeat this one")) + " (Shift+R)"
                         on: PlayQueue.repeat !== "off"
                         onClicked: win.cycleRepeat()
                     }
-                    IconButton { icon: "media-playlist-shuffle"; tip: Tr.t("Shuffle") + " (S)"; on: PlayQueue.shuffle; onClicked: PlayQueue.shuffle = !PlayQueue.shuffle }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "media-playlist-shuffle"; tip: Tr.t("Shuffle") + " (S)"; on: PlayQueue.shuffle; onClicked: PlayQueue.shuffle = !PlayQueue.shuffle }
                     IconButton {
+                        visible: !win.phonePlayer || win.phoneMore
                         icon: PlayQueue.muted || PlayQueue.volume === 0 ? "audio-volume-muted" : PlayQueue.volume < 0.5 ? "audio-volume-low" : "audio-volume-high"
                         tip: (PlayQueue.muted ? Tr.t("Unmute") : Tr.t("Mute")) + " (M)"
                         onClicked: PlayQueue.muted = !PlayQueue.muted
                     }
                     Item {
+                        visible: !win.phonePlayer || win.phoneMore
                         width: Theme.px(90)
                         height: Math.max(Theme.px(22), Theme.touchTarget)
                         Accessible.role: Accessible.Slider
@@ -1032,31 +1049,32 @@ AppWindow {
                     IconButton {
                         icon: "document-properties"
                         tip: Tr.t("Media properties")
-                        visible: PlayQueue.current !== ""
+                        visible: (!win.phonePlayer || win.phoneMore) && PlayQueue.current !== ""
                         on: win.infoShown
                         onClicked: win.infoShown = !win.infoShown
                     }
                     IconButton {
                         icon: "media-view-subtitles"
                         tip: Tr.t("Sound and subtitles")
-                        visible: player.audioTracks.length > 1 || player.subtitleTracks.length > 0 || win.cues.length > 0
+                        visible: (!win.phonePlayer || win.phoneMore) && (player.audioTracks.length > 1 || player.subtitleTracks.length > 0 || win.cues.length > 0)
                         on: win.tracksShown
                         onClicked: win.tracksShown = !win.tracksShown
                     }
-                    IconButton { icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
                     IconButton { icon: "document-open-recent"; tip: Tr.t("Recent media"); on: win.recentShown; onClicked: { win.recentShown = !win.recentShown; if (win.recentShown) win.streamShown = false; } }
                     IconButton {
+                        visible: !win.phonePlayer || win.phoneMore
                         icon: "book"
                         tip: Tr.t("Audiobook")
                         on: win.audiobookShown
                         onClicked: { win.audiobookShown = !win.audiobookShown; if (win.audiobookShown) { win.recentShown = false; win.streamShown = false; } }
                         Accessible.name: Tr.t("Audiobook mode")
                     }
-                    IconButton { icon: "network-workgroup"; tip: Tr.t("Open network stream"); on: win.streamShown; onClicked: { win.streamShown = !win.streamShown; if (win.streamShown) win.recentShown = false; } }
-                    IconButton { icon: "document-save-as"; tip: Tr.t("Convert this file…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
-                    IconButton { icon: "document-open"; tip: Tr.t("Open") + " (O)"; onClicked: win.pick() }
-                    IconButton { icon: "view-restore"; tip: Tr.t("Mini player") + " (I)"; enabled: PlayQueue.current !== ""; onClicked: win.setMini(true) }
-                    IconButton { icon: "view-fullscreen"; tip: Tr.t("Full screen") + " (F)"; onClicked: Niri.action("fullscreen-window") }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "network-workgroup"; tip: Tr.t("Open network stream"); on: win.streamShown; onClicked: { win.streamShown = !win.streamShown; if (win.streamShown) win.recentShown = false; } }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "document-save-as"; tip: Tr.t("Convert this file…"); enabled: PlayQueue.current !== ""; onClicked: { Ui.converterFiles = [PlayQueue.current]; Ui.converter = true; } }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "document-open"; tip: Tr.t("Open") + " (O)"; onClicked: win.pick() }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "view-restore"; tip: Tr.t("Mini player") + " (I)"; enabled: PlayQueue.current !== ""; onClicked: win.setMini(true) }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "view-fullscreen"; tip: Tr.t("Full screen") + " (F)"; onClicked: Niri.action("fullscreen-window") }
                 }
             }
 
