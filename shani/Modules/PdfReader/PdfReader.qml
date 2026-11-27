@@ -15,6 +15,9 @@ import "../../Common/Markup.js" as Markup
 
 AppWindow {
     id: win
+    property bool extraToolsShown: false
+    readonly property bool shortWindow: win.height < Theme.px(460)
+    readonly property bool compactReading: win.compact || win.shortWindow
     appName: "Document Viewer"
     sidePane: pagesPane
     property real panelWidth: Theme.px(280)      // desktop cards beside the page
@@ -396,15 +399,23 @@ AppWindow {
                 }
                 IconButton { icon: "go-next"; size: Theme.px(28); tip: Tr.t("Next page"); onClicked: PdfViewer.nextSpread() }
                 IconButton {
-                    visible: win.compact
+                    visible: win.compactReading
                     icon: "edit-find"
                     size: Theme.px(28)
                     tip: Tr.t("Find in document")
                     on: win.findOpen
                     onClicked: if (win.findOpen) win.findOpen = false; else win.openFind()
                 }
+                IconButton {
+                    visible: win.compactReading
+                    icon: "view-more"
+                    tip: Tr.t("More document controls")
+                    on: win.extraToolsShown
+                    onClicked: win.extraToolsShown = !win.extraToolsShown
+                }
             }
             ActionStrip {
+                visible: !win.compactReading || win.extraToolsShown
                 Layout.fillWidth: true
                 spacing: Theme.space(1)
                 IconButton { icon: "go-first"; size: Theme.px(28); tip: Tr.t("First page"); onClicked: PdfViewer.firstPage() }
@@ -439,7 +450,7 @@ AppWindow {
 
             // Search stays out of the reading area until opened in a narrow window.
             ColumnLayout {
-                visible: PdfViewer.shown && (!win.compact || win.findOpen)
+                visible: PdfViewer.shown && (!win.compactReading || win.findOpen)
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 RowLayout {
@@ -1287,6 +1298,7 @@ AppWindow {
 
             // fit / continuous / rotation toolbar
             ActionStrip {
+                visible: !win.shortWindow || win.extraToolsShown
                 Layout.fillWidth: true
                 spacing: Theme.space(1)
                 IconButton { icon: "zoom-fit-best"; size: Theme.px(28); tip: Tr.t("Fit page (F)"); on: PdfViewer.fitMode === "page"; onClicked: PdfViewer.setFit("page") }

@@ -710,6 +710,7 @@ AppWindow {
                     model: [["photos", Tr.t("Photos")], ["people", Tr.t("People")], ["places", Tr.t("Places")]]
                     Choice {
                         required property var modelData
+                        visible: !win.compact || win.moreShown
                         text: modelData[1]
                         selected: win.view === modelData[0]
                         onClicked: {
@@ -724,6 +725,7 @@ AppWindow {
                     model: [["day", Tr.t("Day")], ["month", Tr.t("Month")], ["year", Tr.t("Year")], ["folder", Tr.t("Folder")]]
                     Choice {
                         required property var modelData
+                        visible: !win.compact || win.moreShown
                         text: modelData[1]
                         selected: win.groupBy === modelData[0]
                         onClicked: win.groupBy = modelData[0]
@@ -735,6 +737,7 @@ AppWindow {
                     model: [1, 2, 3, 4, 5]
                     Choice {
                         required property int modelData
+                        visible: !win.compact || win.moreShown
                         text: modelData + "★+"
                         selected: win.minRating === modelData
                         onClicked: win.minRating = win.minRating === modelData ? 0 : modelData
@@ -806,6 +809,7 @@ AppWindow {
                     }
                 }
                 Button {
+                    visible: !win.compact || win.moreShown
                     text: Tr.t("Slideshow")
                     flat: true
                     enabled: win.shown.length > 0
@@ -823,6 +827,7 @@ AppWindow {
                     })
                 }
                 Choice {
+                    visible: !win.compact || win.moreShown
                     text: Tr.t("Dated folders")
                     selected: win.importDated
                     onClicked: win.importDated = !win.importDated
@@ -838,6 +843,7 @@ AppWindow {
                 IconButton {
                     size: Theme.px(30)
                     icon: "document-properties"
+                    visible: !win.compact || win.moreShown
                     tip: Tr.t("Details")
                     on: win.detailsShown
                     onClicked: {
@@ -850,6 +856,7 @@ AppWindow {
             // sort order on its own row: the toolbar above is already full at
             // the default width, which used to push the last sort off-screen.
             RowLayout {
+                visible: !win.compact || win.moreShown
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 Text {
@@ -1206,6 +1213,7 @@ AppWindow {
 
             // ---- filmstrip + persisted thumbnail size ----------------------------
             RowLayout {
+                visible: !win.compact || win.moreShown
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 SliderRow {

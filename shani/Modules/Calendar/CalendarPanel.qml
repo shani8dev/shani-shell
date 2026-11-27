@@ -767,17 +767,18 @@ AppWindow {
             TextField {
                 Layout.fillWidth: true
                 visible: !win.editor
-                placeholder: Tr.t("Quick add — “lunch Friday at noon”, Enter to save")
+                placeholder: win.compact ? label : Tr.t("Quick add — “lunch Friday at noon”, Enter to save")
                 label: Tr.t("Quick add")
                 error: win.quickError
                 onTextChanged: win.quickError = ""
                 onAccepted: { if (win.quickAdd(text)) clear(); }
             }
 
-            RowLayout {
+            GridLayout {
+                columns: win.compact ? 1 : 2
                 visible: !win.editor
                 Layout.fillWidth: true
-                spacing: Theme.space(2)
+                columnSpacing: Theme.space(2)
                 ActionStrip {
                     Layout.fillWidth: true
                     Choice { text: Tr.t("Month"); selected: win.view === "month"; onClicked: { Ui.calendarView = "month"; Agenda.refresh(); } }
@@ -805,6 +806,7 @@ AppWindow {
                 Button {
                     text: Tr.t("New event")
                     Accessible.name: Tr.t("New event")
+                    Layout.alignment: Qt.AlignRight
                     kind: "primary"
                     onClicked: win.openEditor(null)
                 }

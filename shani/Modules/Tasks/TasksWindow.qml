@@ -11,6 +11,8 @@ import qs.Services
 
 AppWindow {
     id: win
+    property bool taskOptionsShown: false
+    readonly property bool shortWindow: win.height < Theme.px(460)
     appName: "Tasks"
     visible: Ui.tasks
     onGone: Ui.tasks = false
@@ -145,6 +147,7 @@ AppWindow {
             }
             if (e.key === Qt.Key_Slash && !field.activeFocus && !renameField.activeFocus
                     && !noteField.activeFocus && !searchField.activeFocus) {
+                if (win.shortWindow) win.taskOptionsShown = true;
                 searchField.forceActiveFocus();   // Todoist's / quick find
                 e.accepted = true;
             }
@@ -164,13 +167,20 @@ AppWindow {
                 TextField {
                     id: field
                     Layout.fillWidth: true
-                    placeholder: Tr.t("Add a task — Call the bank, Buy milk…")
+                    placeholder: win.compact ? label : Tr.t("Add a task — Call the bank, Buy milk…")
                     label: Tr.t("New task")
                     onAccepted: win.addIt()
                 }
                 Button { kind: "primary"; text: Tr.t("Add"); enabled: field.text.trim() !== "" && Tasks.available; onClicked: win.addIt() }
+                Choice {
+                    visible: win.compact || win.shortWindow
+                    text: Tr.t("Options")
+                    selected: win.taskOptionsShown
+                    onClicked: win.taskOptionsShown = !win.taskOptionsShown
+                }
                 // Settings > Automations, where the shell's `scheduledOpen` IPC goes too
                 Button {
+                    visible: (!win.compact && !win.shortWindow) || win.taskOptionsShown
                     flat: true
                     text: Tr.t("Automations")
                     Accessible.name: Tr.t("Open scheduled tasks")
@@ -179,6 +189,7 @@ AppWindow {
             }
             // quick find: / from anywhere, Escape clears it (then closes the window)
             RowLayout {
+                visible: !win.shortWindow || win.taskOptionsShown || searchField.activeFocus || win.search !== ""
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 SearchField {
@@ -190,7 +201,8 @@ AppWindow {
                     Keys.onEscapePressed: e => { if (text !== "") { win.clearSearch(); e.accepted = true; } }
                 }
             }
-            Flow {
+            ActionStrip {
+                visible: (!win.compact && !win.shortWindow) || win.taskOptionsShown
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
@@ -204,7 +216,8 @@ AppWindow {
                 }
             }
             // the bridge writes PRIORITY on add; P1 is red, P3 is quiet
-            Flow {
+            ActionStrip {
+                visible: (!win.compact && !win.shortWindow) || win.taskOptionsShown
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Text { text: Tr.t("Priority:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
@@ -325,7 +338,8 @@ AppWindow {
             }
 
             // sort: the bridge orders by due; these are the other useful views
-            Flow {
+            ActionStrip {
+                visible: (!win.compact && !win.shortWindow) || win.taskOptionsShown
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Text { text: Tr.t("Sort:"); color: Theme.dim; height: Theme.px(30); verticalAlignment: Text.AlignVCenter; font.family: Theme.font; font.pixelSize: Theme.type("body") }
@@ -341,7 +355,7 @@ AppWindow {
             }
 
             // smart lists: named views over the same tasks, no backend needed
-            Flow {
+            ActionStrip {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
@@ -358,6 +372,7 @@ AppWindow {
 
             // select mode + clear-completed: bulk planning actions, two taps for loss
             Flow {
+                visible: !win.shortWindow || win.taskOptionsShown || win.selectMode
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Button {

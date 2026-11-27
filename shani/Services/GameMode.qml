@@ -12,7 +12,7 @@ import qs.Common
 Singleton {
     id: root
     readonly property var top: ToplevelManager.activeToplevel
-    readonly property bool fullscreen: Boolean(Settings.data.quietWhileFullscreen) && !!top && Boolean(top.fullscreen)
+    readonly property bool fullscreen: Settings.data.quietWhileFullscreen === true && top?.fullscreen === true
     readonly property bool game: {
         if (!fullscreen)
             return false;

@@ -235,9 +235,12 @@ AppWindow {
                 text: Tr.t("System overview")
                 Accessible.name: Tr.t("System info")
             }
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
-                spacing: Theme.px(6)
+                columns: win.compact ? 3 : 6
+                uniformCellWidths: true
+                rowSpacing: Theme.px(6)
+                columnSpacing: Theme.px(6)
                 Repeater {
                     model: [
                         { label: Tr.t("CPU"), value: Math.round(SysStats.cpu * 100) + "%", tint: Theme.accent },

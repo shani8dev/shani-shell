@@ -16,6 +16,7 @@ AppWindow {
     onGone: Archive.close()
     implicitWidth: Theme.px(720)
     implicitHeight: Theme.px(620)
+    readonly property bool shortWindow: win.height < Theme.px(460)
 
     // A password you mistype locks you out of your own archive for good, so
     // make it be entered twice and have a floor before Create is even enabled.
@@ -123,65 +124,6 @@ AppWindow {
         ColumnLayout {
             anchors.fill: parent
             spacing: Theme.px(10)
-
-            // the file actions wrap below the name on a narrow window
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.px(8)
-                Icon { name: "package-x-generic"; size: Theme.px(22); color: Theme.accent }
-                Icon {
-                    visible: Archive.wasProtected
-                    name: "dialog-password"
-                    size: Theme.px(16)
-                    color: Theme.accent
-                    Accessible.name: Tr.t("Locked")
-                }
-                ColumnLayout {
-                    width: win.compact ? parent.width - Theme.px(40) : Math.max(Theme.px(160), parent.width - Theme.px(280))
-                    spacing: 0
-                    Text {
-                        Layout.fillWidth: true
-                        text: Archive.file !== "" ? Archive.name : Tr.t("Archive Manager")
-                        color: Theme.text
-                        elide: Text.ElideMiddle
-                        font.family: Theme.font
-                        font.pixelSize: Theme.type("heading")
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: Archive.file !== ""
-                        text: Archive.reading ? Tr.t("Reading…")
-                            : Archive.entries.length + " " + Tr.t("items") + "  ·  " + Archive.human(Archive.totalSize) + " " + Tr.t("when extracted")
-                              + (Archive.selection.length ? "  ·  " + Tr.t("%1 selected").arg(Archive.selection.length) : "")
-                              + (Archive.modified ? "  ·  " + Tr.t("Changed this session") : "")
-                        color: Theme.dim
-                        elide: Text.ElideRight
-                        font.family: Theme.font
-                        font.pixelSize: Theme.type("small")
-                    }
-                }
-                Button {
-                    visible: Archive.modified
-                    text: Tr.t("Reload")
-                    flat: true
-                    onClicked: Archive.open(Archive.file)
-                }
-                Button { text: Tr.t("Open…"); flat: true; onClicked: win.pick() }
-                Button { visible: Archive.file !== ""; text: Tr.t("Show in Files"); flat: true; onClicked: win.reveal(Archive.file) }
-                Button {
-                    text: Tr.t("Add files…")
-                    flat: true
-                    visible: Archive.file !== ""
-                    enabled: Archive.canAppend && !Archive.appending
-                    onClicked: FilePicker.open({
-                        mode: "open", multiple: true,
-                        title: Tr.t("Add to the archive"),
-                        startPath: Archive.file.substring(0, Archive.file.lastIndexOf("/")),
-                        onPicked: paths => Archive.append(paths),
-                    })
-                }
-            }
 
             // ---- Recently opened archives (File Roller / Ark) ----------------
             Flow {
@@ -325,131 +267,197 @@ AppWindow {
             // Ark-style folder navigation and sort: the list is the current
             // directory, not the whole archive, with a synthetic folder per
             // subdirectory so archives without dir entries still navigate.
-            Flow {
+            GridLayout {
                 Layout.fillWidth: true
-                visible: Archive.entries.length > 0
-                spacing: Theme.px(8)
-                Button {
-                    text: Tr.t("Up")
-                    flat: true
-                    enabled: win.canGoUp
-                    Accessible.name: Tr.t("Up")
-                    onClicked: { Archive.up(); win.cursor = 0; list.currentIndex = 0; }
+                columns: win.shortWindow && !win.compact ? 4 : 1
+                columnSpacing: Theme.px(8)
+                rowSpacing: Theme.px(8)
+                // On short screens the window header already shows the archive name.
+                ActionStrip {
+                    Layout.fillWidth: true
+                    spacing: Theme.px(8)
+                    Icon { visible: !win.shortWindow; name: "package-x-generic"; size: Theme.px(22); color: Theme.accent }
+                    Icon {
+                        visible: !win.shortWindow && Archive.wasProtected
+                        name: "dialog-password"
+                        size: Theme.px(16)
+                        color: Theme.accent
+                        Accessible.name: Tr.t("Locked")
+                    }
+                    ColumnLayout {
+                        visible: !win.shortWindow
+                        Layout.preferredWidth: win.compact ? Theme.px(150) : Theme.px(200)
+                        spacing: 0
+                        Text {
+                            Layout.fillWidth: true
+                            text: Archive.file !== "" ? Archive.name : Tr.t("Archive Manager")
+                            color: Theme.text
+                            elide: Text.ElideMiddle
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("heading")
+                            font.weight: Font.DemiBold
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: Archive.file !== ""
+                            text: Archive.reading ? Tr.t("Reading…")
+                                : Archive.entries.length + " " + Tr.t("items") + "  ·  " + Archive.human(Archive.totalSize) + " " + Tr.t("when extracted")
+                                  + (Archive.selection.length ? "  ·  " + Tr.t("%1 selected").arg(Archive.selection.length) : "")
+                                  + (Archive.modified ? "  ·  " + Tr.t("Changed this session") : "")
+                            color: Theme.dim
+                            elide: Text.ElideRight
+                            font.family: Theme.font
+                            font.pixelSize: Theme.type("small")
+                        }
+                    }
+                    Button {
+                        visible: Archive.modified
+                        text: Tr.t("Reload")
+                        flat: true
+                        onClicked: Archive.open(Archive.file)
+                    }
+                    Button { text: Tr.t("Open…"); flat: true; onClicked: win.pick() }
+                    Button { visible: Archive.file !== ""; text: Tr.t("Show in Files"); flat: true; onClicked: win.reveal(Archive.file) }
+                    Button {
+                        text: Tr.t("Add files…")
+                        flat: true
+                        visible: Archive.file !== ""
+                        enabled: Archive.canAppend && !Archive.appending
+                        onClicked: FilePicker.open({
+                            mode: "open", multiple: true,
+                            title: Tr.t("Add to the archive"),
+                            startPath: Archive.file.substring(0, Archive.file.lastIndexOf("/")),
+                            onPicked: paths => Archive.append(paths),
+                        })
+                    }
                 }
-                Text {
-                    width: Math.max(Theme.px(120), Math.min(Theme.px(280), parent.width - Theme.px(240)))
-                    height: Math.max(Theme.px(24), Theme.touchTarget)
-                    verticalAlignment: Text.AlignVCenter
-                    text: Archive.currentDir === "" ? Archive.name : Archive.name + "/" + Archive.currentDir
-                    color: Theme.dim
-                    elide: Text.ElideMiddle
-                    font.family: Theme.font
-                    font.pixelSize: Theme.type("small")
-                    Accessible.name: text
+
+                ActionStrip {
+                    Layout.fillWidth: true
+                    visible: Archive.entries.length > 0
+                    spacing: Theme.px(8)
+                    Button {
+                        text: Tr.t("Up")
+                        flat: true
+                        enabled: win.canGoUp
+                        Accessible.name: Tr.t("Up")
+                        onClicked: { Archive.up(); win.cursor = 0; list.currentIndex = 0; }
+                    }
+                    Text {
+                        width: Math.max(Theme.px(120), Math.min(Theme.px(280), win.width - Theme.px(240)))
+                        height: Math.max(Theme.px(24), Theme.touchTarget)
+                        verticalAlignment: Text.AlignVCenter
+                        text: Archive.currentDir === "" ? Archive.name : Archive.name + "/" + Archive.currentDir
+                        color: Theme.dim
+                        elide: Text.ElideMiddle
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("small")
+                        Accessible.name: text
+                    }
+                    Text {
+                        text: Tr.t("Sort:")
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("small")
+                    }
+                    Choice {
+                        text: Tr.t("Name")
+                        selected: Archive.sortOrder === "name"
+                        onClicked: Archive.setSortOrder("name")
+                    }
+                    Choice {
+                        text: Tr.t("Size")
+                        selected: Archive.sortOrder === "size"
+                        onClicked: Archive.setSortOrder("size")
+                    }
                 }
-                Text {
-                    text: Tr.t("Sort:")
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.type("small")
+                ActionStrip {
+                    Layout.fillWidth: true
+                    visible: Archive.entries.length > 0
+                    spacing: Theme.px(8)
+                    Text {
+                        height: Math.max(Theme.px(24), Theme.touchTarget)
+                        verticalAlignment: Text.AlignVCenter
+                        text: Tr.t("Extract into")
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("small")
+                    }
+                    Choice {
+                        text: Tr.t("Rename")
+                        selected: Archive.overwritePolicy === "rename"
+                        Accessible.name: Tr.t("Rename")
+                        onClicked: Archive.setOverwritePolicy("rename")
+                    }
+                    Choice {
+                        text: Tr.t("Replace")
+                        selected: Archive.overwritePolicy === "overwrite"
+                        Accessible.name: Tr.t("Replace")
+                        onClicked: Archive.setOverwritePolicy("overwrite")
+                    }
+                    Choice {
+                        text: Tr.t("Skip")
+                        selected: Archive.overwritePolicy === "skip"
+                        Accessible.name: Tr.t("Skip")
+                        onClicked: Archive.setOverwritePolicy("skip")
+                    }
+                    Button {
+                        text: Tr.t("Test")
+                        flat: true
+                        enabled: !win.working
+                        Accessible.name: Tr.t("Test")
+                        onClicked: win.runTest()
+                    }
+                    Text {
+                        width: Math.max(Theme.px(120), Math.min(Theme.px(280), win.width - Theme.px(300)))
+                        height: Math.max(Theme.px(24), Theme.touchTarget)
+                        verticalAlignment: Text.AlignVCenter
+                        visible: Archive.testing || Archive.testResult !== ""
+                        text: Archive.testing ? Tr.t("Working…") : Archive.testResult
+                        color: Theme.dim
+                        elide: Text.ElideMiddle
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("small")
+                    }
                 }
-                Choice {
-                    text: Tr.t("Name")
-                    selected: Archive.sortOrder === "name"
-                    onClicked: Archive.setSortOrder("name")
-                }
-                Choice {
-                    text: Tr.t("Size")
-                    selected: Archive.sortOrder === "size"
-                    onClicked: Archive.setSortOrder("size")
-                }
-            }
-            Flow {
-                Layout.fillWidth: true
-                visible: Archive.entries.length > 0
-                spacing: Theme.px(8)
-                Text {
-                    height: Math.max(Theme.px(24), Theme.touchTarget)
-                    verticalAlignment: Text.AlignVCenter
-                    text: Tr.t("Extract into")
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.type("small")
-                }
-                Choice {
-                    text: Tr.t("Rename")
-                    selected: Archive.overwritePolicy === "rename"
-                    Accessible.name: Tr.t("Rename")
-                    onClicked: Archive.setOverwritePolicy("rename")
-                }
-                Choice {
-                    text: Tr.t("Replace")
-                    selected: Archive.overwritePolicy === "overwrite"
-                    Accessible.name: Tr.t("Replace")
-                    onClicked: Archive.setOverwritePolicy("overwrite")
-                }
-                Choice {
-                    text: Tr.t("Skip")
-                    selected: Archive.overwritePolicy === "skip"
-                    Accessible.name: Tr.t("Skip")
-                    onClicked: Archive.setOverwritePolicy("skip")
-                }
-                Button {
-                    text: Tr.t("Test")
-                    flat: true
-                    enabled: !win.working
-                    Accessible.name: Tr.t("Test")
-                    onClicked: win.runTest()
-                }
-                Text {
-                    width: Math.max(Theme.px(120), Math.min(Theme.px(280), parent.width - Theme.px(300)))
-                    height: Math.max(Theme.px(24), Theme.touchTarget)
-                    verticalAlignment: Text.AlignVCenter
-                    visible: Archive.testing || Archive.testResult !== ""
-                    text: Archive.testing ? Tr.t("Working…") : Archive.testResult
-                    color: Theme.dim
-                    elide: Text.ElideMiddle
-                    font.family: Theme.font
-                    font.pixelSize: Theme.type("small")
-                }
-            }
-            Flow {
-                Layout.fillWidth: true
-                visible: Archive.entries.length > 0
-                spacing: Theme.px(8)
-                TextField {
-                    id: entrySearch
-                    width: Math.max(Theme.px(140), Math.min(Theme.px(280), parent.width - Theme.px(200)))
-                    placeholderText: Tr.t("Find a file in the archive")
-                    label: Tr.t("Find a file in the archive")
-                    text: win.entryFilter
-                    onTextChanged: win.entryFilter = text
-                }
-                Text {
-                    text: win.visibleEntries.length + " / " + Archive.entries.length + " " + Tr.t("items")
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: Theme.type("small")
-                    font.features: { "tnum": 1 }
-                }
-                IconButton {
-                    icon: "edit-select-all"
-                    size: Theme.px(24)
-                    tip: Tr.t("Select all")
-                    enabled: win.visibleEntries.length > 0 && !win.busy
-                    onClicked: win.selectAllVisible()
-                }
-                IconButton {
-                    icon: "edit-clear-all"
-                    size: Theme.px(24)
-                    visible: Archive.selection.length > 0
-                    tip: Tr.t("Clear")
-                    onClicked: Archive.clearSelection()
-                }
-                Button {
-                    text: Tr.t("%1 selected").arg(Archive.selection.length) + " · " + Tr.t("Extract into")
-                    enabled: Archive.selection.length > 0 && !win.busy
-                    onClicked: win.extractSelectedTo()
+                ActionStrip {
+                    Layout.fillWidth: true
+                    visible: Archive.entries.length > 0
+                    spacing: Theme.px(8)
+                    TextField {
+                        id: entrySearch
+                        width: Math.max(Theme.px(140), Math.min(Theme.px(280), win.width - Theme.px(200)))
+                        placeholderText: Tr.t("Find a file in the archive")
+                        label: Tr.t("Find a file in the archive")
+                        text: win.entryFilter
+                        onTextChanged: win.entryFilter = text
+                    }
+                    Text {
+                        text: win.visibleEntries.length + " / " + Archive.entries.length + " " + Tr.t("items")
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: Theme.type("small")
+                        font.features: { "tnum": 1 }
+                    }
+                    IconButton {
+                        icon: "edit-select-all"
+                        size: Theme.px(24)
+                        tip: Tr.t("Select all")
+                        enabled: win.visibleEntries.length > 0 && !win.busy
+                        onClicked: win.selectAllVisible()
+                    }
+                    IconButton {
+                        icon: "edit-clear-all"
+                        size: Theme.px(24)
+                        visible: Archive.selection.length > 0
+                        tip: Tr.t("Clear")
+                        onClicked: Archive.clearSelection()
+                    }
+                    Button {
+                        text: Tr.t("%1 selected").arg(Archive.selection.length) + " · " + Tr.t("Extract into")
+                        enabled: Archive.selection.length > 0 && !win.busy
+                        onClicked: win.extractSelectedTo()
+                    }
                 }
             }
             Rectangle {

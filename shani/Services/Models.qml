@@ -25,8 +25,8 @@ Singleton {
     ]
 
     // system resources for fit-on-computer check
-    readonly property real ramTotal: SysStats.ramTotal / (1024 * 1024 * 1024)   // GB
-    readonly property real ramAvailable: SysStats.ramAvailable / (1024 * 1024 * 1024)  // GB
+    readonly property real ramTotal: SysStats.memTotalGb   // GB
+    readonly property real ramAvailable: SysStats.memTotalGb * (1 - SysStats.mem)  // GB
     // Gpu exposes the cards in `gpus` and the live one in `stats`, not flat
     // name/vram properties: read those (the default card, else the first)
     readonly property string gpuName: (Gpu.gpus.find(g => g.isDefault) || Gpu.gpus[0] || {}).name || ""
@@ -36,7 +36,7 @@ Singleton {
     function fitsInRam(sizeStr) {
         const m = /([\d.]+)\s*(GB|MB|GiB|MiB)/i.exec(String(sizeStr || ""));
         if (!m) return false; // unknown size: don't claim it fits
-        if (root.ramAvailable <= 0) return true; // RAM unknown: don't block downloads
+        if (!(root.ramAvailable > 0)) return true; // RAM unknown: don't block downloads
         const gb = parseFloat(m[1]) / (/^(MB|MiB)$/i.test(m[2]) ? 1024 : 1);
         // model needs ~1.5x its size in RAM (weights + context)
         return gb * 1.5 <= root.ramAvailable;

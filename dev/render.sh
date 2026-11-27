@@ -440,7 +440,7 @@ PY
                              if [ -f "$F/clip.mp4" ]; then set -- "$name" "$F/clip.mp4"; else set -- "$name"; fi ;;
             *)               set -- "$name" ;;
         esac
-        ipc_line closeAll; sleep 0.6
+        ipc_line closeAll; ipc_line dismissAll; sleep 0.6
         python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true
         # the CLI's IPC can be dropped under the load of 100+ prior shots
         waitfor "d.get('$key')" 10 || { ipc_line closeAll; sleep 0.6; python3 /work/bin/shani app "$@" >/dev/null 2>&1 || true; }

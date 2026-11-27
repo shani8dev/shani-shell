@@ -171,9 +171,10 @@ AppWindow {
             anchors.fill: parent
             spacing: Theme.px(10)
             // ---- the local model endpoint and its status -----------------------
-            RowLayout {
+            GridLayout {
+                columns: win.compact ? 4 : 5
                 Layout.fillWidth: true
-                spacing: Theme.px(8)
+                columnSpacing: Theme.px(8)
                 Text { text: Tr.t("Model"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 TextField {
                     id: endpointField
@@ -186,6 +187,7 @@ AppWindow {
                 Button { text: Tr.t("Check"); flat: true; onClicked: win.checkEndpoint() }
                 Text {
                     Layout.fillWidth: true
+                    Layout.columnSpan: win.compact ? 4 : 1
                     elide: Text.ElideRight
                     text: win.statusText
                     color: win.statusOk ? Theme.accent : Theme.danger
@@ -195,7 +197,7 @@ AppWindow {
             }
 
             // ---- what kind of translation -------------------------------------
-            RowLayout {
+            ActionStrip {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Choice { text: Tr.t("Text"); selected: win.mode === "text"; onClicked: { win.cancel(); win.mode = "text" } }
@@ -218,7 +220,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Text { text: Tr.t("From"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
-                Flow {
+                ActionStrip {
                     Layout.fillWidth: true
                     spacing: Theme.px(6)
                     Repeater {
@@ -235,7 +237,7 @@ AppWindow {
             }
 
             Text { text: Tr.t("Into"); color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("body") }
-            Flow {
+            ActionStrip {
                 Layout.fillWidth: true
                 spacing: Theme.px(6)
                 Repeater {
@@ -248,10 +250,12 @@ AppWindow {
                     }
                 }
             }
-            RowLayout {
+            GridLayout {
+                columns: win.compact ? 1 : 2
+                rowSpacing: Theme.px(8)
+                columnSpacing: Theme.px(10)
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: Theme.px(10)
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -282,13 +286,14 @@ AppWindow {
                             Text {
                                 visible: input.text === ""
                                 text: win.mode === "batch" ? Tr.t("One string per line — Ctrl+Enter translates") : Tr.t("Type or paste text — Ctrl+Enter translates")
+                                width: input.width
+                                wrapMode: Text.Wrap
                                 color: Theme.faint
                                 font: input.font
                             }
                         }
                     }
                 }
-                Button { text: Tr.t("Dictionary"); flat: true; enabled: input.text.trim() !== ""; onClicked: win.lookUp() }
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -318,6 +323,9 @@ AppWindow {
                         }
                         Text {
                             anchors.centerIn: parent
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            horizontalAlignment: Text.AlignHCenter
                             visible: win.result === "" && win.error === "" && !win.working
                             text: Tr.t("Translation appears here")
                             color: Theme.faint
@@ -331,6 +339,7 @@ AppWindow {
                 Layout.fillWidth: true
                 spacing: Theme.px(8)
                 Button { text: Tr.t("Paste"); flat: true; onClicked: { input.text = Quickshell.clipboardText || ""; win.go(); } }
+                Button { text: Tr.t("Dictionary"); flat: true; enabled: input.text.trim() !== ""; onClicked: win.lookUp() }
                 Button { text: Tr.t("Clear"); flat: true; onClicked: { win.cancel(); input.text = ""; } }
                 Text {
                     visible: !win.compact

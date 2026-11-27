@@ -44,7 +44,7 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onClicked: root.clicked()
     }
-    KeyFocus { enabled: Boolean(root.enabled && root.visible); columns: root.columns; onActivated: root.clicked() }
+    KeyFocus { enabled: root.enabled === true && root.visible === true; columns: root.columns; onActivated: root.clicked() }
 
     // a search landed here: a pulsing accent edge until the flash clears
     Fade {

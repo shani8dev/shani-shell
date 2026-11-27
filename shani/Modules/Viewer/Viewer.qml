@@ -14,6 +14,8 @@ import "../../Common/Markup.js" as Markup
 
 AppWindow {
     id: win
+    property bool photoToolsShown: false
+    readonly property bool compactTools: win.compact || win.height < Theme.px(460)
     appName: "Image Viewer"
     visible: Viewer.shown
     onGone: Viewer.close()
@@ -441,7 +443,7 @@ AppWindow {
             }
 
             // toolbar: zoom, rotate + flip, slideshow, grid, thumbs, actions.
-            // a Flow, so every control wraps onto another row on a phone
+            // Keep the image area usable on compact screens.
             Flow {
                 visible: !win.immersive
                 Layout.fillWidth: true
@@ -449,10 +451,18 @@ AppWindow {
                 IconButton { icon: "zoom-out"; size: Theme.px(28); tip: Tr.t("Zoom out (−)"); onClicked: Viewer.zoomOut() }
                 IconButton { icon: "zoom-in"; size: Theme.px(28); tip: Tr.t("Zoom in (+)"); onClicked: Viewer.zoomIn() }
                 IconButton { icon: "zoom-fit-best"; size: Theme.px(28); tip: Tr.t("Fit to window (F)"); on: Viewer.zoomMode === "fit"; onClicked: Viewer.zoomFit() }
-                IconButton { icon: "document-save"; size: Theme.px(28); tip: Tr.t("100% (1)"); on: Viewer.zoomMode === "100"; onClicked: Viewer.zoomActual() }
-                IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("200% (2)"); on: Viewer.zoomMode === "200"; onClicked: Viewer.zoom200() }
+                IconButton {
+                    visible: win.compactTools
+                    icon: "view-more"
+                    tip: Tr.t("More image controls")
+                    on: win.photoToolsShown
+                    onClicked: win.photoToolsShown = !win.photoToolsShown
+                }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "document-save"; size: Theme.px(28); tip: Tr.t("100% (1)"); on: Viewer.zoomMode === "100"; onClicked: Viewer.zoomActual() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("200% (2)"); on: Viewer.zoomMode === "200"; onClicked: Viewer.zoom200() }
                 Text {
-                    width: win.compact ? parent.width : Theme.px(120)
+                    visible: !win.compactTools || win.photoToolsShown
+                    width: Theme.px(120)
                     horizontalAlignment: Text.AlignHCenter
                     text: Math.round(Viewer.zoom * 100) + "%" + (Viewer.rotation !== 0 ? "  ·  " + Viewer.rotation + "°" : "")
                         + (Viewer.flipH ? "  ·  " + Tr.t("mirrored") : "")
@@ -462,16 +472,16 @@ AppWindow {
                     font.family: Theme.font
                     font.pixelSize: Theme.type("caption")
                 }
-                IconButton { icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: Viewer.rotate() }
-                IconButton { icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: Viewer.rotateCCW() }
-                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Flip horizontally (H)"); on: Viewer.flipH; onClicked: Viewer.toggleFlipH() }
-                IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Flip vertically (V)"); on: Viewer.flipV; onClicked: Viewer.toggleFlipV() }
-                IconButton { icon: "media-playback-start"; size: Theme.px(28); tip: Tr.t("Slideshow (S)"); on: Viewer.slideshow; onClicked: Viewer.toggleSlideshow() }
-                IconButton { icon: "view-grid"; size: Theme.px(28); tip: Tr.t("Grid (G)"); on: Viewer.gridMode; onClicked: Viewer.toggleGrid() }
-                IconButton { icon: "view-list"; size: Theme.px(28); tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
-                IconButton { icon: "preferences-desktop-wallpaper"; size: Theme.px(28); tip: Tr.t("Set as wallpaper"); onClicked: Viewer.setWallpaper() }
-                IconButton { icon: "document-save-as"; size: Theme.px(28); tip: Tr.t("Save as…"); onClicked: win.saveAs() }
-                IconButton { icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("Full screen (F11)"); on: win.immersive; onClicked: win.immersive = !win.immersive }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "object-rotate-right"; size: Theme.px(28); tip: Tr.t("Rotate right (R)"); onClicked: Viewer.rotate() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "object-rotate-left"; size: Theme.px(28); tip: Tr.t("Rotate left"); onClicked: Viewer.rotateCCW() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Flip horizontally (H)"); on: Viewer.flipH; onClicked: Viewer.toggleFlipH() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Flip vertically (V)"); on: Viewer.flipV; onClicked: Viewer.toggleFlipV() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "media-playback-start"; size: Theme.px(28); tip: Tr.t("Slideshow (S)"); on: Viewer.slideshow; onClicked: Viewer.toggleSlideshow() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "view-grid"; size: Theme.px(28); tip: Tr.t("Grid (G)"); on: Viewer.gridMode; onClicked: Viewer.toggleGrid() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "view-list"; size: Theme.px(28); tip: Tr.t("Thumbnails (T)"); on: Viewer.showThumbs; onClicked: Viewer.toggleThumbs() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "preferences-desktop-wallpaper"; size: Theme.px(28); tip: Tr.t("Set as wallpaper"); onClicked: Viewer.setWallpaper() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "document-save-as"; size: Theme.px(28); tip: Tr.t("Save as…"); onClicked: win.saveAs() }
+                IconButton { visible: !win.compactTools || win.photoToolsShown; icon: "view-fullscreen"; size: Theme.px(28); tip: Tr.t("Full screen (F11)"); on: win.immersive; onClicked: win.immersive = !win.immersive }
                 IconButton { icon: "document-edit"; size: Theme.px(28); tip: Tr.t("Crop, draw and save (E)"); on: Viewer.editing; onClicked: Viewer.editing ? Viewer.cancelEdit() : Viewer.startEdit() }
             }
             // editing: the crop's shape, and how it is kept - a copy, or in place
@@ -523,7 +533,7 @@ AppWindow {
                 Button { text: Viewer.saving ? Tr.t("Saving…") : Tr.t("Save a copy"); enabled: Viewer.edited && !Viewer.saving; onClicked: Viewer.saveEdit("copy") }
             }
             RowLayout {
-                visible: !win.immersive
+                visible: !win.immersive && (!win.compactTools || win.photoToolsShown)
                 Layout.fillWidth: true
                 spacing: Theme.px(4)
                 IconButton { icon: "edit-copy"; size: Theme.px(28); tip: Tr.t("Copy path (C)"); onClicked: Viewer.copyPath() }

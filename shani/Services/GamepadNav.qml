@@ -25,7 +25,7 @@ Singleton {
     readonly property string tool: ToolPath.of(Quickshell.env("SHANI_GAMEPAD_TOOL"), "gamepad.py")
     property int controllers: 0
     readonly property var top: ToplevelManager.activeToplevel
-    readonly property bool fullscreen: !!top && Boolean(top.fullscreen)
+    readonly property bool fullscreen: top?.fullscreen === true
     // InputPlumber, when it manages the controllers, hands the presses over itself (Services/InputPlumber)
     // a locked session must not be driven by a pad: the actions below open the
     // launcher, the assistant and workspaces without asking for the password

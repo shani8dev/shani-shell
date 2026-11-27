@@ -82,7 +82,7 @@ Rectangle {
         color: root.kind === "primary" ? Theme.accentInk : Theme.accent
     }
     // keyboard and controller: Enter / Space press it
-    KeyFocus { enabled: root.enabled && root.visible; onActivated: root.clicked() }
+    KeyFocus { enabled: root.enabled === true && root.visible === true; onActivated: root.clicked() }
 
     MouseArea {
         id: area

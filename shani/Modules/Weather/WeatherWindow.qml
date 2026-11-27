@@ -159,13 +159,15 @@ AppWindow {
                 }
 
                 // ---- the place ----
-                RowLayout {
+                GridLayout {
+                    columns: win.compact ? 4 : 5
                     Layout.fillWidth: true
-                    spacing: Theme.px(8)
+                    columnSpacing: Theme.px(8)
                     TextField {
                         id: place
+                        Layout.columnSpan: win.compact ? 4 : 1
                         Layout.fillWidth: true
-                        placeholder: Tr.t("A city — Pune, Berlin, São Paulo…")
+                        placeholder: win.compact ? label : Tr.t("A city — Pune, Berlin, São Paulo…")
                         label: Tr.t("Weather for")
                         text: Settings.data.weatherCity
                         onAccepted: if (text.trim() !== "") { Settings.data.weatherLat = 0; Settings.data.weatherLon = 0; Settings.data.weatherCity = text.trim(); }

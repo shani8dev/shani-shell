@@ -16,6 +16,7 @@ AppWindow {
     onGone: Ui.models = false
     implicitWidth: Theme.px(760)
     implicitHeight: Theme.px(580)
+    readonly property bool shortWindow: win.height < Theme.px(460)
 
     // tab: "local" (installed models) or "providers" (cloud providers)
     property string tab: "local"
@@ -36,7 +37,7 @@ AppWindow {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.px(16)
+        anchors.margins: win.shortWindow ? 0 : Theme.px(16)
         spacing: Theme.px(8)
 
         // ---- header ----
@@ -53,13 +54,14 @@ AppWindow {
         // ---- system resources bar ----
         Rectangle {
             Layout.fillWidth: true
+            visible: !win.shortWindow && (Models.ramTotal > 0 || Models.vram > 0 || Models.gpuName !== "")
             implicitHeight: Theme.px(36)
             radius: Theme.radiusSmall
             color: Theme.surface1
             RowLayout {
                 anchors { fill: parent; margins: Theme.px(10) }
                 spacing: Theme.px(16)
-                Text { text: Tr.t("RAM: %1 GB free / %2 GB", Models.ramAvailable.toFixed(1), Models.ramTotal.toFixed(1)); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
+                Text { visible: Models.ramTotal > 0 && Number.isFinite(Models.ramAvailable); text: Tr.t("RAM: %1 GB free / %2 GB", Models.ramAvailable.toFixed(1), Models.ramTotal.toFixed(1)); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Text { visible: Models.vram > 0; text: Tr.t("VRAM: %1 GB", Models.vram.toFixed(1)); color: Theme.text; font.family: Theme.font; font.pixelSize: Theme.type("small") }
                 Text { visible: Models.gpuName !== ""; text: Models.gpuName; color: Theme.dim; font.family: Theme.font; font.pixelSize: Theme.type("caption"); elide: Text.ElideRight; Layout.fillWidth: true }
             }
@@ -74,6 +76,7 @@ AppWindow {
 
             // installed models
             Text {
+                visible: !win.shortWindow || installedList.count > 0
                 text: Tr.t("Installed models")
                 color: Theme.dim
                 font.family: Theme.font
@@ -82,6 +85,7 @@ AppWindow {
             }
             ListView {
                 id: installedList
+                visible: !win.shortWindow || count > 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
@@ -146,8 +150,9 @@ AppWindow {
             }
             ListView {
                 id: availList
+                Layout.fillHeight: win.shortWindow
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(availList.contentItem.children.length * Theme.px(52), Theme.px(280))
+                Layout.preferredHeight: Math.min(availList.count * Theme.px(52), Theme.px(280))
                 clip: true
                 model: Models.available
                 delegate: Rectangle {

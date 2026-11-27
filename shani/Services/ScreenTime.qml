@@ -16,7 +16,7 @@ Singleton {
     // string ("Unable to assign [undefined] to QString", and shell-ends-clean
     // FAILs on exactly that). The guard is the fix, not a workaround: until the
     // clock is up, the system's own date is the same answer.
-    readonly property string today: Qt.formatDate(clock && clock.date ? clock.date : new Date(), "yyyy-MM-dd")
+    readonly property string today: Qt.formatDate(clock && clock.date ? clock.date : new Date(), "yyyy-MM-dd") || Qt.formatDate(new Date(), "yyyy-MM-dd") || ""
     readonly property var todayByApp: days[today] || {}
     readonly property int todayTotal: Object.values(todayByApp).reduce((a, b) => a + b, 0)
     readonly property var top: Object.entries(todayByApp).sort((a, b) => b[1] - a[1]).slice(0, 6)

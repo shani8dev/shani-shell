@@ -104,7 +104,7 @@ Singleton {
     // sampled only while something shows it (the bar's chips, the stats widget,
     // the process list, the overview): every sample wakes the shell and redrew
     // six surfaces, 30 ms/s of an idle desktop for numbers nobody was looking at
-    readonly property bool wanted: Settings.data.showSysStats || Settings.data.showNetSpeed || Ui.processes || Niri.overviewOpen
+    readonly property bool wanted: Settings.data.showSysStats || Settings.data.showNetSpeed || Ui.processes || Ui.models || Niri.overviewOpen
         || Array.from(Settings.data.desktopWidgets).indexOf("stats") >= 0
     onWantedChanged: if (!wanted) {
         root.last = null; root.lastNet = null; root.lastCores = null; root.lastNetDev = null;

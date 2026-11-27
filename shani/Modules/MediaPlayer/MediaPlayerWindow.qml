@@ -33,7 +33,7 @@ AppWindow {
     readonly property bool pageReplaced: win.compact && !win.mini && win.page !== "playing"
     readonly property bool paneReplaced: win.compact && !win.mini &&
         (win.page !== "playing" || win.recentShown || win.audiobookShown || queuePane.open)
-    readonly property bool phonePlayer: win.compact && win.width < Theme.px(600)
+    readonly property bool phonePlayer: win.compact || win.height < Theme.px(460)
     readonly property int rowH: Math.max(Theme.px(30), Theme.touchTarget)
     function backToPlayer() {
         win.page = "playing";
@@ -986,10 +986,10 @@ AppWindow {
                         onAccepted: if (!win.goToTime(text)) win.goError = true; else win.goError = false
                     }
                     Button { visible: !win.phonePlayer || win.phoneMore; text: Tr.t("Go"); flat: true; enabled: PlayQueue.current !== ""; onClicked: { if (!win.goToTime(goField.text)) win.goError = true; else win.goError = false; } }
-                    Text { visible: win.goError; text: Tr.t("Bad time"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
+                    Text { visible: win.goError && (!win.phonePlayer || win.phoneMore); text: Tr.t("Bad time"); color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.type("caption") }
                     Button { visible: !win.phonePlayer || win.phoneMore; text: "A"; flat: true; checked: PlayQueue.loopA >= 0; onClicked: PlayQueue.setLoopA(PlayQueue.position); Accessible.name: Tr.t("Set loop start") }
                     Button { visible: !win.phonePlayer || win.phoneMore; text: "B"; flat: true; checked: PlayQueue.loopB > PlayQueue.loopA; onClicked: PlayQueue.setLoopB(PlayQueue.position); Accessible.name: Tr.t("Set loop end") }
-                    Button { text: Tr.t("Loop off"); flat: true; visible: PlayQueue.loopActive; onClicked: PlayQueue.clearLoop() }
+                    Button { text: Tr.t("Loop off"); flat: true; visible: PlayQueue.loopActive && (!win.phonePlayer || win.phoneMore); onClicked: PlayQueue.clearLoop() }
                     // speed: a pick, not a number to type
                     Text {
                         visible: !win.phonePlayer || win.phoneMore
@@ -1061,7 +1061,7 @@ AppWindow {
                         onClicked: win.tracksShown = !win.tracksShown
                     }
                     IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "view-list"; tip: Tr.t("Queue") + " (L)"; on: win.listShown; onClicked: win.listShown = !win.listShown }
-                    IconButton { icon: "document-open-recent"; tip: Tr.t("Recent media"); on: win.recentShown; onClicked: { win.recentShown = !win.recentShown; if (win.recentShown) win.streamShown = false; } }
+                    IconButton { visible: !win.phonePlayer || win.phoneMore; icon: "document-open-recent"; tip: Tr.t("Recent media"); on: win.recentShown; onClicked: { win.recentShown = !win.recentShown; if (win.recentShown) win.streamShown = false; } }
                     IconButton {
                         visible: !win.phonePlayer || win.phoneMore
                         icon: "book"
